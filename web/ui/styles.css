@@ -1639,6 +1639,9 @@ kbd {
 .retinoscopy-viewport.is-grabbed { cursor: grabbing; }
 .retinoscopy-overlay { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .retino-eye-guide { position: absolute; width: 116px; height: 126px; transform: translate(-50%, -50%); border: 1px dashed #e7d8a866; border-radius: 50%; box-shadow: 0 0 22px #e5a44a12; }
+.retino-sweep-rail { position: absolute; width: 88px; height: 2px; transform: translate(-50%, -50%); background: #ffe2a266; box-shadow: 0 0 8px #ffb75977; }
+.retino-sweep-gate { position: absolute; z-index: 3; width: 25px; height: 25px; transform: translate(-50%, -50%); display: grid; place-items: center; border: 2px solid #ffe4a4; border-radius: 50%; background: #18272bcc; color: #ffeab8; font: 800 .65rem/1 sans-serif; box-shadow: 0 0 0 4px #ffc45b18; transition: background .12s, box-shadow .12s, transform .12s; }
+.retino-sweep-gate.active { background: #df7b23; color: white; box-shadow: 0 0 0 7px #ffb34d38, 0 0 18px #ff9d35; transform: translate(-50%, -50%) scale(1.13); }
 .retino-beam { position: absolute; width: 170px; height: 170px; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, #ffc97138 0 8%, #e8893822 25%, #e87c2210 48%, transparent 70%); mix-blend-mode: screen; }
 .manual-retinoscope { position: absolute; width: 35px; height: 145px; transform: translate(-50%, -8%) rotate(-15deg); transform-origin: 50% 8%; border-radius: 8px 8px 14px 14px; background: linear-gradient(90deg, #182328, #718286 28%, #c8d1ce 48%, #59696d 68%, #111b1f); border: 2px solid #081114; box-shadow: 9px 12px 14px #000b; }
 .manual-retinoscope::before { content: ""; position: absolute; left: -11px; top: -25px; width: 53px; height: 40px; border-radius: 8px; background: linear-gradient(150deg, #5f7073, #172329 55%); border: 2px solid #081114; }
@@ -1668,6 +1671,9 @@ kbd {
 .retinoscopy-checklist { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin: 13px 0; padding: 0; }
 .retinoscopy-checklist li { padding: 5px 10px; border-radius: 18px; background: #e5eae3; color: #5d6b66; font-size: .78rem; }
 .retinoscopy-checklist li.seen { background: #d3eadc; color: #1e6045; }
+.retino-sweep-progress { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; margin: 8px 0; padding: 8px 11px; border-radius: 6px; background: #eef3eb; color: #45635b; font-size: .75rem; }
+.retino-sweep-progress b { color: #236c59; font-size: .9rem; }
+.retino-sweep-progress progress { grid-column: 1 / -1; width: 100%; height: 5px; accent-color: #277967; }
 .retinoscopy-stage footer > [role=status] { min-height: 1.4em; margin: 10px 0 5px; color: #365d54; font-size: .85rem; font-weight: 600; }
 .retino-quality { margin: 0 0 10px; color: #64716d; font-size: .73rem; text-transform: capitalize; }
 .retinoscopy-observation-form { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; margin: 13px 0; padding: 13px; border: 1px solid #ccd9cf; border-radius: 8px; background: #eff4ed; }

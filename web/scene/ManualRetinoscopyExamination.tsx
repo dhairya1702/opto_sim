@@ -77,6 +77,7 @@ export function ManualRetinoscopyExamination({
   const [trialLens, setTrialLens] = useState(-0.5);
   const [axis, setAxis] = useState<90 | 180>(90);
   const [observed, setObserved] = useState<string[]>([]);
+  const [, setSweepRevision] = useState(0);
   const [viewReady, setViewReady] = useState(false);
   const [viewFailed, setViewFailed] = useState(false);
   const [grossEntry, setGrossEntry] = useState("");
@@ -97,34 +98,33 @@ export function ManualRetinoscopyExamination({
     return () => element.close();
   }, []);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const usable = instructedRef.current && beamRef.current && viewReady && !viewFailed && Math.abs(distanceRef.current - 67) <= 2 && retinoscopeAligned(eye, poseRef.current);
-      if (!usable) {
-        lastZone.current = null;
-        return;
-      }
-      const zone = retinoscopySweepZone(eye, poseRef.current);
-      if (zone === "centre") return;
-      if (lastZone.current && lastZone.current !== zone) {
-        const motion = reflexMotion(eye, distanceRef.current, lensRef.current);
-        const key = `${motion}:${motion === "neutral" ? axisRef.current : "any"}`;
-        const count = (sweepCounts.current[key] ?? 0) + 1;
-        sweepCounts.current[key] = count;
-        if (count >= 2) setObserved((items) => items.includes(key) ? items : [...items, key]);
-      }
-      lastZone.current = zone;
-    }, 70);
-    return () => clearInterval(timer);
-  }, [eye, viewReady, viewFailed]);
-
   const changeLens = (delta: number) => {
     setTrialLens((value) => Math.max(-2, Math.min(2, Math.round((value + delta) * 4) / 4)));
     lastZone.current = null;
   };
+  const applyPose = (nextPose: RetinoscopePose) => {
+    poseRef.current = nextPose;
+    setPose(nextPose);
+    const usable = instructedRef.current && beamRef.current && viewReady && !viewFailed && Math.abs(distanceRef.current - 67) <= 2 && retinoscopeAligned(eye, nextPose);
+    if (!usable) {
+      lastZone.current = null;
+      return;
+    }
+    const zone = retinoscopySweepZone(eye, nextPose);
+    if (zone === "centre") return;
+    if (lastZone.current && lastZone.current !== zone) {
+      const currentMotion = reflexMotion(eye, distanceRef.current, lensRef.current);
+      const key = `${currentMotion}:${currentMotion === "neutral" ? axisRef.current : "any"}`;
+      const count = Math.min(2, (sweepCounts.current[key] ?? 0) + 1);
+      sweepCounts.current[key] = count;
+      setSweepRevision((value) => value + 1);
+      if (count >= 2) setObserved((items) => items.includes(key) ? items : [...items, key]);
+    }
+    lastZone.current = zone;
+  };
   const updatePointer = (event: React.PointerEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
-    setPose({
+    applyPose({
       x: Math.max(-1, Math.min(1, (((event.clientX - bounds.left) / bounds.width) - 0.5) / 0.4)),
       y: Math.max(-1, Math.min(1, (0.5 - (event.clientY - bounds.top) / bounds.height) / 0.4)),
     });
@@ -133,6 +133,9 @@ export function ManualRetinoscopyExamination({
   const quality = reflexQuality(eye, workingDistance, trialLens);
   const target = retinoscopyTargets[eye];
   const aligned = retinoscopeAligned(eye, pose);
+  const currentZone = aligned ? retinoscopySweepZone(eye, pose) : null;
+  const currentSweepKey = `${motion}:${motion === "neutral" ? axis : "any"}`;
+  const currentCrossings = Math.min(2, sweepCounts.current[currentSweepKey] ?? 0);
   const dx = Math.max(-0.2, Math.min(0.2, pose.x - target.x));
   const reflexOffset = motion === "neutral" ? 0 : dx * (motion === "with" ? 125 : -125);
   const techniqueComplete = observed.includes("with:any") && observed.includes("against:any") && observed.includes("neutral:90") && observed.includes("neutral:180");
@@ -172,7 +175,8 @@ export function ManualRetinoscopyExamination({
             if (event.key === " ") { event.preventDefault(); setBeamOn((value) => !value); return; }
             if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
             event.preventDefault();
-            setPose((value) => ({ x: Math.max(-1, Math.min(1, value.x + (event.key === 'ArrowLeft' ? -0.04 : event.key === 'ArrowRight' ? 0.04 : 0))), y: Math.max(-1, Math.min(1, value.y + (event.key === 'ArrowUp' ? 0.04 : event.key === 'ArrowDown' ? -0.04 : 0))) }));
+            const value = poseRef.current;
+            applyPose({ x: Math.max(-1, Math.min(1, value.x + (event.key === 'ArrowLeft' ? -0.04 : event.key === 'ArrowRight' ? 0.04 : 0))), y: Math.max(-1, Math.min(1, value.y + (event.key === 'ArrowUp' ? 0.04 : event.key === 'ArrowDown' ? -0.04 : 0))) });
           }}
         >
           <RetinoscopyBoundary onFailure={() => setViewFailed(true)}>
@@ -180,13 +184,16 @@ export function ManualRetinoscopyExamination({
           </RetinoscopyBoundary>
           <div className="retinoscopy-overlay" aria-hidden="true">
             <span className="retino-eye-guide" style={{ left: `${50 + target.x * 40}%`, top: "50%" }} />
+            <span className="retino-sweep-rail" style={{ left: `${50 + target.x * 40}%`, top: "50%" }} />
+            <span className={`retino-sweep-gate left ${currentZone === "left" ? "active" : ""}`} style={{ left: `${50 + (target.x - 0.1) * 40}%`, top: "50%" }}>L</span>
+            <span className={`retino-sweep-gate right ${currentZone === "right" ? "active" : ""}`} style={{ left: `${50 + (target.x + 0.1) * 40}%`, top: "50%" }}>R</span>
             {beamOn && aligned && (
               <span className={`retino-reflex ${motion} axis-${axis}`} style={{ left: `${50 + target.x * 40}%`, top: "50%", opacity: quality.brightness, '--reflex-offset': `${reflexOffset}px`, '--reflex-width': `${18 + quality.width * 48}px` } as CSSProperties} />
             )}
             {beamOn && <span className="retino-beam" style={{ left: `${50 + pose.x * 40}%`, top: `${50 - pose.y * 40}%` }} />}
             <span className={`manual-retinoscope ${beamOn ? "on" : ""}`} style={{ left: `${50 + pose.x * 40}%`, top: `${50 - pose.y * 40}%` }}><i /></span>
           </div>
-          <span className="visual-label">Sweep left ↔ right through {eye} · Space toggles beam</span>
+          <span className="visual-label">Drag the retinoscope centre to L → R → L · pause at each marker</span>
         </div>
         <aside className="trial-lens-rack" aria-label="Trial lens rack">
           <strong>TRIAL LENS</strong>
@@ -208,7 +215,8 @@ export function ManualRetinoscopyExamination({
           <li className={observed.includes("neutral:180") ? "seen" : ""}>{observed.includes("neutral:180") ? "✓" : "○"} Neutral · 180°</li>
           <li className={observed.includes("against:any") ? "seen" : ""}>{observed.includes("against:any") ? "✓" : "○"} Against motion</li>
         </ul>
-        <p role="status">{viewFailed ? "The patient view is unavailable; this finding cannot be recorded." : !instructed ? "Ask Arun to fixate in the distance first." : Math.abs(workingDistance - 67) > 2 ? "Set your working distance to 67 cm." : !beamOn && !techniqueComplete ? "Switch on the retinoscope and align with the selected pupil." : beamOn && !aligned ? `Align the streak with ${eye}.` : techniqueComplete && !atNeutral ? "Return to the neutralising lens before recording." : techniqueComplete && beamOn ? "Technique complete. Switch off the retinoscope and calculate the net result." : techniqueComplete ? "Enter the gross neutralisation and apply the working-distance correction." : `${motion === "with" ? "WITH" : motion === "against" ? "AGAINST" : "NEUTRAL"} reflex · sweep fully left and right twice.`}</p>
+        {!techniqueComplete && beamOn && aligned && <div className="retino-sweep-progress" aria-label="Current sweep progress"><span>Current reflex crossings</span><b>{currentCrossings}/2</b><progress value={currentCrossings} max={2} /></div>}
+        <p role="status">{viewFailed ? "The patient view is unavailable; this finding cannot be recorded." : !instructed ? "Ask Arun to fixate in the distance first." : Math.abs(workingDistance - 67) > 2 ? "Set your working distance to 67 cm." : !beamOn && !techniqueComplete ? "Switch on the retinoscope and align with the selected pupil." : beamOn && !aligned ? `Align the retinoscope centre with the dashed ${eye} guide.` : techniqueComplete && !atNeutral ? "Return to the neutralising lens before recording." : techniqueComplete && beamOn ? "Technique complete. Switch off the retinoscope and calculate the net result." : techniqueComplete ? "Enter the gross neutralisation and apply the working-distance correction." : currentCrossings === 0 ? `${motion.toUpperCase()} reflex · drag to either L or R marker, then cross the pupil and return.` : currentCrossings === 1 ? "First crossing registered. Drag back to the opposite marker once more." : `${motion.toUpperCase()} reflex recorded. Adjust the lens or streak orientation for the next observation.`}</p>
         <p className="retino-quality">Reflex: <b>{motion}</b> · {quality.speed > .8 ? "fast" : quality.speed > .5 ? "moderate" : "slow"} · {quality.brightness > .8 ? "bright" : "dim"} · {quality.width > .8 ? "broad" : "narrow"}</p>
         {techniqueComplete && (
           <section className="retinoscopy-observation-form" aria-label="Record retinoscopy calculation">

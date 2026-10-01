@@ -19,11 +19,18 @@ async function place(page: Page, eye: RetinoscopyEye, offset: number) {
 }
 
 async function sweepTwice(page: Page, eye: RetinoscopyEye) {
-  await place(page, eye, -0.11);
-  await page.waitForTimeout(100);
-  await place(page, eye, 0.11);
-  await page.waitForTimeout(100);
-  await place(page, eye, -0.11);
+  const viewport = page.getByRole("application", { name: /Retinoscope/ });
+  const box = (await viewport.boundingBox())!;
+  const point = (offset: number) => ({
+    x: box.x + box.width * (0.5 + (retinoscopyTargets[eye].x + offset) * 0.4),
+    y: box.y + box.height * 0.5,
+  });
+  const left = point(-0.1), right = point(0.1);
+  await page.mouse.move(left.x, left.y);
+  await page.mouse.down();
+  await page.mouse.move(right.x, right.y, { steps: 12 });
+  await page.mouse.move(left.x, left.y, { steps: 12 });
+  await page.mouse.up();
 }
 
 async function setLens(page: Page, target: number) {
