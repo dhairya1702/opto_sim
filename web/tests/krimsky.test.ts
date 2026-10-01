@@ -1,11 +1,15 @@
 import { expect, it } from "vitest";
-import { krimskyEye, krimskyReady, krimskyResidual } from "../interaction/krimsky";
+import { krimskyDistanceReady, krimskyEye, krimskyReady, krimskyResidual } from "../interaction/krimsky";
 it("selects the deviating eye for standard and fixating eye for modified", () => {
   expect(krimskyEye("standard")).toBe("OS");
   expect(krimskyEye("modified")).toBe("OD");
   expect(krimskyReady("standard", "OD", true, true, 50, true)).toBe(false);
   expect(krimskyReady("modified", "OD", true, true, 50, true)).toBe(true);
   expect(krimskyReady("modified", "OD", true, true, 40, true)).toBe(false);
+  expect(krimskyDistanceReady(46)).toBe(true);
+  expect(krimskyDistanceReady(54)).toBe(true);
+  expect(krimskyDistanceReady(45)).toBe(false);
+  expect(krimskyDistanceReady(55)).toBe(false);
 });
 it("neutralises only with correct base and shows overcorrection", () => {
   expect(krimskyResidual(20, 20, true)).toBe(0);

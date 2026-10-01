@@ -6,6 +6,19 @@ export function opticViewAligned(x: number, y: number) {
   return Math.hypot(x, y) <= OPTIC_VIEW_ALIGNMENT_TOLERANCE;
 }
 
+export function hirschbergReflexOffset(position: readonly [number, number]) {
+  const dx = position[0] - 50;
+  const dy = position[1] - 50;
+  const sourceDistance = Math.hypot(dx, dy);
+  if (sourceDistance === 0) return { x: 0, y: 0 };
+  const largestAxis = Math.max(Math.abs(dx), Math.abs(dy));
+  const landmarkRadius = largestAxis <= 13 ? .03 : largestAxis <= 20 ? .048 : .065;
+  return {
+    x: dx === 0 ? 0 : dx / sourceDistance * landmarkRadius,
+    y: dy === 0 ? 0 : -dy / sourceDistance * landmarkRadius,
+  };
+}
+
 export type OpticTechnique = {
   aimX: number;
   aimY: number;

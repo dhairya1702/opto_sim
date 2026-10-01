@@ -44,11 +44,11 @@ The trainer varies equal, OD-brighter, and OS-brighter examples. In the full-scr
 - Approximate landmarks supplied: pupil edge ≈ 15°, midway between pupil edge and limbus ≈ 30°, limbus ≈ 45°.
 - The supplied text also states that 1 mm of displacement corresponds to 22 prism units. This relationship is not currently used by the trainer and requires clinician clarification of units and intended teaching precision.
 
-The trainer currently includes centred, horizontal, and vertical examples. In the full-screen first-person attempt the right hand holds and aims the penlight while the other hand stays clear because no patient contact is needed. The learner must instruct fixation, switch on the light, work near 50 cm, centre the beam, and centre their viewing position before the corneal reflexes are revealed. Landmark estimates remain screening approximations and point toward prism neutralisation when measurement is required.
+The trainer currently includes centred, horizontal, and vertical examples. In the full-screen first-person attempt the right hand holds and aims the penlight while the other hand stays clear because no patient contact is needed. Switching on the light immediately shows the beam and a basic reflex; working near 50 cm, centring the beam, instructing fixation, and centring the examiner view improve its clarity and enable observation. Reflex positions use visibly separated pupil-edge, midway-to-limbus, and limbus landmarks, with an answer-neutral transition and OD/OS labels when a new example loads. These remain illustrative screening approximations and point toward prism neutralisation when measurement is required.
 
 ## Interaction model
 
-These Practice scenes are designed from a future-VR interaction model even though the current input is desktop pointer, wheel, keyboard, and native controls. Each hand has a defined role rather than being animated decor: the dominant hand owns the instrument pose; the non-dominant hand performs an actual adjustment when required or remains visibly clear. Technique state is invalidated when light, distance, aim, or viewing alignment is lost. The current geometry and optics are illustrative and do not claim calibrated hand tracking, photometry, or patient-contact technique.
+These Practice scenes are designed from a future-VR interaction model even though the current input is desktop pointer, wheel, keyboard, and native controls. Each hand has a defined role rather than being animated decor: the dominant hand owns the instrument pose; the non-dominant hand performs an actual adjustment when required or remains visibly clear. Light and distance changes produce an immediate visual consequence; correct setup improves the view, while inspection and recording remain gated. Technique state is invalidated when light, distance, aim, or viewing alignment is lost. Small working ranges around a taught distance are illustrative interaction tolerances, not calibrated clinical thresholds. The current geometry and optics are illustrative and do not claim calibrated hand tracking, photometry, or patient-contact technique.
 
 ### 3.6 Cover–uncover test
 
@@ -59,7 +59,7 @@ These Practice scenes are designed from a future-VR interaction model even thoug
 - If the uncovered eye takes fixation and returns to its deviated position when the habitual fixating eye is uncovered, the tropia is unilateral in the deviating eye. Retained fixation with the fellow eye assuming the deviation indicates an alternating tropia.
 - Repeat using a near target at 40 cm.
 
-The full-screen trainer provides orthophoria, unilateral left esotropia, and exophoria patterns. The dominant hand controls the occluder. At near, the non-dominant hand holds the fixation target and incorrect target distance prevents sequence progress.
+The full-screen trainer provides orthophoria, unilateral left esotropia, and exophoria patterns. The dominant hand controls the occluder. At near, the non-dominant hand holds the fixation target; its visible depth and size follow the distance control, and an incorrect target distance prevents sequence progress.
 
 ### 3.7 Alternating cover test
 
@@ -73,11 +73,11 @@ The trainer varies horizontal and vertical deviations. The dominant hand alterna
 
 ### 4.1 Worth four dot
 
-The trainer applies red before OD and green before OS, requires a colour-cancellation check, presents the target at selectable distances, and varies fusion, monocular suppression, crossed/uncrossed diplopia, and vertical diplopia responses. The learner records number, colour relationship, relative position, and test distance.
+The trainer applies red before OD and green before OS, requires a colour-cancellation check, presents the target at selectable distances, and varies fusion, monocular suppression, crossed/uncrossed diplopia, and vertical diplopia responses. Drag, wheel, arrow, slider and endpoint controls move and scale the target immediately. The learner records number, colour relationship, relative position, and test distance.
 
 ### 4.2 Stereopsis
 
-The trainer requires near correction, Polaroid or red–green viewing glasses, and a stereo booklet at 40 cm. The simulated patient progresses from coarse to fine disparity until two consecutive incorrect responses; the learner records the last correct threshold in seconds of arc.
+The trainer requires near correction, Polaroid or red–green viewing glasses, and a stereo booklet within an illustrative 38–42 cm range around the taught 40 cm position. Drag, wheel, arrow and slider input visibly move and scale the booklet. The simulated patient progresses from coarse to fine disparity until two consecutive incorrect responses; the learner records the last correct threshold in seconds of arc.
 
 ### 4.3 Four prism diopter base-out
 
@@ -89,7 +89,7 @@ The trainer measures lateral or vertical phoria at 6 m and 40 cm. A Maddox rod i
 
 ### 5.2 Modified Thorington
 
-The trainer requires usual near correction, a Maddox rod before OD, and the appropriate horizontal or vertical card at 40 cm with a penlight through its centre. The patient reports the numbered line crossed by the streak. The learner records magnitude in prism dioptres and direction: right/left for eso/exo and above/below for left/right hyperphoria.
+The trainer requires usual near correction, a Maddox rod before OD, and the appropriate horizontal or vertical card within an illustrative 38–42 cm range around 40 cm with a penlight through its centre. Distance input visibly changes card size, and switching on the penlight immediately shows its spot. The patient reports the numbered line crossed by the streak. The learner records magnitude in prism dioptres and direction: right/left for eso/exo and above/below for left/right hyperphoria.
 
 ### 6.1–6.5 Vergence tests
 
@@ -103,7 +103,7 @@ Push-up amplitude records the first sustained blur distance and calculates ampli
 
 ### 3.4 Krimsky test
 
-The active guided module is implemented as a draft extension of Hirschberg. Establish fixation, light, the illustrative 50 cm distance and monocular examiner view, then inspect baseline reflexes. Choose prism eye and base, and increase power with dragging, arrow keys or the slider until relative reflex positions match. Record the neutralising power; the feedback retains base, eye, distance and method. Standard placement is before deviating OS; modified placement is before fixating OD, following the supplied notes' naming convention. Switching method, light or distance clears the baseline and prism attempt; changing eye or base clears power and the observation.
+The active guided module is implemented as a draft extension of Hirschberg. Switching on the penlight immediately shows its glow, beam, and basic reflexes. Distance visibly moves and scales the held light and changes reflex clarity. Establish fixation, work within the illustrative 46–54 cm range around 50 cm, and use a monocular examiner view before inspecting the baseline. Choose prism eye and base, and increase power with dragging, arrow keys or the slider until relative reflex positions match. Record the neutralising power; the feedback retains base, eye, distance and method. Standard placement is before deviating OS; modified placement is before fixating OD, following the supplied notes' naming convention. Switching method, light or distance clears the baseline and prism attempt; changing eye or base clears power and the observation.
 
 The existing authored examples are left exotropia (20Δ BI) and left esotropia (15Δ BO). Wrong-base adjustment increases asymmetry; excess power reverses it. These are illustrative training values, not sourced diagnostic thresholds or calibrated optics. The modified example retains visible reflexes and does not model corneal scarring. Clinician review remains required for naming conventions, base/apex terminology, numerical examples and the simplified reflex model; no approval is recorded.
 

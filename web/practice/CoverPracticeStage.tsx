@@ -53,10 +53,12 @@ function EyeMotion({ pulse }: { pulse: Pulse }) {
   </group>;
 }
 
-function OccluderAndHands({ pose, kind, site, prismAmount }: { pose: CoverToolPose; kind: PracticeCoverKind; site: "distance" | "near"; prismAmount: number }) {
+function OccluderAndHands({ pose, kind, site, prismAmount, targetDistance }: { pose: CoverToolPose; kind: PracticeCoverKind; site: "distance" | "near"; prismAmount: number; targetDistance: number }) {
   const x = pose.x * .5;
   const y = pose.y * .34 - .02;
   const skin = "#a97453";
+  const nearTargetScale = Math.max(.72, Math.min(1.35, 40 / targetDistance));
+  const nearTargetZ = (40 - targetDistance) * .012;
   return <>
     <group position={[x, y, 1]} rotation={[0, 0, -.1]}>
       <mesh position={[0, -.18, 0]}><boxGeometry args={[.035, .36, .025]} /><meshStandardMaterial color="#27363b" roughness={.45} /></mesh>
@@ -69,7 +71,7 @@ function OccluderAndHands({ pose, kind, site, prismAmount }: { pose: CoverToolPo
         <mesh><boxGeometry args={[.14, .42, .035]} /><meshPhysicalMaterial color="#b6d7d0" transparent opacity={.5} roughness={.18} /></mesh>
         {Array.from({ length: 6 }, (_, index) => <mesh key={index} position={[0, -.15 + index * .06, .022]}><boxGeometry args={[.12, .006, .006]} /><meshBasicMaterial color="#466e68" /></mesh>)}
         <mesh position={[0, .25, 0]}><boxGeometry args={[.16, .055, .04]} /><meshStandardMaterial color="#426a65" /></mesh>
-      </group> : site === "near" ? <group position={[.03, .19, 0]}>
+      </group> : site === "near" ? <group position={[.03, .19, nearTargetZ]} scale={nearTargetScale}>
         <mesh><boxGeometry args={[.24, .17, .025]} /><meshStandardMaterial color="#f4f1df" roughness={.7} /></mesh>
         <mesh position={[0, 0, .016]}><circleGeometry args={[.035, 24]} /><meshBasicMaterial color="#28695f" /></mesh>
       </group> : null}
@@ -78,7 +80,7 @@ function OccluderAndHands({ pose, kind, site, prismAmount }: { pose: CoverToolPo
   </>;
 }
 
-function CoverPracticeScene({ pose, pulse, kind, site, prismAmount }: { pose: CoverToolPose; pulse: Pulse; kind: PracticeCoverKind; site: "distance" | "near"; prismAmount: number }) {
+function CoverPracticeScene({ pose, pulse, kind, site, prismAmount, targetDistance }: { pose: CoverToolPose; pulse: Pulse; kind: PracticeCoverKind; site: "distance" | "near"; prismAmount: number; targetDistance: number }) {
   return <>
     <color attach="background" args={["#0b171c"]} />
     <ambientLight intensity={1.35} />
@@ -90,7 +92,7 @@ function CoverPracticeScene({ pose, pulse, kind, site, prismAmount }: { pose: Co
       <EyeMotion pulse={pulse} />
       <mesh position={[0, -1.02, -.05]} scale={[.82, .42, .44]}><sphereGeometry args={[1, 32, 20]} /><meshStandardMaterial color="#567685" roughness={.86} /></mesh>
     </group>
-    <OccluderAndHands pose={pose} kind={kind} site={site} prismAmount={prismAmount} />
+    <OccluderAndHands pose={pose} kind={kind} site={site} prismAmount={prismAmount} targetDistance={targetDistance} />
   </>;
 }
 
@@ -233,7 +235,7 @@ export function CoverPracticeStage({ kind, onClose, onComplete }: { kind: Practi
           onPointerUp={event => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); setGrabbed(false); }}
           onPointerCancel={() => setGrabbed(false)} onLostPointerCapture={() => setGrabbed(false)}
           onKeyDown={event => { if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return; event.preventDefault(); setToolPose({ x: pose.x + (event.key === "ArrowLeft" ? -.06 : event.key === "ArrowRight" ? .06 : 0), y: pose.y + (event.key === "ArrowUp" ? .06 : event.key === "ArrowDown" ? -.06 : 0) }); }}>
-          <CoverPracticeBoundary><Canvas dpr={[1, 1.5]} camera={{ position: [0, .04, 2.55], fov: 39 }}><CoverPracticeScene pose={pose} pulse={pulse} kind={kind} site={site} prismAmount={prismAmount} /></Canvas></CoverPracticeBoundary>
+          <CoverPracticeBoundary><Canvas dpr={[1, 1.5]} camera={{ position: [0, .04, 2.55], fov: 39 }}><CoverPracticeScene pose={pose} pulse={pulse} kind={kind} site={site} prismAmount={prismAmount} targetDistance={targetDistance} /></Canvas></CoverPracticeBoundary>
           <div className="cover-practice-guides" aria-hidden="true">{(["OD", "OS"] as CoverEye[]).map(eye => <span key={eye} className={activePosition === eye ? "covered" : ""} style={{ left: `${50 + coverTargets[eye].x * 40}%` }}>{eye}</span>)}</div>
           <div className="hand-readout" aria-hidden="true"><span><b>R</b>Hold + move occluder</span><span><b>L</b>{kind === "alternate-cover" ? "Hold prism bar" : site === "near" ? "Hold near fixation target" : "Resting clear of patient"}</span></div>
         </div>

@@ -1,5 +1,11 @@
 import { expect, it } from "vitest";
-import { stereoLastCorrect, stereoPatientReply, stereoStopped, type StereoReply } from "../interaction/stereoPractice";
+import { stereoDistanceReady, stereoLastCorrect, stereoPatientReply, stereoStopped, type StereoReply } from "../interaction/stereoPractice";
+it("accepts the illustrative 40 cm working range", () => {
+  expect(stereoDistanceReady(38)).toBe(true);
+  expect(stereoDistanceReady(42)).toBe(true);
+  expect(stereoDistanceReady(37)).toBe(false);
+  expect(stereoDistanceReady(43)).toBe(false);
+});
 it("stops after two errors and retains the last correct threshold", () => {
   const replies: StereoReply[] = [];
   for (let index = 0; index < 6; index++) {

@@ -8,6 +8,7 @@ export function krimskyEye(method: KrimskyMethod) { return method === "standard"
 export function krimskyResidual(endpoint: number, power: number, correctBase: boolean) {
   return endpoint - (correctBase ? power : -power);
 }
+export function krimskyDistanceReady(distance: number) { return Math.abs(distance - 50) <= 4; }
 export function krimskyReady(method: KrimskyMethod, eye: string, light: boolean, fixation: boolean, distance: number, monocularView: boolean) {
-  return eye === krimskyEye(method) && light && fixation && distance === 50 && monocularView;
+  return eye === krimskyEye(method) && light && fixation && krimskyDistanceReady(distance) && monocularView;
 }

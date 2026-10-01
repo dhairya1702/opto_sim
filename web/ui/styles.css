@@ -1853,6 +1853,11 @@ kbd {
 .practice-stage-error { height: 100%; margin: 0; padding: 28px; display: grid; place-items: center; color: #f3d49f; text-align: center; }
 .beam-reticle { position: absolute; left: 50%; top: 46%; width: 47px; height: 47px; transform: translate(-50%, -50%); display: grid; place-items: center; border: 1px solid #f5c36855; border-radius: 50%; color: #f6cb7e99; pointer-events: none; transition: border-color .18s, color .18s, box-shadow .18s; }
 .beam-reticle.aligned { border-color: #8cdfb5aa; color: #a5ebca; box-shadow: 0 0 0 8px #77d7ad12, 0 0 28px #6cd5a842; }
+.optic-eye-labels { position: absolute; left: 32%; top: 49%; width: 36%; display: flex; justify-content: space-between; color: #e8f2ef; font-size: .66rem; font-weight: 850; letter-spacing: .12em; text-shadow: 0 1px 4px #000; pointer-events: none; }
+.optic-eye-labels span { min-width: 34px; padding: 3px 6px; border: 1px solid #ffffff20; border-radius: 999px; background: #0610149e; text-align: center; }
+.practice-finding-count { position: absolute; top: 13px; left: 13px; padding: 6px 9px; border: 1px solid #ffffff24; border-radius: 5px; color: #b8cbc7; background: #061014c9; font-size: .67rem; font-weight: 750; pointer-events: none; }
+.practice-finding-transition { position: absolute; top: 13px; left: 50%; transform: translateX(-50%); padding: 8px 13px; border: 1px solid #8bd6ba70; border-radius: 999px; color: #c9f1df; background: #174c3ee8; box-shadow: 0 8px 30px #0006; font-size: .7rem; font-weight: 800; letter-spacing: .04em; pointer-events: none; animation: practice-finding-loaded 1.2s both; }
+@keyframes practice-finding-loaded { 0% { opacity: 0; transform: translate(-50%, -8px); } 18%, 75% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -3px); } }
 .hand-readout { position: absolute; left: 14px; bottom: 42px; display: grid; gap: 6px; pointer-events: none; }
 .hand-readout span { width: fit-content; padding: 6px 9px 6px 6px; border: 1px solid #ffffff17; border-radius: 6px; display: flex; align-items: center; gap: 7px; background: #061014b8; color: #b8cbc7; font-size: .69rem; backdrop-filter: blur(6px); }
 .hand-readout span.attention { color: #ffe0a0; border-color: #e5b05a55; }
@@ -1882,6 +1887,7 @@ kbd {
 .view-alignment-pad.aligned .view-alignment-marker { border-color: #9ce5c4; background: #2c7e61; box-shadow: 0 0 0 5px #76d8ac22, 0 0 18px #67cea0; }
 .view-alignment-status { min-height: 20px; margin: 7px 0 0; display: flex; align-items: center; gap: 5px; color: #9db2ad; font-size: .68rem; }
 .view-alignment-status.ready { color: #9fe1c2; }
+@media (prefers-reduced-motion: reduce) { .practice-finding-transition { animation: none; } }
 .distance-control { display: block; margin-top: 10px; color: #b5c8c4; font-size: .72rem; }
 .distance-control input { display: block; width: 100%; margin-top: 7px; padding: 0; accent-color: #65b99b; }
 .clinical-observation label { display: block; margin-bottom: 9px; color: #c6d8d4; font-size: .72rem; }
@@ -1889,6 +1895,21 @@ kbd {
 .clinical-observation .full { width: 100%; justify-content: center; }
 .clinical-observation .trainer-feedback { margin: 10px 0 0; color: #1e5140; }
 .clinical-observation .trainer-feedback.incorrect { color: #725d29; }
+.krimsky-control-rail section > label { display: block; color: #c6d8d4; font-size: .72rem; }
+.krimsky-control-rail section > label > select { width: 100%; margin-top: 5px; padding: 9px; border-color: #66817c; background: #f6f8f4; color: #1b3436; }
+.krimsky-control-rail section > .task-button { margin-top: 8px; }
+.krimsky-control-rail .task-button.done:disabled, .krimsky-record-step .primary.done:disabled { opacity: 1; }
+.krimsky-record-step .primary.done:disabled { border-color: #55a77f66; color: #b9efd5; background: #21543e; }
+.krimsky-control-rail .secondary { color: #17363a; }
+.krimsky-step-help { margin: 7px 0 10px; color: #b5c8c4; font-size: .72rem; line-height: 1.45; }
+.krimsky-prism-step .site-switch { margin: 0 0 10px; }
+.krimsky-prism-step .site-switch button:not(:disabled) { color: #c7dad5; }
+.krimsky-prism-step .site-switch button.selected { color: #effaf6; }
+.krimsky-flip-base { width: 100%; min-height: 38px; margin-top: 7px; padding: 8px 10px; border: 1px solid #ffffff24; border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 7px; color: #c3d5d1; background: #ffffff09; font-size: .72rem; font-weight: 750; }
+.krimsky-flip-base:hover:not(:disabled) { border-color: #72bba788; background: #ffffff10; }
+.krimsky-number-input { width: 100%; min-height: 44px; margin-top: 5px; padding: 8px 10px; border: 1px solid #66817c; border-radius: 6px; background: #f6f8f4; color: #1b3436; font-size: 1rem; }
+.krimsky-record-step .reset-technique { margin-top: 9px; }
+.krimsky-record-step .small { margin: 10px 0 0; color: #8fa6a1; font-size: .66rem; line-height: 1.45; }
 .reset-technique { width: 100%; padding: 9px; border: 1px solid #ffffff1a; border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 7px; color: #a9bdb8; background: transparent; font-size: .72rem; }
 .cover-practice-viewport { min-height: 520px; }
 .cover-practice-guides { position: absolute; inset: 0; pointer-events: none; }

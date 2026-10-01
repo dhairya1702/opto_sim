@@ -1,9 +1,9 @@
 import { Component, useEffect, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Check, Crosshair, Eye, Flashlight, Hand, MousePointer2, Power, RotateCcw, X } from "lucide-react";
-import { DoubleSide, Quaternion, Vector3 } from "three";
+import { DoubleSide, Group, Quaternion, Vector3 } from "three";
 import { EyeSurface } from "../scene/EyeSurface";
-import { opticTechniqueChecks, opticViewAligned, type OpticPracticeMode } from "../interaction/opticPractice";
+import { hirschbergReflexOffset, opticTechniqueChecks, opticViewAligned, type OpticPracticeMode } from "../interaction/opticPractice";
 import { PracticeWebGLFallback } from "./PracticeWebGLFallback";
 
 export type OpticScenario = {
@@ -14,6 +14,34 @@ export type OpticScenario = {
 };
 
 type Aim = { x: number; y: number };
+
+function HirschbergReflex({ eye, position, scenarioId, reducedMotion, quality }: { eye: "od" | "os"; position: [number, number]; scenarioId: string; reducedMotion: boolean; quality: number }) {
+  const group = useRef<Group>(null);
+  const baseX = eye === "od" ? -.22 : .22;
+  const offset = hirschbergReflexOffset(position);
+  useEffect(() => {
+    if (!group.current || reducedMotion) return;
+    group.current.position.set(baseX, .115, .64);
+  }, [baseX, scenarioId, reducedMotion]);
+  useFrame((_, delta) => {
+    if (!group.current) return;
+    const blend = reducedMotion ? 1 : 1 - Math.exp(-Math.min(delta, .1) * 5.5);
+    group.current.position.x += (baseX + offset.x - group.current.position.x) * blend;
+    group.current.position.y += (.115 + offset.y - group.current.position.y) * blend;
+    group.current.position.z = .64;
+  });
+  return <group ref={group} position={[baseX + offset.x, .115 + offset.y, .64]}>
+    <mesh renderOrder={5}>
+      <circleGeometry args={[.019, 30]} />
+      <meshBasicMaterial color="#fff9d8" transparent opacity={.42 + quality * .58} depthTest={false} />
+    </mesh>
+    <mesh position={[0, 0, -.002]} renderOrder={4}>
+      <ringGeometry args={[.02, .029, 30]} />
+      <meshBasicMaterial color="#ffd77e" transparent opacity={.12 + quality * .28} depthTest={false} />
+    </mesh>
+    <pointLight color="#ffdfa1" intensity={2.1} distance={.5} />
+  </group>;
+}
 
 class StageBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -56,9 +84,13 @@ function HandModel({ aim }: { aim: Aim }) {
 function Instrument({ mode, aim, light, distance }: { mode: OpticPracticeMode; aim: Aim; light: boolean; distance: number }) {
   const x = .68 + aim.x * .07;
   const y = -.52 + aim.y * .05;
-  const scale = .64 + (distance - (mode === "bruckner" ? 100 : 50)) * .001;
+  const minimum = mode === "bruckner" ? 60 : 30;
+  const range = mode === "bruckner" ? 80 : 40;
+  const progress = (distance - minimum) / range;
+  const scale = .78 - progress * .2;
+  const z = .84 + progress * .34;
   return (
-    <group position={[x, y, 1]} scale={scale} rotation={[0, 0, -.13]}>
+    <group position={[x, y, z]} scale={scale} rotation={[0, 0, -.13]}>
       <mesh position={[0, -.14, 0]} castShadow>
         <cylinderGeometry args={[.035, .043, .31, 24]} />
         <meshStandardMaterial color="#202b30" metalness={.45} roughness={.35} />
@@ -92,13 +124,9 @@ function Instrument({ mode, aim, light, distance }: { mode: OpticPracticeMode; a
   );
 }
 
-function PatientHead({ mode, scenario, reveal }: { mode: OpticPracticeMode; scenario: OpticScenario; reveal: boolean }) {
+function PatientHead({ mode, scenario, reveal, reducedMotion, quality }: { mode: OpticPracticeMode; scenario: OpticScenario; reveal: boolean; reducedMotion: boolean; quality: number }) {
   const movement = useRef({ x: 0, y: 0, used: true });
   const blank = useRef({ x: 0, y: 0, z: 1 });
-  const reflexPosition = (eye: "od" | "os", position: [number, number]) => {
-    const baseX = eye === "od" ? -.22 : .22;
-    return [baseX + (position[0] - 50) * .0037, .115 - (position[1] - 50) * .0025, .532] as [number, number, number];
-  };
   return (
     <group position={[0, .07, 0]}>
       <mesh scale={[.65, .86, .48]} receiveShadow>
@@ -122,22 +150,16 @@ function PatientHead({ mode, scenario, reveal }: { mode: OpticPracticeMode; scen
         return <group key={eye} position={[x, .115, .64]}>
           <mesh renderOrder={3}>
             <circleGeometry args={[.068, 40]} />
-            <meshBasicMaterial color={brighter ? "#ffe0aa" : "#e55227"} transparent opacity={brighter ? 1 : .94} side={DoubleSide} depthTest={false} />
+            <meshBasicMaterial color={brighter ? "#ffe0aa" : "#e55227"} transparent opacity={(brighter ? 1 : .94) * (.38 + quality * .62)} side={DoubleSide} depthTest={false} />
           </mesh>
           <mesh position={[0, 0, -.002]} renderOrder={2}>
             <ringGeometry args={[.07, .102, 40]} />
-            <meshBasicMaterial color={brighter ? "#ffc56e" : "#f07443"} transparent opacity={brighter ? .5 : .32} side={DoubleSide} depthTest={false} />
+            <meshBasicMaterial color={brighter ? "#ffc56e" : "#f07443"} transparent opacity={(brighter ? .5 : .32) * (.35 + quality * .65)} side={DoubleSide} depthTest={false} />
           </mesh>
           <pointLight color={brighter ? "#ffcb80" : "#f05b32"} intensity={brighter ? 1.5 : .85} distance={.75} />
         </group>;
       })}
-      {reveal && mode === "hirschberg" && (["od", "os"] as const).map(eye => (
-        <mesh key={eye} position={reflexPosition(eye, scenario[eye])}>
-          <sphereGeometry args={[.014, 18, 12]} />
-          <meshBasicMaterial color="#fff8d8" />
-          <pointLight color="#ffdfa1" intensity={1.7} distance={.45} />
-        </mesh>
-      ))}
+      {reveal && mode === "hirschberg" && (["od", "os"] as const).map(eye => <HirschbergReflex key={eye} eye={eye} position={scenario[eye]} scenarioId={scenario.id} reducedMotion={reducedMotion} quality={quality} />)}
       <mesh position={[0, -1.02, -.05]} scale={[.82, .42, .44]}>
         <sphereGeometry args={[1, 32, 20]} />
         <meshStandardMaterial color="#567685" roughness={.86} />
@@ -147,7 +169,10 @@ function PatientHead({ mode, scenario, reveal }: { mode: OpticPracticeMode; scen
 }
 
 function LightBeam({ mode, aim, light, distance, largeSpot }: { mode: OpticPracticeMode; aim: Aim; light: boolean; distance: number; largeSpot: boolean }) {
-  const source = new Vector3(.68 + aim.x * .07, -.36 + aim.y * .05, .98);
+  const minimum = mode === "bruckner" ? 60 : 30;
+  const range = mode === "bruckner" ? 80 : 40;
+  const instrumentZ = .84 + ((distance - minimum) / range) * .34;
+  const source = new Vector3(.68 + aim.x * .07, -.36 + aim.y * .05, instrumentZ);
   const target = new Vector3(aim.x * .36, aim.y * .25 + .115, .54);
   const direction = target.clone().sub(source);
   const length = direction.length();
@@ -176,6 +201,8 @@ function PracticeScene(props: {
   largeSpot: boolean;
   viewOffset: Aim;
   reveal: boolean;
+  quality: number;
+  reducedMotion: boolean;
 }) {
   useFrame(({ camera }) => {
     camera.position.x += (props.viewOffset.x * .13 - camera.position.x) * .12;
@@ -188,7 +215,7 @@ function PracticeScene(props: {
       <ambientLight intensity={1.25} />
       <directionalLight position={[-2, 3, 4]} intensity={2.2} castShadow />
       <pointLight position={[1.8, 1.5, 2]} intensity={1.1} color="#d5edf0" />
-      <PatientHead mode={props.mode} scenario={props.scenario} reveal={props.reveal} />
+      <PatientHead mode={props.mode} scenario={props.scenario} reveal={props.reveal} reducedMotion={props.reducedMotion} quality={props.quality} />
       <LightBeam mode={props.mode} aim={props.aim} light={props.light} distance={props.distance} largeSpot={props.largeSpot} />
       <Instrument mode={props.mode} aim={props.aim} light={props.light} distance={props.distance} />
       <HandModel aim={props.aim} />
@@ -201,12 +228,14 @@ export function ClinicalPracticeStage({
   scenario,
   onClose,
   onObserved,
+  findingPosition,
   children,
 }: {
   mode: OpticPracticeMode;
   scenario: OpticScenario;
   onClose: () => void;
   onObserved: () => void;
+  findingPosition?: { current: number; total: number };
   children: (ready: boolean) => ReactNode;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -219,11 +248,28 @@ export function ClinicalPracticeStage({
   const [viewOffset, setViewOffset] = useState<Aim>({ x: .62, y: -.48 });
   const [grabbed, setGrabbed] = useState(false);
   const [observed, setObserved] = useState(false);
+  const [findingNotice, setFindingNotice] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const previousScenario = useRef(scenario.id);
   const viewAligned = opticViewAligned(viewOffset.x, viewOffset.y);
   useEffect(() => {
     dialog.current?.showModal();
     return () => dialog.current?.close();
   }, []);
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReducedMotion(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  useEffect(() => {
+    if (previousScenario.current === scenario.id) return;
+    previousScenario.current = scenario.id;
+    setFindingNotice(true);
+    const timer = window.setTimeout(() => setFindingNotice(false), reducedMotion ? 650 : 1200);
+    return () => window.clearTimeout(timer);
+  }, [scenario.id, reducedMotion]);
   const { targetDistance, distanceReady, aimReady, ready } = opticTechniqueChecks(mode, {
     aimX: aim.x,
     aimY: aim.y,
@@ -233,6 +279,8 @@ export function ClinicalPracticeStage({
     largeSpot,
     viewAligned,
   });
+  const distanceQuality = Math.max(.2, 1 - Math.abs(distance - targetDistance) / (mode === "bruckner" ? 45 : 24));
+  const setupQuality = (distanceQuality + (fixation ? 1 : .45) + (aimReady ? 1 : .45) + (viewAligned ? 1 : .45) + (mode === "hirschberg" || largeSpot ? 1 : .45)) / 5;
   useEffect(() => {
     if (ready && !observed) {
       setObserved(true);
@@ -306,9 +354,12 @@ export function ClinicalPracticeStage({
           >
             <StageBoundary>
               <Canvas dpr={[1, 1.5]} shadows camera={{ position: [0, .04, 2.55], fov: 39 }} fallback={<PracticeWebGLFallback />}>
-                <PracticeScene mode={mode} scenario={scenario} aim={aim} distance={distance} light={light} largeSpot={largeSpot} viewOffset={viewOffset} reveal={ready} />
+                <PracticeScene mode={mode} scenario={scenario} aim={aim} distance={distance} light={light} largeSpot={largeSpot} viewOffset={viewOffset} reveal={light} quality={setupQuality} reducedMotion={reducedMotion} />
               </Canvas>
             </StageBoundary>
+            {mode === "hirschberg" && <div className="optic-eye-labels" aria-hidden="true"><span>OD</span><span>OS</span></div>}
+            {mode === "hirschberg" && findingPosition && <span className="practice-finding-count">Finding {findingPosition.current} of {findingPosition.total}</span>}
+            {mode === "hirschberg" && findingNotice && <div className="practice-finding-transition" role="status">New patient finding loaded</div>}
             <div className={`beam-reticle ${aimReady ? "aligned" : ""}`} aria-hidden="true"><Crosshair /></div>
             <div className="hand-readout" aria-hidden="true">
               <span><b>R</b>{mode === "bruckner" ? "Hold + aim ophthalmoscope" : "Hold + aim penlight"}</span>

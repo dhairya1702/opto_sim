@@ -1,6 +1,7 @@
 export const stereoPracticeLevels = [800, 400, 200, 100, 60, 40];
 export const stereoTargets = [1, 0, 2, 1, 2, 0];
 export type StereoReply = { level: number; selected: number; target: number; correct: boolean };
+export function stereoDistanceReady(distance: number) { return Math.abs(distance - 40) <= 2; }
 export function stereoStopped(replies: StereoReply[]) {
   return replies.length >= 2 && replies.slice(-2).every(reply => !reply.correct);
 }

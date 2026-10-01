@@ -1,5 +1,11 @@
 import { expect, it } from "vitest";
-import { thoringtonDirection, thoringtonLightAligned } from "../interaction/thorington";
+import { thoringtonDirection, thoringtonDistanceReady, thoringtonLightAligned } from "../interaction/thorington";
+it("accepts the illustrative 40 cm card range", () => {
+  expect(thoringtonDistanceReady(38)).toBe(true);
+  expect(thoringtonDistanceReady(42)).toBe(true);
+  expect(thoringtonDistanceReady(37)).toBe(false);
+  expect(thoringtonDistanceReady(43)).toBe(false);
+});
 it("requires the light at the central hole", () => {
   expect(thoringtonLightAligned(0, 0)).toBe(true);
   expect(thoringtonLightAligned(0.3, 0.2)).toBe(false);

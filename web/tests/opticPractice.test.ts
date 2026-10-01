@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { opticTechniqueChecks, opticViewAligned } from "../interaction/opticPractice";
+import { hirschbergReflexOffset, opticTechniqueChecks, opticViewAligned } from "../interaction/opticPractice";
 
 const aligned = {
   aimX: 0,
@@ -11,6 +11,13 @@ const aligned = {
 };
 
 describe("optic practice technique gates", () => {
+  it("maps Hirschberg examples to visible anatomical landmark radii", () => {
+    expect(hirschbergReflexOffset([50, 50])).toEqual({ x: 0, y: 0 });
+    expect(hirschbergReflexOffset([63, 50])).toEqual({ x: .03, y: 0 });
+    expect(hirschbergReflexOffset([66, 50])).toEqual({ x: .048, y: 0 });
+    expect(hirschbergReflexOffset([50, 78])).toEqual({ x: 0, y: -.065 });
+  });
+
   it("requires the examiner view to be moved into the central alignment target", () => {
     expect(opticViewAligned(.4, -.2)).toBe(false);
     expect(opticViewAligned(.08, -.08)).toBe(true);

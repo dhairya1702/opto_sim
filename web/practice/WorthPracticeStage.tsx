@@ -6,12 +6,15 @@ import { worthAtDistance, worthCases, worthDots } from "../interaction/worth";
 
 function WorthScene({ light, glasses, distance, onLight }: { light: boolean; glasses: boolean; distance: number; onLight: () => void }) {
   const movement = useRef({ x: 0, y: 0, used: true });
+  const distanceProgress = (distance - 40) / 560;
+  const targetScale = 1.08 - distanceProgress * 0.58;
+  const targetZ = 0.76 + distanceProgress * 0.34;
   return <>
     <color attach="background" args={["#09161b"]} /><ambientLight intensity={1.1} /><directionalLight position={[-2, 3, 4]} intensity={1.8} />
     <mesh scale={[0.64, 0.85, 0.48]}><sphereGeometry args={[1, 40, 28]} /><meshStandardMaterial color="#a97453" /></mesh>
     <group position={[0, 0.2, 0.51]} scale={1.3}><EyeSurface x={-0.17} pupils={false} motility={false} progress={0} movement={movement} /><EyeSurface x={0.17} pupils={false} motility={false} progress={0} movement={movement} /></group>
     {glasses && <group position={[0, 0.2, 0.68]}>{[-0.22, 0.22].map((x, i) => <group key={x} position={[x, 0, 0]}><mesh><torusGeometry args={[0.15, 0.018, 12, 32]} /><meshStandardMaterial color="#20383c" /></mesh><mesh><circleGeometry args={[0.14, 32]} /><meshPhysicalMaterial color={i === 0 ? "#ef4242" : "#30bc66"} transparent opacity={0.45} /></mesh></group>)}<mesh><boxGeometry args={[0.13, 0.025, 0.03]} /><meshStandardMaterial color="#20383c" /></mesh></group>}
-    <group position={[-0.28, -0.42, 0.72 + distance / 1000]} onClick={event => { event.stopPropagation(); if (event.delta <= 4) onLight(); }}>
+    <group position={[-0.28, -0.42, targetZ]} scale={targetScale} onClick={event => { event.stopPropagation(); if (event.delta <= 4) onLight(); }}>
       <mesh><boxGeometry args={[0.3, 0.38, 0.045]} /><meshStandardMaterial color="#1e323a" /></mesh>
       {worthDots("fusion").map((dot, i) => <mesh key={i} position={[dot.x / 350, -dot.y / 350, 0.028]}><circleGeometry args={[0.027, 24]} /><meshBasicMaterial color={light ? dot.color : "#34424a"} /></mesh>)}
       <mesh position={[0, -0.27, 0]}><boxGeometry args={[0.05, 0.25, 0.04]} /><meshStandardMaterial color="#203239" /></mesh>
