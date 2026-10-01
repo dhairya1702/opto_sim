@@ -123,6 +123,7 @@ export function reduceSession(c: ClinicalCase, s: Session, a: Action): Session {
       };
     const authored = e.findings[`${a.config.eye}:${a.config.mode}`];
     const observation = a.observation?.trim().slice(0, 500);
+    const observationAccurate = observation ? observation === authored.value : undefined;
     const result = {
       ...authored,
       ...(observation
@@ -130,7 +131,8 @@ export function reduceSession(c: ClinicalCase, s: Session, a: Action): Session {
             value: observation,
             expectedValue: authored.value,
             observationSource: "trainee" as const,
-            observationAccurate: observation === authored.value,
+            observationAccurate,
+            refraction: observationAccurate ? authored.refraction : undefined,
           }
         : {}),
       id: key,

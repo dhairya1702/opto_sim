@@ -36,7 +36,9 @@ test("manual motility requires observation and supports cancellation and recordi
   await page.screenshot({ path: "test-results/manual-motility.png", fullPage: true });
   await record.click();
   await page.getByRole("button", { name: "Notes", exact: false }).click();
-  await expect(page.getByRole("dialog").getByText("Full movements; no diplopia reported during the simulated assessment.", { exact: true })).toBeVisible();
+  const note = page.getByRole("article");
+  await expect(note.getByText("YOUR RECORDED OBSERVATION", { exact: true })).toBeVisible();
+  await expect(note.getByText("Full movements; no diplopia reported during the simulated assessment.", { exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
 

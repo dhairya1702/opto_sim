@@ -136,7 +136,6 @@ export function ManualAcuityExamination({
   const [grabbed, setGrabbed] = useState(false);
   const [asked, setAsked] = useState(false);
   const [dwell, setDwell] = useState(0);
-  const [positioned, setPositioned] = useState(false);
   const [nearDistance, setNearDistance] = useState(40);
   const [viewReady, setViewReady] = useState(false);
   const [viewFailed, setViewFailed] = useState(false);
@@ -145,13 +144,16 @@ export function ManualAcuityExamination({
   const [voice, setVoice] = useState(true);
   const done = useRef(false);
   const poseRef = useRef(pose);
+  const nearDistanceRef = useRef(nearDistance);
   poseRef.current = pose;
+  nearDistanceRef.current = nearDistance;
   const selectedEye = config.eye === "OS" ? "OS" : "OD";
   const target = acuityTarget(examId, selectedEye);
   const plan = useMemo(() => readingPlan(examId), [examId]);
   const readingComplete = readingStep === plan.beats.length;
   const aligned = isAcuityToolAligned(examId, selectedEye, pose);
   const correctNearDistance = examId !== "near" || Math.abs(nearDistance - 40) <= 2;
+  const positioned = dwell >= 0.8;
   const ready =
     asked && positioned && aligned && correctNearDistance && readingComplete && !!observation && viewReady && !viewFailed;
 
@@ -164,17 +166,16 @@ export function ManualAcuityExamination({
     let previous = performance.now();
     const timer = setInterval(() => {
       const now = performance.now();
-      const isAligned = viewReady && !viewFailed && !document.hidden && isAcuityToolAligned(examId, selectedEye, poseRef.current);
+      const correctDistance = examId !== "near" || Math.abs(nearDistanceRef.current - 40) <= 2;
+      const isAligned = viewReady && !viewFailed && !document.hidden && correctDistance && isAcuityToolAligned(examId, selectedEye, poseRef.current);
       setDwell((value) => {
         const next = accumulateAlignedTime(value, isAligned && asked, (now - previous) / 1000);
-        if (next >= 0.8) setPositioned(true);
         return next;
       });
       previous = now;
     }, 50);
     return () => clearInterval(timer);
   }, [asked, examId, selectedEye, viewReady, viewFailed]);
-
   useEffect(() => {
     if (!asked || !positioned || !aligned || !correctNearDistance || readingComplete || viewFailed)
       return;
@@ -198,12 +199,24 @@ export function ManualAcuityExamination({
     [],
   );
 
+  const applyPose = (next: AcuityToolPose) => {
+    if (next.x !== poseRef.current.x || next.y !== poseRef.current.y) setDwell(0);
+    poseRef.current = next;
+    setPose(next);
+  };
   const updatePointer = (event: React.PointerEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
-    setPose({
+    applyPose({
       x: Math.max(-1, Math.min(1, (((event.clientX - bounds.left) / bounds.width) - 0.5) / 0.4)),
       y: Math.max(-1, Math.min(1, (0.5 - (event.clientY - bounds.top) / bounds.height) / 0.4)),
     });
+  };
+  const changeNearDistance = (next: number) => {
+    if (next !== nearDistanceRef.current) {
+      setDwell(0);
+    }
+    nearDistanceRef.current = next;
+    setNearDistance(next);
   };
   const prompt =
     examId === "pinhole"
@@ -258,13 +271,15 @@ export function ManualAcuityExamination({
             setGrabbed(false);
           }}
           onPointerCancel={() => setGrabbed(false)}
+          onLostPointerCapture={() => setGrabbed(false)}
           onKeyDown={(event) => {
             if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
             event.preventDefault();
-            setPose((value) => ({
+            const value = poseRef.current;
+            applyPose({
               x: Math.max(-1, Math.min(1, value.x + (event.key === "ArrowLeft" ? -0.05 : event.key === "ArrowRight" ? 0.05 : 0))),
               y: Math.max(-1, Math.min(1, value.y + (event.key === "ArrowUp" ? 0.05 : event.key === "ArrowDown" ? -0.05 : 0))),
-            }));
+            });
           }}
         >
           <AcuityViewBoundary onFailure={() => setViewFailed(true)}>
@@ -309,7 +324,7 @@ export function ManualAcuityExamination({
         {examId === "near" && (
           <label className="acuity-distance">
             Near-card distance: {nearDistance} cm
-            <input aria-label="Near-card distance" type="range" min="25" max="55" value={nearDistance} onChange={(event) => setNearDistance(Number(event.target.value))} />
+            <input aria-label="Near-card distance" type="range" min="25" max="55" value={nearDistance} onChange={(event) => changeNearDistance(Number(event.target.value))} />
           </label>
         )}
         {readingStep > 0 && (
@@ -339,13 +354,13 @@ export function ManualAcuityExamination({
             ? "The patient view is unavailable; this finding cannot be recorded."
             : !asked
             ? "Ask Arun to read before positioning the tool."
+            : !correctNearDistance
+              ? "Set the near card to 40 cm."
             : !aligned
               ? `Move the ${examId === "pinhole" ? "pinhole" : "occluder"} into the guide.`
               : !positioned
                 ? "Hold steady…"
-                : !correctNearDistance
-                  ? "Set the near card to 40 cm."
-                  : !readingComplete
+                : !readingComplete
                     ? "Listen to Arun and watch where he begins to struggle…"
                     : !observation
                       ? "Record the smallest line Arun read correctly."

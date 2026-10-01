@@ -3,13 +3,14 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import type { ExamConfig } from "../domain/types";
 import {
   advanceCoverStep,
+  coverFixationTarget,
   coverPositionAt,
   coverProcedure,
   coverTargets,
   type CoverEye,
   type CoverToolPose,
 } from "../interaction/cover";
-import { targetFromControls, type FixationTarget } from "../interaction/motility";
+import type { FixationTarget } from "../interaction/motility";
 import { EyeSurface } from "./EyeSurface";
 
 class CoverViewBoundary extends Component<
@@ -83,7 +84,7 @@ export function ManualCoverExamination({
   const mode = config.mode === "near" ? "near" : "distance";
   const dialog = useRef<HTMLDialogElement>(null);
   const movement = useRef({ x: 0, y: 0, used: true });
-  const fixation = useRef(targetFromControls(0, 0, mode === "near" ? 0.4 : 6));
+  const fixation = useRef(coverFixationTarget(mode === "near" ? 40 : 600));
   const poseRef = useRef<CoverToolPose>({ x: 0, y: -0.72 });
   const askedRef = useRef(false);
   const distanceRef = useRef(mode === "near" ? 40 : 600);
@@ -107,7 +108,7 @@ export function ManualCoverExamination({
   distanceRef.current = targetDistance;
   stepRef.current = step;
   dwellRef.current = dwell;
-  fixation.current = targetFromControls(0, 0, targetDistance / 100);
+  fixation.current = coverFixationTarget(targetDistance);
 
   useEffect(() => {
     const element = dialog.current!;
@@ -151,6 +152,12 @@ export function ManualCoverExamination({
       x: Math.max(-1, Math.min(1, (((event.clientX - bounds.left) / bounds.width) - 0.5) / 0.4)),
       y: Math.max(-1, Math.min(1, (0.5 - (event.clientY - bounds.top) / bounds.height) / 0.4)),
     });
+  };
+  const changeTargetDistance = (next: number) => {
+    distanceRef.current = next;
+    dwellRef.current = 0;
+    setDwell(0);
+    setTargetDistance(next);
   };
   const procedureComplete = step === coverProcedure.length;
   const site = mode === "near" ? "near" : "distance";
@@ -209,6 +216,7 @@ export function ManualCoverExamination({
             setGrabbed(false);
           }}
           onPointerCancel={() => setGrabbed(false)}
+          onLostPointerCapture={() => setGrabbed(false)}
           onKeyDown={(event) => {
             if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
             event.preventDefault();
@@ -244,7 +252,7 @@ export function ManualCoverExamination({
           <p>{mode === "distance" ? "Simulated target at 6 m" : "Keep the target centred at 40 cm"}</p>
           {mode === "near" && (
             <label>Target distance: {targetDistance} cm
-              <input aria-label="Near fixation distance" type="range" min="25" max="60" value={targetDistance} onChange={(event) => setTargetDistance(Number(event.target.value))} />
+              <input aria-label="Near fixation distance" type="range" min="25" max="60" value={targetDistance} onChange={(event) => changeTargetDistance(Number(event.target.value))} />
             </label>
           )}
         </aside>

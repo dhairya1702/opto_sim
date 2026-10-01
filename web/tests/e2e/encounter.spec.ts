@@ -106,15 +106,17 @@ async function completeManualRetinoscopy(page: Page, eye: RetinoscopyEye) {
   await page.getByRole("button", { name: "Switch retinoscope on" }).click();
   const viewport = page.getByRole("application", { name: /Retinoscope/ });
   const box = (await viewport.boundingBox())!;
-  const place = async (offset: number) => {
-    const x = retinoscopyTargets[eye].x + offset;
-    await page.mouse.click(box.x + box.width * (0.5 + x * 0.4), box.y + box.height * 0.5);
-    await page.waitForTimeout(90);
-  };
   const sweep = async () => {
-    await place(-0.11);
-    await place(0.11);
-    await place(-0.11);
+    const point = (offset: number) => ({
+      x: box.x + box.width * (0.5 + (retinoscopyTargets[eye].x + offset) * 0.4),
+      y: box.y + box.height * 0.5,
+    });
+    const left = point(-0.1), right = point(0.1);
+    await page.mouse.move(left.x, left.y);
+    await page.mouse.down();
+    await page.mouse.move(right.x, right.y, { steps: 10 });
+    await page.mouse.move(left.x, left.y, { steps: 10 });
+    await page.mouse.up();
   };
   await sweep();
   await expect(page.getByText("✓ With motion", { exact: true })).toBeVisible();
@@ -221,7 +223,7 @@ test("complete scripted encounter without credentials", async ({ page }) => {
   await page.getByRole("button", { name: "Submit assessment" }).click();
   await expect(page.getByRole("heading", { name: "Consultation debrief" })).toBeVisible();
   await expect(page.locator(".score")).toHaveText("100/ 100");
-  await expect(page.getByRole("heading", { name: "Recorded acuity review" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Recorded observation review" })).toBeVisible();
   await expect(page.getByText("✓ Matches case").first()).toBeVisible();
   await page.screenshot({ path: "test-results/debrief.png" });
   expect(errors).toEqual([]);

@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { advanceCoverStep, coverPositionAt, coverProcedure, coverTargets } from "../interaction/cover";
+import {
+  advanceCoverStep,
+  coverFixationTarget,
+  coverPositionAt,
+  coverProcedure,
+  coverTargets,
+} from "../interaction/cover";
 
 describe("manual cover-test procedure", () => {
+  it("keeps distance fixation at the simulated six metres", () => {
+    expect(coverFixationTarget(600).z).toBe(6);
+    expect(coverFixationTarget(40).z).toBe(0.4);
+  });
+
   it("distinguishes each covered eye, a fully removed paddle, and transition spill", () => {
     expect(coverPositionAt(coverTargets.OD)).toBe("OD");
     expect(coverPositionAt(coverTargets.OS)).toBe("OS");

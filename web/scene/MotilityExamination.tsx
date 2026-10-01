@@ -17,7 +17,7 @@ function RenderSignal({ onFrame }: { onFrame: () => void }) {
   return null;
 }
 
-export function MotilityExamination({ onComplete, onCancel }: { onComplete: () => void; onCancel: () => void }) {
+export function MotilityExamination({ onComplete, onCancel }: { onComplete: (observation?: string) => void; onCancel: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const pose = useRef(targetFromControls(0, 0, 0.5));
@@ -60,6 +60,13 @@ export function MotilityExamination({ onComplete, onCancel }: { onComplete: () =
     return () => clearInterval(timer);
   }, [following, failed]);
   const ready = coverage.seen.length === gazePositions.length && asked && !!observation && !failed;
+  const recordedObservation = observation === "full"
+    ? "Full movements; no diplopia reported during the simulated assessment."
+    : observation === "limited"
+      ? "Restricted or unequal ocular movement suspected; no diplopia reported."
+      : observation === "unsure"
+        ? "Ocular motility assessment uncertain; repeat examination required."
+        : "";
   const movePointer = (e: React.PointerEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
     update(((e.clientX - r.left) / r.width - 0.5) / 0.4, (0.5 - (e.clientY - r.top) / r.height) / 0.4);
@@ -111,8 +118,8 @@ export function MotilityExamination({ onComplete, onCancel }: { onComplete: () =
           <label>What did you observe?<select value={observation} onChange={e => setObservation(e.target.value)}><option value="">Choose after observing</option><option value="full">Both eyes move together through the tested positions</option><option value="limited">Movement looks restricted or unequal</option><option value="unsure">I’m not sure yet</option></select></label>
           {observation && observation !== "full" && <p className="notice">This case models coordinated movements. Recheck with the target; if uncertain, compare both eyes before recording the authored finding.</p>}
         </div>
-        <button className="primary full" disabled={!ready} onClick={() => { if (done.current || !ready) return; done.current = true; onComplete(); }}>Record finding & return to room →</button>
-        <p className="small muted">Simplified normal-movement model. Position coverage is a practice aid, not a clinical technique score. Your observation is for reflection; recording saves the case’s authored finding.</p>
+        <button className="primary full" disabled={!ready} onClick={() => { if (done.current || !ready) return; done.current = true; onComplete(recordedObservation); }}>Record finding & return to room →</button>
+        <p className="small muted">Simplified normal-movement model. Position coverage is a practice aid, not a clinical technique score. Your selected observation is preserved for debrief comparison.</p>
       </footer>
     </dialog>
   );

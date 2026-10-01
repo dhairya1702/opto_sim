@@ -41,6 +41,12 @@ test("manual acuity requires the correct tool position and patient response", as
   await expect(record).toBeDisabled();
   await page.getByLabel("Smallest line read correctly").selectOption("6/18");
   await expect(record).toBeEnabled();
+  await placeTool(page, "pinhole", "OD");
+  await expect(record).toBeDisabled();
+  await placeTool(page, "distance", "OD");
+  await expect(record).toBeDisabled();
+  await expect(page.getByRole("status")).toHaveText("Hold steady…");
+  await expect(record).toBeEnabled();
   await page.screenshot({ path: "test-results/manual-distance-acuity.png" });
   await record.click();
   await page.getByRole("button", { name: "Notes", exact: false }).click();
@@ -74,6 +80,8 @@ test("near acuity requires the card at 40 cm and the fellow eye covered", async 
   await expect(record).toBeDisabled();
   await expect(page.getByRole("status")).toHaveText("Set the near card to 40 cm.");
   await page.getByLabel("Near-card distance").fill("40");
+  await expect(record).toBeDisabled();
+  await expect(page.getByRole("status")).toHaveText("Hold steady…");
   await expect(record).toBeEnabled();
   await page.screenshot({ path: "test-results/manual-near-acuity.png" });
 });

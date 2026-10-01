@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   advanceNearPupilStep,
   generalResponseLabels,
+  nearPupilFixation,
   nearPupilProcedure,
   nearPupilStageMatches,
   nearResponseStimulus,
@@ -45,5 +46,9 @@ describe("manual pupil examination model", () => {
     expect(nearResponseStimulus(40)).toBeGreaterThan(0);
     expect(nearResponseStimulus(20)).toBeGreaterThan(nearResponseStimulus(40));
     expect(nearResponseStimulus(-100)).toBeLessThanOrEqual(0.75);
+  });
+  it("uses the full target distance for convergence below the motility drill's range", () => {
+    expect(nearPupilFixation({ x: 0, y: 0, distanceCm: 20 }).z).toBe(0.2);
+    expect(nearPupilFixation({ x: 0, y: 0, distanceCm: 40 }).z).toBe(0.4);
   });
 });

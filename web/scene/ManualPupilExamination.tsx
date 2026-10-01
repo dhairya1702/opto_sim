@@ -93,6 +93,7 @@ export function ManualPupilExamination({
   const stimulus = useRef(0);
   const movement = useRef({ x: 0, y: 0, used: true });
   const sequenceRef = useRef<PupilEye[]>([]);
+  const interactionRevision = useRef(0);
   const done = useRef(false);
   const [pose, setPose] = useState(poseRef.current);
   const [grabbed, setGrabbed] = useState(false);
@@ -130,10 +131,17 @@ export function ManualPupilExamination({
     let held = 0;
     let off = 0;
     let armed = true;
+    let revision = interactionRevision.current;
     const timer = setInterval(() => {
       const now = performance.now();
       const dt = Math.min(0.1, (now - previous) / 1000);
       previous = now;
+      if (revision !== interactionRevision.current) {
+        revision = interactionRevision.current;
+        current = null;
+        held = 0;
+        setDwell(0);
+      }
       const usable = viewReady && !viewFailed && instructedRef.current && ambientRef.current <= 0.45;
       const eye = usable && torchRef.current ? pupilEyeAt(poseRef.current) : null;
       stimulus.current = eye ? 1 : 0;
@@ -176,6 +184,28 @@ export function ManualPupilExamination({
     }, 50);
     return () => clearInterval(timer);
   }, [mode, viewReady, viewFailed]);
+
+  const changeTorch = (next: boolean) => {
+    interactionRevision.current += 1;
+    torchRef.current = next;
+    if (!next) {
+      stimulus.current = 0;
+      setActiveEye(null);
+      setDwell(0);
+    }
+    setTorchOn(next);
+  };
+
+  const changeAmbient = (next: number) => {
+    interactionRevision.current += 1;
+    ambientRef.current = next / 100;
+    if (next > 45) {
+      stimulus.current = 0;
+      setActiveEye(null);
+      setDwell(0);
+    }
+    setAmbient(next);
+  };
 
   const updatePointer = (event: React.PointerEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
@@ -258,10 +288,11 @@ export function ManualPupilExamination({
             setGrabbed(false);
           }}
           onPointerCancel={() => setGrabbed(false)}
+          onLostPointerCapture={() => setGrabbed(false)}
           onKeyDown={(event) => {
             if (event.key === " ") {
               event.preventDefault();
-              setTorchOn((value) => !value);
+              changeTorch(!torchRef.current);
               return;
             }
             if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
@@ -309,9 +340,9 @@ export function ManualPupilExamination({
         <div className="pupil-controls">
           <label>
             Room illumination: {ambient}%
-            <input aria-label="Room illumination" type="range" min="10" max="100" value={ambient} onChange={(event) => setAmbient(Number(event.target.value))} />
+            <input aria-label="Room illumination" type="range" min="10" max="100" value={ambient} onChange={(event) => changeAmbient(Number(event.target.value))} />
           </label>
-          <button className={torchOn ? "primary" : "secondary"} aria-pressed={torchOn} onClick={() => setTorchOn((value) => !value)}>
+          <button className={torchOn ? "primary" : "secondary"} aria-pressed={torchOn} onClick={() => changeTorch(!torchRef.current)}>
             {torchOn ? "Switch torch off" : "Switch torch on"}
           </button>
         </div>

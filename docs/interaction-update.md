@@ -14,7 +14,7 @@ The opening card is centered and titled “Your patient”. Layout adjustments s
 
 Select a room instrument (or station), choose the eye/procedure, and press **Pick up instrument & examine**. A held instrument lifts into view. Click Arun or **Examine Arun** to open a short animated 3D examination close-up. Use **Record finding** to commit the case-authored result; cancelling records nothing. The slit lamp uses its fixed station and has no pickup.
 
-The pen torch illustrates a pupil-light response. Other views include an occluder sweep, motility target, trial frame, instrument positioning and a slit-light illustration. OD/OS selects the zoomed eye. Retinoscopy shows positioning at the external eye without simulated optical reflexes. Ophthalmoscopy shows the schematic posterior pole described above. These are illustrative animations rather than clinically validated procedure demonstrations. All clinical findings continue to come from the existing case engine.
+The pen torch illustrates a pupil-light response. Other views include an occluder sweep, motility target, trial frame, instrument positioning and a slit-light illustration. OD/OS selects the zoomed eye. Retinoscopy now includes a fictional spherical reflex model with with/neutral/against motion and two-meridian confirmation; it remains an educational approximation rather than validated optics or technique assessment. Ophthalmoscopy shows the schematic posterior pole described above. All clinical reference findings continue to come from the existing case engine.
 
 The close-up and held equipment are original procedural geometry in `web/scene/ExaminationView.tsx`, under the same visual-asset CC0 dedication as the existing project models. No external assets or dependencies were added.
 

@@ -7,6 +7,10 @@ export const coverTargets: Record<CoverEye, CoverToolPose> = {
   OS: { x: 0.34, y: 0 },
 };
 
+export function coverFixationTarget(distanceCm: number) {
+  return { x: 0, y: 0, z: Math.max(0.25, Math.min(6, distanceCm / 100)) };
+}
+
 export const coverProcedure = [
   { position: "OD", phase: "cover-uncover", label: "Cover OD · observe OS", dwell: 0.7 },
   { position: "away", phase: "cover-uncover", label: "Uncover OD · observe OD", dwell: 0.35 },

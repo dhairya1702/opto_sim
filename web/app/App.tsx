@@ -76,10 +76,17 @@ export function App() {
       if (examId) {
         const exam = c.exams.find((e) => e.id === examId)!;
         const config = { eye: exam.eyes[0], mode: exam.modes[0].id };
+        const selected = { examId, config, equipment: exam.equipment, name: exam.name };
         setStation(id);
         setInitialExam(examId);
         setInitialConfig(config);
-        setHeld({ examId, config, equipment: exam.equipment, name: exam.name });
+        if (examId === "anterior") {
+          setHeld(null);
+          setAnimation(selected);
+          open(null);
+          return;
+        }
+        setHeld(selected);
         setPanel(null);
         return;
       }

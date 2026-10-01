@@ -181,6 +181,17 @@ describe("exam and session transitions", () => {
     });
     expect(s.events.at(-1)?.detail).toContain("recorded 6/18");
   });
+  it("does not attach authored structured refraction to an inaccurate trainee entry", () => {
+    const s = perform(
+      start(),
+      "objective",
+      "OD",
+      "default",
+      "Gross neutralisation +0.50 D; sphere −1.00 D.",
+    );
+    expect(s.results[0].observationAccurate).toBe(false);
+    expect(s.results[0].refraction).toBeUndefined();
+  });
   it("preserves a complete structured pupil observation", () => {
     const observation =
       "OD 4 mm, OS 4 mm in dim illumination; pupils equal; direct responses brisk OU; consensual responses present OU.";

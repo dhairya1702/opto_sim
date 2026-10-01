@@ -108,7 +108,7 @@ export function Debrief({
       </blockquote>
       {session.results.some((result) => result.observationSource === "trainee") && (
         <section className="observation-review">
-          <h2>Recorded acuity review</h2>
+          <h2>Recorded observation review</h2>
           <p className="small muted">
             Your entries are preserved exactly as recorded and compared with the fictional case script here.
           </p>

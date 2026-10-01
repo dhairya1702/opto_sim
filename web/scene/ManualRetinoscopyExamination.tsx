@@ -99,7 +99,24 @@ export function ManualRetinoscopyExamination({
   }, []);
 
   const changeLens = (delta: number) => {
-    setTrialLens((value) => Math.max(-2, Math.min(2, Math.round((value + delta) * 4) / 4)));
+    const next = Math.max(-2, Math.min(2, Math.round((lensRef.current + delta) * 4) / 4));
+    lensRef.current = next;
+    setTrialLens(next);
+    lastZone.current = null;
+  };
+  const changeAxis = (next: 90 | 180) => {
+    axisRef.current = next;
+    setAxis(next);
+    lastZone.current = null;
+  };
+  const changeBeam = (next: boolean) => {
+    beamRef.current = next;
+    setBeamOn(next);
+    lastZone.current = null;
+  };
+  const changeWorkingDistance = (next: number) => {
+    distanceRef.current = next;
+    setWorkingDistance(next);
     lastZone.current = null;
   };
   const applyPose = (nextPose: RetinoscopePose) => {
@@ -171,8 +188,9 @@ export function ManualRetinoscopyExamination({
           onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) updatePointer(event); }}
           onPointerUp={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); setGrabbed(false); }}
           onPointerCancel={() => setGrabbed(false)}
+          onLostPointerCapture={() => setGrabbed(false)}
           onKeyDown={(event) => {
-            if (event.key === " ") { event.preventDefault(); setBeamOn((value) => !value); return; }
+            if (event.key === " ") { event.preventDefault(); changeBeam(!beamRef.current); return; }
             if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
             event.preventDefault();
             const value = poseRef.current;
@@ -205,9 +223,9 @@ export function ManualRetinoscopyExamination({
       </div>
       <footer>
         <div className="retinoscopy-controls">
-          <label>Working distance: {workingDistance} cm<input aria-label="Retinoscopy working distance" type="range" min="45" max="90" value={workingDistance} onChange={(event) => setWorkingDistance(Number(event.target.value))} /></label>
-          <div className="streak-axis" aria-label="Streak orientation"><span>Streak</span><button className={axis === 90 ? "selected" : ""} aria-pressed={axis === 90} onClick={() => { setAxis(90); lastZone.current = null; }}>90°</button><button className={axis === 180 ? "selected" : ""} aria-pressed={axis === 180} onClick={() => { setAxis(180); lastZone.current = null; }}>180°</button></div>
-          <button className={beamOn ? "primary" : "secondary"} aria-pressed={beamOn} onClick={() => setBeamOn((value) => !value)}>{beamOn ? "Switch retinoscope off" : "Switch retinoscope on"}</button>
+          <label>Working distance: {workingDistance} cm<input aria-label="Retinoscopy working distance" type="range" min="45" max="90" value={workingDistance} onChange={(event) => changeWorkingDistance(Number(event.target.value))} /></label>
+          <div className="streak-axis" aria-label="Streak orientation"><span>Streak</span><button className={axis === 90 ? "selected" : ""} aria-pressed={axis === 90} onClick={() => changeAxis(90)}>90°</button><button className={axis === 180 ? "selected" : ""} aria-pressed={axis === 180} onClick={() => changeAxis(180)}>180°</button></div>
+          <button className={beamOn ? "primary" : "secondary"} aria-pressed={beamOn} onClick={() => changeBeam(!beamRef.current)}>{beamOn ? "Switch retinoscope off" : "Switch retinoscope on"}</button>
         </div>
         <ul className="retinoscopy-checklist" aria-label="Observed retinoscopy states">
           <li className={observed.includes("with:any") ? "seen" : ""}>{observed.includes("with:any") ? "✓" : "○"} With motion</li>

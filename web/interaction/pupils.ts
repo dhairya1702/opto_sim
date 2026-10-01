@@ -28,6 +28,15 @@ export function generalResponseLabels(eye: PupilEye) {
 
 export type NearPupilTarget = { x: number; y: number; distanceCm: number };
 
+export function nearPupilFixation(target: NearPupilTarget) {
+  const distance = Math.max(0.15, Math.min(0.7, target.distanceCm / 100));
+  return {
+    x: Math.max(-1, Math.min(1, target.x)) * distance * 0.65,
+    y: Math.max(-1, Math.min(1, target.y)) * distance * 0.45,
+    z: distance,
+  };
+}
+
 export const nearPupilProcedure = [
   { id: "distance", label: "Establish distance fixation", dwell: 0.7 },
   { id: "near", label: "Hold target at 40 cm", dwell: 0.8 },

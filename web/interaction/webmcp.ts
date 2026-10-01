@@ -39,7 +39,16 @@ export function useNotebookTool(session: Session, c: ClinicalCase) {
                 history: c.historyFacts
                   .filter((f) => s.revealedFactIds.includes(f.id))
                   .map((f) => ({ id: f.id, domain: f.domain, answer: f.answer })),
-                findings: s.results,
+                findings: s.results.map((result) => {
+                  const {
+                    expectedValue: _expectedValue,
+                    observationAccurate: _observationAccurate,
+                    ...finding
+                  } = result;
+                  if (result.observationSource !== "trainee") return finding;
+                  const { refraction: _authoredRefraction, ...recordedFinding } = finding;
+                  return recordedFinding;
+                }),
               };
             },
           },

@@ -2,11 +2,12 @@ import { Component, useEffect, useRef, useState, type MutableRefObject, type Rea
 import { Canvas, useFrame } from "@react-three/fiber";
 import {
   advanceNearPupilStep,
+  nearPupilFixation,
   nearPupilProcedure,
   nearResponseStimulus,
   type NearPupilTarget,
 } from "../interaction/pupils";
-import { targetFromControls, type FixationTarget } from "../interaction/motility";
+import type { FixationTarget } from "../interaction/motility";
 import { EyeSurface } from "./EyeSurface";
 
 class NearPupilBoundary extends Component<
@@ -76,7 +77,7 @@ export function ManualNearPupilExamination({
   const dialog = useRef<HTMLDialogElement>(null);
   const movement = useRef({ x: 0, y: 0, used: true });
   const targetRef = useRef<NearPupilTarget>({ x: 0, y: 0, distanceCm: 70 });
-  const fixation = useRef(targetFromControls(0, 0, 0.7));
+  const fixation = useRef(nearPupilFixation(targetRef.current));
   const stimulus = useRef(0);
   const ambient = useRef(0.58);
   const instructedRef = useRef(false);
@@ -98,7 +99,7 @@ export function ManualNearPupilExamination({
   instructedRef.current = instructed;
   stepRef.current = step;
   dwellRef.current = dwell;
-  fixation.current = targetFromControls(target.x, target.y, target.distanceCm / 100);
+  fixation.current = nearPupilFixation(target);
   stimulus.current = nearResponseStimulus(target.distanceCm);
 
   useEffect(() => {
@@ -131,13 +132,21 @@ export function ManualNearPupilExamination({
     return () => clearInterval(timer);
   }, [viewReady, viewFailed]);
 
+  const applyTarget = (next: NearPupilTarget) => {
+    targetRef.current = next;
+    fixation.current = nearPupilFixation(next);
+    stimulus.current = nearResponseStimulus(next.distanceCm);
+    dwellRef.current = 0;
+    setDwell(0);
+    setTarget(next);
+  };
   const updatePointer = (event: React.PointerEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
-    setTarget((value) => ({
-      ...value,
+    applyTarget({
+      ...targetRef.current,
       x: Math.max(-1, Math.min(1, (((event.clientX - bounds.left) / bounds.width) - 0.5) / 0.4)),
       y: Math.max(-1, Math.min(1, (0.5 - (event.clientY - bounds.top) / bounds.height) / 0.4)),
-    }));
+    });
   };
   const procedureComplete = step === nearPupilProcedure.length;
   const completeObservation = convergence && constriction && fixationMaintained && interpretation;
@@ -193,14 +202,16 @@ export function ManualNearPupilExamination({
             setGrabbed(false);
           }}
           onPointerCancel={() => setGrabbed(false)}
+          onLostPointerCapture={() => setGrabbed(false)}
           onKeyDown={(event) => {
             if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
             event.preventDefault();
-            setTarget((value) => ({
+            const value = targetRef.current;
+            applyTarget({
               ...value,
               x: Math.max(-1, Math.min(1, value.x + (event.key === 'ArrowLeft' ? -0.05 : event.key === 'ArrowRight' ? 0.05 : 0))),
               y: Math.max(-1, Math.min(1, value.y + (event.key === 'ArrowUp' ? 0.05 : event.key === 'ArrowDown' ? -0.05 : 0))),
-            }));
+            });
           }}
         >
           <NearPupilBoundary onFailure={() => setViewFailed(true)}>
@@ -234,7 +245,7 @@ export function ManualNearPupilExamination({
       </div>
       <footer>
         <label className="near-distance-control">Target distance: {target.distanceCm} cm
-          <input aria-label="Near-response target distance" type="range" min="15" max="70" value={target.distanceCm} onChange={(event) => setTarget((value) => ({ ...value, distanceCm: Number(event.target.value) }))} />
+          <input aria-label="Near-response target distance" type="range" min="15" max="70" value={target.distanceCm} onChange={(event) => applyTarget({ ...targetRef.current, distanceCm: Number(event.target.value) })} />
         </label>
         <ol className="near-pupil-sequence" aria-label="Near-response procedure sequence">
           {nearPupilProcedure.map((item, index) => (
