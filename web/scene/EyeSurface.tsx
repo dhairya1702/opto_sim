@@ -27,6 +27,7 @@ uniform float pupilRadius;
 uniform vec2 gaze;
 uniform float illumination;
 uniform float closure;
+uniform float reflectionStrength;
 uniform vec2 gazeAngle;
 float noise(float n){return fract(sin(n)*43758.5453);}
 void main(){
@@ -60,7 +61,7 @@ void main(){
   // Small softbox reflections on the tear-film/cornea rather than opaque discs.
   float reflection=exp(-dot((q-vec2(-.015,.019))/vec2(.0035,.007),(q-vec2(-.015,.019))/vec2(.0035,.007)));
   float secondary=exp(-dot((q-vec2(.016,-.012))/vec2(.0018,.0028),(q-vec2(.016,-.012))/vec2(.0018,.0028)));
-  col=mix(col,vec3(.97,.99,1.),reflection*.82+secondary*.32);
+  col=mix(col,vec3(.97,.99,1.),(reflection*.82+secondary*.32)*reflectionStrength);
   float top = .067 * opening + gaze.y * .35;
   float bottom = -.053 * opening + gaze.y * .15;
   float lid = smoothstep(top - closure*.12 - .002, top - closure*.12 + .002, p.y);
@@ -111,6 +112,8 @@ export function EyeSurface({
   reducedMotion = false,
   pupilStimulus,
   ambientLevel,
+  reflectionStrength = 1,
+  gazeOffset,
 }: {
   x: number;
   pupils: boolean;
@@ -122,6 +125,8 @@ export function EyeSurface({
   reducedMotion?: boolean;
   pupilStimulus?: MutableRefObject<number>;
   ambientLevel?: MutableRefObject<number>;
+  reflectionStrength?: number;
+  gazeOffset?: MutableRefObject<{ x: number; y: number }>;
 }) {
   const geometry = useMemo(makeSurface, []);
   const material = useMemo(
@@ -134,10 +139,11 @@ export function EyeSurface({
           gaze: { value: { x: 0, y: 0 } },
           illumination: { value: 0 },
           closure: { value: 0 },
+          reflectionStrength: { value: reflectionStrength },
           gazeAngle: { value: { x: 0, y: 0 } },
         },
       }),
-    [],
+    [reflectionStrength],
   );
   const lids = useMemo(
     () =>
@@ -194,12 +200,12 @@ export function EyeSurface({
       material.uniforms.closure.value = reducedMotion ? 0 : Math.max(0, 1 - Math.abs(cycle - 4.4) / 0.095);
       return;
     }
-    gaze.x = motility
+    gaze.x = (motility
       ? movement.current.used
         ? movement.current.x * 0.025
         : Math.sin(progress * Math.PI * 4) * 0.024
-      : 0;
-    gaze.y = motility && movement.current.used ? movement.current.y * 0.017 : 0;
+      : 0) + (gazeOffset?.current.x ?? 0);
+    gaze.y = (motility && movement.current.used ? movement.current.y * 0.017 : 0) + (gazeOffset?.current.y ?? 0);
   });
   return (
     <group position={[x, 0, 0]}>

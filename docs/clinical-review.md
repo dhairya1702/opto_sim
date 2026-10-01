@@ -83,3 +83,9 @@ These establish broad examination categories, not endorsement of the case, rubri
 - Community Eye Health, refractive-error case finding: https://archive.cehjournal.org/article/case-finding-in-the-clinic-refractive-errors/
 - EyeWiki slit lamp: https://eyewiki.aao.org/Slit_Lamp_Examination
 - EyeWiki retinoscopy: https://eyewiki.aao.org/Retinoscopy
+
+## Krimsky Practice — draft review pending
+
+Practice is separate from the adult-distance-blur Test case and rubric. The current Krimsky implementation follows the supplied notes documented in `docs/binocular-vision-practice.md`: standard prism placement before deviating OS, modified placement before fixating OD, approximately 50 cm fixation light and monocular examiner viewing. Existing fictional examples use 20Δ BI for left exotropia and 15Δ BO for left esotropia. These values are illustrative authored endpoints, not clinical thresholds. Relative reflex displacement uses a simplified linear model with wrong-base divergence and overcorrection; it is not calibrated optical physiology.
+
+Review decisions remain unresolved: verify standard/modified nomenclature, base versus apex terminology, example values, technique sequence and the modified method's reflex representation. Both reflexes remain visible; unreliable reflexes and scarred corneas are not simulated. No clinician approval or certification claim is supplied. Source notes are not approval. Test case facts and scoring are unchanged.

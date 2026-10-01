@@ -80,7 +80,7 @@ test("missing WebGL cannot grant manual observation or a finding", async ({ page
   await page.getByRole("button", { name: "Examine Arun →", exact: true }).click();
   await expect(page.getByText(/The eye view is unavailable|3D eye view unavailable/)).toBeVisible();
   await page.getByRole("button", { name: "Ask Arun to follow the target, head still" }).click();
-  await expect(page.getByRole("status")).toHaveText("0 / 7 positions observed");
+  await expect(page.getByRole("status")).toHaveText("0 / 9 positions observed");
   await expect(page.getByRole("button", { name: "Record finding & return to room →" })).toBeDisabled();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
 });

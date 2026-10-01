@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This repository contains **Opto**, a browser-based, fictional optometry consultation simulator. It is a React/TypeScript/Vite application with a first-person Three.js room, a scripted adult patient, manual examination interactions, a findings notebook, assessment submission, and deterministic debrief scoring.
+This repository contains **Opto**, a browser-based optometry learning simulator with two product modes. **Practice** teaches individual clinical skills with guidance and immediate feedback. **Test** provides a fictional first-person patient encounter with examination selection, findings, diagnosis, management, and deterministic debrief scoring.
 
 The current product is an educational draft. It is not clinically validated, does not certify manual competence, and must not be presented as a substitute for supervised clinical training. Clinical claims, workflows, scoring, and authored findings require qualified clinician review before release.
 
@@ -10,6 +10,8 @@ These instructions apply to the entire repository.
 
 ## Current scope
 
+- Mode-selection entry screen separating guided Practice from case-based Test.
+- A 20-module binocular-vision Practice library across motor alignment, sensory status, latent deviation, vergence, and accommodation. It includes extraocular motilities; Bruckner, Hirschberg, Krimsky, cover–uncover, and alternating cover; Worth four dot, stereopsis, and 4Δ base-out; Maddox rod and Modified Thorington; near point of convergence, horizontal distance, vertical distance, horizontal near, and near vergence facility; and push-up amplitude, minus-lens amplitude, NRA/PRA, and accommodative facility. All interactions and findings remain educational drafts pending clinical review.
 - One case: `adult_distance_blur_01`, version `0.1-draft`.
 - One fictional patient: Arun, age 24, with gradual bilateral distance blur.
 - Scripted, deterministic history responses; no network or AI service.
@@ -39,6 +41,23 @@ No backend is required. `main.py` is a small pre-existing Python entry point and
 | --- | --- |
 | `web/main.tsx` | React application entry point |
 | `web/app/App.tsx` | Top-level session/UI orchestration, panels, room state, held instruments, and examination completion |
+| `web/ui/ModeSelection.tsx` | Product entry point for choosing Practice or Test |
+| `web/practice/PracticeMode.tsx` | Binocular-vision practice library, teaching content, guided trainers, and local completion state |
+| `web/practice/ClinicalPracticeStage.tsx` | Full-screen first-person Bruckner/Hirschberg patient, two-hand instrument scene, technique HUD, and observation slot |
+| `web/practice/CoverPracticeStage.tsx` | Full-screen cover–uncover and alternating-cover practice, two-hand tools, simulated refixation, and prism neutralisation |
+| `web/practice/KrimskyPracticeStage.tsx` | Full-screen standard and modified Krimsky setup, direct prism handling, illustrative reflex neutralisation, and recording |
+| `web/practice/SensoryPracticeStage.tsx` | Routes sensory Practice modes to the dedicated Worth, stereopsis, and 4Δ base-out stages |
+| `web/practice/WorthPracticeStage.tsx` | Full-screen Worth four-dot setup, target presentation, patient report, and interpretation |
+| `web/practice/StereopsisPracticeStage.tsx` | Full-screen stereo-booklet sequence, patient responses, and threshold recording |
+| `web/practice/FourPrismPracticeStage.tsx` | Full-screen 4Δ base-out setup, prism placement before both eyes, response comparison, and recording |
+| `web/practice/PhoriaPracticeStage.tsx` | Routes latent-deviation Practice modes to the dedicated Maddox rod and Modified Thorington stages |
+| `web/practice/MaddoxPracticeStage.tsx` | Full-screen distance and near Maddox rod setup, patient percept, prism neutralisation, and recording |
+| `web/practice/ThoringtonPracticeStage.tsx` | Full-screen Modified Thorington setup, patient percept, and magnitude/direction recording |
+| `web/practice/VergencePracticeStage.tsx` | Routes NPC and fusional-vergence modules and implements their shared full-screen practice flow |
+| `web/practice/AccommodationPracticeStage.tsx` | Routes push-up, minus-lens, NRA/PRA, and accommodative-facility Practice modules |
+| `web/practice/MinusLensPracticeStage.tsx` | Full-screen monocular minus-lens amplitude interaction and recording |
+| `web/practice/RelativeAccommodationStage.tsx` | Full-screen binocular NRA/PRA lens sequence and recording |
+| `web/practice/AccommodativeFacilityStage.tsx` | Full-screen timed monocular and binocular accommodative-facility runs |
 | `web/cases/adultDistanceBlur.ts` | Authoritative case facts, exam definitions, findings, rubric, omission rules, and answer key |
 | `web/domain/types.ts` | Case, session, action, finding, scoring, and event types |
 | `web/domain/engine.ts` | Pure session reducer, prerequisite gating, result keys, and deterministic assessment |
@@ -55,11 +74,24 @@ No backend is required. `main.py` is a small pre-existing Python entry point and
 | `web/tests/*.test.ts` | Fast unit tests for pure domain and interaction behavior |
 | `web/tests/e2e/*.spec.ts` | Full browser workflows and manual-procedure checks |
 | `docs/clinical-review.md` | Reviewable clinical source of truth, limitations, rubric summary, and approval checklist |
+| `docs/binocular-vision-practice.md` | Supplied clinical source notes, implemented Practice modules, and unresolved review decisions |
 | `docs/interaction-update.md` | Interaction history and current control behavior |
 | `docs/asset-manifest.md` | Visual-asset provenance and licensing |
 | `README.md` | Setup, user workflow, architecture, and feature-level behavior |
 
 ## Application flow
+
+The root application first asks the learner to choose a mode. Practice and Test are separate learning contexts; Practice progress must never affect Test scoring.
+
+### Practice
+
+1. The learner opens the binocular-vision library and selects an available skill.
+2. The module explains purpose, equipment, setup, ordered procedure, observations, recording, and escalation.
+3. The learner enters a first-person clinical attempt, controls the instrument hand, uses the off hand when the procedure calls for it, and completes fixation, illumination, distance, aim, and examiner-view alignment.
+4. The simulated finding is withheld until the required technique gates are satisfied.
+5. Immediate feedback explains the observation. Completion is local practice progress, not certification.
+
+### Test
 
 1. `newSession` creates a briefing-phase session.
 2. Starting the consultation dispatches a `start` action and enters the encounter.
@@ -77,6 +109,7 @@ The event log is part of the evidence model. Do not update results, transcript, 
 ## Source-of-truth rules
 
 - Clinical content belongs in `web/cases/adultDistanceBlur.ts`, not in scene components.
+- Practice teaching content and its review decisions are documented in `docs/binocular-vision-practice.md`. Keep interaction constants in `web/interaction/` and avoid copying interpretation rules across components.
 - Shared clinical/session shapes belong in `web/domain/types.ts`.
 - Reducer and scoring behavior belongs in `web/domain/engine.ts` and should remain deterministic and side-effect free.
 - Procedure math and ordered-step logic should live in `web/interaction/` where it can be unit tested independently of React and pointer input.

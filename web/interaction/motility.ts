@@ -3,6 +3,8 @@
 export type FixationTarget = { x: number; y: number; z: number };
 export const gazePositions = [
   { id: "centre", label: "Centre", x: 0, y: 0 },
+  { id: "up", label: "Up", x: 0, y: 0.7 },
+  { id: "down", label: "Down", x: 0, y: -0.7 },
   { id: "left", label: "Screen left", x: -0.8, y: 0 },
   { id: "left-up", label: "Left + up", x: -0.8, y: 0.7 },
   { id: "left-down", label: "Left + down", x: -0.8, y: -0.7 },
@@ -12,7 +14,7 @@ export const gazePositions = [
 ] as const;
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
 export function targetFromControls(x: number, y: number, z: number): FixationTarget {
-  const distance = clamp(z, 0.35, 0.7);
+  const distance = clamp(z, 0.3, 0.4);
   return { x: clamp(x, -1, 1) * distance * 0.65, y: clamp(y, -1, 1) * distance * 0.45, z: distance };
 }
 export function gazeForEye(target: FixationTarget, eyeX: number) {

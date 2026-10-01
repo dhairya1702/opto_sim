@@ -26,6 +26,8 @@ import { Notebook } from "../ui/Notebook";
 import { Submission } from "../ui/Submission";
 import { Debrief } from "../ui/Debrief";
 import { ExaminationView, type ExaminationAnimation } from "../scene/ExaminationView";
+import { ModeSelection, type ExperienceMode } from "../ui/ModeSelection";
+import { PracticeMode } from "../practice/PracticeMode";
 type PanelName =
   | "briefing"
   | "interview"
@@ -37,6 +39,13 @@ type PanelName =
   | null;
 const uid = () => crypto.randomUUID();
 export function App() {
+  const [mode, setMode] = useState<ExperienceMode | null>(null);
+  if (!mode) return <ModeSelection onSelect={setMode} />;
+  if (mode === "practice") return <PracticeMode onExit={() => setMode(null)} />;
+  return <TestEncounter onExit={() => setMode(null)} />;
+}
+
+function TestEncounter({ onExit }: { onExit: () => void }) {
   const [session, setSession] = useState(() => newSession(c, uid()));
   const [panel, setPanel] = useState<PanelName>("briefing");
   const [station, setStation] = useState<StationId>("patient");
@@ -260,6 +269,9 @@ export function App() {
         </div>
         <div className="hud-actions">
           <span className="draft-badge">FICTIONAL · DRAFT</span>
+          <button aria-label="Return to mode selection" onClick={() => { unlock(); onExit(); }}>
+            Modes
+          </button>
           <button aria-label="Notes" onClick={() => open("notes")} disabled={!inEncounter}>
             <BookOpen size={17} />
             <span>Notes</span>

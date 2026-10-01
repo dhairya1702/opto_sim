@@ -1,0 +1,22 @@
+import { expect, it } from "vitest";
+import { initialRelativeState, recordRelative, relativeStep } from "../interaction/relativeAccommodation";
+it("requires NRA, removal of plus lenses, and baseline confirmation before PRA", () => {
+  let state = initialRelativeState;
+  expect(recordRelative(state, true)).toBe(state);
+  for (let i = 0; i < 8; i++) state = relativeStep(state);
+  expect(state.power).toBe(2);
+  expect(recordRelative(state, false)).toBe(state);
+  state = recordRelative(state, true);
+  expect(state.nra).toBe(2);
+  expect(recordRelative(state, true).phase).toBe("baseline");
+  for (let i = 0; i < 8; i++) state = relativeStep(state);
+  expect(state.power).toBe(0);
+  expect(relativeStep(state).power).toBe(0);
+  state = recordRelative(state, true);
+  expect(state.phase).toBe("pra");
+  for (let i = 0; i < 9; i++) state = relativeStep(state);
+  expect(state.power).toBe(-2.25);
+  state = recordRelative(state, true);
+  expect(state).toEqual({ phase: "done", power: -2.25, nra: 2, pra: -2.25 });
+  expect(relativeStep(state)).toBe(state);
+});

@@ -1,6 +1,6 @@
-# Opto — one fictional optometry consultation
+# Opto — optometry practice and clinical test simulator
 
-A React + TypeScript + Vite web MVP with a first-person consulting room, scripted adult patient, all authored procedures for one draft case, acquired-findings notebook, assessment submission and deterministic educational debrief. No API key, backend or accounts required.
+A React + TypeScript + Vite simulator with two modes. **Practice** teaches individual binocular-vision procedures, then opens a first-person hands-and-instrument attempt. **Test** provides a scripted patient encounter, acquired-findings notebook, diagnosis/management submission, and deterministic educational debrief. No API key, backend, or account is required.
 
 The existing `main.py` and Python environment in `src/` are preserved. Web source lives in `web/` to avoid mixing it with that environment.
 
@@ -26,6 +26,10 @@ npm run test:e2e
 
 ## Controls and workflow
 
+- Choose **Practice** for guided skills or **Test** for the full patient encounter. Practice progress does not affect Test scoring.
+- In Practice, read the procedure and enter the full-screen clinical view. Drag to aim the held instrument, use the wheel or slider to change working distance, and complete the patient, illumination, off-hand, and viewing-position setup before a finding becomes visible. All hands-on examination stages use the full viewport on desktop and mobile.
+- Practice groups modules by motor alignment, sensory status, latent deviation, vergence, and accommodation. Completion is tracked for the current in-memory session; the next-module action skips skills already practised and the final completion reports that the guided session is complete.
+- Krimsky Practice includes standard (prism before deviating OS) and modified (before fixating OD) attempts. Inspect baseline reflexes, place the prism on the patient view, rotate its base, adjust power by drag, keyboard or slider until the reflexes match, then record the neutralising power.
 - Enter consultation explicitly requests mouse capture. WASD/arrows move; mouse looks; E or a click interacts with the target within 2 m. Escape releases capture.
 - Every panel releases capture and suspends movement. Return to room is an explicit request to resume; closing with X/Escape never captures automatically.
 - Station mode uses drag-to-look, click interaction and a keyboard-accessible list. Narrow screens or pointer-lock failure use station mode. WebGL failure retains the full encounter through the same station list.
@@ -59,11 +63,15 @@ Visuals use original stylized procedural geometry; no third-party GLB models hav
 
 Nothing has been published or deployed. Deployment remains subject to the user's repository/hosting instructions.
 
-## Manual ocular motility prototype
+## Binocular-vision Practice
 
-Choose **Instrument trolley → Ocular motility → Pick up instrument & examine → Examine Arun**. Ask Arun to follow the target with his head still, then drag in the enlarged eye view. Arrow keys provide fine positioning; Page Up / Page Down or the distance slider change the simulated working distance (35–70 cm). Follow the H-pattern guides and pause at the centre and six peripheral positions. Guides can be hidden. Ask about double vision and select your observation before recording the authored finding. Cancel discards this examination's unsaved progress.
+The 20-module Practice set covers motor alignment, sensory status, latent deviation, vergence, and accommodation. It includes extraocular motilities; Bruckner, Hirschberg, Krimsky, cover–uncover, and alternating cover; Worth four dot, stereopsis, and the 4Δ base-out test; Maddox rod and Modified Thorington; near point of convergence, horizontal distance, vertical distance, horizontal near, and near vergence facility; plus push-up and minus-lens amplitude, NRA/PRA, and accommodative facility. Tools and findings remain illustrative educational drafts rather than calibrated optical simulations, and the clinical content has not been approved for certification. Maddox practice supports horizontal/vertical measurement at 6 m and 40 cm with prism neutralisation. Modified Thorington uses a numbered near card at 40 cm with direct magnitude/direction recording.
 
-The eyes track a shared target pose with separate per-eye gaze angles, convergence, eased pursuit, iris foreshortening, and coordinated blinking. Reduced-motion preference disables spontaneous blinking. The target overlay is a desktop control proxy over an enlarged illustrative eye view, not a spatially calibrated VR instrument. Target coordinates and observation coverage live independently of input handling in `web/interaction/motility.ts`, so a future XR adapter can supply the same patient-relative pose. XR controllers, headset support, abnormal motility cases, and validated technique grading are not implemented. Learner observations are local reflection only; the notebook still stores the case's authored result. Manual motility requires a rendered eye view and has no timer/skip completion.
+## Manual ocular motility
+
+In Practice, choose **Extraocular motilities → Start guided attempt**. In Test, choose **Instrument trolley → Ocular motility → Pick up instrument & examine → Examine Arun**. Ask Arun to follow the target with his head still, switch on the visible penlight, then drag it in the enlarged eye view. Arrow keys provide fine positioning; Page Up / Page Down or the distance slider change the simulated working distance (30–40 cm). Follow the H-pattern guides and pause at primary position plus the eight cardinal directions. Guides can be hidden. Ask about double vision, pain, and discomfort, then select your observation before recording. Cancel discards unsaved progress.
+
+The eyes track a shared target pose with separate per-eye gaze angles, convergence, eased pursuit, iris foreshortening, and coordinated blinking. The scene shows the examiner's instrument hand and free-hand cue, but it is still a desktop control proxy rather than a spatially calibrated VR instrument. Target coordinates and observation coverage live independently of input handling in `web/interaction/motility.ts`, so a future XR adapter can supply the same patient-relative pose. XR controllers, headset support, abnormal motility cases, and validated technique grading are not implemented. Learner observations are local reflection only; the Test notebook still stores the case's authored result.
 
 Distance, pinhole, and near acuity also use manual examination views. The learner asks Arun to read, drags the solid occluder over the fellow eye or aligns the pinhole with the tested eye, and holds the tool steadily before the authored response can be recorded. Near acuity additionally requires the card to be set to 40 cm. These interactions practice sequencing and positioning; they do not generate acuity from optical simulation or validate clinical technique.
 
