@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { opticTechniqueChecks } from "../interaction/opticPractice";
+import { opticTechniqueChecks, opticViewAligned } from "../interaction/opticPractice";
 
 const aligned = {
   aimX: 0,
@@ -11,6 +11,12 @@ const aligned = {
 };
 
 describe("optic practice technique gates", () => {
+  it("requires the examiner view to be moved into the central alignment target", () => {
+    expect(opticViewAligned(.4, -.2)).toBe(false);
+    expect(opticViewAligned(.08, -.08)).toBe(true);
+    expect(opticViewAligned(0, 0)).toBe(true);
+  });
+
   it("accepts Bruckner only near one metre with the complete setup", () => {
     expect(opticTechniqueChecks("bruckner", { ...aligned, distanceCm: 100 }).ready).toBe(true);
     expect(opticTechniqueChecks("bruckner", { ...aligned, distanceCm: 78 }).ready).toBe(false);

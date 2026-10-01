@@ -3,7 +3,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { Check, Crosshair, Eye, Flashlight, Hand, MousePointer2, Power, RotateCcw, X } from "lucide-react";
 import { DoubleSide, Quaternion, Vector3 } from "three";
 import { EyeSurface } from "../scene/EyeSurface";
-import { opticTechniqueChecks, type OpticPracticeMode } from "../interaction/opticPractice";
+import { opticTechniqueChecks, opticViewAligned, type OpticPracticeMode } from "../interaction/opticPractice";
 import { PracticeWebGLFallback } from "./PracticeWebGLFallback";
 
 export type OpticScenario = {
@@ -25,14 +25,12 @@ class StageBoundary extends Component<{ children: ReactNode }, { failed: boolean
   }
 }
 
-function HandModel({ side, supporting, aim }: { side: "left" | "right"; supporting: boolean; aim: Aim }) {
+function HandModel({ aim }: { aim: Aim }) {
   const skin = "#a97453";
-  const isRight = side === "right";
-  const x = isRight ? aim.x * .43 + .36 : supporting ? aim.x * .43 + .13 : -.48;
-  const y = isRight ? aim.y * .28 - .48 : supporting ? aim.y * .28 - .29 : -.55;
-  const rotation = isRight ? -.2 : supporting ? .55 : -.45;
+  const x = .72 + aim.x * .06;
+  const y = -.78 + aim.y * .04;
   return (
-    <group position={[x, y, 1.08]} rotation={[.12, 0, rotation]}>
+    <group position={[x, y, 1.02]} rotation={[.12, 0, -.22]} scale={.7}>
       <mesh scale={[.115, .17, .075]} castShadow>
         <sphereGeometry args={[1, 24, 16]} />
         <meshStandardMaterial color={skin} roughness={.88} />
@@ -43,7 +41,7 @@ function HandModel({ side, supporting, aim }: { side: "left" | "right"; supporti
           <meshStandardMaterial color={skin} roughness={.9} />
         </mesh>
       ))}
-      <mesh position={[isRight ? -.105 : .105, .035, .035]} rotation={[.3, 0, isRight ? .75 : -.75]} castShadow>
+      <mesh position={[-.105, .035, .035]} rotation={[.3, 0, .75]} castShadow>
         <capsuleGeometry args={[.025, .115, 5, 10]} />
         <meshStandardMaterial color={skin} roughness={.9} />
       </mesh>
@@ -56,9 +54,9 @@ function HandModel({ side, supporting, aim }: { side: "left" | "right"; supporti
 }
 
 function Instrument({ mode, aim, light, distance }: { mode: OpticPracticeMode; aim: Aim; light: boolean; distance: number }) {
-  const x = aim.x * .43 + .2;
-  const y = aim.y * .28 - .18;
-  const scale = .84 + (distance - (mode === "bruckner" ? 100 : 50)) * .002;
+  const x = .68 + aim.x * .07;
+  const y = -.52 + aim.y * .05;
+  const scale = .64 + (distance - (mode === "bruckner" ? 100 : 50)) * .001;
   return (
     <group position={[x, y, 1]} scale={scale} rotation={[0, 0, -.13]}>
       <mesh position={[0, -.14, 0]} castShadow>
@@ -121,11 +119,17 @@ function PatientHead({ mode, scenario, reveal }: { mode: OpticPracticeMode; scen
       {reveal && mode === "bruckner" && (["od", "os"] as const).map(eye => {
         const brighter = scenario.brighter === eye;
         const x = eye === "od" ? -.22 : .22;
-        return <mesh key={eye} position={[x, .115, .545]}>
-          <circleGeometry args={[.052, 36]} />
-          <meshBasicMaterial color={brighter ? "#ffd0a0" : "#d9582e"} transparent opacity={brighter ? .98 : .78} side={DoubleSide} />
-          <pointLight color={brighter ? "#ffbf77" : "#e9512c"} intensity={brighter ? .9 : .42} distance={.6} />
-        </mesh>;
+        return <group key={eye} position={[x, .115, .64]}>
+          <mesh renderOrder={3}>
+            <circleGeometry args={[.068, 40]} />
+            <meshBasicMaterial color={brighter ? "#ffe0aa" : "#e55227"} transparent opacity={brighter ? 1 : .94} side={DoubleSide} depthTest={false} />
+          </mesh>
+          <mesh position={[0, 0, -.002]} renderOrder={2}>
+            <ringGeometry args={[.07, .102, 40]} />
+            <meshBasicMaterial color={brighter ? "#ffc56e" : "#f07443"} transparent opacity={brighter ? .5 : .32} side={DoubleSide} depthTest={false} />
+          </mesh>
+          <pointLight color={brighter ? "#ffcb80" : "#f05b32"} intensity={brighter ? 1.5 : .85} distance={.75} />
+        </group>;
       })}
       {reveal && mode === "hirschberg" && (["od", "os"] as const).map(eye => (
         <mesh key={eye} position={reflexPosition(eye, scenario[eye])}>
@@ -143,20 +147,24 @@ function PatientHead({ mode, scenario, reveal }: { mode: OpticPracticeMode; scen
 }
 
 function LightBeam({ mode, aim, light, distance, largeSpot }: { mode: OpticPracticeMode; aim: Aim; light: boolean; distance: number; largeSpot: boolean }) {
-  const source = new Vector3(aim.x * .43 + .2, aim.y * .28 - .05, .98);
-  const target = new Vector3(aim.x * .36, aim.y * .25 + .1, .48);
+  const source = new Vector3(.68 + aim.x * .07, -.36 + aim.y * .05, .98);
+  const target = new Vector3(aim.x * .36, aim.y * .25 + .115, .54);
   const direction = target.clone().sub(source);
   const length = direction.length();
   const midpoint = source.clone().add(target).multiplyScalar(.5);
-  const radius = mode === "bruckner" ? (largeSpot ? .24 : .09) * distance / 100 : .085 * distance / 50;
+  const radius = mode === "bruckner" ? (largeSpot ? .37 : .1) * distance / 100 : .085 * distance / 50;
   const quaternion = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), direction.clone().normalize());
   if (!light) return null;
-  return (
+  return <>
     <mesh position={midpoint} quaternion={quaternion}>
       <coneGeometry args={[radius, length, 32, 1, true]} />
-      <meshBasicMaterial color="#ffd36e" transparent opacity={.13} side={DoubleSide} depthWrite={false} />
+      <meshBasicMaterial color="#ffd36e" transparent opacity={mode === "bruckner" ? .09 : .13} side={DoubleSide} depthWrite={false} />
     </mesh>
-  );
+    {mode === "bruckner" && <mesh position={[target.x, target.y, .59]} renderOrder={1}>
+      <circleGeometry args={[radius, 48]} />
+      <meshBasicMaterial color="#ffb95d" transparent opacity={largeSpot ? .13 : .18} side={DoubleSide} depthWrite={false} depthTest={false} />
+    </mesh>}
+  </>;
 }
 
 function PracticeScene(props: {
@@ -166,10 +174,14 @@ function PracticeScene(props: {
   distance: number;
   light: boolean;
   largeSpot: boolean;
-  support: boolean;
+  viewOffset: Aim;
   reveal: boolean;
 }) {
-  useFrame(({ camera }) => camera.lookAt(0, .02, 0));
+  useFrame(({ camera }) => {
+    camera.position.x += (props.viewOffset.x * .13 - camera.position.x) * .12;
+    camera.position.y += ((.04 + props.viewOffset.y * .09) - camera.position.y) * .12;
+    camera.lookAt(0, .02, 0);
+  });
   return (
     <>
       <color attach="background" args={["#0b171c"]} />
@@ -179,8 +191,7 @@ function PracticeScene(props: {
       <PatientHead mode={props.mode} scenario={props.scenario} reveal={props.reveal} />
       <LightBeam mode={props.mode} aim={props.aim} light={props.light} distance={props.distance} largeSpot={props.largeSpot} />
       <Instrument mode={props.mode} aim={props.aim} light={props.light} distance={props.distance} />
-      <HandModel side="right" supporting aim={props.aim} />
-      <HandModel side="left" supporting={props.support} aim={props.aim} />
+      <HandModel aim={props.aim} />
     </>
   );
 }
@@ -205,9 +216,10 @@ export function ClinicalPracticeStage({
   const [light, setLight] = useState(false);
   const [fixation, setFixation] = useState(false);
   const [largeSpot, setLargeSpot] = useState(mode === "hirschberg");
-  const [viewAligned, setViewAligned] = useState(false);
+  const [viewOffset, setViewOffset] = useState<Aim>({ x: .62, y: -.48 });
   const [grabbed, setGrabbed] = useState(false);
   const [observed, setObserved] = useState(false);
+  const viewAligned = opticViewAligned(viewOffset.x, viewOffset.y);
   useEffect(() => {
     dialog.current?.showModal();
     return () => dialog.current?.close();
@@ -229,6 +241,11 @@ export function ClinicalPracticeStage({
     if (!ready && observed) setObserved(false);
   }, [ready, observed, onObserved]);
   const updateAim = (x: number, y: number) => setAim({ x: Math.max(-1, Math.min(1, x)), y: Math.max(-1, Math.min(1, y)) });
+  const updateViewOffset = (x: number, y: number) => setViewOffset({ x: Math.max(-1, Math.min(1, x)), y: Math.max(-1, Math.min(1, y)) });
+  const alignViewFromPointer = (event: React.PointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    updateViewOffset(((event.clientX - rect.left) / rect.width - .5) * 2, ((event.clientY - rect.top) / rect.height - .5) * 2);
+  };
   const aimFromPointer = (event: React.PointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     updateAim(((event.clientX - rect.left) / rect.width - .5) * 2, (.5 - (event.clientY - rect.top) / rect.height) * 2);
@@ -239,7 +256,7 @@ export function ClinicalPracticeStage({
     setLight(false);
     setFixation(false);
     setLargeSpot(mode === "hirschberg");
-    setViewAligned(false);
+    setViewOffset({ x: .62, y: -.48 });
     setObserved(false);
   };
   const prompt = !fixation
@@ -253,7 +270,7 @@ export function ClinicalPracticeStage({
           : !aimReady
             ? "Aim the beam at the midpoint between both eyes."
             : !viewAligned
-              ? mode === "bruckner" ? "Bring your viewing eye to the peephole." : "Centre your viewing position with the patient."
+              ? mode === "bruckner" ? "Drag the examiner-view marker into the peephole target." : "Drag the observer marker into the centre target."
               : "Technique aligned. Inspect the reflexes before recording.";
   return (
     <dialog ref={dialog} className="clinical-practice-dialog" aria-labelledby={`${mode}-practice-title`} onCancel={event => { event.preventDefault(); onClose(); }}>
@@ -289,13 +306,13 @@ export function ClinicalPracticeStage({
           >
             <StageBoundary>
               <Canvas dpr={[1, 1.5]} shadows camera={{ position: [0, .04, 2.55], fov: 39 }} fallback={<PracticeWebGLFallback />}>
-                <PracticeScene mode={mode} scenario={scenario} aim={aim} distance={distance} light={light} largeSpot={largeSpot} support={mode === "bruckner" && largeSpot} reveal={ready} />
+                <PracticeScene mode={mode} scenario={scenario} aim={aim} distance={distance} light={light} largeSpot={largeSpot} viewOffset={viewOffset} reveal={ready} />
               </Canvas>
             </StageBoundary>
             <div className={`beam-reticle ${aimReady ? "aligned" : ""}`} aria-hidden="true"><Crosshair /></div>
             <div className="hand-readout" aria-hidden="true">
               <span><b>R</b>{mode === "bruckner" ? "Hold + aim ophthalmoscope" : "Hold + aim penlight"}</span>
-              <span className={mode === "bruckner" && !largeSpot ? "attention" : ""}><b>L</b>{mode === "bruckner" ? (largeSpot ? "Aperture set · hand clear" : "Adjust aperture wheel") : "Resting clear of patient"}</span>
+              <span className={mode === "bruckner" && !largeSpot ? "attention" : ""}><b>L</b>{mode === "bruckner" ? (largeSpot ? "Aperture set · hand removed" : "Adjust aperture wheel") : "Resting clear of patient"}</span>
             </div>
             <p className="viewport-controls"><MousePointer2 size={14} /> Drag to aim · wheel changes distance · Space toggles light</p>
           </div>
@@ -307,7 +324,28 @@ export function ClinicalPracticeStage({
           <section><p className="eyebrow">PATIENT</p><button className={fixation ? "task-button done" : "task-button"} onClick={() => setFixation(true)}><Eye size={18} /><span><b>{fixation ? "Fixation instructed" : "Give fixation instruction"}</b><small>{fixation ? "Patient is looking at the light" : "Ask the patient to look directly at the light"}</small></span>{fixation && <Check size={16} />}</button></section>
           <section><p className="eyebrow">RIGHT HAND · INSTRUMENT</p><button className={light ? "task-button active" : "task-button"} onClick={() => setLight(value => !value)}><Power size={18} /><span><b>{light ? "Light on" : "Light off"}</b><small>Spacebar also toggles power</small></span></button><label className="distance-control">Distance · {distance} cm<input type="range" min={mode === "bruckner" ? 60 : 30} max={mode === "bruckner" ? 140 : 70} value={distance} onChange={event => setDistance(Number(event.target.value))} /></label></section>
           <section><p className="eyebrow">LEFT HAND · SETUP</p>{mode === "bruckner" ? <button className={largeSpot ? "task-button done" : "task-button"} onClick={() => setLargeSpot(true)}><Hand size={18} /><span><b>{largeSpot ? "Large spot selected" : "Adjust aperture wheel"}</b><small>{largeSpot ? "Left hand can lower and stay clear" : "Select the large illumination aperture"}</small></span>{largeSpot && <Check size={16} />}</button> : <div className="offhand-note"><Hand size={18} /><span><b>Keep the other hand clear</b><small>No patient contact is needed for this test.</small></span></div>}</section>
-          <section><p className="eyebrow">VIEWING POSITION</p><button className={viewAligned ? "task-button done" : "task-button"} onClick={() => setViewAligned(value => !value)}><Eye size={18} /><span><b>{mode === "bruckner" ? "Peephole alignment" : "Observer alignment"}</b><small>{viewAligned ? "Aligned with the visual axis" : mode === "bruckner" ? "Bring your eye to the instrument peephole" : "Centre yourself with both eyes"}</small></span>{viewAligned && <Check size={16} />}</button></section>
+          <section><p className="eyebrow">VIEWING POSITION</p><div
+            className={`view-alignment-pad ${viewAligned ? "aligned" : ""}`}
+            tabIndex={0}
+            role="application"
+            aria-label={`${mode === "bruckner" ? "Peephole" : "Observer"} alignment pad. Drag the marker to the centre or use the arrow keys.`}
+            onPointerDown={event => { if (event.button !== 0) return; event.currentTarget.focus(); event.currentTarget.setPointerCapture(event.pointerId); alignViewFromPointer(event); }}
+            onPointerMove={event => { if (event.currentTarget.hasPointerCapture(event.pointerId)) alignViewFromPointer(event); }}
+            onPointerUp={event => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }}
+            onPointerCancel={event => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }}
+            onKeyDown={event => {
+              if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home"].includes(event.key)) return;
+              event.preventDefault();
+              if (event.key === "Home") updateViewOffset(0, 0);
+              if (event.key === "ArrowLeft") updateViewOffset(viewOffset.x - .08, viewOffset.y);
+              if (event.key === "ArrowRight") updateViewOffset(viewOffset.x + .08, viewOffset.y);
+              if (event.key === "ArrowUp") updateViewOffset(viewOffset.x, viewOffset.y - .08);
+              if (event.key === "ArrowDown") updateViewOffset(viewOffset.x, viewOffset.y + .08);
+            }}
+          >
+            <span className="view-alignment-target" aria-hidden="true"><Eye size={18} /></span>
+            <i className="view-alignment-marker" aria-hidden="true" style={{ left: `${(viewOffset.x + 1) * 50}%`, top: `${(viewOffset.y + 1) * 50}%` }} />
+          </div><p className={viewAligned ? "view-alignment-status ready" : "view-alignment-status"}>{viewAligned ? <><Check size={14} /> Aligned with the visual axis</> : `Drag the marker into the ${mode === "bruckner" ? "peephole" : "centre"}`}</p></section>
           <section className="clinical-observation"><p className="eyebrow">OBSERVATION</p>{children(ready)}</section>
           <button className="reset-technique" onClick={reset}><RotateCcw size={15} /> Reset technique</button>
         </aside>

@@ -1874,6 +1874,14 @@ kbd {
 .task-button b, .offhand-note b { display: block; color: inherit; font-size: .78rem; }
 .task-button small, .offhand-note small { display: block; margin-top: 3px; color: #91aaa5; font-size: .67rem; line-height: 1.3; }
 .offhand-note { grid-template-columns: 22px 1fr; }
+.view-alignment-pad { position: relative; width: 100%; height: 94px; overflow: hidden; border: 1px solid #ffffff26; border-radius: 8px; cursor: crosshair; touch-action: none; background: radial-gradient(circle at center, #27494d 0 2px, transparent 3px), linear-gradient(#ffffff0c 1px, transparent 1px), linear-gradient(90deg, #ffffff0c 1px, transparent 1px), #09191d; background-size: auto, 25% 25%, 25% 25%, auto; }
+.view-alignment-pad:focus-visible { outline: 2px solid #8ad9bb; outline-offset: 2px; }
+.view-alignment-pad.aligned { border-color: #65bd93a6; box-shadow: inset 0 0 25px #4fb18425; }
+.view-alignment-target { position: absolute; left: 50%; top: 50%; width: 42px; height: 42px; transform: translate(-50%, -50%); border: 1px solid #88c7b67a; border-radius: 50%; display: grid; place-items: center; color: #a6d9cc; pointer-events: none; }
+.view-alignment-marker { position: absolute; width: 18px; height: 18px; transform: translate(-50%, -50%); border: 2px solid #f3c878; border-radius: 50%; background: #8e6728d9; box-shadow: 0 0 0 4px #f3c8781c, 0 2px 7px #0008; pointer-events: none; }
+.view-alignment-pad.aligned .view-alignment-marker { border-color: #9ce5c4; background: #2c7e61; box-shadow: 0 0 0 5px #76d8ac22, 0 0 18px #67cea0; }
+.view-alignment-status { min-height: 20px; margin: 7px 0 0; display: flex; align-items: center; gap: 5px; color: #9db2ad; font-size: .68rem; }
+.view-alignment-status.ready { color: #9fe1c2; }
 .distance-control { display: block; margin-top: 10px; color: #b5c8c4; font-size: .72rem; }
 .distance-control input { display: block; width: 100%; margin-top: 7px; padding: 0; accent-color: #65b99b; }
 .clinical-observation label { display: block; margin-bottom: 9px; color: #c6d8d4; font-size: .72rem; }

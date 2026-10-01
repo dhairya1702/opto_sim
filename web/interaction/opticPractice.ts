@@ -1,5 +1,11 @@
 export type OpticPracticeMode = "bruckner" | "hirschberg";
 
+export const OPTIC_VIEW_ALIGNMENT_TOLERANCE = .14;
+
+export function opticViewAligned(x: number, y: number) {
+  return Math.hypot(x, y) <= OPTIC_VIEW_ALIGNMENT_TOLERANCE;
+}
+
 export type OpticTechnique = {
   aimX: number;
   aimY: number;

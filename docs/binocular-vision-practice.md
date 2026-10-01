@@ -30,7 +30,7 @@ The interaction requires primary position plus eight cardinal positions, visible
 - Record: equal or unequal; if unequal, identify the brighter eye.
 - Interpretation taught conservatively: equal brightness supports binocular fixation in this screening observation. Unequal brightness is not a diagnosis and may have several explanations, including strabismus, anisometropia, anisocoria, or media opacity.
 
-The trainer varies equal, OD-brighter, and OS-brighter examples. In the full-screen first-person attempt the right hand holds and aims the direct ophthalmoscope; the left hand selects the large aperture and then stays clear. The learner must instruct fixation, switch on the light, work near 1 metre, centre the beam, and align with the peephole before either reflex is revealed.
+The trainer varies equal, OD-brighter, and OS-brighter examples. In the full-screen first-person attempt the right hand holds and aims the direct ophthalmoscope; the left hand selects the large aperture and is then removed from view. The large-spot footprint visibly covers both pupils, while enlarged high-contrast centres and halos make the illustrative red-reflex comparison legible. The learner must instruct fixation, switch on the light, work near 1 metre, centre the beam, and directly move the examiner view into peephole alignment with a drag or keyboard control before either reflex is revealed.
 
 ### 3.3 Hirschberg test
 
