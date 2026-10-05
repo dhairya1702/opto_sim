@@ -19,9 +19,11 @@ These instructions apply to the entire repository.
 - Manual interactions for distance/pinhole/near acuity, pupils, near pupil response, cover testing, motility, and retinoscopy.
 - Illustrative anterior-segment and posterior-pole views.
 - Desktop first-person controls plus click-based station mode and a WebGL-failure fallback.
+- Experimental native-WebXR Hirschberg, Bruckner, motility, Krimsky, cover–uncover, and alternating-cover Practice and Test consultation share the canonical clinic, controller/tool runtime, teleportation, pickup/transfer/placement, trigger illumination, tracking recovery, and headset panels. Practice supplies its own existing scenarios, technique checks, teaching/help, direct interpretation entry, and local feedback/completion. Layout preview and the existing desktop trainer remain available. Physical-device validation of the migrated lessons remains pending. Alternating cover includes illustrative prism neutralisation; near fixation uses a tool-specific stand socket to free both hands.
+- Test consultation defaults to free exploration of the authored case: independent two-hand tools, assisted placement/transfer, immediate supported patient visuals, and an A/X menu for patient instructions/history/notebook/assessment. Pickup must not open examination panels or technique guidance. Optional guided adapters are retained internally and disabled in Room. Record finding beside a held supported tool explicitly opens a headset-following entry drawer with completion checks; Record observation in the menu remains an alternative. In-room retinoscopy and schematic ophthalmoscopy use the same case findings and eye-specific recording path. Free exploration records no findings automatically. Exit VR must preserve saved session data and record nothing from unfinished technique.
 - Session state is memory-only and is cleared by reload or restart.
 
-Out of scope at present: authentication, backend persistence, institutional records, secure examination delivery, multiplayer/supervisor mode, speech recognition, generative patient dialogue, VR/XR, validated optical or disease physiology, and clinical certification.
+Out of scope at present: authentication, backend persistence, institutional records, secure examination delivery, multiplayer/supervisor mode, speech recognition, generative patient dialogue, full-library VR conversion, controller physics, hand tracking, validated optical or disease physiology, and clinical certification.
 
 ## Technology
 
@@ -29,6 +31,7 @@ Out of scope at present: authentication, backend persistence, institutional reco
 - TypeScript 5.9 in strict project-build mode
 - Vite 7
 - Three.js, React Three Fiber, and Drei
+- Native WebXR through the Three.js WebXR manager for the experimental Quest slice
 - Vitest for domain/interaction unit tests
 - Playwright for browser end-to-end tests
 - Lucide React icons
@@ -44,6 +47,14 @@ No backend is required. `main.py` is a small pre-existing Python entry point and
 | `web/ui/ModeSelection.tsx` | Product entry point for choosing Practice or Test |
 | `web/practice/PracticeMode.tsx` | Binocular-vision practice library, teaching content, guided trainers, and local completion state |
 | `web/practice/ClinicalPracticeStage.tsx` | Full-screen first-person Bruckner/Hirschberg patient, two-hand instrument scene, technique HUD, and observation slot |
+| `web/practice/HirschbergVRStage.tsx` | Existing library's entry to the shared VR clinic and accessible Hirschberg control mirror |
+| `web/practice/xr/PracticeVRClinic.tsx` | Lesson-independent Practice XR session/dialog lifecycle, canonical interior, layout preview, and desktop fallback |
+| `web/practice/xr/HirschbergPracticeController.tsx` | Hirschberg lesson adapter over shared controllers, scenario reflexes, optional help, recording, and local completion |
+| `web/practice/xr/PracticeBatchVRStage.tsx`, `PracticeLessonUI.tsx` | Shared-clinic lesson entries, choice/numeric recording controls, and accessible mirrors |
+| `web/practice/xr/BrucknerPracticeController.tsx`, `MotilityPracticeController.tsx`, `CoverPracticeController.tsx` | Practice-specific controller adapters, authored findings, local recording, and patient visualization |
+| `web/practice/xr/KrimskyPracticeController.tsx`, `web/interaction/xrKrimskyPractice.ts` | Standard/modified lesson adapter, spatial technique, relative reflexes, explicit completed comparison capture and independent numeric entry |
+| `web/interaction/xrPracticeBatch.ts` | Pure Bruckner geometry, single-eye cover/prism placement, near fixation, and alternate-cover transit rules |
+| `web/practice/HirschbergLegacyVRStage.tsx`, `web/practice/xr/XRClinicTools.tsx`, `procedures.ts` | Retained earlier VR experiment/tool models/declarations; not the active immersive lesson path |
 | `web/practice/CoverPracticeStage.tsx` | Full-screen cover–uncover and alternating-cover practice, two-hand tools, simulated refixation, and prism neutralisation |
 | `web/practice/KrimskyPracticeStage.tsx` | Full-screen standard and modified Krimsky setup, direct prism handling, illustrative reflex neutralisation, and recording |
 | `web/practice/SensoryPracticeStage.tsx` | Routes sensory Practice modes to the dedicated Worth, stereopsis, and 4Δ base-out stages |
@@ -63,6 +74,16 @@ No backend is required. `main.py` is a small pre-existing Python entry point and
 | `web/domain/engine.ts` | Pure session reducer, prerequisite gating, result keys, and deterministic assessment |
 | `web/patient/scripted.ts` | Deterministic question matching and scripted patient replies |
 | `web/interaction/` | Input/controller code plus pure procedure logic for acuity, cover, motility, pupils, retinoscopy, navigation, and optional WebMCP exposure |
+| `web/interaction/useXRClinicRuntime.ts` | Shared physical WebXR controller/tool/input/placement/tracking/teleport loop; no lesson answers or case scoring |
+| `web/scene/XRClinicRuntimeView.tsx`, `XRClinicPanels.tsx` | Shared canonical instruments/controllers/pads, hand controls, and headset observation panels |
+| `web/interaction/clinicPatient.ts`, `xrHirschbergPractice.ts` | Canonical patient anchors and pure conversion of existing Hirschberg landmarks/submission gates |
+| `web/interaction/XRConsultationController.tsx` | Consultation's clinical/menu/recording adapter over the shared physical runtime |
+| `web/interaction/xrClinic.ts` | Retained earlier experiment's pure stations/tool/procedure domain; active adapters use the canonical consultation registry |
+| `web/interaction/xrPupils.ts`, `xrCover.ts`, `xrMotility.ts` | Pure patient-relative conversion and ordered technique logic used by the first Test-room XR procedure adapters |
+| `web/interaction/xrScopes.ts` | Pure scope-to-pupil aim, case-derived reflexes, sweep checkpoints, aperture-view alignment, and interrupted inspection logic |
+| `web/scene/XRScopeOptics.tsx`, `XRRetinoscopyReflex.tsx` | Illustrative consultation scope beam/aperture and patient-pupil reflex, driven by mutable visual state |
+| `web/interaction/xrConsultationTools.ts`, `xrConsultationInput.ts`, `xrConsultationProcedure.ts` | Canonical ownership/placement and input routing reused in both modes; consultation-specific technique interruption remains an adapter concern |
+| `web/scene/ConsultationInstruments.tsx` | Canonical portable consultation models, grip/working-point visualization, and home sockets |
 | `web/scene/Room.tsx` | Three.js consulting room and first-person interaction surface |
 | `web/scene/Models.tsx` | Procedural room/patient/equipment geometry |
 | `web/scene/EyeSurface.tsx` | Procedural illustrative eye rendering |
@@ -76,6 +97,8 @@ No backend is required. `main.py` is a small pre-existing Python entry point and
 | `docs/clinical-review.md` | Reviewable clinical source of truth, limitations, rubric summary, and approval checklist |
 | `docs/binocular-vision-practice.md` | Supplied clinical source notes, implemented Practice modules, and unresolved review decisions |
 | `docs/interaction-update.md` | Interaction history and current control behavior |
+| `docs/vr-practice-plan.md` | XR architecture, controller contract, device-validation checklist, limitations, and rollout plan |
+| `docs/shared-vr-practice-migration.md` | Hirschberg migration scope, implementation sequence, state contracts, checks, and remaining module plan |
 | `docs/asset-manifest.md` | Visual-asset provenance and licensing |
 | `README.md` | Setup, user workflow, architecture, and feature-level behavior |
 
@@ -88,7 +111,7 @@ The root application first asks the learner to choose a mode. Practice and Test 
 1. The learner opens the binocular-vision library and selects an available skill.
 2. The module explains purpose, equipment, setup, ordered procedure, observations, recording, and escalation.
 3. The learner enters a first-person clinical attempt, controls the instrument hand, uses the off hand when the procedure calls for it, and completes fixation, illumination, distance, aim, and examiner-view alignment.
-4. The simulated finding is withheld until the required technique gates are satisfied.
+4. Controls produce immediate visual feedback; correct setup improves the view, while structured inspection and recording remain gated by the required technique.
 5. Immediate feedback explains the observation. Completion is local practice progress, not certification.
 
 ### Test
@@ -139,6 +162,7 @@ The event log is part of the evidence model. Do not update results, transcript, 
 - OD means right eye, OS means left eye, and OU means both eyes. Keep these mappings consistent in labels, rendering, storage, and tests.
 - Accessibility alternatives are required for drag interactions: keyboard controls, labeled form elements, and usable dialog focus behavior.
 - Reduced-motion preferences must be respected for nonessential animation.
+- XR must remain an adapter over shared procedure logic. Keep controller/headset pose conversion in the XR layer, use metre-scale world coordinates, request only capabilities required by the procedure, clear session/controller state on exit, and preserve the desktop path.
 
 ## Styling and UI conventions
 

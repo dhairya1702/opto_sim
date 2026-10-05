@@ -33,3 +33,17 @@ export function observeTarget(state: MotilityCoverage, target: FixationTarget, d
   const seen = dwell >= 0.7 && !state.seen.includes(position.id) ? [...state.seen, position.id] : state.seen;
   return { seen, current: position.id, dwell };
 }
+
+export const motilityObservations = [
+  ["full", "FROM · full, smooth and accurate OU"],
+  ["limited", "Restricted, jerky or unequal"],
+  ["unsure", "Unsure · repeat assessment"],
+] as const;
+export const MOTILITY_PATIENT_REPLY = "No double vision, pain, or discomfort in any direction.";
+export function motilityRecordedObservation(observation: string) {
+  return observation === "full"
+    ? "Full movements; no diplopia reported during the simulated assessment."
+    : observation === "limited"
+      ? "Restricted or unequal ocular movement suspected; no diplopia reported."
+      : observation === "unsure" ? "Ocular motility assessment uncertain; repeat examination required." : "";
+}

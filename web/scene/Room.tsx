@@ -1,12 +1,17 @@
 import { Component, Suspense, useEffect, useState, type ReactNode } from "react";
 import { Canvas } from "@react-three/fiber";
+import type { WebGLRenderer } from "three";
 import { Edges } from "@react-three/drei";
-import { Box, Cylinder, Patient, Refraction, Retinoscope, Sign, SlitLamp, Trolley } from "./Models";
+import { Box, ConsultingRoomShell, Patient, Refraction, Retinoscope, Sign, SlitLamp, Trolley } from "./Models";
 import { Controller } from "../interaction/Controller";
-import type { StationId } from "../domain/types";
+import { XRConsultationController, type ConsultationExam, type ConsultationPanel } from "../interaction/XRConsultationController";
+import type { ClinicalCase, Eye, StationId } from "../domain/types";
 import { HeldInstrument } from "./ExaminationView";
 type Props = {
   active: boolean;
+  caseData: ClinicalCase;
+  xrActive?: boolean;
+  xrPreview?: boolean;
   suspended?: boolean;
   target: StationId | null;
   onTarget: (id: StationId | null, examId?: string) => void;
@@ -14,6 +19,11 @@ type Props = {
   held?: string;
   visit: { id: StationId; seq: number } | null;
   onCanvas: (c: HTMLCanvasElement) => void;
+  onRenderer?: (renderer: WebGLRenderer) => void;
+  patientName?: string;
+  onXRExit?: () => void;
+  onXRPanel?: (panel: ConsultationPanel) => void;
+  onXRProcedureComplete?: (exam: ConsultationExam, mode: string, observation: string, eye?: Eye) => boolean | void;
   onFailure: () => void;
 };
 class SceneBoundary extends Component<
@@ -55,70 +65,21 @@ function Highlight({ id }: { id: StationId }) {
     </mesh>
   );
 }
-function Interior({ held }: { held?: string }) {
+export function ConsultationInterior({ held, xr = false }: { held?: string; xr?: boolean }) {
   return (
     <>
-      <color attach="background" args={["#d4dedb"]} />
-      <ambientLight intensity={0.9} />
-      <hemisphereLight args={["#fbfff9", "#737d80", 1.7]} />
-      <directionalLight
-        position={[-2, 4, 2]}
-        intensity={2.2}
-        castShadow
-        shadow-mapSize={[1024, 1024]}
-        shadow-camera-left={-4}
-        shadow-camera-right={4}
-        shadow-camera-top={4}
-        shadow-camera-bottom={-4}
-        shadow-bias={-0.001}
-      />
-      <Box p={[0, -0.05, 0]} s={[4.15, 0.1, 5.15]} c="#d0d1c9" />
-      {Array.from({ length: 7 }, (_, i) => (
-        <Box key={`x${i}`} p={[-1.5 + i * 0.5, 0.002, 0]} s={[0.004, 0.002, 5]} c="#b9bdb6" />
-      ))}
-      {Array.from({ length: 9 }, (_, i) => (
-        <Box key={`z${i}`} p={[0, 0.003, -2 + i * 0.5]} s={[4, 0.002, 0.004]} c="#b9bdb6" />
-      ))}
-      <Box p={[0, 1.5, -2.55]} s={[4.2, 3, 0.1]} c="#e3e8e2" />
-      <Box p={[-2.05, 1.5, 0]} s={[0.1, 3, 5.1]} c="#edf0e9" />
-      <Box p={[2.05, 1.5, 0]} s={[0.1, 3, 5.1]} c="#d4dfdb" />
-      <Box p={[0, 1.5, 2.55]} s={[4.2, 3, 0.1]} c="#e8ebe5" />
-      <Box p={[0, 3.04, 0]} s={[4.2, 0.08, 5.2]} c="#f1f2eb" />
-      <Box p={[0, 0.07, -2.48]} s={[4, 0.14, 0.04]} c="#b0c0bc" />
-      <Box p={[-1.98, 0.07, 0]} s={[0.04, 0.14, 5]} c="#b0c0bc" />
-      <Box p={[1.98, 0.07, 0]} s={[0.04, 0.14, 5]} c="#b0c0bc" />
-      <Box p={[0, 2.96, -0.6]} s={[1.4, 0.04, 0.65]} c="#fafbf0" />
-      <pointLight position={[0, 2.7, -0.6]} intensity={5} distance={5} />
-      <Box p={[-1.985, 1.92, -0.25]} s={[0.035, 1.25, 1.55]} c="#9bbab8" />
-      {Array.from({ length: 12 }, (_, i) => (
-        <Box
-          key={i}
-          p={[-1.96, 1.36 + i * 0.1, -0.25]}
-          s={[0.025, 0.065, 1.52]}
-          c="#edf0e5"
-          r={[0, 0, 0.07]}
-        />
-      ))}
-      <Box p={[1.42, 1.1, 2.48]} s={[0.85, 2.2, 0.04]} c="#b4c3bc" />
-      <Cylinder
-        p={[1.12, 1.02, 2.42]}
-        h={0.16}
-        radius={0.014}
-        c="#788c8a"
-        r={[0, 0, Math.PI / 2]}
-      />
-      <Sign text={["CONSULTATION 01", "OPTOMETRY"]} p={[-1.15, 2.28, -2.485]} size={[0.95, 0.33]} />
+      <ConsultingRoomShell />
       <group userData={{ station: "patient" }}>
-        <Patient />
+        <Patient xr={xr} />
       </group>
       <group userData={{ station: "trolley" }}>
-        <Trolley held={held} />
+        <Trolley held={held} portable={!xr} />
       </group>
       <group userData={{ station: "fundus", examId: "fundus" }}>
-        {held !== "fundus" && <Retinoscope p={[-1.13, 0.91, 1.04]} ophthalmo />}
+        {!xr && held !== "fundus" && <Retinoscope p={[-1.13, 0.91, 1.04]} ophthalmo />}
       </group>
       <group userData={{ station: "refraction", examId: "subjective" }}>
-        <Refraction />
+        <Refraction portable={!xr} />
       </group>
       <group userData={{ station: "slit", examId: "anterior" }}>
         <SlitLamp />
@@ -167,7 +128,9 @@ export function Room(props: Props) {
           dpr={[1, 1.5]}
           camera={{ position: [0, 1.6, 1.65], fov: 66, near: 0.05, far: 20 }}
           onCreated={({ gl }) => {
+            gl.xr.enabled = true;
             props.onCanvas(gl.domElement);
+            props.onRenderer?.(gl);
             gl.domElement.addEventListener("webglcontextlost", props.onFailure);
             setLoaded(true);
           }}
@@ -177,15 +140,25 @@ export function Room(props: Props) {
             </div>
           }
         >
-          <Interior held={props.held} />
+          <ConsultationInterior held={props.held} xr={Boolean(props.xrActive)} />
           <Controller
-            active={props.active}
+            active={props.active && !props.xrActive}
             onTarget={props.onTarget}
             onInteract={props.onInteract}
             visit={props.visit}
           />
+          <XRConsultationController
+            caseData={props.caseData}
+            active={Boolean(props.xrActive && props.active)}
+            preview={Boolean(props.xrPreview && props.active)}
+            patientName={props.patientName}
+            onOpenPanel={props.onXRPanel}
+            onExitVR={props.onXRExit}
+            onInteract={props.onInteract}
+            onProcedureComplete={props.onXRProcedureComplete}
+          />
           {props.target && <Highlight id={props.target} />}
-          {props.held && props.held !== "anterior" && (
+          {props.held && !props.xrActive && props.held !== "anterior" && (
             <group userData={{ held: true }}>
               <HeldInstrument key={props.held} id={props.held} />
             </group>

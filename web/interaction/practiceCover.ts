@@ -46,3 +46,9 @@ export function advancePracticeCoverStep(kind: PracticeCoverKind, index: number,
 export function prismTrialNeutralizes(scenario: typeof alternateCoverScenarios[number], base: string, amount: number) {
   return base === scenario.base && amount === scenario.amount;
 }
+
+export const coverScenarios = [
+  { id: "orthophoria", label: "Orthophoria", feedback: "No movement was seen on covering or uncovering either eye." },
+  { id: "left-esotropia", label: "Left unilateral esotropia", feedback: "When OD was covered, OS moved outward to take fixation and returned inward when OD was uncovered." },
+  { id: "exophoria", label: "Exophoria", feedback: "The covered eye drifted outward after fusion was broken, then moved inward to refixate immediately on uncovering." },
+] as const;

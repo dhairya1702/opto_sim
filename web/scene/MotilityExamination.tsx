@@ -1,7 +1,7 @@
 import { Component, useEffect, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { EyeSurface } from "./EyeSurface";
-import { gazePositions, observeTarget, targetFromControls, type MotilityCoverage } from "../interaction/motility";
+import { gazePositions, motilityRecordedObservation, MOTILITY_PATIENT_REPLY, observeTarget, targetFromControls, type MotilityCoverage } from "../interaction/motility";
 
 class ViewBoundary extends Component<{ children: ReactNode; onFailure: () => void }, { failed: boolean }> {
   state = { failed: false };
@@ -79,13 +79,7 @@ export function MotilityExamination({ onComplete, onCancel }: { onComplete: (obs
     return () => clearInterval(timer);
   }, [following, light, failed]);
   const ready = light && coverage.seen.length === gazePositions.length && asked && !!observation && !failed;
-  const recordedObservation = observation === "full"
-    ? "Full movements; no diplopia reported during the simulated assessment."
-    : observation === "limited"
-      ? "Restricted or unequal ocular movement suspected; no diplopia reported."
-      : observation === "unsure"
-        ? "Ocular motility assessment uncertain; repeat examination required."
-        : "";
+  const recordedObservation = motilityRecordedObservation(observation);
   const movePointer = (e: React.PointerEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
     update(((e.clientX - r.left) / r.width - 0.5) / 0.4, (0.5 - (e.clientY - r.top) / r.height) / 0.4);
@@ -135,7 +129,7 @@ export function MotilityExamination({ onComplete, onCancel }: { onComplete: (obs
         <p role="status">{coverage.seen.length} / {gazePositions.length} positions observed{coverage.current && !coverage.seen.includes(coverage.current) ? " · hold steady…" : ""}</p>
         <div className="motility-review">
           <button className="secondary" disabled={!following || coverage.seen.length < gazePositions.length} onClick={() => setAsked(true)}>Ask about double vision, pain, or discomfort</button>
-          {asked && <p>Arun: “No double vision, pain, or discomfort in any direction.”</p>}
+          {asked && <p>Arun: “{MOTILITY_PATIENT_REPLY}”</p>}
           <label>What did you observe?<select value={observation} onChange={e => setObservation(e.target.value)}><option value="">Choose after observing</option><option value="full">FROM — full, smooth, and accurate movements OU</option><option value="limited">Movement looks restricted, jerky, or unequal</option><option value="unsure">I’m not sure yet</option></select></label>
           {observation && observation !== "full" && <p className="notice">This case models coordinated movements. Recheck with the target; if uncertain, compare both eyes before recording the authored finding.</p>}
         </div>

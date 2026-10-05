@@ -17,19 +17,19 @@ export function workingDistanceDioptres(distanceCm: number) {
   return 100 / Math.max(1, distanceCm);
 }
 
-export function grossNeutralLens(eye: RetinoscopyEye, distanceCm: number) {
-  const result = Math.round((authoredNetSphere[eye] + workingDistanceDioptres(distanceCm)) * 4) / 4;
+export function grossNeutralLens(eye: RetinoscopyEye, distanceCm: number, netSphere = authoredNetSphere[eye]) {
+  const result = Math.round((netSphere + workingDistanceDioptres(distanceCm)) * 4) / 4;
   return Object.is(result, -0) ? 0 : result;
 }
 
-export function reflexMotion(eye: RetinoscopyEye, distanceCm: number, trialLens: number): ReflexMotion {
-  const difference = grossNeutralLens(eye, distanceCm) - trialLens;
+export function reflexMotion(eye: RetinoscopyEye, distanceCm: number, trialLens: number, netSphere = authoredNetSphere[eye]): ReflexMotion {
+  const difference = grossNeutralLens(eye, distanceCm, netSphere) - trialLens;
   if (Math.abs(difference) <= 0.12) return "neutral";
   return difference > 0 ? "with" : "against";
 }
 
-export function reflexQuality(eye: RetinoscopyEye, distanceCm: number, trialLens: number) {
-  const error = Math.abs(grossNeutralLens(eye, distanceCm) - trialLens);
+export function reflexQuality(eye: RetinoscopyEye, distanceCm: number, trialLens: number, netSphere = authoredNetSphere[eye]) {
+  const error = Math.abs(grossNeutralLens(eye, distanceCm, netSphere) - trialLens);
   return {
     brightness: Math.max(0.28, 1 - error * 0.25),
     width: Math.max(0.18, 1 - error * 0.32),

@@ -5,6 +5,7 @@ import { EyeSurface } from "../scene/EyeSurface";
 import { coverPositionAt, coverTargets, type CoverEye, type CoverToolPose } from "../interaction/cover";
 import {
   advancePracticeCoverStep,
+  coverScenarios,
   alternateCoverScenarios,
   deviationForMovement,
   practiceCoverProcedures,
@@ -15,11 +16,6 @@ import {
 import { Canvas, PracticeWebGLFallback } from "./PracticeWebGLFallback";
 
 type Pulse = { id: number; eye: CoverEye; direction: EyeMovement } | null;
-const coverScenarios = [
-  { id: "orthophoria", label: "Orthophoria", feedback: "No movement was seen on covering or uncovering either eye." },
-  { id: "left-esotropia", label: "Left unilateral esotropia", feedback: "When OD was covered, OS moved outward to take fixation and returned inward when OD was uncovered." },
-  { id: "exophoria", label: "Exophoria", feedback: "The covered eye drifted outward after fusion was broken, then moved inward to refixate immediately on uncovering." },
-] as const;
 
 class CoverPracticeBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };

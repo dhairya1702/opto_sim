@@ -23,6 +23,9 @@ import { PhoriaPracticeStage, type PhoriaMode } from "./PhoriaPracticeStage";
 import { VergencePracticeStage, type VergenceMode } from "./VergencePracticeStage";
 import { AccommodationPracticeStage, type AccommodationMode } from "./AccommodationPracticeStage";
 import { KrimskyPracticeStage } from "./KrimskyPracticeStage";
+import { brucknerScenarios, type BrucknerScenario } from "../interaction/brucknerPractice";
+import { PracticeBatchVRStage } from "./xr/PracticeBatchVRStage";
+import { HirschbergVRStage } from "./HirschbergVRStage";
 
 type SkillId = "motility" | "bruckner" | "hirschberg" | "krimsky" | "cover-uncover" | "alternate-cover" | "worth" | "stereopsis" | "four-prism" | "maddox" | "thorington" | VergenceMode | AccommodationMode;
 type Skill = {
@@ -68,6 +71,7 @@ function TeachingBlock({ title, children }: { title: string; children: React.Rea
 
 function MotilityModule({ onComplete }: { onComplete: () => void }) {
   const [running, setRunning] = useState(false);
+  const [vrRunning, setVrRunning] = useState(false);
   const [complete, setComplete] = useState(false);
   return (
     <>
@@ -97,23 +101,18 @@ function MotilityModule({ onComplete }: { onComplete: () => void }) {
       </div>
       <div className="practice-action-panel">
         <div><p className="eyebrow">GUIDED ATTEMPT</p><h2>Complete all nine gaze positions</h2><p>The trainer marks primary position plus all eight cardinal directions. Hold each point rather than sweeping past it.</p></div>
-        <button className="primary" onClick={() => setRunning(true)}>{complete ? "Practice again" : "Start guided attempt"} <ChevronRight size={17} /></button>
+        <div className="practice-action-buttons"><button className="primary" onClick={() => setRunning(true)}>{complete ? "Practice again" : "Start guided attempt"} <ChevronRight size={17} /></button><button className="secondary xr-launch-button" onClick={() => setVrRunning(true)}><Glasses size={17} /> Quest / WebXR</button></div>
       </div>
       {complete && <div className="practice-success"><CheckCircle2 size={22} /><div><b>Technique sequence complete</b><p>You covered primary position and all eight cardinal directions, asked about diplopia, and recorded an observation.</p></div></div>}
+      {vrRunning && <PracticeBatchVRStage kind="motility" onClose={() => setVrRunning(false)} onDesktop={() => { setVrRunning(false); setRunning(true); }} onComplete={() => { setComplete(true); onComplete(); }} />}
       {running && <MotilityExamination onCancel={() => setRunning(false)} onComplete={() => { setRunning(false); setComplete(true); onComplete(); }} />}
     </>
   );
 }
 
-type BrucknerScenario = "equal" | "od" | "os";
-const brucknerScenarios: Record<BrucknerScenario, { label: string; answer: string }> = {
-  equal: { label: "Equal reflexes", answer: "Reflexes appear equally bright; binocular fixation is supported by this screening observation." },
-  od: { label: "OD brighter", answer: "The reflex from OD appears brighter. Record OD as the brighter reflex and investigate possible causes." },
-  os: { label: "OS brighter", answer: "The reflex from OS appears brighter. Record OS as the brighter reflex and investigate possible causes." },
-};
-
 function BrucknerModule({ onComplete }: { onComplete: () => void }) {
   const [running, setRunning] = useState(false);
+  const [vrRunning, setVrRunning] = useState(false);
   const [scenario, setScenario] = useState<BrucknerScenario>("equal");
   const [answer, setAnswer] = useState("");
   const [checked, setChecked] = useState(false);
@@ -133,7 +132,8 @@ function BrucknerModule({ onComplete }: { onComplete: () => void }) {
         </div>
         <aside className="practice-checklist"><p className="eyebrow">TECHNIQUE POINTS</p>{["Large illumination spot", "Approximately 1 metre", "Patient fixates the light", "Both pupils viewed together", "Name the brighter eye"].map(item => <span key={item}><Check size={14} /> {item}</span>)}</aside>
       </div>
-      <div className="practice-action-panel immersive"><div><p className="eyebrow">FIRST-PERSON PRACTICE</p><h2>Pick up the ophthalmoscope</h2><p>Aim the instrument yourself, set the large spot with your other hand, establish fixation, find the working distance, and look through the peephole. The red reflexes appear only when the technique is aligned.</p></div><button className="primary" onClick={() => { setAnswer(""); setChecked(false); setRunning(true); }}>Enter clinical view <Maximize2 size={17} /></button></div>
+      <div className="practice-action-panel immersive"><div><p className="eyebrow">FIRST-PERSON PRACTICE</p><h2>Pick up the ophthalmoscope</h2><p>Aim the instrument yourself, set the large spot with your other hand, establish fixation, find the working distance, and look through the peephole. The red reflexes appear only when the technique is aligned.</p></div><div className="practice-action-buttons"><button className="primary" onClick={() => { setAnswer(""); setChecked(false); setRunning(true); }}>Desktop clinical view <Maximize2 size={17} /></button><button className="secondary xr-launch-button" onClick={() => setVrRunning(true)}><Glasses size={17} /> Quest / WebXR</button></div></div>
+      {vrRunning && <PracticeBatchVRStage kind="bruckner" scenario={scenario} onNext={next} onClose={() => setVrRunning(false)} onDesktop={() => { setVrRunning(false); setRunning(true); }} onComplete={onComplete} />}
       {running && <ClinicalPracticeStage mode="bruckner" scenario={{ id: scenario, od: [50, 50], os: [50, 50], brighter: scenario === "equal" ? undefined : scenario }} onClose={() => setRunning(false)} onObserved={() => setChecked(false)}>
         {ready => <><label>What do you observe?<select disabled={!ready || (checked && correct)} value={answer} onChange={e => { setAnswer(e.target.value); setChecked(false); }}><option value="">Inspect both pupils</option>{Object.entries(brucknerScenarios).map(([id, item]) => <option key={id} value={id}>{item.label}</option>)}</select></label><button className="primary full" disabled={!ready || !answer || (checked && correct)} onClick={() => { if (checked && correct) return; setChecked(true); if (answer === scenario) onComplete(); }}>Record observation</button>{checked && <div className={correct ? "trainer-feedback correct" : "trainer-feedback incorrect"}><b>{correct ? "Correct" : "Look again"}</b><p>{correct ? brucknerScenarios[scenario].answer : "Keep both pupils in the beam and compare the red reflex brightness."}</p>{correct && <button className="secondary" onClick={next}>New patient finding <RotateCcw size={15} /></button>}</div>}</>}
       </ClinicalPracticeStage>}
@@ -152,6 +152,7 @@ const hirschbergScenarios: HirschbergScenario[] = [
 function HirschbergModule({ onComplete }: { onComplete: () => void }) {
   const [index, setIndex] = useState(0);
   const [running, setRunning] = useState(false);
+  const [vrRunning, setVrRunning] = useState(false);
   const [direction, setDirection] = useState("");
   const [amount, setAmount] = useState("");
   const [checked, setChecked] = useState(false);
@@ -168,16 +169,18 @@ function HirschbergModule({ onComplete }: { onComplete: () => void }) {
         </div>
         <aside className="practice-checklist"><p className="eyebrow">LANDMARK ESTIMATES</p><span><Ruler size={14} /> Pupil edge · ~15°</span><span><Ruler size={14} /> Midway to limbus · ~30°</span><span><Ruler size={14} /> At limbus · ~45°</span><div className="record-example"><b>Quantification note</b><p>These are approximate screening landmarks. Prism neutralisation is used when measurement is required.</p></div></aside>
       </div>
-      <div className="practice-action-panel immersive"><div><p className="eyebrow">FIRST-PERSON PRACTICE</p><h2>Perform the Hirschberg test</h2><p>Hold and aim the penlight, instruct fixation, move to about 50 cm, and centre your own viewing position. Your free hand stays clear because patient contact is not required.</p></div><button className="primary" onClick={() => { setDirection(""); setAmount(""); setChecked(false); setRunning(true); }}>Enter clinical view <Maximize2 size={17} /></button></div>
+      <div className="practice-action-panel immersive"><div><p className="eyebrow">FIRST-PERSON PRACTICE</p><h2>Perform the Hirschberg test</h2><p>Hold and aim the penlight, instruct fixation, move to about 50 cm, and centre your own viewing position. Choose the desktop trainer or practise with controllers in the shared VR clinic.</p></div><div className="practice-action-buttons"><button className="primary" onClick={() => { setDirection(""); setAmount(""); setChecked(false); setRunning(true); }}>Desktop clinical view <Maximize2 size={17} /></button><button className="secondary xr-launch-button" onClick={() => { setDirection(""); setAmount(""); setChecked(false); setVrRunning(true); }}><Glasses size={17} /> Quest / WebXR</button></div></div>
       {running && <ClinicalPracticeStage mode="hirschberg" scenario={scenario} findingPosition={{ current: index + 1, total: hirschbergScenarios.length }} onClose={() => setRunning(false)} onObserved={() => setChecked(false)}>
         {ready => <><label>Interpretation<select disabled={!ready || (checked && correct)} value={direction} onChange={e => { setDirection(e.target.value); setChecked(false); }}><option value="">Inspect the reflexes</option><option value="none">No manifest deviation observed</option><option value="exotropia">Exotropia</option><option value="esotropia">Esotropia</option><option value="hypertropia">Hypertropia</option><option value="hypotropia">Hypotropia</option></select></label><label>Approximate landmark<select disabled={!ready || (checked && correct)} value={amount} onChange={e => { setAmount(e.target.value); setChecked(false); }}><option value="">Choose after inspecting</option><option value="0">Centred · 0°</option><option value="15">Pupil edge · ~15°</option><option value="30">Midway to limbus · ~30°</option><option value="45">Limbus · ~45°</option></select></label><button className="primary full" disabled={!ready || !direction || !amount || (checked && correct)} onClick={() => { if (checked && correct) return; setChecked(true); if (correct) onComplete(); }}>Record interpretation</button>{checked && <div className={correct ? "trainer-feedback correct" : "trainer-feedback incorrect"}><b>{correct ? "Correct" : "Recheck the reflex position"}</b><p>{correct ? scenario.feedback : "Compare each corneal reflex with the pupil centre, then apply the direction rule and landmark estimate."}</p>{correct && <button className="secondary" onClick={next}>New patient finding <RotateCcw size={15} /></button>}</div>}</>}
       </ClinicalPracticeStage>}
+      {vrRunning && <HirschbergVRStage scenario={scenario} finding={{ direction: scenario.direction, amount: scenario.amount, feedback: scenario.feedback }} findingPosition={{ current: index + 1, total: hirschbergScenarios.length }} onClose={() => setVrRunning(false)} onDesktop={() => { setVrRunning(false); setRunning(true); }} onComplete={onComplete} onNext={next} />}
     </>
   );
 }
 
 function CoverUncoverModule({ onComplete }: { onComplete: () => void }) {
   const [running, setRunning] = useState(false);
+  const [vrRunning, setVrRunning] = useState(false);
   return <>
     <div className="practice-lesson-head"><div><p className="eyebrow">BINOCULAR VISION · 3.6</p><h1>Cover–uncover test</h1><p>Differentiate tropia, phoria, and orthophoria by observing exactly when an eye takes up fixation.</p></div><span className="lesson-equipment"><Hand size={18} /> Occluder · distance and near</span></div>
     <div className="lesson-columns"><div>
@@ -185,20 +188,23 @@ function CoverUncoverModule({ onComplete }: { onComplete: () => void }) {
       <TeachingBlock title="Procedure">{steps(["Use the patient’s best refractive correction and establish fixation on an isolated distance target.", "Cover the fixating eye for a few seconds and watch the uncovered eye for movement.", "Remove the occluder and immediately watch the eye that has just been uncovered.", "Repeat the same cover and uncover observations with the fellow eye.", "Classify the timing of movement as tropia, phoria, or no observed deviation.", "Repeat the full procedure using an accommodative near target at 40 cm."])}</TeachingBlock>
       <TeachingBlock title="Unilateral versus alternating tropia"><p>If the uncovered eye takes fixation but returns to its deviated position when the habitual fixating eye is uncovered, the tropia is unilateral in that deviating eye. If the newly fixating eye retains fixation and the fellow eye assumes the deviated position, the tropia is alternating.</p></TeachingBlock>
     </div><aside className="practice-checklist"><p className="eyebrow">WATCH THE TIMING</p>{["Patient maintains fixation", "Observe the eye not covered", "Observe immediately on uncovering", "Cover each eye separately", "Repeat at near · 40 cm", "Keep the occluder clear between trials"].map(item => <span key={item}><Check size={14} /> {item}</span>)}<div className="record-example"><b>Core distinction</b><p>Movement on cover → tropia. Movement on uncover → phoria. No movement → orthophoria.</p></div></aside></div>
-    <div className="practice-action-panel immersive"><div><p className="eyebrow">FIRST-PERSON PRACTICE</p><h2>Control the occluder and watch the eyes</h2><p>Perform the sequence at distance or near. The right hand moves the occluder; at near, the left hand holds the fixation target at 40 cm. The simulated eye movement is brief, so watch the correct eye at the correct moment.</p></div><button className="primary" onClick={() => setRunning(true)}>Enter clinical view <Maximize2 size={17} /></button></div>
+    <div className="practice-action-panel immersive"><div><p className="eyebrow">FIRST-PERSON PRACTICE</p><h2>Control the occluder and watch the eyes</h2><p>Perform the sequence at distance or near. The right hand moves the occluder; at near, the left hand holds the fixation target at 40 cm. The simulated eye movement is brief, so watch the correct eye at the correct moment.</p></div><div className="practice-action-buttons"><button className="primary" onClick={() => setRunning(true)}>Desktop clinical view <Maximize2 size={17} /></button><button className="secondary xr-launch-button" onClick={() => setVrRunning(true)}><Glasses size={17} /> Quest / WebXR</button></div></div>
+    {vrRunning && <PracticeBatchVRStage kind="cover-uncover" onClose={() => setVrRunning(false)} onDesktop={() => { setVrRunning(false); setRunning(true); }} onComplete={onComplete} />}
     {running && <CoverPracticeStage kind="cover-uncover" onClose={() => setRunning(false)} onComplete={onComplete} />}
   </>;
 }
 
 function AlternateCoverModule({ onComplete }: { onComplete: () => void }) {
   const [running, setRunning] = useState(false);
+  const [vrRunning, setVrRunning] = useState(false);
   return <>
     <div className="practice-lesson-head"><div><p className="eyebrow">BINOCULAR VISION · 3.7</p><h1>Alternating cover test</h1><p>Break fusion, determine the direction of deviation, and measure its magnitude by prism neutralisation.</p></div><span className="lesson-equipment"><Hand size={18} /> Occluder + prism bar</span></div>
     <div className="lesson-columns"><div>
       <TeachingBlock title="Procedure">{steps(["Use the same fixation setup as the cover test and ask the patient to maintain fixation.", "Cover one eye, then shift the occluder directly to the fellow eye after a few seconds.", "Continue alternating several times without leaving both eyes uncovered, so fusion remains disrupted.", "Observe the direction of refixation movement and infer the direction of deviation.", "Place a prism bar before either eye with the appropriate base direction.", "Increase prism power gradually and repeat alternating cover until no refixation movement is seen.", "Record the neutralising prism as the magnitude of deviation and repeat for near."])}</TeachingBlock>
       <TeachingBlock title="Movement, deviation, and prism"><div className="direction-grid"><span><b>Eye moves in</b>Exo · base-in prism</span><span><b>Eye moves out</b>Eso · base-out prism</span><span><b>Eye moves up</b>Hypo · base-up prism</span><span><b>Eye moves down</b>Hyper · base-down prism</span></div></TeachingBlock>
     </div><aside className="practice-checklist"><p className="eyebrow">TECHNIQUE POINTS</p>{["Never expose both eyes between shifts", "Alternate several times", "Name movement direction first", "Prism can be placed before either eye", "Increase power gradually", "Endpoint is no movement", "Repeat with a near target"].map(item => <span key={item}><Check size={14} /> {item}</span>)}</aside></div>
-    <div className="practice-action-panel immersive"><div><p className="eyebrow">FIRST-PERSON PRACTICE</p><h2>Alternate, add prism, and neutralise</h2><p>The right hand shifts the occluder without restoring fusion. The left hand holds the prism bar. Identify the movement, choose the prism base, increase power, then repeat until movement disappears.</p></div><button className="primary" onClick={() => setRunning(true)}>Enter clinical view <Maximize2 size={17} /></button></div>
+    <div className="practice-action-panel immersive"><div><p className="eyebrow">FIRST-PERSON PRACTICE</p><h2>Alternate, add prism, and neutralise</h2><p>The right hand shifts the occluder without restoring fusion. The left hand holds the prism bar. Identify the movement, choose the prism base, increase power, then repeat until movement disappears.</p></div><div className="practice-action-buttons"><button className="primary" onClick={() => setRunning(true)}>Desktop clinical view <Maximize2 size={17} /></button><button className="secondary xr-launch-button" onClick={() => setVrRunning(true)}><Glasses size={17} /> Quest / WebXR</button></div></div>
+    {vrRunning && <PracticeBatchVRStage kind="alternate-cover" onClose={() => setVrRunning(false)} onDesktop={() => { setVrRunning(false); setRunning(true); }} onComplete={onComplete} />}
     {running && <CoverPracticeStage kind="alternate-cover" onClose={() => setRunning(false)} onComplete={onComplete} />}
   </>;
 }
@@ -231,7 +237,8 @@ function VergenceModule({mode,onComplete}:{mode:VergenceMode;onComplete:()=>void
 function AccommodationModule({mode,onComplete}:{mode:AccommodationMode;onComplete:()=>void}){const[r,setR]=useState(false);const d={"push-up":["7.1","Amplitude of accommodation · push-up","Move the near card closer until first sustained blur; measure NPA from the spectacle plane and convert with 100/cm."],"minus-lens":["7.2","Amplitude · minus lens to blur","At 40 cm add −0.25 D monocularly until sustained blur; amplitude is minus added plus 2.50 D."],relative:["7.3","Negative and positive relative accommodation","At 40 cm add +0.25 D binocularly to NRA blur, return to baseline, then −0.25 D to PRA blur."],"accommodative-facility":["7.4","Accommodative facility","At 40 cm flip ±2.00 D after each clear report; one plus/minus pair is one cycle."]}[mode];return <><div className="practice-lesson-head"><div><p className="eyebrow">ACCOMMODATION · {d[0]}</p><h1>{d[1]}</h1><p>{d[2]}</p></div></div><div className="lesson-columns"><div><TeachingBlock title="Procedure"><p>{d[2]} Test OD, OS, and binocularly where specified, using correction and a line one larger than best near acuity.</p></TeachingBlock><TeachingBlock title="Reference"><p>Hofstetter: minimum 15−0.25(age), average 18.5−0.30(age), maximum 25−0.40(age). Monocular amplitudes should be within 1 D. Adult facility references: 11 cpm monocular and 10 cpm binocular.</p></TeachingBlock></div></div><div className="practice-action-panel immersive"><div><h2>Perform the accommodation test</h2><p>Control target distance or lenses in the full-screen clinical view.</p></div><button className="primary"onClick={()=>setR(true)}>Enter clinical view</button></div>{r&&<AccommodationPracticeStage mode={mode}onClose={()=>setR(false)}onComplete={onComplete}/>}</>}
 function KrimskyModule({ onComplete }: { onComplete: () => void }) {
   const [running, setRunning] = useState(false);
-  return <><div className="practice-lesson-head"><div><p className="eyebrow">BINOCULAR VISION · 3.4</p><h1>Krimsky test</h1><p>Extend the Hirschberg observation by matching corneal reflex positions with a neutralising prism.</p></div></div><TeachingBlock title="Procedure">{steps(["Ask the patient to fixate the penlight at approximately 50 cm and compare the corneal reflexes.", "View with one examiner eye to reduce parallax.", "For Krimsky, place the prism before the deviating eye. In this trainer, OS deviates and OD fixates.", "Choose base in for an exodeviation or base out for an esodeviation. Increase prism until the reflexes match in relative position.", "Record prism power, base, eye, working distance and method.", "For modified Krimsky, place the prism before the fixating eye. This variant is useful when the deviating eye provides an unreliable reflex or has very poor acuity."])}</TeachingBlock><p>The trainer uses the supplied source’s naming convention. Clinical terminology and the illustrative optical model require clinician review.</p><div className="practice-action-panel immersive"><div><h2>Neutralise the corneal reflex displacement</h2><p>Hold the light steady and adjust the prism while comparing both reflexes.</p></div><button className="primary" onClick={() => setRunning(true)}>Enter clinical view</button></div>{running && <KrimskyPracticeStage onClose={() => setRunning(false)} onComplete={onComplete} />}</>;
+  const [vrRunning, setVrRunning] = useState(false);
+  return <><div className="practice-lesson-head"><div><p className="eyebrow">BINOCULAR VISION · 3.4</p><h1>Krimsky test</h1><p>Extend the Hirschberg observation by matching corneal reflex positions with a neutralising prism.</p></div></div><TeachingBlock title="Procedure">{steps(["Ask the patient to fixate the penlight at approximately 50 cm and compare the corneal reflexes.", "View with one examiner eye to reduce parallax.", "For Krimsky, place the prism before the deviating eye. In this trainer, OS deviates and OD fixates.", "Choose base in for an exodeviation or base out for an esodeviation. Increase prism until the reflexes match in relative position.", "Record prism power, base, eye, working distance and method.", "For modified Krimsky, place the prism before the fixating eye. This variant is useful when the deviating eye provides an unreliable reflex or has very poor acuity."])}</TeachingBlock><p>The trainer uses the supplied source’s naming convention. Clinical terminology and the illustrative optical model require clinician review.</p><div className="practice-action-panel immersive"><div><h2>Neutralise the corneal reflex displacement</h2><p>Hold the light steady and adjust the prism while comparing both reflexes.</p></div><div className="practice-action-buttons"><button className="primary" onClick={() => setRunning(true)}>Desktop clinical view</button><button className="secondary xr-launch-button" onClick={() => setVrRunning(true)}><Glasses size={17} /> Quest / WebXR</button></div></div>{vrRunning && <PracticeBatchVRStage kind="krimsky" onClose={() => setVrRunning(false)} onDesktop={() => { setVrRunning(false); setRunning(true); }} onComplete={onComplete} />}{running && <KrimskyPracticeStage onClose={() => setRunning(false)} onComplete={onComplete} />}</>;
 }
 
 export function PracticeMode({ onExit }: { onExit: () => void }) {

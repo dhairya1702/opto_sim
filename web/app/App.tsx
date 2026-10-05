@@ -7,12 +7,14 @@ import {
   ChevronRight,
   Clock3,
   Eye,
+  Glasses,
   HelpCircle,
   List,
   MapPin,
   RotateCcw,
   X,
 } from "lucide-react";
+import type { WebGLRenderer } from "three";
 import { clinicalCase as c } from "../cases/adultDistanceBlur";
 import { newSession, reduceSession, examBlock } from "../domain/engine";
 import type { Action, ExamConfig, StationId } from "../domain/types";
@@ -65,6 +67,13 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
   const [visit, setVisit] = useState<{ id: StationId; seq: number } | null>(null);
   const [tick, setTick] = useState(Date.now());
   const canvas = useRef<HTMLCanvasElement | null>(null);
+  const xrRenderer = useRef<WebGLRenderer | null>(null);
+  const xrSession = useRef<XRSession | null>(null);
+  const xrStarting = useRef(false);
+  const [xrSupport, setXrSupport] = useState<"checking" | "supported" | "unavailable">("checking");
+  const [xrActive, setXrActive] = useState(false);
+  const [xrPreview, setXrPreview] = useState(false);
+  const [xrError, setXrError] = useState("");
   const lastExam = useRef({ key: "", at: 0 });
   const lastQuestion = useRef({ key: "", at: 0 });
   const notifiedEvent = useRef<string | undefined>(undefined);
@@ -76,6 +85,51 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
   const unlock = () => {
     if (document.pointerLockElement) document.exitPointerLock();
   };
+  const endXR = useCallback(async () => {
+    const active = xrSession.current;
+    xrSession.current = null;
+    try { await active?.end(); } finally {
+      setXrActive(false);
+    }
+  }, []);
+  const toggleXR = useCallback(async () => {
+    if (xrActive) {
+      await endXR();
+      return;
+    }
+    if (xrStarting.current) return;
+    xrStarting.current = true;
+    setXrError("");
+    unlock();
+    let next: XRSession | null = null;
+    try {
+      if (!navigator.xr || !xrRenderer.current) throw new Error("WebXR is not available in this browser.");
+      next = await navigator.xr.requestSession("immersive-vr", { requiredFeatures: ["local-floor"] });
+      xrSession.current = next;
+      next.addEventListener("end", () => {
+        if (xrSession.current === next) xrSession.current = null;
+        setXrActive(false);
+      }, { once: true });
+      xrRenderer.current.xr.setReferenceSpaceType("local-floor");
+      await xrRenderer.current.xr.setSession(next);
+      xrRenderer.current.xr.setFoveation(.6);
+      setXrActive(true);
+    } catch (reason) {
+      if (next) await next.end().catch(() => undefined);
+      if (xrSession.current === next) xrSession.current = null;
+      setXrError(reason instanceof Error ? reason.message : "The VR session could not start.");
+    } finally {
+      xrStarting.current = false;
+    }
+  }, [endXR, xrActive]);
+  const toggleXRExperience = useCallback(() => {
+    if (xrSupport === "unavailable") {
+      setXrError("");
+      setXrPreview(value => !value);
+      return;
+    }
+    if (xrSupport === "supported") void toggleXR();
+  }, [toggleXR, xrSupport]);
   const open = useCallback((p: PanelName) => {
     if (document.pointerLockElement) document.exitPointerLock();
     setPanel(p);
@@ -105,6 +159,14 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
           setToast({ title: "Before this examination", detail: blocked, key: Date.now() });
           return;
         }
+        if (xrActive && (
+          (held.examId === "pupils" && held.config.mode === "general")
+          || held.examId === "cover"
+          || held.examId === "motility"
+        )) {
+          // Physical XR tools already respond; selection only focuses their panel.
+          return;
+        }
         setAnimation(held);
         open(null);
         return;
@@ -114,7 +176,7 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
       setStation(id);
       open(id === "patient" ? "interview" : "exams");
     },
-    [open, held, session],
+    [open, held, session, xrActive],
   );
   const fail = useCallback(() => {
     setSceneFailed(true);
@@ -173,6 +235,8 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
   };
   const restart = () => {
     unlock();
+    void endXR();
+    setXrPreview(false);
     canvas.current = null;
     setSceneReady(false);
     setSession(newSession(c, uid()));
@@ -203,6 +267,18 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
       document.removeEventListener("pointerlockerror", error);
     };
   }, []);
+  useEffect(() => {
+    let cancelled = false;
+    void navigator.xr?.isSessionSupported("immersive-vr").then(
+      supported => { if (!cancelled) setXrSupport(supported ? "supported" : "unavailable"); },
+      () => { if (!cancelled) setXrSupport("unavailable"); },
+    );
+    if (!navigator.xr) setXrSupport("unavailable");
+    return () => { cancelled = true; const active = xrSession.current; xrSession.current = null; void active?.end(); };
+  }, []);
+  useEffect(() => {
+    if (xrActive && (panel || animation)) void endXR();
+  }, [animation, endXR, panel, xrActive]);
   useEffect(() => {
     const timer = setInterval(() => setTick(Date.now()), 1000);
     return () => clearInterval(timer);
@@ -236,7 +312,13 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
         {!sceneFailed && (
           <Room
             key={session.id}
+            caseData={c}
             active={inEncounter && !panel && !animation}
+            xrActive={xrActive}
+            xrPreview={xrPreview}
+            patientName={c.patient.name}
+            onXRPanel={open}
+            onXRExit={() => { void endXR(); }}
             suspended={!!animation}
             held={held?.examId}
             target={target}
@@ -244,6 +326,21 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
             onInteract={interact}
             visit={visit}
             onCanvas={onCanvas}
+            onRenderer={renderer => { xrRenderer.current = renderer; }}
+            onXRProcedureComplete={(examId, mode, observation, eye) => {
+              const exam = c.exams.find(candidate => candidate.id === examId);
+              if (!xrActive || !inEncounter || !exam || !exam.modes.some(candidate => candidate.id === mode)) return false;
+              if (eye && !exam.eyes.includes(eye)) return false;
+              const config = { eye: eye ?? exam.eyes[0], mode };
+              const blocked = examBlock(c, session, examId, config);
+              if (blocked) {
+                setToast({ title: "Before recording", detail: blocked, key: Date.now() });
+                return false;
+              }
+              perform(examId, config, observation);
+              setInitialExam(examId);
+              return true;
+            }}
             onFailure={fail}
           />
         )}
@@ -269,7 +366,10 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
         </div>
         <div className="hud-actions">
           <span className="draft-badge">FICTIONAL · DRAFT</span>
-          <button aria-label="Return to mode selection" onClick={() => { unlock(); onExit(); }}>
+          <button className={xrActive || xrPreview ? "xr-active" : ""} disabled={!inEncounter || Boolean(panel) || Boolean(animation) || xrSupport === "checking" || sceneFailed} onClick={toggleXRExperience} title={xrSupport === "unavailable" ? "Inspect the VR layout with desktop controls; tracked controllers require a headset" : undefined}>
+            <Glasses size={17} /> {xrActive ? "Exit VR" : xrPreview ? "Exit VR preview" : xrSupport === "checking" ? "Checking VR…" : xrSupport === "supported" ? "Enter VR" : "Preview VR"}
+          </button>
+          <button aria-label="Return to mode selection" onClick={() => { unlock(); setXrPreview(false); void endXR(); onExit(); }}>
             Modes
           </button>
           <button aria-label="Notes" onClick={() => open("notes")} disabled={!inEncounter}>
@@ -291,6 +391,12 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
           </button>
         </div>
       </header>
+      {xrError && <p className="xr-consultation-error" role="alert">{xrError}</p>}
+      {xrPreview && !panel && !animation && (
+        <p className="xr-preview-note" role="status">
+          Desktop VR preview · Explore with WASD and mouse. E or click selects instruments. A headset is required for tracked controllers and grip pickup.
+        </p>
+      )}
       <div className="session-strip">
         <span>
           <i className="live-dot" />{" "}
@@ -522,7 +628,7 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
           />
         </Panel>
       )}
-      {held && !panel && !animation && inEncounter && (
+      {held && !xrActive && !panel && !animation && inEncounter && (
         <section className="held-prompt" aria-label="Selected instrument">
           <p className="eyebrow">INSTRUMENT READY · {held.config.eye}</p>
           <h2>{held.equipment}</h2>
@@ -697,6 +803,10 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
             <p>Interact with the targeted object within 2 metres.</p>
             <kbd>Escape</kbd>
             <p>Release the mouse or close a panel. Use Return to room to capture again.</p>
+            <kbd>VR grip</kbd>
+            <p>Hold to carry a nearby instrument. Grip its handle with the empty other hand to transfer; release over a clear surface or its home socket to place.</p>
+            <kbd>VR trigger · A/X</kbd>
+            <p>Trigger uses the held tool. A/X toggles panel mode while retaining the instrument; trigger then selects controls. Choose and start an examination separately.</p>
           </div>
           <h2>Station mode</h2>
           <p>
