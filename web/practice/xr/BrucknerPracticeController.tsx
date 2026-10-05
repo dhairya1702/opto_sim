@@ -24,7 +24,7 @@ export function BrucknerPracticeController({ active, preview = false, scenario, 
   visual.largeSpot = largeSpot; visual.brighter = scenario;
   const reflexes = useRef<Group>(null);
   const interrupt = useCallback(() => { lastReady.current = false; visual.visible = false; lesson.clearPending(); }, [visual, lesson.clearPending]);
-  const runtime = useXRClinicRuntime({ active, editorOpen: lesson.mode !== "none", onInterrupt: interrupt,
+  const runtime = useXRClinicRuntime({ active: active && !preview, editorOpen: lesson.mode !== "none", onInterrupt: interrupt,
     onMenu: open => lesson.setMode(open ? "menu" : "none"), onSelection: selection => { if (selection.station === "patient") lesson.setMode("menu"); },
   });
   const vectors = useMemo(() => ({ viewer: new Vector3(), look: new Vector3(), aperture: new Vector3(), rotation: new Quaternion() }), []);
@@ -77,7 +77,7 @@ export function BrucknerPracticeController({ active, preview = false, scenario, 
   useEffect(() => { onMirror?.({ title: "Bruckner", status, ready: technique.ready, entryReady: technique.ready, fields, actions, lesson, reset, record, next }); },
     [onMirror, status, technique.ready, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, scenario, fixation, largeSpot]);
   return <>
-    <XRClinicRuntimeView runtime={runtime} active={active} preview={preview} title="BRUCKNER · PRACTICE" brucknerView={visual} />
+    <XRClinicRuntimeView runtime={runtime} active={active && !preview} preview={preview} title="BRUCKNER · PRACTICE" brucknerView={visual} />
     {active && <group ref={reflexes} visible={false} userData={{ xrBrucknerReflexes: true, xrIgnoreRay: true }}>
       {(["OD", "OS"] as const).map(eye => <mesh key={eye} position={[CLINIC_PATIENT_EYES[eye][0], 1.5, -.565]} userData={{ eye: eye.toLowerCase() }}>
         <circleGeometry args={[CLINIC_PUPIL_RADIUS * .94, 24]} /><meshBasicMaterial args={[{ color: "#b82714" }]} />

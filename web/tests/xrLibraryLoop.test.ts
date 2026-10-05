@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { act } from "@react-three/fiber";
-import { Quaternion } from "three";
+import { Quaternion, Vector3 } from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { clinic } from "./helpers/xrClinicHarness";
 import { PhoriaPracticeController } from "../practice/xr/PhoriaPracticeController";
@@ -48,6 +48,32 @@ describe("mounted remaining shared-clinic XR modules", () => {
       await sim.enter({ power: i ? "4" : "6", direction: i ? "left-hyperphoria" : "esophoria" });
     }
     expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
+  });
+  it("requires Maddox to restart the 20Δ trial after a between-frame light or visibility interruption", async () => {
+    const sim = await lesson("maddox"); await sim.fit("subjective"); await sim.fit("maddox"); await sim.fit("worth", "sensory-worth-distance"); await sim.action("SWITCH LIGHT ON"); await sim.pickup(1, "prism"); await sim.at(1, [-.048, 1.357, -.481]);
+    await sim.action("FIXATE THE LIGHT"); await sim.action("HORIZONTAL GROOVES"); await sim.action("BASE BI"); await sim.action("INTRODUCE 20Δ / BEGIN");
+    await sim.action("PRISM −1Δ");
+    // Exercise callbacks without a frame between off and on.
+    const off = sim.mirror().actions.find(action => action.label === "SWITCH LIGHT OFF")!;
+    await act(async () => { off.run(); off.run(); }); await sim.step(1 / 72, 12);
+    expect(sim.mirror().actions.find(action => action.label === "INTRODUCE 20Δ / BEGIN")?.disabled).toBe(false);
+    await sim.action("INTRODUCE 20Δ / BEGIN"); await sim.action("PRISM −1Δ");
+    sim.session.visibilityState = "hidden";
+    await act(async () => sim.session.dispatchEvent(new Event("visibilitychange")));
+    sim.session.visibilityState = "visible"; await sim.step(1 / 72, 12);
+    expect(sim.mirror().actions.find(action => action.label === "INTRODUCE 20Δ / BEGIN")?.disabled).toBe(false);
+    await sim.action("CAPTURE COINCIDENCE"); expect(sim.mirror().ready).toBe(false); expect(sim.complete).not.toHaveBeenCalled();
+    await sim.action("INTRODUCE 20Δ / BEGIN"); await sim.action("PRISM −1Δ");
+    let pad: typeof sim.state.scene | undefined;
+    sim.state.scene.traverse(object => { if (object.userData.xrTeleport?.[2] === .25) pad = object as typeof sim.state.scene; });
+    expect(pad).toBeDefined();
+    sim.rays[0].position.copy(pad!.getWorldPosition(new Vector3())).y += .6;
+    sim.rays[0].rotation.set(-Math.PI / 2, 0, 0);
+    const offsets = sim.referenceOffsets.length;
+    await sim.event(0, "selectstart"); await sim.event(0, "selectend");
+    expect(sim.referenceOffsets).toHaveLength(offsets + 1);
+    await sim.step(1 / 72, 12);
+    expect(sim.mirror().actions.find(action => action.label === "INTRODUCE 20Δ / BEGIN")?.disabled).toBe(false);
   });
   it.each(["horizontal-distance", "vertical-distance", "horizontal-near"] as const)("records both bases of %s only after ordered physical endpoints", async kind => {
     const sim = await lesson(kind); await sim.prepare(); await sim.pickup(1, "prism"); await sim.at(1, [-.048, 1.357, -.481]);

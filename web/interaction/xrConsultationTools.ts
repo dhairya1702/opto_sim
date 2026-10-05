@@ -201,7 +201,7 @@ export function releaseConsultationTool(
   }
   const returned = !rest;
   // Invalid fitting/dock release must not earn readiness by silently returning to that lesson socket.
-  rest ??= state[id].lastRest.socketId?.startsWith("sensory-")
+  rest ??= state[id].lastRest.socketId
     ? { kind: "socket", position: definition.home, rotation: definition.restRotation }
     : state[id].lastRest;
   // Someone may have placed another object at the old resting point while this tool was held.

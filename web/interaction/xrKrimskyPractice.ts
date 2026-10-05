@@ -33,7 +33,7 @@ export type KrimskyComparison = Readonly<{ method: KrimskyMethod; eye: "OD" | "O
 export function captureKrimskyComparison(technique: XRKrimskyTechnique): KrimskyComparison | null {
   const { method, base, power } = technique;
   if (!technique.neutral || technique.prismEye !== krimskyEye(method) || (base !== "BI" && base !== "BO") || !Number.isInteger(power) || power < 0 || power > 40) return null;
-  return { method, eye: technique.prismEye, base, power, distanceCm: technique.distanceCm };
+  return Object.freeze({ method, eye: technique.prismEye, base, power, distanceCm: technique.distanceCm });
 }
 export function krimskyComparisonSubmission(comparison: KrimskyComparison | null, answer: string) {
   if (!comparison || answer.trim() === "") return null;

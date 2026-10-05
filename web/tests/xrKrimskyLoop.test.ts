@@ -132,4 +132,16 @@ describe("mounted Krimsky Practice in the shared clinic", () => {
     await sim.panel(1); await sim.click(1, sim.button("EXIT VR")); expect(sim.leave).toHaveBeenCalledTimes(1);
     await sim.exit(); await sim.event(1, "selectstart"); sim.mirror().record(); expect(sim.complete).not.toHaveBeenCalled();
   });
+  it("rejects a saved recording callback during visibility loss and after a session ends, even before the parent exits", async () => {
+    const sim = await lesson(); await sim.light(); await sim.pickup(1, "prism"); await sim.prismAt("OS"); await sim.setPrism("BI", 20); await sim.compare();
+    await act(async () => sim.mirror().lesson.choose("power", "20"));
+    const savedRecord = sim.mirror().record;
+    sim.session.visibilityState = "hidden";
+    await act(async () => { sim.session.dispatchEvent(new Event("visibilitychange")); savedRecord(); });
+    expect(sim.complete).not.toHaveBeenCalled();
+    sim.session.visibilityState = "visible"; await sim.step();
+    await act(async () => sim.session.dispatchEvent(new Event("end")));
+    await sim.rerender(); await sim.step(1 / 72, 12);
+    await act(async () => savedRecord()); expect(sim.complete).not.toHaveBeenCalled();
+  });
 });

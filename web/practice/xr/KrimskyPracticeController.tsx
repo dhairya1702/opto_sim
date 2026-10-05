@@ -27,7 +27,7 @@ export function KrimskyPracticeController({ active, preview = false, onComplete,
   const [baseline, setBaseline] = useState(false), [captured, setCaptured] = useState<KrimskyComparison | null>(null), [message, setMessage] = useState("");
   const clearPending = lesson.clearPending;
   const interrupt = useCallback(() => { if (!capturedRef.current) clearPending(); }, [clearPending]);
-  const runtime = useXRClinicRuntime({ active, editorOpen: lesson.mode !== "none", onInterrupt: interrupt,
+  const runtime = useXRClinicRuntime({ active: active && !preview, editorOpen: lesson.mode !== "none", onInterrupt: interrupt,
     onToolUsed: (id, action) => { if (id === "prism" && action === "activate") compare(); },
     onMenu: open => lesson.setMode(open ? "menu" : "none"), onSelection: selection => { if (selection.station === "patient") lesson.setMode("menu"); },
   });
@@ -92,22 +92,22 @@ export function KrimskyPracticeController({ active, preview = false, onComplete,
   useEffect(() => { reset(); }, [index, reset]);
   useEffect(() => { if (!active) reset(); }, [active, reset]);
   const changeMethod = (method: KrimskyMethod) => {
-    if (!active || method === setupRef.current.method) return;
+    if (!active || preview || method === setupRef.current.method) return;
     lesson.reset(); clearComparison(); baselineRef.current = false; setBaseline(false);
     updateSetup({ ...setupRef.current, method, base: "", power: 0 });
   };
   const changePrism = (base: string, power: number) => {
-    if (!active || lesson.awarded.current || !baselineRef.current) return;
+    if (!active || preview || lesson.awarded.current || !baselineRef.current) return;
     clearComparison(); updateSetup({ ...setupRef.current, base, power: Math.max(0, Math.min(40, Math.round(power))) });
     if (!sample().viewing) invalidateView();
   };
   const inspectBaseline = () => {
-    if (!active || lesson.awarded.current || !sample().baselineReady) return;
+    if (!active || preview || lesson.awarded.current || !sample().baselineReady) return;
     baselineRef.current = true; setBaseline(true); setMessage("Baseline inspected · add prism before " + krimskyEye(setupRef.current.method) + ".");
     lesson.setMode("none");
   };
   function compare() {
-    if (!active || lesson.awarded.current || capturedRef.current) return;
+    if (!active || preview || lesson.awarded.current || capturedRef.current) return;
     const live = sample();
     const comparison = captureKrimskyComparison(live);
     if (!comparison) { setMessage(live.correctionReady ? "Reflexes remain asymmetric · adjust prism and compare again." : "Align the light/view and prism before comparing."); return; }
@@ -116,7 +116,7 @@ export function KrimskyPracticeController({ active, preview = false, onComplete,
   }
   const cancel = () => { if (!lesson.awarded.current) clearComparison(); lesson.setMode("none"); };
   const record = () => {
-    if (!active) return;
+    if (!active || preview || !runtime.frameValid.current) return;
     const comparison = capturedRef.current, answer = lesson.entriesRef.current.power;
     const correct = krimskyComparisonSubmission(comparison, answer ?? "");
     if (correct === null || !comparison) return;
@@ -148,7 +148,7 @@ export function KrimskyPracticeController({ active, preview = false, onComplete,
       run: () => changePrism(setupRef.current.base, setupRef.current.power + step) })),
     { label: "CAPTURE REFLEX COMPARISON", disabled: !technique.correctionReady || Boolean(captured) || lesson.recorded, run: compare },
   ];
-  const ready = active && Boolean(captured);
+  const ready = active && !preview && Boolean(captured);
   useEffect(() => { onMirror?.({ title: setup.method === "modified" ? "Modified Krimsky" : "Krimsky", findingPosition: { current: index + 1, total: krimskyCases.length },
     status: `${status} · selected prism ${setup.power}Δ ${setup.base || "base unselected"}`, ready, entryReady: ready, fields, actions: [...actions, ...configuration], lesson, reset, record, next, cancel }); },
     [onMirror, status, ready, technique.baselineReady, technique.correctionReady, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, index, setup, baseline]);
@@ -162,7 +162,7 @@ export function KrimskyPracticeController({ active, preview = false, onComplete,
     <XRSign text={[status]} p={[0, -.37, .012]} size={[.72, .15]} bg="#102329" fg="#eefbf7" />
   </XRHeadPanel>;
   return <>
-    <XRClinicRuntimeView runtime={runtime} active={active} preview={preview} title="KRIMSKY · PRACTICE" instruction="Prism-hand trigger · compare · A/X · controls and recording" />
+    <XRClinicRuntimeView runtime={runtime} active={active && !preview} preview={preview} title="KRIMSKY · PRACTICE" instruction="Prism-hand trigger · compare · A/X · controls and recording" instrumentSettings={{ prism: { power: setup.power, base: setup.base } }} />
     {active && <group ref={reflexes} visible={false} userData={{ xrIgnoreRay: true }}>
       {(["OD", "OS"] as const).map(eye => <mesh key={eye} position={[CLINIC_PATIENT_EYES[eye][0], CLINIC_PATIENT_EYES[eye][1], -.568]} userData={{ xrKrimskyReflex: eye }}>
         <circleGeometry args={[.0015, 24]} /><meshBasicMaterial args={[{ color: "#fff9d8", transparent: true, depthWrite: false }]} />

@@ -77,13 +77,16 @@ export function useXRClinicRuntime(options: Options) {
   const [pickupHints, setPickupHints] = useState<Record<Hand, ConsultationPickupHint | null>>({ left: null, right: null });
   const [returnedAt, setReturnedAt] = useState<Partial<Record<ConsultationToolId, number>>>({});
   const [handlingMessage, setHandlingMessage] = useState("");
-  const activeRef = useRef(active); activeRef.current = active;
+  const endedSession = useRef<XRSession | null>(null);
+  const activeRef = useRef(active); activeRef.current = active && !(endedSession.current && (!gl.xr.getSession() || endedSession.current === gl.xr.getSession()));
   const pauseTechnique = useCallback((reason: XRClinicInterruption = "procedure") => optionsRef.current.onInterrupt?.(reason), []);
   const frameValid = useRef(false);
   const visualTime = useRef(0);
   const hoverMarker = useRef<Group>(null);
   const workingOrigin = useMemo(() => new Vector3(), []);
   const baseSpace = useRef<XRReferenceSpace | null>(null);
+  const physicalViewer = useRef<[number, number] | null>(null);
+  const initialArrival = useRef(true);
   const raycaster = useMemo(() => new Raycaster(), []);
   const origin = useMemo(() => new Vector3(), []);
   const direction = useMemo(() => new Vector3(0, 0, -1), []);
@@ -157,13 +160,22 @@ export function useXRClinicRuntime(options: Options) {
   const pickupHintRef = useRef(pickupHint);
   pickupHintRef.current = pickupHint;
   useFrame(({ camera }, dt, frame) => {
-    if (!active) return;
+    if (!activeRef.current) { frameValid.current = false; return; }
     const reference = gl.xr.getReferenceSpace();
     const visible = gl.xr.getSession()?.visibilityState === "visible";
     frameValid.current = Boolean(frame && reference && visible && dt <= .1);
+    if (frameValid.current && frame && reference) {
+      const pose = frame.getViewerPose(baseSpace.current ?? reference);
+      physicalViewer.current = pose ? [pose.transform.position.x, pose.transform.position.z] : null;
+      frameValid.current = Boolean(pose);
+      if (pose && initialArrival.current) { initialArrival.current = false; teleport([0, 0, 1.9]); }
+    }
     for (const slot of slots) {
       const wasTracked = slot.tracked;
-      slot.tracked = Boolean(frame && reference && visible && slot.source?.gripSpace && frame.getPose(slot.source.gripSpace, reference));
+      // A valid grip alone does not establish a current aim pose. Three.js retains
+      // the last target-ray transform when that pose is unavailable.
+      slot.tracked = Boolean(frameValid.current && frame && reference && slot.source?.gripSpace
+        && frame.getPose(slot.source.gripSpace, reference) && frame.getPose(slot.source.targetRaySpace, reference));
       if (wasTracked !== slot.tracked) refresh(value => value + 1);
       if (wasTracked && !slot.tracked) {
         if (slot.hand) updateTools(powerConsultationTool(toolsRef.current, slot.hand, false));
@@ -291,11 +303,15 @@ export function useXRClinicRuntime(options: Options) {
   }
 
   const teleport = useCallback((destination: [number, number, number]) => {
-    const reference = baseSpace.current ?? gl.xr.getReferenceSpace();
-    if (!reference) return;
+    if (!activeRef.current) return;
+    const reference = baseSpace.current ?? gl.xr.getReferenceSpace(), viewer = physicalViewer.current;
+    if (!reference || !viewer) return;
     baseSpace.current ??= reference;
+    // The floor pad names the viewer's position, including any physical room-scale
+    // displacement from the reference origin. Keep physical height unchanged.
+    const [x, z] = viewer;
     gl.xr.setReferenceSpace(reference.getOffsetReferenceSpace(new XRRigidTransform({
-      x: -destination[0], y: 0, z: -destination[2],
+      x: x - destination[0], y: 0, z: z - destination[2],
     })));
   }, [gl]);
 
@@ -304,6 +320,7 @@ export function useXRClinicRuntime(options: Options) {
   useEffect(() => {
     if (!active) {
       baseSpace.current = null;
+      physicalViewer.current = null; initialArrival.current = true;
       frameValid.current = false;
       updateTools(resetConsultationHands(toolsRef.current));
       extinguishAll();
@@ -316,9 +333,7 @@ export function useXRClinicRuntime(options: Options) {
       pauseTechnique("exit");
       return;
     }
-    const frame = requestAnimationFrame(() => teleport([0, 0, 1.9]));
-    return () => cancelAnimationFrame(frame);
-  }, [active, extinguishAll, pauseTechnique, slots, teleport, updateTools]);
+  }, [active, extinguishAll, pauseTechnique, slots, updateTools]);
 
   useEffect(() => {
     if (!handlingMessage) return;
@@ -334,6 +349,7 @@ export function useXRClinicRuntime(options: Options) {
       stopLights();
       pauseTechnique("visibility");
       slots.forEach(slot => {
+        Object.assign(slot, interruptConsultationInput(slot));
         slot.tracked = false;
         slot.grip.visible = false;
         slot.ray.visible = false;
@@ -344,6 +360,7 @@ export function useXRClinicRuntime(options: Options) {
     };
     const visibility = () => { if (session.visibilityState !== "visible") interrupt(); };
     const end = () => {
+      endedSession.current = session;
       activeRef.current = false;
       interrupt();
       updateTools(resetConsultationHands(toolsRef.current));

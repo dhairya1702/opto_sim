@@ -46,17 +46,26 @@ export async function clinic({ guided = false, selectedExamId, renderAdapter }: 
   const rays = [new THREE.Group(), new THREE.Group()];
   const grips = [new THREE.Group(), new THREE.Group()];
   const tracked = [true, true];
+  const rayTracked = [true, true];
   const buttons = [Array.from({ length: 6 }, () => ({ pressed: false })), Array.from({ length: 6 }, () => ({ pressed: false }))];
-  const sources = (["left", "right"] as const).map((hand, index) => ({ handedness: hand, gripSpace: { index }, gamepad: { buttons: buttons[index] } }));
+  const sources = (["left", "right"] as const).map((hand, index) => ({ handedness: hand, gripSpace: { index }, targetRaySpace: { index, ray: true }, gamepad: { buttons: buttons[index] } }));
   const session = new EventTarget() as EventTarget & { visibilityState: string };
   session.visibilityState = "visible";
+  const physicalViewer = { x: 0, y: 1.6, z: 0 };
+  const referenceOffsets: { x: number; y: number; z: number }[] = [];
+  const baseReference = { getOffsetReferenceSpace: (transform: { position: { x: number; y: number; z: number } }) => {
+    referenceOffsets.push(transform.position); return { baseReference, transform };
+  } };
+  let reference: unknown = baseReference;
+  vi.stubGlobal("XRRigidTransform", class { position: { x: number; y: number; z: number }; constructor(position: { x: number; y: number; z: number }) { this.position = position; } });
   const xr = Object.assign(new THREE.EventDispatcher(), {
     isPresenting: true,
     getCamera: () => viewerCamera,
     getController: (index: number) => rays[index],
     getControllerGrip: (index: number) => grips[index],
     getSession: () => session,
-    getReferenceSpace: () => ({}),
+    getReferenceSpace: () => reference,
+    setReferenceSpace: (next: unknown) => { reference = next; },
     setAnimationLoop() {},
   });
   const renderer = { xr, render() {}, setPixelRatio() {}, setSize() {} } as unknown as THREE.WebGLRenderer;
@@ -92,7 +101,9 @@ export async function clinic({ guided = false, selectedExamId, renderAdapter }: 
   await event(0, "connected", sources[0]);
   await event(1, "connected", sources[1]);
   let time = 0;
-  const frame = { getPose: (space: { index: number }) => tracked[space.index] ? {} : null } as unknown as XRFrame;
+  const viewerTracked = { current: true };
+  const frame = { getPose: (space: { index: number; ray?: boolean }) => tracked[space.index] && (!space.ray || rayTracked[space.index]) ? {} : null,
+    getViewerPose: () => viewerTracked.current ? { transform: { position: physicalViewer } } : null } as unknown as XRFrame;
   async function step(dt = 1 / 72, count = 1) {
     for (let i = 0; i < count; i++) {
       await act(async () => {
@@ -158,7 +169,7 @@ export async function clinic({ guided = false, selectedExamId, renderAdapter }: 
   };
   await step();
   return {
-    state: state!, rerender: render, viewerCamera, grips, rays, tool, at, pickup, event, step, panel, controls, click, labels, tracked, session,
+    state: state!, rerender: render, viewerCamera, physicalViewer, viewerTracked, referenceOffsets, grips, rays, tool, at, pickup, event, step, panel, controls, click, labels, tracked, rayTracked, session,
     interact, record, openPanel, exitVR, encounter: () => encounter,
     directRecord: (id: ConsultationToolId) => {
       const button = controls().find(object => object.userData.xrRecordTool === id);

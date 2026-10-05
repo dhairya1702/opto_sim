@@ -166,7 +166,7 @@ export function StereoPracticeController({ active, preview = false, onComplete, 
         {/* Equal circles are the physical page. Only the separate reported-view illustration highlights one. */}
         <group key={run.page}>
           <XRSign text={[`PAGE ${run.page + 1} · ${stereoPracticeLevels[run.page]} arcsec`]} p={[0, .035, .008]} size={[.22, .027]} bg="#efeada" fg="#284b47" />
-          {stereoCircleNames.map((name, index) => <group key={name} position={[(index - 1) * .07, -.01, .009]}>
+          {stereoCircleNames.map((name, index) => <group key={name} position={[(index - 1) * .07, -.01, .009]} userData={{ xrStereoPatientCircle: name }}>
             <mesh><circleGeometry args={[.024, 32]} /><meshBasicMaterial color="#f8f4e9" side={DoubleSide} /></mesh>
             <mesh position={[0, 0, .001]}><ringGeometry args={[.016, .019, 32]} /><meshBasicMaterial color="#2d5450" side={DoubleSide} /></mesh>
           </group>)}
@@ -176,7 +176,7 @@ export function StereoPracticeController({ active, preview = false, onComplete, 
       <group position={book.workingPoint}>
         <Box p={[0, 0, .014]} s={[.23, .115, .001]} c="#efeada" />
         <XRSign text={[`PAGE ${run.page + 1} · ${stereoPracticeLevels[run.page]} arcsec`, "MARK PATIENT'S REPORTED CIRCLE"]} p={[0, .037, .016]} size={[.22, .032]} bg="#efeada" fg="#284b47" />
-        {stereoCircleNames.map((name, index) => <group key={name} position={[(index - 1) * .07, -.009, .016]}
+        {stereoCircleNames.map((name, index) => <group key={name} position={[(1 - index) * .07, -.009, .016]}
           userData={{ xrButton: true, xrWidth: .05, xrLabel: `BOOKLET ${name.toUpperCase()} CIRCLE`, xrAction: active && !preview && spatial.ready && run.reply && !run.confirmed ? () => confirm(index) : undefined }}>
           <mesh><circleGeometry args={[.024, 32]} /><meshBasicMaterial color="#f8f4e9" /></mesh>
           <mesh position={[0, 0, .001]}><ringGeometry args={[.016, .019, 32]} /><meshBasicMaterial color="#2d5450" /></mesh>

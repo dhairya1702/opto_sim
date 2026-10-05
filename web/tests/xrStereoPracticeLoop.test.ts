@@ -1,5 +1,6 @@
 import { createElement } from "react";
 import { act } from "@react-three/fiber";
+import { Vector3 } from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { clinic } from "./helpers/xrClinicHarness";
 import { StereoPracticeController } from "../practice/xr/StereoPracticeController";
@@ -55,6 +56,16 @@ describe("stereo Practice in the real shared XR loop", () => {
     expect(sim.labels().join(" ")).not.toContain("100 seconds");
     await sim.action("PRESENT PAGE / ASK"); await sim.reply(); expect(sim.mirror().status).not.toContain("middle circle appears");
     await sim.fit(); await sim.book();
+    // Patient-relative names refer to the same physical circle on both faces.
+    sim.state.scene.traverse(object => {
+      const name = object.userData.xrStereoPatientCircle as string | undefined;
+      if (!name) return;
+      let control: typeof object | undefined;
+      sim.state.scene.traverse(candidate => { if (candidate.userData.xrLabel === `BOOKLET ${name.toUpperCase()} CIRCLE`) control = candidate; });
+      expect(control).toBeDefined();
+      const patient = object.getWorldPosition(new Vector3()), examiner = control!.getWorldPosition(new Vector3());
+      expect(examiner.x).toBeCloseTo(patient.x, 8); expect(examiner.y).toBeCloseTo(patient.y, 2);
+    });
     expect(sim.tool("stereo").position.toArray()).toEqual(SENSORY_SOCKETS.find(socket => socket.id === "sensory-stereo-near")?.position);
     await sim.panel(1); await sim.click(1, sim.button("PRESENT PAGE / ASK"));
     expect(sim.mirror().status).toContain("let me look");

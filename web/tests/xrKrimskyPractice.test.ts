@@ -42,6 +42,7 @@ describe("Krimsky shared-clinic technique and recording", () => {
   });
   it("requires a completed comparison and an independent finite integer entry", () => {
     const captured = captureKrimskyComparison(xrKrimskyTechnique(input, krimskyCases[0]));
+    expect(Object.isFrozen(captured)).toBe(true);
     expect(krimskyComparisonSubmission(null, "20")).toBeNull(); expect(krimskyComparisonSubmission(captured, "")).toBeNull();
     for (const answer of ["15", "NaN", "Infinity", "20.5", "-1", "41"]) expect(krimskyComparisonSubmission(captured, answer)).toBe(false);
     expect(krimskyComparisonSubmission(captured, "20")).toBe(true);

@@ -61,6 +61,7 @@ No backend is required. `main.py` is a small pre-existing Python entry point and
 | `web/interaction/xrLibraryEquipment.ts`, `xrPhoriaPractice.ts`, `xrVergencePractice.ts`, `xrAccommodationPractice.ts` | Selected kits, physical readiness, ordered sequences, immutable captures and independent entry |
 | `web/interaction/vergencePractice.ts`, `accommodationPractice.ts` | Existing authored desktop/XR findings and illustrative gaze formulas |
 | `docs/vr-library-completion.md` | Full-library XR implementation, software checks and physical Quest acceptance still pending |
+| `docs/vr-code-review.md` | Confirmed XR review fixes, geometry/interruption regressions and remaining physical acceptance |
 | `web/practice/HirschbergLegacyVRStage.tsx`, `web/practice/xr/XRClinicTools.tsx`, `procedures.ts` | Retained earlier VR experiment/tool models/declarations; not the active immersive lesson path |
 | `web/practice/CoverPracticeStage.tsx` | Full-screen cover–uncover and alternating-cover practice, two-hand tools, simulated refixation, and prism neutralisation |
 | `web/practice/KrimskyPracticeStage.tsx` | Full-screen standard and modified Krimsky setup, direct prism handling, illustrative reflex neutralisation, and recording |

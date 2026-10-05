@@ -77,7 +77,7 @@ export function HirschbergPracticeController({ active, preview = false, scenario
     setTechnique(emptyHirschbergTechnique()); visual.lit = false;
     if (!awarded.current) { entries.current = { direction: "", amount: "" }; setDirection(""); setAmount(""); setChecked(false); }
   }, [visual]);
-  const runtime = useXRClinicRuntime({ active, editorOpen: recording || menu || help,
+  const runtime = useXRClinicRuntime({ active: active && !preview, editorOpen: recording || menu || help,
     onInterrupt: invalidation,
     onMenu: open => { setMenu(open); if (!open) { setRecording(false); setHelp(false); } },
     onSelection: selection => {
@@ -149,7 +149,7 @@ export function HirschbergPracticeController({ active, preview = false, scenario
   }); }, [technique, held, light, fixation, direction, amount, checked, correct, help, recording, finding, active, onMirror]);
   const nextFinding = () => { reset(); onNext(); };
   return <>
-    <XRClinicRuntimeView runtime={runtime} active={active} preview={preview} title="HIRSCHBERG · PRACTICE" instruction="A/X · lesson controls · select Record finding beside the tool" />
+    <XRClinicRuntimeView runtime={runtime} active={active && !preview} preview={preview} title="HIRSCHBERG · PRACTICE" instruction="A/X · lesson controls · select Record finding beside the tool" />
     {active && <>
       <HirschbergReflexes scenario={scenario} visual={visual} />
       <XRToolControls runtime={runtime} id="pupils">

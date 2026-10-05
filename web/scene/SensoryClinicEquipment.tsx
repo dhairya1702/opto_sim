@@ -12,13 +12,14 @@ import { type ConsultationToolId } from "../interaction/xrConsultationTools";
 import type { XRClinicRuntime } from "../interaction/useXRClinicRuntime";
 
 /** Original metre-scale geometry; the physical Worth target always displays the same four dots. */
-export function WorthTargetFace({ powered = true, point = false }: { powered?: boolean; point?: boolean }) {
-  return <group>
+export function WorthTargetFace({ powered = true, point = false, mirror = false }: { powered?: boolean; point?: boolean; mirror?: boolean }) {
+  const faceZ = mirror ? .001 : -.001;
+  return <group userData={{ xrWorthFace: mirror ? "mirror" : "physical" }}>
     <mesh><circleGeometry args={[.06, 32]} /><meshBasicMaterial color="#101c20" side={DoubleSide} /></mesh>
-    {point && <mesh position={[0, 0, -.002]}><circleGeometry args={[.009, 24]} /><meshBasicMaterial color={powered ? "#f4f2dc" : "#394548"} side={DoubleSide} /></mesh>}
+    {point && <mesh position={[0, 0, faceZ * 2]} userData={{ xrWorthDot: true }}><circleGeometry args={[.009, 24]} /><meshBasicMaterial color={powered ? "#f4f2dc" : "#394548"} side={DoubleSide} /></mesh>}
     {!point && ([
       [0, .031, "#ee4242"], [-.026, 0, "#36c36f"], [.026, 0, "#36c36f"], [0, -.031, "#f4f2dc"],
-    ] as const).map(([x, y, color], index) => <mesh key={index} position={[x, y, -.001]}>
+    ] as const).map(([x, y, color], index) => <mesh key={index} position={[x, y, faceZ]} userData={{ xrWorthDot: true }}>
       <circleGeometry args={[.009, 20]} /><meshBasicMaterial color={powered ? color : "#394548"} side={DoubleSide} />
     </mesh>)}
   </group>;
@@ -60,12 +61,12 @@ function MirrorDisplay({ runtime, letter }: { runtime: XRClinicRuntime; letter: 
     image.current.visible = Boolean(pose && path?.valid && docked && runtime.toolsRef.current.worth.powered);
     if (!pose || !path?.valid) return;
     // Project the virtual target onto the mirror plane along the patient's reflected sightline.
-    image.current.position.set(path.intersection[0], path.intersection[1], SENSORY_MIRROR.center[2] - .006);
+    image.current.position.set(path.intersection[0], path.intersection[1], SENSORY_MIRROR.center[2] - .027);
     image.current.scale.setScalar(Math.hypot(...SENSORY_MIRROR.center.map((v, i) => v - CLINIC_EYE_MIDPOINT[i])) / (path.distanceCm / 100));
     image.current.rotation.set(0, Math.PI, 0);
   });
-  if (letter) return <Sign text={["E", "ILLUSTRATIVE ISOLATED LETTER"]} p={[.31, 1.5, SENSORY_MIRROR.center[2] - .014]} rotation={[0, Math.PI, 0]} size={[.28, .22]} bg="#f7f7e8" fg="#183335" />;
-  return <group ref={image} visible={false} userData={{ xrIgnoreRay: true }}><WorthTargetFace point={runtime.equipment.includes("maddox")} /></group>;
+  if (letter) return <Sign text={["E", "ILLUSTRATIVE ISOLATED LETTER"]} p={[.31, 1.5, SENSORY_MIRROR.center[2] - .027]} rotation={[0, Math.PI, 0]} size={[.28, .22]} bg="#f7f7e8" fg="#183335" />;
+  return <group ref={image} visible={false} userData={{ xrIgnoreRay: true }}><WorthTargetFace mirror point={runtime.equipment.includes("maddox")} /></group>;
 }
 export function SensoryClinicStation({ runtime, distanceLetter = false, active = false }: { runtime: XRClinicRuntime; distanceLetter?: boolean; active?: boolean }) {
   const sensory = runtime.equipment.some(id => ["worth", "red-green", "polarised", "stereo"].includes(id));

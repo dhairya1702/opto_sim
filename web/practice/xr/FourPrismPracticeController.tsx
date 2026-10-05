@@ -106,7 +106,7 @@ export function FourPrismPracticeController({ active, preview = false, onComplet
   useEffect(() => { onMirror?.({ title: "4Δ base-out", reportLines: capture.current?.reports, findingPosition: { current: scenario === "normal" ? 1 : 2, total: 2 }, status, ready, entryReady: ready, fields, actions, lesson, reset, record, next, cancel }); },
     [onMirror, status, ready, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback, settings, scenario]);
   return <>
-    <XRClinicRuntimeView runtime={runtime} active={active && !preview} preview={preview} title="4Δ BASE-OUT · PRACTICE" sensoryStation="four-prism" />
+    <XRClinicRuntimeView runtime={runtime} active={active && !preview} preview={preview} title="4Δ BASE-OUT · PRACTICE" sensoryStation="four-prism" instrumentSettings={{ prism: { power: settings.power, base: settings.base } }} />
     <PracticeLessonUI runtime={runtime} active={active && !preview} title="4Δ BASE-OUT" status={status} tools={["prism"]} actions={actions} directActions={actions.slice(1, 5)} fields={fields} lesson={lesson}
       ready={ready} entryReady={ready} onRecord={record} onReset={reset} onNext={next} onExit={onExit} onCancel={cancel}
       help={["Fit correction; establish isolated-letter distance fixation.", "Select exactly 4Δ BO. Working cell faces the patient.", "Watch OD first through version and refixation (2400 ms).", "Withdraw clear of both eyes, then observe OS.", "A/X pauses unfinished dwell; completed comparison survives release.", "Illustrative movements; no calibrated ocular physiology."]} />

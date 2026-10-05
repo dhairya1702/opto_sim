@@ -53,10 +53,12 @@ export function LibraryEquipmentTray({ active = false, equipment = [] }: { activ
   </group></>;
 }
 
-export function LibraryNearStand() {
+export function LibraryNearStand({ card = "near" }: { card?: "near" | "thorington" }) {
+  // Support the reading card's lower edge or the numbered card's handle base.
+  const ledgeY = card === "thorington" ? 1.247 : 1.337;
   return <group userData={{ xrIgnoreRay: true }}>
     <Cylinder p={[.26, .68, -.18]} h={1.34} radius={.01} c="#78948e" />
-    <Box p={[.13, 1.36, -.18]} s={[.28, .016, .05]} c="#78948e" />
+    <Box p={[.13, ledgeY, -.18]} s={[.28, .016, .05]} c="#78948e" />
     <Box p={[.26, .025, -.18]} s={[.22, .025, .22]} c="#78948e" />
     <XRSign text={["NEAR TARGET · RELEASE AT 40 CM"]} p={[.30, 1.20, -.16]} size={[.28, .06]} bg="#173a3e" fg="#e8fff9" />
   </group>;

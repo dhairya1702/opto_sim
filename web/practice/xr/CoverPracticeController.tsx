@@ -30,7 +30,7 @@ export function CoverPracticeController({ active, preview = false, kind, onCompl
   const [readout, setReadout] = useState({ index: 0, observed: false, neutralized: false, mode: "distance", distance: 0, targetReady: true, held: false, prism: "", trial: false, message: "" });
   const lastTarget = useRef({ mode: "distance", ready: true, position: [0, 0, 0] });
   const interrupt = useCallback(() => { progress.current.sequence.dwell = 0; progress.current.sequence.transit = 0; }, []);
-  const runtime = useXRClinicRuntime({ active, editorOpen: lesson.mode !== "none", onInterrupt: interrupt, placementSockets: [PRACTICE_NEAR_SOCKET],
+  const runtime = useXRClinicRuntime({ active: active && !preview, editorOpen: lesson.mode !== "none", onInterrupt: interrupt, placementSockets: [PRACTICE_NEAR_SOCKET],
     onMenu: open => lesson.setMode(open ? "menu" : "none"), onSelection: selection => { if (selection.station === "patient") lesson.setMode("menu"); },
   });
   const eyes = useClinicEyeMotion(active);
@@ -174,7 +174,7 @@ export function CoverPracticeController({ active, preview = false, kind, onCompl
     <XRPanelButton label="EXIT VR" position={[.18, -.23, .025]} width={.34} onClick={onExit} />
   </XRHeadPanel>;
   return <>
-    <XRClinicRuntimeView runtime={runtime} active={active} preview={preview} title={`${kind === "cover-uncover" ? "COVER–UNCOVER" : "ALTERNATING COVER"} · PRACTICE`} />
+    <XRClinicRuntimeView runtime={runtime} active={active && !preview} preview={preview} title={`${kind === "cover-uncover" ? "COVER–UNCOVER" : "ALTERNATING COVER"} · PRACTICE`} instrumentSettings={{ prism: { power, base } }} />
     {(active || preview) && <group position={[0, 0, PRACTICE_NEAR_SOCKET.position[2]]} userData={{ xrIgnoreRay: true }}>
       <Cylinder p={[0, .6625, 0]} h={1.325} radius={.009} c="#72908c" />
       <Box p={[0, .02, 0]} s={[.22, .025, .18]} c="#39565b" radius={.008} />
