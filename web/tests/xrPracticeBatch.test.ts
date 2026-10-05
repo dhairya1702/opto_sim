@@ -26,7 +26,7 @@ describe("Practice batch spatial adapters", () => {
     const held = grabConsultationTool(initialConsultationTools(), "near", "left");
     const result = releaseConsultationTool(held, "left", { position: [0, 1.52, -.16], rotation: [0, 0, 0, 1] }, undefined, [PRACTICE_NEAR_SOCKET]);
     expect(result.returned).toBe(false);
-    expect(result.state.near.placement).toEqual({ kind: "socket", position: PRACTICE_NEAR_SOCKET.position, rotation: PRACTICE_NEAR_SOCKET.rotation });
+    expect(result.state.near.placement).toEqual({ kind: "socket", socketId: PRACTICE_NEAR_SOCKET.id, position: PRACTICE_NEAR_SOCKET.position, rotation: PRACTICE_NEAR_SOCKET.rotation });
     expect(result.state.near.powered).toBe(false);
   });
   it("tolerates brief hand transit but restarts alternating cover after prolonged binocular exposure", () => {

@@ -2,7 +2,7 @@
 
 ## Product decision
 
-Consultation and Practice use one clinic interior and physical interaction runtime. Clinical behavior is supplied by separate case/lesson adapters, preserving the existing desktop procedures and the separation of Practice progress from Test evidence and scoring. See [the initial Hirschberg migration](shared-vr-practice-migration.md), [the four-lesson batch plan](vr-practice-batch-plan.md), [the Krimsky plan](vr-krimsky-plan.md), and [the prepared next sensory batch](vr-sensory-plan.md).
+Consultation and Practice use one clinic interior and physical interaction runtime. Clinical behavior is supplied by separate case/lesson adapters, preserving the existing desktop procedures and the separation of Practice progress from Test evidence and scoring. See [the initial Hirschberg migration](shared-vr-practice-migration.md), [the four-lesson batch plan](vr-practice-batch-plan.md), [the Krimsky plan](vr-krimsky-plan.md), and [the sensory batch](vr-sensory-plan.md).
 
 ## Current implementation
 
@@ -16,7 +16,7 @@ Consultation and Practice use one clinic interior and physical interaction runti
 - `PracticeBatchVRStage` and `PracticeLessonUI` provide Bruckner, motility, cover–uncover and alternating cover adapters, sharing the same session/controls/mirror. `xrPracticeBatch` holds pure geometry and interruption rules. Bruckner/cover scenario content is shared with desktop; Test scoring remains separate.
 - The canonical kit includes a prism bar; optional tool-specific placement sockets let Practice mount the near card at about 40 cm. Cover observation remains paused in panel mode, while completed entry can use tracked held instruments in panel mode.
 - `KrimskyPracticeController` reuses the shared penlight/prism and existing Krimsky method/residual logic. Explicit comparison capture permits two-hand recording after putting tools down; independent numeric fields extend the shared lesson panel/mirror. Monocular viewing is acknowledged, not detected.
-- Desktop Practice teaching and all 20 modules remain available. The remaining 14 modules have not yet migrated into this shared VR clinic. Layout preview permits desktop inspection but does not emulate tracked hands or grant completion.
+- Desktop Practice teaching and all 20 modules remain available. All 20 modules now have shared-clinic XR adapters; see [full-library completion](vr-library-completion.md). Layout preview permits desktop inspection but does not emulate tracked hands or grant completion.
 
 The earlier separate Hirschberg VR experiment, its kit models, controller preview, and seated/standing setup controls remain in `HirschbergLegacyVRStage.tsx` and related files for reference. They are outside the active import path and do not create a second bundled controller runtime.
 
@@ -65,10 +65,21 @@ Physical Quest 3S checks remain necessary before claiming device validation: rea
 
 ## Remaining adapters
 
-The next implementation batch is [Worth four dot, stereopsis and 4Δ base-out](vr-sensory-plan.md). Its equipment, mirrored distance station, response capture, recording, interruption rules and focused validation are planned; the sensory XR adapters are not implemented yet.
+Worth four dot, stereopsis and 4Δ base-out are implemented over the shared runtime; see [the sensory implementation plan](vr-sensory-plan.md). All 20 Practice modules now have shared-clinic XR adapters. The final 11 phoria, vergence and accommodation modules are documented in [full-library completion](vr-library-completion.md); desktop trainers remain available. Physical Quest 3S and clinician review remain pending.
 
 1. Sensory/phoria: extend shared equipment with filters, booklets, Maddox/Thorington targets; preserve existing patient-report and recording content.
 2. Vergence/accommodation: connect physical target distance, prism/lens/flipper actions, timing, and existing response/recording rules.
 3. Hand tracking remains a later input alternative once controller ergonomics are established.
 
 Each module adds equipment and a lesson adapter, never another room/controller implementation. Clinical content and tolerances remain educational drafts pending qualified review; tracked consumer-device coordinates and illustrative optics do not certify clinical competence.
+
+## Sensory architecture
+
+`xrSensoryEquipment` owns the lesson kit, tagged patient fitting sockets, near target/stand poses and reflected 6 m distance path. Optional runtime equipment filters pickup, rendering, handle feedback and ray routing; default consultation remains the original kit. The state registry includes sensory IDs without casting them into Test examination IDs. `supportedWorkingPose` reads the actual model's working-point transform for held or supported tools; held samples require tracking, placed targets do not depend on the releasing hand. Worth power is an explicit persistent equipment capability; original lights remain momentary. Interruption reasons distinguish panel entry, transfer, visibility, tracking, reset and exit.
+
+`xrWorthPractice`, `xrStereoPractice` and `xrFourPrismPractice` hold pure readiness, sequence, immutable capture and submission logic. Their React adapters provide only lesson-local reporting/completion, response timers and visualization. Stereo callbacks bind attempt/page/generation/revision and cannot append stale responses. Headset menu and recording bounds derive from content rows. Existing canonical eyes are moved via the shared eye-motion hook and restored on cleanup. Software checks use real mounted runtime/controllers with a simulated device; they cannot validate Quest optics, reach, comfort or clinical fidelity.
+
+
+## Full-library completion
+
+`xrLibraryEquipment` extends optional kits with rods, cards, trial lenses and flippers, separate fitting/occlusion layers, explicit library-only surfaces and actual working-pose gates. Three family controllers adapt all remaining 11 modules over the same runtime; pure sequence/capture logic remains in `web/interaction/`. Authored endpoints and gaze formulas are shared with desktop. Signed decimal records use paged headset fields and preserve released-tool captures. Facility timing and lens settling reset on invalid spatial/tracking setup. No Test events or new clinical approval are introduced. See [implementation and physical acceptance](vr-library-completion.md).

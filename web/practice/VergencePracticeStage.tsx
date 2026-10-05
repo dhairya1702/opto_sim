@@ -5,14 +5,10 @@ import { Check, RotateCcw, Target, X } from "lucide-react";
 import { EyeSurface } from "../scene/EyeSurface";
 
 export type VergenceMode = "npc" | "horizontal-distance" | "vertical-distance" | "horizontal-near" | "facility";
-type Endpoint = { blur: number | null; break: number; recovery: number };
+import { vergenceFindings as data, npcFindings, vergenceFacilityDelay, npcGaze, prismVergenceGaze, facilityVergenceGaze } from "../interaction/vergencePractice";
 type PrismPhase = "blur" | "break" | "recovery";
 type NpcPhase = "subjective-break" | "objective-break" | "subjective-recovery" | "objective-recovery";
-const data: Record<string, Record<string, Endpoint>> = {
-  "horizontal-distance": { BI: { blur: null, break: 7, recovery: 4 }, BO: { blur: 9, break: 19, recovery: 12 } },
-  "horizontal-near": { BI: { blur: 13, break: 21, recovery: 13 }, BO: { blur: 17, break: 21, recovery: 11 } },
-  "vertical-distance": { BU: { blur: null, break: 4, recovery: 2 }, BD: { blur: null, break: 4, recovery: 2 } },
-};
+
 
 function Scene({ demand, vertical }: { demand: number; vertical: boolean }) {
   return <>
@@ -39,12 +35,9 @@ function NpcScene({ distance, phase }: { distance: number; phase: NpcPhase }) {
   const os = useRef({ x: 0, y: 0 });
   useFrame((_, delta) => {
     const blend = 1 - Math.exp(-Math.min(delta, 0.1) * 7);
-    const convergence = Math.min(0.026, Math.max(0, 40 - distance) * 0.00075);
-    const broken = distance <= 5 && (phase === "objective-break" || phase.includes("recovery"));
-    const targetOd = convergence;
-    const targetOs = broken ? 0.055 : -convergence;
-    od.current.x += (targetOd - od.current.x) * blend;
-    os.current.x += (targetOs - os.current.x) * blend;
+    const gaze = npcGaze(distance, phase);
+    od.current.x += (gaze.OD.x - od.current.x) * blend;
+    os.current.x += (gaze.OS.x - os.current.x) * blend;
   });
   const targetZ = 1.55 - distance * 0.02;
   const targetScale = 1 + (40 - distance) / 48;
@@ -126,18 +119,11 @@ function DirectPrismScene({
   const drag = useRef({ active: false, y: 0, power: 0 });
   useFrame((_, delta) => {
     const blend = 1 - Math.exp(-Math.min(delta, 0.1) * 7);
-    const nearConvergence = near ? 0.012 : 0;
-    const vergence = Math.min(0.027, power * 0.00135);
-    const inward = base === "BO";
-    const verticalDirection = base === "BU" ? -1 : 1;
-    const targetOdX = vertical ? 0 : broken ? -0.045 : nearConvergence + (inward ? vergence : -vergence);
-    const targetOsX = vertical ? 0 : broken ? 0.045 : -nearConvergence + (inward ? -vergence : vergence);
-    const targetOdY = vertical ? broken ? 0.04 * verticalDirection : vergence * verticalDirection : 0;
-    const targetOsY = vertical ? broken ? -0.04 * verticalDirection : -vergence * verticalDirection : 0;
-    od.current.x += (targetOdX - od.current.x) * blend;
-    os.current.x += (targetOsX - os.current.x) * blend;
-    od.current.y += (targetOdY - od.current.y) * blend;
-    os.current.y += (targetOsY - os.current.y) * blend;
+    const gaze = prismVergenceGaze(power, base, near, vertical, broken);
+    od.current.x += (gaze.OD.x - od.current.x) * blend;
+    os.current.x += (gaze.OS.x - os.current.x) * blend;
+    od.current.y += (gaze.OD.y - od.current.y) * blend;
+    os.current.y += (gaze.OS.y - os.current.y) * blend;
   });
   const setFromPointer = (pointerY: number) => onPowerChange(Math.max(0, Math.min(30, Math.round(drag.current.power + (pointerY - drag.current.y) * 18))));
   return <>
@@ -165,9 +151,9 @@ function FacilityScene({ side, clear, running, onFlip }: { side: "BO" | "BI"; cl
   const os = useRef({ x: 0, y: 0 });
   useFrame((_, delta) => {
     const blend = 1 - Math.exp(-Math.min(delta, 0.1) * 7);
-    const demand = side === "BO" ? 0.024 : -0.007;
-    od.current.x += (0.012 + demand - od.current.x) * blend;
-    os.current.x += (-0.012 - demand - os.current.x) * blend;
+    const gaze = facilityVergenceGaze(side);
+    od.current.x += (gaze.OD.x - od.current.x) * blend;
+    os.current.x += (gaze.OS.x - os.current.x) * blend;
   });
   return <>
     <color attach="background" args={["#09161b"]} /><ambientLight intensity={1.3} /><directionalLight position={[-2, 3, 4]} intensity={2.1} />
@@ -208,14 +194,14 @@ export function VergencePracticeStage({ mode, onClose, onComplete }: { mode: Ver
   useEffect(() => {
     setFacilityClear(false);
     if (!running) return;
-    const timer = window.setTimeout(() => setFacilityClear(true), side === "BO" ? 850 : 650);
+    const timer = window.setTimeout(() => setFacilityClear(true), vergenceFacilityDelay[side]);
     return () => window.clearTimeout(timer);
   }, [running, side]);
 
   const npc = mode === "npc", directPrism = mode === "horizontal-distance" || mode === "horizontal-near" || mode === "vertical-distance", facility = mode === "facility", near = mode === "horizontal-near" || facility || npc, vertical = mode === "vertical-distance";
   const order = npc || facility ? [] : Object.keys(data[mode]); const expected = npc || facility ? null : data[mode][base];
   const effectivePrismPhase: PrismPhase = expected?.blur === null && prismPhase === "blur" ? "break" : prismPhase; const ready = correction && fixation && !done;
-  const npcThresholds: Record<NpcPhase, boolean> = { "subjective-break": distance <= 6, "objective-break": distance <= 5, "subjective-recovery": distance >= 8, "objective-recovery": distance >= 9 };
+  const npcThresholds: Record<NpcPhase, boolean> = { "subjective-break": distance <= npcFindings["subjective-break"], "objective-break": distance <= npcFindings["objective-break"], "subjective-recovery": distance >= npcFindings["subjective-recovery"], "objective-recovery": distance >= npcFindings["objective-recovery"] };
   const reached = npc ? npcThresholds[npcPhase] : expected ? effectivePrismPhase === "blur" ? power >= (expected.blur ?? expected.break) : effectivePrismPhase === "break" ? power >= expected.break : power <= expected.recovery : false;
   const patient = done ? "Guided measurement complete. Review the recorded endpoints or close this view." : npc ? npcPhase.includes("break") ? distance <= 6 ? "Patient reports diplopia; watch for the first eye drifting out." : "Target remains single and both eyes hold fixation." : distance >= 8 ? "Patient reports single vision; watch for binocular realignment." : "Target remains double." : facility ? !running ? "Start the timed run when fixation is stable." : facilityClear ? "Patient reports the line is clear and single. Flip now." : `Patient is clearing the ${side === "BO" ? "12Δ base-out" : "3Δ base-in"} demand…` : effectivePrismPhase === "recovery" ? power <= (expected?.recovery ?? -1) ? "Patient reports single vision again." : "Target remains double." : power >= (expected?.break ?? 99) ? "Patient reports sustained diplopia." : expected?.blur !== null && power >= (expected?.blur ?? 99) ? "Patient reports sustained blur; continue increasing toward break." : "Target remains clear and single.";
   const resetCurrentRun = () => { if (done) return; setPower(0); setDistance(40); setPrismPhase("blur"); setNpcPhase("subjective-break"); setSeconds(60); setRunning(false); setCycles(0); setSide("BO"); setFacilityClear(false); lastFlipAt.current = 0; };

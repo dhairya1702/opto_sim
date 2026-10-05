@@ -2,7 +2,7 @@
 
 ## Scope and acceptance
 
-Practice uses the consultation clinic and its physical interaction loop. The initial change migrated Hirschberg. The subsequent batch also migrates Bruckner, motility and both cover lessons; see [its plan](vr-practice-batch-plan.md). All modules retain their existing teaching and desktop attempts. No Practice action imports the Test reducer, modifies Arun's case, or awards Test evidence. All clinical content remains draft.
+Practice uses the consultation clinic and its physical interaction loop. The initial change migrated Hirschberg. Subsequent batches migrate Bruckner, motility, both cover lessons, Krimsky and the three sensory lessons; see [its plan](vr-practice-batch-plan.md). All modules retain their existing teaching and desktop attempts. No Practice action imports the Test reducer, modifies Arun's case, or awards Test evidence. All clinical content remains draft.
 
 The learner must be able to choose Hirschberg from the existing library, enter the same clinic, identify and grip the penlight with either controller, illuminate it, ask for fixation, move to the taught distance, inspect scenario-specific corneal reflexes, enter an interpretation directly from the held-tool control, receive feedback, change finding without leaving VR, reset, and exit. Wrong tools cannot satisfy Hirschberg. Lost tracking, invalid technique, cancelled recording, and scenario changes cannot preserve an unfinished observation or create completion.
 
@@ -24,4 +24,4 @@ The learner must be able to choose Hirschberg from the existing library, enter t
 
 ## Remaining module migration
 
-After Hirschberg, lesson adapters for Bruckner, motility, and cover testing have been added. Their authored Practice scenarios must drive patient visuals rather than copy Arun's normal case. Extend the canonical registry with prism bars, filters, booklets, targets, and flippers only as their modules migrate; reuse the existing original models and procedure math. Krimsky/sensory/phoria/vergence/accommodation follow as distinct lesson adapters, without another controller runtime or room. Device ergonomics and clinical review remain separate validation steps.
+After Hirschberg, lesson adapters for Bruckner, motility, and cover testing have been added. Their authored Practice scenarios must drive patient visuals rather than copy Arun's normal case. Extend the canonical registry with prism bars, filters, booklets, targets, and flippers only as their modules migrate; reuse the existing original models and procedure math. Krimsky and the three sensory lessons now use distinct lesson adapters; phoria/vergence/accommodation now complete the 20-module migration, without another controller runtime or room. See [full-library completion](vr-library-completion.md). Device ergonomics and clinical review remain separate validation steps.

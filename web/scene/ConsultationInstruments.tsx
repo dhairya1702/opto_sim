@@ -3,17 +3,22 @@ import { useFrame } from "@react-three/fiber";
 import { DoubleSide, Group, Mesh, Object3D, type Material } from "three";
 import { Box, Cylinder, NearVisionCard, Paddle, Retinoscope, Ring, Sign } from "./Models";
 import { XRScopeOptics, type FundusScopeView, type BrucknerScopeView } from "./XRScopeOptics";
+import { LibraryInstrumentModel, type ClinicInstrumentSettings } from "./LibraryClinicEquipment";
+import { SensoryInstrumentModel } from "./SensoryClinicEquipment";
+import { XRSign } from "./XRClinicPanels";
 import { XRPrismBar } from "../practice/xr/XRClinicTools";
-import { CONSULTATION_TOOLS, type ConsultationToolId, type ConsultationTools } from "../interaction/xrConsultationTools";
+import { CONSULTATION_EQUIPMENT, consultationToolDefinition, type ConsultationToolId, type ConsultationTools } from "../interaction/xrConsultationTools";
 
 /** One canonical model per instrument, shared by resting and held placement. */
-export function ConsultationInstrumentModel({ id, powered, fundusView, brucknerView }: { id: ConsultationToolId; powered: boolean; fundusView?: FundusScopeView; brucknerView?: BrucknerScopeView }) {
+export function ConsultationInstrumentModel({ id, powered, fundusView, brucknerView, settings }: { settings?: ClinicInstrumentSettings; id: ConsultationToolId; powered: boolean; fundusView?: FundusScopeView; brucknerView?: BrucknerScopeView }) {
   const lightTarget = useMemo(() => {
     const target = new Object3D();
     target.position.set(0, .7, 0);
     return target;
   }, []);
-  if (id === "prism") return <group><XRPrismBar />
+  if (["maddox", "thorington", "trial-lens", "lens-flipper", "prism-flipper", "fixation"].includes(id)) return <LibraryInstrumentModel id={id} setting={settings?.[id]} />;
+  if (["worth", "red-green", "polarised", "stereo"].includes(id)) return <SensoryInstrumentModel id={id} powered={powered} point={settings?.[id]?.point} />;
+  if (id === "prism") return <group><XRPrismBar />{settings?.prism && <XRSign text={[`${settings.prism.power ?? 0}Δ ${settings.prism.base ?? ""}`]} p={[0, .04, .02]} size={[.12, .025]} bg="#173a3e" fg="#e8fff9"/>}
     <mesh position={[0, .143, .025]} userData={{ xrPrismWorkingCell: true }}>
       <ringGeometry args={[.027, .030, 24]} /><meshBasicMaterial color="#e5b55a" side={DoubleSide} />
     </mesh>
@@ -27,10 +32,10 @@ export function ConsultationInstrumentModel({ id, powered, fundusView, brucknerV
   </group>;
   if (id === "near") return <NearVisionCard r={[Math.PI / 2, 0, 0]} />;
   if (id === "subjective") return <group>
-    <Ring p={[-.078, 0, 0]} c="#922e2e" /><Ring p={[.078, 0, 0]} c="#283948" />
+    <Ring p={[-.048, 0, 0]} radius={.034} c="#922e2e" /><Ring p={[.048, 0, 0]} radius={.034} c="#283948" />
     <Box p={[0, .017, 0]} s={[.035, .012, .02]} c="#b2bab9" />
-    <Cylinder p={[-.148, 0, -.08]} h={.16} radius={.006} r={[Math.PI / 2, 0, 0]} />
-    <Cylinder p={[.148, 0, -.08]} h={.16} radius={.006} r={[Math.PI / 2, 0, 0]} />
+    <Cylinder p={[-.115, 0, -.08]} h={.16} radius={.006} r={[Math.PI / 2, 0, 0]} />
+    <Cylinder p={[.115, 0, -.08]} h={.16} radius={.006} r={[Math.PI / 2, 0, 0]} />
   </group>;
   const target = id === "motility";
   return <group>
@@ -51,7 +56,8 @@ export function ConsultationInstrumentModel({ id, powered, fundusView, brucknerV
   </group>;
 }
 
-function InstrumentInstance({ id, state, highlighted, returnedAt, register, fundusView, brucknerView }: {
+function InstrumentInstance({ id, state, highlighted, returnedAt, register, fundusView, brucknerView, settings }: {
+  settings?: ClinicInstrumentSettings;
   fundusView?: FundusScopeView; brucknerView?: BrucknerScopeView;
   id: ConsultationToolId;
   state: ConsultationTools;
@@ -65,7 +71,7 @@ function InstrumentInstance({ id, state, highlighted, returnedAt, register, fund
   const [reducedMotion, setReducedMotion] = useState(() => matchMedia("(prefers-reduced-motion: reduce)").matches);
   const tool = state[id];
   const placement = tool.placement;
-  const definition = CONSULTATION_TOOLS.find(candidate => candidate.id === id)!;
+  const definition = consultationToolDefinition(id);
   useEffect(() => {
     const preference = matchMedia("(prefers-reduced-motion: reduce)");
     const changed = () => setReducedMotion(preference.matches);
@@ -92,8 +98,8 @@ function InstrumentInstance({ id, state, highlighted, returnedAt, register, fund
   return <group ref={object => { root.current = object; register(id, object); }}
     position={placement.kind === "held" ? undefined : [...placement.position]}
     quaternion={placement.kind === "held" ? undefined : [...placement.rotation]}
-    userData={{ consultationToolId: id, examId: id === "prism" ? undefined : id, xrIgnoreRay: placement.kind === "held", station: (id === "subjective" || id === "prism") ? "refraction" : id === "fundus" ? "fundus" : "trolley" }}>
-    <ConsultationInstrumentModel id={id} powered={tool.powered} fundusView={fundusView} brucknerView={brucknerView} />
+    userData={{ consultationToolId: id, examId: CONSULTATION_EQUIPMENT.includes(id) && id !== "prism" ? id : undefined, xrIgnoreRay: placement.kind === "held", station: (id === "subjective" || id === "prism") ? "refraction" : id === "fundus" ? "fundus" : "trolley" }}>
+    <ConsultationInstrumentModel id={id} powered={tool.powered} fundusView={fundusView} brucknerView={brucknerView} settings={settings} />
     {highlighted && <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
       <ringGeometry args={[.025, .036, 20]} /><meshBasicMaterial color="#8df5d3" side={DoubleSide} depthTest={false} />
     </mesh>}
@@ -101,17 +107,20 @@ function InstrumentInstance({ id, state, highlighted, returnedAt, register, fund
   </group>;
 }
 
-export function ConsultationInstruments({ state, highlighted, returnedAt, register, fundusView, brucknerView }: {
+export function ConsultationInstruments({ state, highlighted, returnedAt, register, fundusView, brucknerView, equipment = CONSULTATION_EQUIPMENT, settings }: {
+  settings?: ClinicInstrumentSettings;
   fundusView?: FundusScopeView; brucknerView?: BrucknerScopeView;
   state: ConsultationTools;
+  equipment?: readonly ConsultationToolId[];
   highlighted: readonly ConsultationToolId[];
   returnedAt: Partial<Record<ConsultationToolId, number>>;
   register: (id: ConsultationToolId, object: Group | null) => void;
 }) {
   return <>
-    {CONSULTATION_TOOLS.map(tool => <InstrumentInstance key={tool.id} id={tool.id} state={state} highlighted={highlighted.includes(tool.id)} returnedAt={returnedAt[tool.id]} register={register} fundusView={fundusView} brucknerView={brucknerView} />)}
-    {CONSULTATION_TOOLS.map(tool => <group key={`socket-${tool.id}`} position={[tool.home[0], tool.home[1] - tool.restHeight + .005, tool.home[2]]} userData={{ xrIgnoreRay: true }}>
+    {equipment.map(id => consultationToolDefinition(id)).map(tool => <InstrumentInstance key={tool.id} id={tool.id} state={state} highlighted={highlighted.includes(tool.id)} returnedAt={returnedAt[tool.id]} register={register} fundusView={fundusView} brucknerView={brucknerView} settings={settings} />)}
+    {equipment.map(id => consultationToolDefinition(id)).map(tool => <group key={`socket-${tool.id}`} position={[tool.home[0], tool.home[1] - tool.restHeight + .005, tool.home[2]]} userData={{ xrIgnoreRay: true }}>
       <Box s={[tool.footprint[0], .008, tool.footprint[1]]} c="#39565b" radius={.004} />
+      {tool.id === "subjective" && <Box p={[0, .018, 0]} s={[.18, .027, .04]} c="#39565b" radius={.004} />}
       <Sign fit text={[tool.label]} p={[0, .006, tool.footprint[1] / 2 + .013]} size={[Math.max(.10, tool.footprint[0]), .023]} rotation={[-Math.PI / 2, 0, 0]} bg="#173a3e" fg="#e8fff9" />
     </group>)}
   </>;

@@ -10,7 +10,7 @@ import { AccommodativeFacilityStage } from "./AccommodativeFacilityStage";
 export type AccommodationMode = "push-up" | "minus-lens" | "relative" | "accommodative-facility";
 type TestEye = "OD" | "OS" | "OU";
 
-const blurAt: Record<TestEye, number> = { OD: 10, OS: 11, OU: 12 };
+import { pushUpBlurCm as blurAt } from "../interaction/accommodationPractice";
 
 function PushUpScene({ distance, eye, blurred }: { distance: number; eye: TestEye; blurred: boolean }) {
   const movement = useRef({ x: 0, y: 0, used: true });

@@ -1,6 +1,6 @@
 # Next batch: sensory Practice in the shared VR clinic
 
-Status: prepared for implementation; no sensory XR adapters have been implemented. Baseline is `47aa8ad` on `vr-improvements`. Implement Worth four dot, then stereopsis, then 4Δ base-out, validating each before the next. Servers remain off until requested. No deployment, new Test case, challenge-mode work, or hand tracking is included.
+Status: implemented on `vr-improvements` over baseline `47aa8ad`, with focused pure and mounted simulated-controller checks. Worth four dot, stereopsis and 4Δ base-out now use the shared clinic. Physical Quest 3S validation and clinician review remain pending. Servers remain off until requested. No deployment, new Test case, challenge-mode work, or hand tracking is included.
 
 ## Outcome and boundaries
 
@@ -102,3 +102,14 @@ At each checkpoint run nearest affected unit/mounted tests first. At the final c
 Implementation is ready for handoff when each lesson has an end-to-end mounted two-controller walkthrough using the real shared runtime, the focused checks/build pass, documentation matches behavior, and no existing consultation interaction has been replaced.
 
 Physical Quest 3S validation remains a separate necessary check: seated/standing reach, comfortable fitting and near distances, readable dots/circles/text, both hands and transfers, hands-free recording, distance station visibility, tracking/guardian interruptions, exit recovery and sustained frame timing. Software tests cannot establish those results. Qualified clinician review must assess the mirrored-station representation, fitting approximations, response diagrams and procedure fidelity before release; status remains draft.
+
+## Implementation handoff
+
+Implemented files: `xrSensoryEquipment.ts`, `xrWorthPractice.ts`, `xrStereoPractice.ts`, `xrFourPrismPractice.ts`, the three matching Practice controller adapters, and `SensoryClinicEquipment.tsx`. The existing runtime supports optional equipment, tagged fitted/placed sockets, persistent power, read-only supported working poses and explicit interruption reasons. Existing desktop routes remain available. Nine of 20 modules now have shared-clinic XR entries; phoria, vergence and accommodation remain outside this batch. No Test case/source/rubric, deployment, server, storage or network changes were made.
+
+Focused acceptance includes reflected-image/intersection/endpoint geometry, default consultation isolation, fitted layering/removal and persistent power; all authored Worth scenarios and near/distance capture/entry; stereo page token/confirmation/stop/threshold logic; ordered prism dwell/withdrawal/timelines; mounted real-runtime controller flows, released-tool recording, cancellation/reset/exit and no Test effects. Build retains the existing large Three.js chunk warning. No Playwright or full unit suite is included, per the requested verification scope. Device and clinical acceptance are still pending and cannot be inferred from software checks.
+
+Final verification: 118 focused tests passed across 17 files, including new sensory pure/mounted checks, shared equipment and panel geometry, existing Practice adapters and consultation regressions. `npm run build` and `git diff --check` passed; Vite retains its existing Three.js chunk-size warning. No full suite or Playwright was run. Changes remain uncommitted; no push or deployment was requested.
+
+
+Subsequent batch: the remaining 11 phoria, vergence and accommodation modules are now implemented, completing all 20 shared-clinic XR entries. See [full-library completion](vr-library-completion.md) for the current overall status and outstanding physical/clinical acceptance. The nine-module counts above describe this sensory batch's checkpoint.

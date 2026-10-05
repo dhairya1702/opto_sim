@@ -21,3 +21,23 @@ All visual assets used by this prototype are served with the app or generated lo
 No external GLB/glTF models were incorporated. The current geometry is a locally authored stylized MVP, and its recognizability requires pilot review. Manufacturer-accurate or licensed high-fidelity replacement models remain a visual refinement, with provenance required before inclusion. There are no asset downloads that can silently fail at runtime. WebGL/context failures have a complete station-mode fallback.
 
 CC0 text: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+## Sensory shared-clinic geometry
+
+| Asset | Source / creator | License | Modifications and intended use |
+| --- | --- | --- | --- |
+| Worth target, red–green and polarised frames, stereo booklet, sensory tray, near stand, distance dock and illustrative mirror display | Original project procedural geometry/canvas textures in `web/scene/SensoryClinicEquipment.tsx` | CC0-1.0 | Lesson-selected metre-scale equipment; no external textures/models or general reflection pass. Mirror presents a computed virtual target or illustrative isolated letter. |
+| Worth isolated-filter and patient-reported diagrams; stereo pages and reported percept | Original project geometry in `WorthPracticeController.tsx` and `StereoPracticeController.tsx`, reusing existing authored content | CC0-1.0 | Two-sided booklet with labeled examiner response controls and enlarged fictional reported-view illustrations; not calibrated colour cancellation or stereoscopic stimuli. |
+| Canonical trial-frame fitting dimensions and 4Δ eye motion | Original project models and authored `fourPrismGaze` timeline | CC0-1.0 | Trial lens centres align to canonical OD/OS ±.048 m; correction/filter layers are separate. Eye displacement is patient-scale illustration with cleanup restoring gaze. |
+
+Original consultation homes remain unchanged. Sensory homes are Worth `[1.04,.935,.88]`, red–green `[1.04,.93,1.18]`, polarised `[1.48,.93,1.18]`, stereo `[1.52,.91,.88]` (metres). The mirror plane is z=2.3 m, with dock working point x=.65 m, y=1.5 m and z approximately −.7917 m, solved for the canonical patient-eye midpoint and a 6 m reflected virtual-image path. The trial-frame lens centres use the canonical ±.048 m eye spacing, with a supported home cradle preserving its existing home. Sensory approach pads are `[.65,0,1.65]` for the tray, `[0,0,.25]` for patient fitting and `[.65,0,−.16]` for the distance dock. No third-party assets or services were added.
+
+
+## Full-library XR equipment
+
+| Asset | Files | Source / creator | License | Intended use |
+| --- | --- | --- | --- | --- |
+| Maddox rod, numbered Thorington card/centre aperture, fixation target, trial lens pair and lens/prism flippers | `web/scene/LibraryClinicEquipment.tsx`, canonical `ConsultationInstruments.tsx` | Original project procedural geometry/canvas labels | CC0-1.0 | Fictional reported-percept and instrument-handling illustrations; no manufacturer assets or calibrated optics |
+| Lens/rod tray, near support, fitting cues and approach pads; single-point target/mirror mode | `LibraryClinicEquipment.tsx`, `SensoryClinicEquipment.tsx` | Original project geometry, derived from existing clinic kit | CC0-1.0 | Distinct selected-tool homes and supported placement in the canonical clinic; no external assets |
+
+Instrument world homes and working points are declared in `xrConsultationTools.ts`; fitting/stand geometry and library-only support surfaces are declared in `xrLibraryEquipment.ts`. Existing consultation homes remain unchanged. Device reach/readability and optical illustrations still require physical/clinical review.

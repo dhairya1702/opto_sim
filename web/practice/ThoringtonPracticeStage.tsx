@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { thoringtonDirection, thoringtonDistanceReady, thoringtonLightAligned } from "../interaction/thorington";
+import { thoringtonDirection, thoringtonCoordinate, thoringtonDistanceReady, thoringtonLightAligned } from "../interaction/thorington";
 
 export function ThoringtonPracticeStage({ onClose, onComplete }: { onClose: () => void; onComplete: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -18,7 +18,7 @@ export function ThoringtonPracticeStage({ onClose, onComplete }: { onClose: () =
   const [caseIndex, setCaseIndex] = useState(0);
   const ready = correction && rod && thoringtonDistanceReady(distance) && light && thoringtonLightAligned(aim.x, aim.y) && angle === (axis === "horizontal" ? 0 : 90);
   const cardScale = 1.18 - ((distance - 25) / 35) * 0.38;
-  const coordinate = axis === "horizontal" ? caseIndex % 2 ? -8 : 6 : caseIndex % 2 ? -3 : 4;
+  const coordinate = thoringtonCoordinate(axis, caseIndex);
   const expected = thoringtonDirection(axis, coordinate);
   const complete = Boolean(results.horizontal && results.vertical);
   useEffect(() => { const node = dialog.current; node?.showModal(); return () => node?.close(); }, []);

@@ -8,10 +8,11 @@ import {
   toggleConsultationPanel, type ConsultationInputState,
 } from "./xrConsultationInput";
 import {
-  CONSULTATION_TOOLS, consultationPickupHint, consultationPickupLabel, consultationToolDefinition, consultationToolReady,
+  CONSULTATION_EQUIPMENT, CONSULTATION_SURFACES, consultationPickupHint, consultationPickupLabel, consultationToolDefinition, consultationToolReady,
   grabConsultationTool, initialConsultationTools, powerConsultationTool, releaseConsultationTool,
-  resetConsultationHands, toolInHand, type ConsultationPickupHint, type ConsultationToolId, type ConsultationTools, type PlacementSocket,
+  resetConsultationHands, setConsultationToolPower, toolInHand, type ConsultationPickupHint, type ConsultationToolId, type ConsultationTools, type PlacementSocket, type PlacementSurface,
 } from "./xrConsultationTools";
+import { SENSORY_SURFACES, type SensoryWorkingPose } from "./xrSensoryEquipment";
 export type XRClinicHand = "left" | "right";
 type Hand = XRClinicHand;
 export type XRClinicControllerSlot = ConsultationInputState & {
@@ -36,18 +37,21 @@ function ancestorData(object: Object3D | null) {
 
 
 export type XRClinicSelection = ReturnType<typeof ancestorData>;
+export type XRClinicInterruption = "procedure" | "panel" | "tracking" | "visibility" | "pickup" | "transfer" | "release" | "reset" | "exit";
 type Options = {
   active: boolean;
   editorOpen?: boolean;
+  equipment?: readonly ConsultationToolId[];
+  placementSurfaces?: readonly PlacementSurface[];
   placementSockets?: readonly PlacementSocket[];
-  onInterrupt?: () => void;
+  onInterrupt?: (reason: XRClinicInterruption) => void;
   onToolUsed?: (id: ConsultationToolId, action: "pickup" | "activate") => void;
   onMenu?: (open: boolean) => void;
   onSelection?: (selection: XRClinicSelection) => void;
 };
 /** Shared physical clinic loop. It knows no case findings, lesson answers, or scoring. */
 export function useXRClinicRuntime(options: Options) {
-  const { active, editorOpen = false } = options;
+  const { active, editorOpen = false, equipment = CONSULTATION_EQUIPMENT } = options;
   const { gl, scene } = useThree();
   const optionsRef = useRef(options); optionsRef.current = options;
   const toolControls = useRef(new Map<ConsultationToolId, Group>());
@@ -74,7 +78,7 @@ export function useXRClinicRuntime(options: Options) {
   const [returnedAt, setReturnedAt] = useState<Partial<Record<ConsultationToolId, number>>>({});
   const [handlingMessage, setHandlingMessage] = useState("");
   const activeRef = useRef(active); activeRef.current = active;
-  const pauseTechnique = useCallback(() => optionsRef.current.onInterrupt?.(), []);
+  const pauseTechnique = useCallback((reason: XRClinicInterruption = "procedure") => optionsRef.current.onInterrupt?.(reason), []);
   const frameValid = useRef(false);
   const visualTime = useRef(0);
   const hoverMarker = useRef<Group>(null);
@@ -84,6 +88,18 @@ export function useXRClinicRuntime(options: Options) {
   const origin = useMemo(() => new Vector3(), []);
   const direction = useMemo(() => new Vector3(0, 0, -1), []);
   const quaternion = useMemo(() => new Quaternion(), []);
+  const samplePoint = useMemo(() => new Vector3(), []);
+  const sampleForward = useMemo(() => new Vector3(), []);
+  const sampleRotation = useMemo(() => new Quaternion(), []);
+  const setToolPower = useCallback((id: ConsultationToolId, powered: boolean) => {
+    if (!activeRef.current || !(optionsRef.current.equipment ?? CONSULTATION_EQUIPMENT).includes(id)) return;
+    updateTools(setConsultationToolPower(toolsRef.current, id, powered));
+  }, [updateTools]);
+  const extinguishAll = useCallback(() => {
+    let next = toolsRef.current;
+    for (const id of optionsRef.current.equipment ?? CONSULTATION_EQUIPMENT) next = setConsultationToolPower(next, id, false);
+    updateTools(next);
+  }, [updateTools]);
   const stopLights = useCallback(() => {
     let next = toolsRef.current;
     for (const hand of ["left", "right"] as const) next = powerConsultationTool(next, hand, false);
@@ -95,7 +111,7 @@ export function useXRClinicRuntime(options: Options) {
     slots.forEach(slot => { slot.triggerRoute = null; slot.panel = false; slot.candidate = null; });
     updateTools(initialConsultationTools());
     setHighlighted([]); setHandlingMessage("");
-    pauseTechnique();
+    pauseTechnique("reset");
   }, [pauseTechnique, slots, updateTools]);
   const handStatus = () => Object.fromEntries((["left", "right"] as const).map(hand => {
     const slot = slots.find(candidate => candidate.hand === hand);
@@ -113,9 +129,26 @@ export function useXRClinicRuntime(options: Options) {
     direction.set(...definition.forward).applyQuaternion(quaternion).normalize();
     return true;
   };
+  /** Resting poses use the real rendered transform and remain independent of releasing-hand tracking. */
+  const supportedWorkingPose = (id: ConsultationToolId, allowPanel = false): SensoryWorkingPose | null => {
+    if (!(optionsRef.current.equipment ?? CONSULTATION_EQUIPMENT).includes(id)) return null;
+    const object = objects.current.get(id);
+    if (!object?.visible) return null;
+    if (toolsRef.current[id].placement.kind === "held") {
+      const hands = handStatus();
+      if (allowPanel) { hands.left.panel = false; hands.right.panel = false; }
+      if (!consultationToolReady(toolsRef.current, id, hands)) return null;
+    }
+    object.updateMatrixWorld(true);
+    const definition = consultationToolDefinition(id);
+    samplePoint.set(...definition.workingPoint);
+    object.localToWorld(samplePoint);
+    sampleForward.set(...definition.forward).applyQuaternion(object.getWorldQuaternion(sampleRotation)).normalize();
+    return { position: samplePoint.toArray() as [number, number, number], forward: sampleForward.toArray() as [number, number, number] };
+  };
   const pickupHint = (slot: ControllerSlot) => {
     slot.grip.getWorldPosition(origin);
-    return consultationPickupHint(origin.toArray() as [number, number, number], CONSULTATION_TOOLS.map(({ id }) => {
+    return consultationPickupHint(origin.toArray() as [number, number, number], (optionsRef.current.equipment ?? CONSULTATION_EQUIPMENT).map(id => {
       const object = objects.current.get(id);
       object?.getWorldPosition(workingOrigin);
       return { id, position: workingOrigin.toArray() as [number, number, number], visible: Boolean(object?.visible) };
@@ -136,15 +169,15 @@ export function useXRClinicRuntime(options: Options) {
         if (slot.hand) updateTools(powerConsultationTool(toolsRef.current, slot.hand, false));
         Object.assign(slot, interruptConsultationInput(slot));
         slot.candidate = null;
-        pauseTechnique();
+        pauseTechnique("tracking");
       }
       const buttonPressed = Boolean(slot.source?.gamepad?.buttons[4]?.pressed);
       if (buttonPressed && !slot.buttonDown && slot.tracked && slot.hand) {
         Object.assign(slot, toggleConsultationPanel(slot));
         updateTools(powerConsultationTool(toolsRef.current, slot.hand, false));
-        pauseTechnique();
         const open = slots.some(candidate => candidate.panel);
         optionsRef.current.onMenu?.(open);
+        pauseTechnique("panel");
         refresh(value => value + 1);
       }
       slot.buttonDown = buttonPressed;
@@ -152,7 +185,8 @@ export function useXRClinicRuntime(options: Options) {
       slot.ray.visible = slot.tracked && (slot.panel || !slot.hand || !toolInHand(toolsRef.current, slot.hand));
     }
     // One world-space model per instrument; poses are updated before procedure sampling.
-    for (const definition of CONSULTATION_TOOLS) {
+    for (const id of optionsRef.current.equipment ?? CONSULTATION_EQUIPMENT) {
+      const definition = consultationToolDefinition(id);
       const object = objects.current.get(definition.id);
       if (!object) continue;
       const placement = toolsRef.current[definition.id].placement;
@@ -164,7 +198,7 @@ export function useXRClinicRuntime(options: Options) {
         slot.grip.getWorldPosition(object.position);
         // WebXR grip pose describes the hand; target-ray pose describes where it points.
         // Axial light tools must follow the aim pose, not the Quest grip-axis tilt.
-        (definition.illuminates ? slot.ray : slot.grip).getWorldQuaternion(object.quaternion);
+        (definition.illuminates && definition.powerMode !== "persistent" ? slot.ray : slot.grip).getWorldQuaternion(object.quaternion);
         object.quaternion.multiply(quaternion.set(...definition.gripRotation));
       } else {
         object.visible = true;
@@ -231,8 +265,10 @@ export function useXRClinicRuntime(options: Options) {
     raycaster.set(origin, direction);
     const intersections = raycaster.intersectObject(scene, true).filter(intersection => {
       let object: Object3D | null = intersection.object;
+      let interactive = false;
       while (object) {
-        if (!object.visible || object.userData.xrIgnoreRay) return false;
+        interactive ||= Boolean(object.userData.xrToolControls || object.userData.xrInteractiveSurface);
+        if (!object.visible || (object.userData.xrIgnoreRay && !interactive)) return false;
         object = object.parent;
       }
       return true;
@@ -270,18 +306,19 @@ export function useXRClinicRuntime(options: Options) {
       baseSpace.current = null;
       frameValid.current = false;
       updateTools(resetConsultationHands(toolsRef.current));
+      extinguishAll();
       slots.forEach(slot => {
         slot.panel = false; slot.triggerRoute = null; slot.triggerDown = false;
         slot.gripDown = false; slot.candidate = null; slot.tracked = false;
       });
       setHighlighted([]);
       setHandlingMessage("");
-      pauseTechnique();
+      pauseTechnique("exit");
       return;
     }
     const frame = requestAnimationFrame(() => teleport([0, 0, 1.9]));
     return () => cancelAnimationFrame(frame);
-  }, [active, pauseTechnique, slots, teleport, updateTools]);
+  }, [active, extinguishAll, pauseTechnique, slots, teleport, updateTools]);
 
   useEffect(() => {
     if (!handlingMessage) return;
@@ -295,7 +332,7 @@ export function useXRClinicRuntime(options: Options) {
     const interrupt = () => {
       frameValid.current = false;
       stopLights();
-      pauseTechnique();
+      pauseTechnique("visibility");
       slots.forEach(slot => {
         slot.tracked = false;
         slot.grip.visible = false;
@@ -310,6 +347,7 @@ export function useXRClinicRuntime(options: Options) {
       activeRef.current = false;
       interrupt();
       updateTools(resetConsultationHands(toolsRef.current));
+      extinguishAll();
       slots.forEach(slot => Object.assign(slot, initialConsultationInput()));
     };
     session.addEventListener("visibilitychange", visibility);
@@ -318,7 +356,7 @@ export function useXRClinicRuntime(options: Options) {
       session.removeEventListener("visibilitychange", visibility);
       session.removeEventListener("end", end);
     };
-  }, [active, gl, pauseTechnique, slots, stopLights, updateTools]);
+  }, [active, extinguishAll, gl, pauseTechnique, slots, stopLights, updateTools]);
 
   useEffect(() => {
     const cleanups = slots.map(slot => {
@@ -338,7 +376,7 @@ export function useXRClinicRuntime(options: Options) {
         }
         slot.source = null; slot.hand = null; slot.tracked = false;
         slot.triggerRoute = null; slot.triggerDown = false; slot.gripDown = false; slot.panel = false;
-        pauseTechnique();
+        pauseTechnique("tracking");
         refresh(value => value + 1);
       };
       const squeezeStart = () => {
@@ -365,7 +403,7 @@ export function useXRClinicRuntime(options: Options) {
         slot.triggerRoute = null;
         updateTools(grabConsultationTool(toolsRef.current, id, slot.hand));
         optionsRef.current.onToolUsed?.(id, "pickup");
-        pauseTechnique();
+        pauseTechnique(oldPlacement.kind === "held" ? "transfer" : "pickup");
         setHandlingMessage(`${consultationToolDefinition(id).label} · ${slot.hand} hand`);
       };
       const squeezeEnd = () => {
@@ -379,10 +417,12 @@ export function useXRClinicRuntime(options: Options) {
         const result = releaseConsultationTool(toolsRef.current, slot.hand, object && slot.tracked ? {
           position: origin.toArray() as [number, number, number],
           rotation: quaternion.toArray() as [number, number, number, number],
-        } : undefined, undefined, optionsRef.current.placementSockets);
+        } : undefined, optionsRef.current.placementSurfaces ?? ((optionsRef.current.equipment ?? CONSULTATION_EQUIPMENT).some(tool => ["worth", "red-green", "polarised", "stereo"].includes(tool))
+          ? [...CONSULTATION_SURFACES, ...SENSORY_SURFACES] : CONSULTATION_SURFACES), optionsRef.current.placementSockets,
+          optionsRef.current.equipment ?? CONSULTATION_EQUIPMENT);
         slot.triggerRoute = null;
         updateTools(result.state);
-        pauseTechnique();
+        pauseTechnique("release");
         if (result.returned) {
           setReturnedAt(previous => ({ ...previous, [id]: performance.now() }));
           setHandlingMessage("No clear supported surface · returned to its resting place.");
@@ -421,7 +461,7 @@ export function useXRClinicRuntime(options: Options) {
   return {
     tools, toolsRef, slots, objects, toolControls, frameValid, highlighted, pickupHints, returnedAt,
     handlingMessage, setHandlingMessage, hoverMarker, registerTool, updateTools, stopLights, resetClinic,
-    origin, direction, quaternion, workingPose, handStatus, teleport,
+    origin, direction, quaternion, workingPose, supportedWorkingPose, handStatus, teleport, equipment, setToolPower,
   };
 }
 export type XRClinicRuntime = ReturnType<typeof useXRClinicRuntime>;
