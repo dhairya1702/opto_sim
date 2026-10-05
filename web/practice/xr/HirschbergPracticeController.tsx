@@ -8,6 +8,7 @@ import { xrHirschbergPrompt, xrHirschbergTechnique, type XRHirschbergTechnique }
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
 import { XRHeadPanel, XRPanelButton, XRSign as Sign, XRToolControls } from "../../scene/XRClinicPanels";
 import { Box } from "../../scene/Models";
+import { XRPracticeFindingsBoard } from "../../scene/XRPracticeFindingsBoard";
 import type { OpticScenario } from "../ClinicalPracticeStage";
 
 export const HIRSCHBERG_DIRECTIONS = [
@@ -124,11 +125,11 @@ export function HirschbergPracticeController({ active, preview = false, scenario
   useEffect(() => { if (!active) reset(); }, [active, reset]);
   const giveFixation = () => { fixationRef.current = true; setFixation(true); setMenu(false); };
   const chooseDirection = (value: string) => {
-    if (awarded.current || !sample().ready) return;
+    if (awarded.current) return;
     entries.current.direction = value; setDirection(value); setChecked(false);
   };
   const chooseAmount = (value: string) => {
-    if (awarded.current || !sample().ready) return;
+    if (awarded.current) return;
     entries.current.amount = value; setAmount(value); setChecked(false);
   };
   const record = () => {
@@ -148,9 +149,27 @@ export function HirschbergPracticeController({ active, preview = false, scenario
     giveFixation, toggleHelp, openRecording, chooseDirection, chooseAmount, record, cancel, reset,
   }); }, [technique, held, light, fixation, direction, amount, checked, correct, help, recording, finding, active, onMirror]);
   const nextFinding = () => { reset(); onNext(); };
+  const findings = <>
+        <Box p={[0, -.03, -.015]} s={[.76, 1.20, .018]} c="#102329" radius={.012} />
+        <Sign text={["HIRSCHBERG · MY OBSERVATIONS", checked ? correct ? "Correct · finding recorded" : "Recheck direction and landmark." : technique.ready ? "Choose your interpretation and landmark." : prompt]} p={[0, .245, 0]} size={[.70, .16]} bg="#102329" fg="#eefbf7" />
+        <XRPanelButton label={fixation ? "FIXATION GIVEN ✓" : "LOOK AT THE LIGHT"} position={[0, .49, .02]} width={.70} onClick={giveFixation} />
+        <XRPanelButton label="HELP" position={[-.18, .395, .02]} width={.34} onClick={toggleHelp} />
+        <XRPanelButton label="EXIT VR" position={[.18, .395, .02]} width={.34} onClick={onExit} />
+        {HIRSCHBERG_DIRECTIONS.map(([value, label], index) => <XRPanelButton key={value} label={label.toUpperCase()}
+          position={[index % 2 ? .18 : -.18, .10 - Math.floor(index / 2) * .08, .012]} width={.34}
+          disabled={checked && correct} active={direction === value} onClick={() => chooseDirection(value)} />)}
+        {HIRSCHBERG_LANDMARKS.map(([value, label], index) => <XRPanelButton key={value} label={label.toUpperCase()}
+          position={[index % 2 ? .18 : -.18, -.17 - Math.floor(index / 2) * .08, .012]} width={.34}
+          disabled={checked && correct} active={amount === value} onClick={() => chooseAmount(value)} />)}
+        <XRPanelButton label="CANCEL" position={[-.18, -.335, .012]} width={.34} onClick={cancel} />
+        <XRPanelButton label="RECORD INTERPRETATION" position={[.18, -.335, .012]} width={.34} disabled={!technique.ready || !direction || !amount || (checked && correct)} onClick={record} />
+        {checked && <Sign text={[correct ? finding.feedback : "Compare with the pupil centre; use the direction rule and landmark."]} p={[0, -.425, .012]} size={[.70, .08]} bg="#102329" fg="#eefbf7" />}
+        {checked && correct && <XRPanelButton label="NEW PATIENT FINDING" position={[0, -.51, .012]} width={.70} onClick={nextFinding} />}
+      </>;
   return <>
-    <XRClinicRuntimeView runtime={runtime} active={active && !preview} preview={preview} title="HIRSCHBERG · PRACTICE" instruction="A/X · lesson controls · select Record finding beside the tool" />
+    <XRClinicRuntimeView runtime={runtime} active={active && !preview} preview={preview} title="HIRSCHBERG · PRACTICE" instruction="Pick up the penlight · point at the findings board · trigger to select" />
     {active && <>
+      <XRPracticeFindingsBoard runtime={runtime} active={active && !preview} tools={["pupils"]} hidden={menu || help || recording}>{findings}</XRPracticeFindingsBoard>
       <HirschbergReflexes scenario={scenario} visual={visual} />
       <XRToolControls runtime={runtime} id="pupils">
         <Sign text={[`FINDING ${findingPosition.current}/${findingPosition.total}`, `${Math.round(technique.distanceCm)} CM · ${technique.ready ? "VIEW READY" : "ADJUST POSITION"}`]} p={[0, .085, 0]} size={[.32, .085]} bg="#173a3e" fg="#e8fff9" />
@@ -174,21 +193,7 @@ export function HirschbergPracticeController({ active, preview = false, scenario
         <XRPanelButton label="CLOSE HELP" position={[-.16, -.26, .025]} width={.30} onClick={() => setHelp(false)} />
         <XRPanelButton label="EXIT VR" position={[.16, -.26, .025]} width={.30} onClick={onExit} />
       </XRHeadPanel>}
-      {recording && <XRHeadPanel>
-        <Box p={[0, -.10, -.015]} s={[.76, .96, .018]} c="#102329" radius={.012} />
-        <Sign text={["HIRSCHBERG · MY OBSERVATIONS", checked ? correct ? "Correct · finding recorded" : "Recheck direction and landmark." : technique.ready ? "Choose your interpretation and landmark." : prompt]} p={[0, .245, 0]} size={[.70, .16]} bg="#102329" fg="#eefbf7" />
-        <XRPanelButton label="EXIT VR" position={[.27, .395, .02]} width={.17} onClick={onExit} />
-        {HIRSCHBERG_DIRECTIONS.map(([value, label], index) => <XRPanelButton key={value} label={label.toUpperCase()}
-          position={[index % 2 ? .18 : -.18, .10 - Math.floor(index / 2) * .08, .012]} width={.34}
-          disabled={!technique.ready || (checked && correct)} active={direction === value} onClick={() => chooseDirection(value)} />)}
-        {HIRSCHBERG_LANDMARKS.map(([value, label], index) => <XRPanelButton key={value} label={label.toUpperCase()}
-          position={[index % 2 ? .18 : -.18, -.17 - Math.floor(index / 2) * .08, .012]} width={.34}
-          disabled={!technique.ready || (checked && correct)} active={amount === value} onClick={() => chooseAmount(value)} />)}
-        <XRPanelButton label="CANCEL" position={[-.18, -.335, .012]} width={.34} onClick={cancel} />
-        <XRPanelButton label="RECORD INTERPRETATION" position={[.18, -.335, .012]} width={.34} disabled={!technique.ready || !direction || !amount || (checked && correct)} onClick={record} />
-        {checked && <Sign text={[correct ? finding.feedback : "Compare with the pupil centre; use the direction rule and landmark."]} p={[0, -.425, .012]} size={[.70, .08]} bg="#102329" fg="#eefbf7" />}
-        {checked && correct && <XRPanelButton label="NEW PATIENT FINDING" position={[0, -.51, .012]} width={.70} onClick={nextFinding} />}
-      </XRHeadPanel>}
+      {recording && <XRHeadPanel>{findings}</XRHeadPanel>}
     </>}
   </>;
 }

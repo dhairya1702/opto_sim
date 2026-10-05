@@ -55,6 +55,7 @@ export function useXRClinicRuntime(options: Options) {
   const { gl, scene } = useThree();
   const optionsRef = useRef(options); optionsRef.current = options;
   const toolControls = useRef(new Map<ConsultationToolId, Group>());
+  const findingsPanels = useRef(new Set<Group>());
   const slots = useMemo<ControllerSlot[]>(() => [0, 1].map(index => ({
     ...initialConsultationInput(), hand: null, source: null, tracked: false,
     ray: gl.xr.getController(index),
@@ -194,7 +195,7 @@ export function useXRClinicRuntime(options: Options) {
       }
       slot.buttonDown = buttonPressed;
       slot.grip.visible = slot.tracked;
-      slot.ray.visible = slot.tracked && (slot.panel || !slot.hand || !toolInHand(toolsRef.current, slot.hand));
+      slot.ray.visible = slot.tracked && (findingsPanels.current.size > 0 || slot.panel || !slot.hand || !toolInHand(toolsRef.current, slot.hand));
     }
     // One world-space model per instrument; poses are updated before procedure sampling.
     for (const id of optionsRef.current.equipment ?? CONSULTATION_EQUIPMENT) {
@@ -253,19 +254,27 @@ export function useXRClinicRuntime(options: Options) {
     for (const slot of slots) {
       if (!slot.ray.visible) continue;
       const hit = rayHit(slot);
+      const beam = slot.ray.getObjectByName("clinic-pointer-beam"), dot = slot.ray.getObjectByName("clinic-pointer-dot");
+      const length = hit ? Math.min(3, Math.max(.01, hit.distance)) : 3;
+      if (beam) { beam.position.z = -length / 2; beam.scale.y = length; }
       let object: Object3D | null = hit?.object ?? null;
+      let hovered: Object3D | null = null;
       while (object) {
-        if (object.userData.xrButton) { button = object; break; }
+        if (object.userData.xrButton) { hovered = object; button ??= object; break; }
         object = object.parent;
       }
-      if (button) break;
+      if (dot) {
+        dot.visible = Boolean(hovered && hit && hit.distance <= 3);
+        dot.position.set(0, 0, -length + .002);
+      }
     }
     if (hoverMarker.current) {
       hoverMarker.current.visible = Boolean(button);
       if (button) {
         button.getWorldPosition(hoverMarker.current.position);
         button.getWorldQuaternion(hoverMarker.current.quaternion);
-        hoverMarker.current.scale.set(Number(button.userData.xrWidth ?? .27) + .012, .077, .028);
+        button.getWorldScale(workingOrigin);
+        hoverMarker.current.scale.set((Number(button.userData.xrWidth ?? .27) + .012) * workingOrigin.x, .077 * workingOrigin.y, .028 * workingOrigin.z);
       }
     }
   });
@@ -293,6 +302,12 @@ export function useXRClinicRuntime(options: Options) {
       });
       if (editorHit) return editorHit;
     }
+    const findingsHit = intersections.find(hit => {
+      let object: Object3D | null = hit.object;
+      while (object) { if (object.userData.xrPersistentFindings) return true; object = object.parent; }
+      return false;
+    });
+    if (findingsHit) return findingsHit;
     // Tool-side controls are visible overlays, just like the explicitly opened editor.
     const toolControl = intersections.find(hit => {
       let object: Object3D | null = hit.object;
@@ -448,7 +463,12 @@ export function useXRClinicRuntime(options: Options) {
       const selectStart = () => {
         if (!activeRef.current || !slot.hand || !slot.tracked) return;
         const id = toolInHand(toolsRef.current, slot.hand);
-        const pressed = pressConsultationTrigger(slot, Boolean(id));
+        // Aiming directly at the standing findings board selects its controls
+        // even in the instrument hand; aiming at the patient still uses the tool.
+        const hit = findingsPanels.current.size ? rayHitRef.current(slot) : null;
+        let target: Object3D | null = hit?.object ?? null, pointsAtPanel = false;
+        while (target) { pointsAtPanel ||= Boolean(target.userData.xrPanel); target = target.parent; }
+        const pressed = pressConsultationTrigger(slot, Boolean(id) && !pointsAtPanel);
         if (pressed === slot) return;
         Object.assign(slot, pressed);
         if (slot.triggerRoute === "tool") {
@@ -476,7 +496,7 @@ export function useXRClinicRuntime(options: Options) {
   }, [direction, origin, pauseTechnique, quaternion, slots, teleport, updateTools, workingOrigin]);
 
   return {
-    tools, toolsRef, slots, objects, toolControls, frameValid, highlighted, pickupHints, returnedAt,
+    tools, toolsRef, slots, objects, toolControls, findingsPanels, frameValid, highlighted, pickupHints, returnedAt,
     handlingMessage, setHandlingMessage, hoverMarker, registerTool, updateTools, stopLights, resetClinic,
     origin, direction, quaternion, workingPose, supportedWorkingPose, handStatus, teleport, equipment, setToolPower,
   };

@@ -42,7 +42,7 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
       <SensoryClinicStation active={active} runtime={runtime} distanceLetter={sensoryStation === "four-prism"} />
       <ConsultationInstruments equipment={runtime.equipment} settings={instrumentSettings} fundusView={fundusView} brucknerView={brucknerView} state={tools} highlighted={highlighted} returnedAt={returnedAt} register={registerTool} />
       <group ref={hoverMarker} visible={false} userData={{ xrIgnoreRay: true }}>
-        <mesh><boxGeometry args={[1, 1, 1]} /><meshBasicMaterial color="#b0ffe7" wireframe depthTest={false} /></mesh>
+        <mesh renderOrder={1100}><boxGeometry args={[1, 1, 1]} /><meshBasicMaterial color="#b0ffe7" wireframe depthTest={false} depthWrite={false} /></mesh>
       </group>
       {active && slots.map((slot, index) => {
         const id = slot.hand ? toolInHand(tools, slot.hand) : null;
@@ -56,7 +56,12 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
             </group>}
           </primitive>
           <primitive object={slot.ray}>
-            <mesh position={[0, 0, -.8]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[.0015, .0015, 1.6, 8]} /><meshBasicMaterial color={slot.panel ? "#c2f3ff" : "#78d2c2"} transparent opacity={.55} /></mesh>
+            <mesh name="clinic-pointer-beam" position={[0, 0, -.8]} rotation={[Math.PI / 2, 0, 0]} scale={[1, 1.6, 1]} renderOrder={1101}>
+              <cylinderGeometry args={[.0015, .0015, 1, 8]} /><meshBasicMaterial color={slot.panel ? "#c2f3ff" : "#78d2c2"} transparent opacity={.75} depthTest={false} depthWrite={false} />
+            </mesh>
+            <mesh name="clinic-pointer-dot" visible={false} renderOrder={1102}>
+              <sphereGeometry args={[.005, 12, 8]} /><meshBasicMaterial color="#b0ffe7" depthTest={false} depthWrite={false} />
+            </mesh>
           </primitive>
         </group>;
       })}

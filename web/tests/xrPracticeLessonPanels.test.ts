@@ -11,7 +11,7 @@ let dispose: (() => Promise<void>) | undefined;
 afterEach(async () => { await dispose?.(); dispose = undefined; vi.unstubAllGlobals(); });
 function panelBounds(scene: Object3D) {
   let panel: Object3D | undefined;
-  scene.traverse(object => { if (object.userData.xrObservationEditor) panel = object; });
+  scene.traverse(object => { if (object.userData.xrObservationEditor || object.userData.xrPersistentFindings) panel = object; });
   if (!panel) throw new Error("Missing lesson panel");
   const backing = panel.children[0];
   if (!(backing instanceof Mesh)) throw new Error("Missing panel backing");
@@ -42,6 +42,20 @@ function panelBounds(scene: Object3D) {
   return buttons;
 }
 describe("headset panel layout", () => {
+  it("automatically shows a larger paged numeric findings board after flipper pickup without awarding incomplete work", async () => {
+    let mirror: BatchMirror;
+    const complete = vi.fn();
+    const sim = await clinic({ renderAdapter: ({ active }) => createElement(VergencePracticeController, { active, kind: "facility", onComplete: complete, onExit: vi.fn(), onMirror: next => { mirror = next; } }) });
+    dispose = sim.dispose;
+    expect(sim.controls()).toHaveLength(0);
+    await sim.pickup(1, "prism-flipper");
+    const labels = panelBounds(sim.state.scene).map(button => button.label);
+    expect(labels).toContain("ENTRY +1 cpm"); expect(labels).toContain("PROCEDURE CONTROLS");
+    expect(mirror!.lesson.mode).toBe("none");
+    await act(async () => mirror!.record()); expect(complete).not.toHaveBeenCalled();
+    await sim.event(1, "squeezeend"); await sim.step();
+    expect(panelBounds(sim.state.scene).map(button => button.label)).toContain("ENTRY +1 cpm");
+  });
   it("fits long menus and all Worth entry choices inside the backing without overlapping footer controls", async () => {
     let mirror: BatchMirror;
     const sim = await clinic({ renderAdapter: ({ active }) => createElement(WorthPracticeController, { active, onComplete: vi.fn(), onExit: vi.fn(), onMirror: next => { mirror = next; } }) });

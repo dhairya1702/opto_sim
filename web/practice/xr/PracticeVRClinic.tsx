@@ -6,6 +6,7 @@ import { ConsultationInterior } from "../../scene/Room";
 import { Controller } from "../../interaction/Controller";
 import type { StationId } from "../../domain/types";
 import { PracticeWebGLFallback } from "../PracticeWebGLFallback";
+import { usePracticeXRSessionLifetime } from "../../interaction/usePracticeXRSessionLifetime";
 
 class PracticeSceneBoundary extends Component<{ children: ReactNode; onFailure: () => void }, { failed: boolean }> {
   state = { failed: false };
@@ -24,10 +25,8 @@ export function PracticeVRClinic({ title, findingPosition, onClose, onDesktop, c
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const renderer = useRef<WebGLRenderer | null>(null);
-  const session = useRef<XRSession | null>(null);
-  const mounted = useRef(true);
+  const { session, mounted, closing } = usePracticeXRSessionLifetime();
   const startingRef = useRef(false);
-  const closing = useRef(false);
   const [support, setSupport] = useState<"checking" | "supported" | "unavailable">("checking");
   const [starting, setStarting] = useState(false);
   const [active, setActive] = useState(false);
@@ -43,14 +42,10 @@ export function PracticeVRClinic({ title, findingPosition, onClose, onDesktop, c
     finally { if (mounted.current) { setActive(false); onClose(); } }
   }, [onClose]);
   useEffect(() => {
-    mounted.current = true;
     const node = dialog.current;
     const previous = document.activeElement as HTMLElement | null;
     node?.showModal();
     return () => {
-      mounted.current = false; closing.current = true;
-      const current = session.current; session.current = null;
-      void current?.end().catch(() => undefined);
       node?.close(); previous?.focus();
     };
   }, []);

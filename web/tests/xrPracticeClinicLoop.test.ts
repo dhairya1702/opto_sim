@@ -41,6 +41,55 @@ async function lesson() {
   };
 }
 describe("Hirschberg in the shared consultation clinic", () => {
+  it("opens a stable larger findings board at pickup, allows draft selection and keeps saving gated by technique", async () => {
+    const sim = await lesson(); await sim.pickup(1, "pupils");
+    let board: THREE.Object3D | undefined;
+    sim.state.scene.traverse(object => { if (object.userData.xrPersistentFindings) board = object; });
+    expect(board).toBeDefined();
+    expect(board!.position.z).toBeCloseTo(sim.viewerCamera.position.z - 1.4);
+    expect(board!.scale.x).toBe(1.35);
+    const anchored = board!.position.clone();
+    sim.viewerCamera.rotation.y = .35; sim.viewerCamera.position.x += .15;
+    await sim.step(1 / 72, 12); expect(board!.position.equals(anchored)).toBe(true);
+    // Selection with the instrument hand is routed to the board without A/X.
+    await sim.click(1, sim.button("NO DEVIATION"));
+    expect(sim.mirror().direction).toBe("none"); expect(sim.mirror().light).toBe(false);
+    await sim.click(1, sim.button("CENTRED · 0°")); expect(sim.mirror().amount).toBe("0");
+    // A disabled save target consumes pointer input without activating the light.
+    let save: THREE.Object3D | undefined;
+    board!.traverse(object => { if (object.userData.xrLabel === "RECORD INTERPRETATION") save = object; });
+    expect(save).toBeDefined(); await sim.click(1, save!); expect(sim.mirror().light).toBe(false);
+    expect(sim.controls().some(object => object.userData.xrLabel === "RECORD INTERPRETATION")).toBe(false);
+    sim.mirror().record(); expect(sim.complete).not.toHaveBeenCalled();
+    await sim.click(1, sim.button("LOOK AT THE LIGHT")); expect(sim.mirror().fixation).toBe(true);
+    await sim.event(1, "squeezeend"); await sim.step();
+    expect(board!.parent).not.toBeNull(); // Putting it down does not hide the form.
+  });
+  it("shows hover above the headset menu, stops the pointer at its button and selects with the menu hand", async () => {
+    const sim = await lesson(); await sim.pickup(1, "pupils"); await sim.panel(1);
+    const button = sim.button("LOOK AT THE LIGHT");
+    // Turn/move the headset and aim at the button's new pose before one frame.
+    // This differs from click(), which reads already-updated scene geometry.
+    sim.viewerCamera.position.set(.18, 1.62, .48); sim.viewerCamera.rotation.y = .35;
+    const q = sim.viewerCamera.getWorldQuaternion(new THREE.Quaternion());
+    const target = new THREE.Vector3(0, .02, -.825).applyQuaternion(q).add(sim.viewerCamera.position);
+    sim.rays[1].position.copy(target).add(new THREE.Vector3(0, 0, .45).applyQuaternion(q));
+    sim.rays[1].quaternion.copy(q);
+    await sim.step();
+    expect(button.getWorldPosition(new THREE.Vector3()).distanceTo(target)).toBeLessThan(1e-8);
+    const beam = sim.rays[1].getObjectByName("clinic-pointer-beam")!;
+    const dot = sim.rays[1].getObjectByName("clinic-pointer-dot")!;
+    expect(beam.scale.y).toBeCloseTo(.439, 3); expect(dot.visible).toBe(true);
+    let marker: THREE.Object3D | undefined;
+    sim.state.scene.traverse(object => {
+      if (object instanceof THREE.Mesh && object.material instanceof THREE.MeshBasicMaterial && object.material.wireframe) marker = object;
+    });
+    expect(marker?.parent?.visible).toBe(true);
+    expect(marker!.renderOrder).toBeGreaterThan(1000);
+    await sim.event(1, "selectstart"); await sim.event(1, "selectend"); await sim.step();
+    expect(sim.mirror().fixation).toBe(true);
+    expect(sim.controls().some(object => object.parent?.userData.xrObservationEditor)).toBe(false);
+  });
   it("uses shared grip/aim and direct recording, offers feedback only after entry, and never records Test evidence", async () => {
     const sim = await lesson();
     expect(sim.controls()).toHaveLength(0);

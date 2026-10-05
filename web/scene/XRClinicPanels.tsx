@@ -59,7 +59,8 @@ export function XRHeadPanel({ children }: { children: React.ReactNode }) {
     root.current.position.copy(point);
     point.set(0, -.04, -.85).applyQuaternion(rotation); root.current.position.add(point);
     root.current.quaternion.copy(rotation);
-  });
+    root.current.updateMatrixWorld(true);
+  }, -1); // Position the visible overlay before the runtime samples pointer hits.
   return <group ref={root} userData={{ xrPanel: true, xrObservationEditor: true }}>{children}</group>;
 }
 

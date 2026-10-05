@@ -66,6 +66,10 @@ The stable desktop build is published at `https://opto-clinical-simulator.dhairy
 
 ## Experimental Quest / WebXR
 
+Local development supports React StrictMode: replayed lifecycle cleanup must not block the **Enter VR** button. After a development launch fix, refresh the Quest Browser page before retrying the lesson.
+
+Practice now automatically shows a larger findings board when you pick up the lesson's relevant instrument. It is placed about 1.4 m ahead and to the right, remains stationary while you look at the patient, and remains available after putting tools down. Point and press/release the trigger to select blank finding choices; pointing at this board routes the trigger to its controls even in the instrument hand. Hirschberg includes **Look at the light** directly above the findings; other modules expose their first setup action and **Procedure controls**. Recording still requires the existing observation/technique sequence. A/X and the explicit recording forms remain available; closing a menu repositions the standing board ahead of the current view. Pointer dots and highlights appear above panels, and the ray ends at its hit rather than extending through the form.
+
 For the Test consultation, first start the encounter and close the briefing. **Preview VR** on a computer retains the existing desktop controls; it does not simulate tracked hands or establish headset comfort. In a supported headset browser, choose **Enter VR**. Physical walking and the existing floor-ring teleport controls remain available.
 
 Consultation instrument handling uses independent hands:
