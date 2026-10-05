@@ -2,7 +2,7 @@
 
 ## Product decision
 
-Consultation and Practice use one clinic interior and physical interaction runtime. Clinical behavior is supplied by separate case/lesson adapters, preserving the existing desktop procedures and the separation of Practice progress from Test evidence and scoring. See [the initial Hirschberg migration](shared-vr-practice-migration.md) and [the four-lesson batch plan](vr-practice-batch-plan.md), and [the Krimsky plan](vr-krimsky-plan.md).
+Consultation and Practice use one clinic interior and physical interaction runtime. Clinical behavior is supplied by separate case/lesson adapters, preserving the existing desktop procedures and the separation of Practice progress from Test evidence and scoring. See [the initial Hirschberg migration](shared-vr-practice-migration.md), [the four-lesson batch plan](vr-practice-batch-plan.md), [the Krimsky plan](vr-krimsky-plan.md), and [the prepared next sensory batch](vr-sensory-plan.md).
 
 ## Current implementation
 
@@ -64,6 +64,8 @@ Focused mounted tests use the real R3F geometry/runtime/adapters and simulated c
 Physical Quest 3S checks remain necessary before claiming device validation: reach/height comfort, both-hand use, readable text and small corneal landmarks, live new-finding changes, reset/exit recovery, guardian interruptions, and sustained headset frame timing. The user confirmed earlier consultation penlight handling/response; that does not validate the new Practice lesson.
 
 ## Remaining adapters
+
+The next implementation batch is [Worth four dot, stereopsis and 4Δ base-out](vr-sensory-plan.md). Its equipment, mirrored distance station, response capture, recording, interruption rules and focused validation are planned; the sensory XR adapters are not implemented yet.
 
 1. Sensory/phoria: extend shared equipment with filters, booklets, Maddox/Thorington targets; preserve existing patient-report and recording content.
 2. Vergence/accommodation: connect physical target distance, prism/lens/flipper actions, timing, and existing response/recording rules.
