@@ -44,7 +44,7 @@ async function lesson(preview = false) {
   const enter = async (count: number, interpretation: string) => {
     await act(async () => mirror!.lesson.setMode("record")); await sim.step();
     await sim.click(1, sim.button(`${count} DOTS`)); await sim.click(1, sim.button(interpretation));
-    await sim.click(1, sim.button("RECORD OBSERVATION")); await sim.step(1 / 72, 12);
+    await sim.click(1, sim.button("SUBMIT / CHECK")); await sim.step(1 / 72, 12);
   };
   return { ...sim, action, seat, near, setup, enter, complete, leave, mirror: () => mirror! };
 }

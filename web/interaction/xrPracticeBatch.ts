@@ -1,4 +1,5 @@
 import { opticTechniqueChecks } from "./opticPractice";
+import { scopeBeamAngle } from "./xrScopeEquipment";
 import { xrScopeViewer } from "./xrScopes";
 import { CLINIC_EYE_MIDPOINT, CLINIC_PATIENT_EYES } from "./clinicPatient";
 import { advancePracticeCoverStep, practiceCoverProcedures, type PracticeCoverKind, type EyeMovement } from "./practiceCover";
@@ -24,7 +25,7 @@ export function xrBrucknerTechnique(input: {
     fixation: input.fixation, largeSpot: input.largeSpot, viewAligned,
   });
   const illuminated = input.held && input.light && t > 0 && distanceCm >= 10 && distanceCm <= 140
-    && error + .056 <= t * Math.tan(input.largeSpot ? .16 : .04);
+    && error + .056 <= t * Math.tan(scopeBeamAngle(input.largeSpot ? "large" : "small"));
   return { ...checks, ready: checks.ready && illuminated, distanceCm, viewAligned, illuminated };
 }
 /** Tolerances keep one full-size paddle over one pupil, not the midpoint/both eyes. */

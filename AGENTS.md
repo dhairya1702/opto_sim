@@ -57,12 +57,14 @@ No backend is required. `main.py` is a small pre-existing Python entry point and
 | `web/practice/xr/WorthPracticeController.tsx`, `StereoPracticeController.tsx`, `FourPrismPracticeController.tsx` | Shared-runtime sensory Practice adapters, fictional reports, local recording and canonical patient eye motion |
 | `web/scene/SensoryClinicEquipment.tsx` | Original sensory instruments/tray/stand/mirrored display, enabled only for relevant lessons |
 | `web/interaction/xrPracticeBatch.ts` | Pure Bruckner geometry, single-eye cover/prism placement, near fixation, and alternate-cover transit rules |
+| `web/interaction/xrScopeEquipment.ts` | Shared small/large ophthalmoscope aperture settings, illustrative beam angles and physical selector reach |
 | `web/practice/xr/PhoriaPracticeController.tsx`, `VergencePracticeController.tsx`, `AccommodationPracticeController.tsx` | Shared-clinic XR adapters for the 11 phoria/vergence/accommodation modules |
 | `web/interaction/xrLibraryEquipment.ts`, `xrPhoriaPractice.ts`, `xrVergencePractice.ts`, `xrAccommodationPractice.ts` | Selected kits, physical readiness, ordered sequences, immutable captures and independent entry |
 | `web/interaction/vergencePractice.ts`, `accommodationPractice.ts` | Existing authored desktop/XR findings and illustrative gaze formulas |
 | `docs/vr-library-completion.md` | Full-library XR implementation, software checks and physical Quest acceptance still pending |
 | `docs/vr-code-review.md` | Confirmed XR review fixes, geometry/interruption regressions and remaining physical acceptance |
-| `web/scene/XRPracticeFindingsBoard.tsx` | Practice-only automatic standing findings board; keep physical procedure sampling independent of its visibility and preserve submission gates |
+| `web/scene/XRPracticeFindingsBoard.tsx` | Practice-only findings form fixed on the rear wall; keep physical procedure sampling independent of its visibility and preserve submission gates |
+| `web/scene/XRPracticeResultHUD.tsx` | Temporary, read-only headset result feedback; wrap text, dismiss after five seconds, ignore controller rays, and clean up timers |
 | `web/practice/HirschbergLegacyVRStage.tsx`, `web/practice/xr/XRClinicTools.tsx`, `procedures.ts` | Retained earlier VR experiment/tool models/declarations; not the active immersive lesson path |
 | `web/practice/CoverPracticeStage.tsx` | Full-screen cover–uncover and alternating-cover practice, two-hand tools, simulated refixation, and prism neutralisation |
 | `web/practice/KrimskyPracticeStage.tsx` | Full-screen standard and modified Krimsky setup, direct prism handling, illustrative reflex neutralisation, and recording |

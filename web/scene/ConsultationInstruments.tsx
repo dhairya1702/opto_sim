@@ -5,12 +5,13 @@ import { Box, Cylinder, NearVisionCard, Paddle, Retinoscope, Ring, Sign } from "
 import { XRScopeOptics, type FundusScopeView, type BrucknerScopeView } from "./XRScopeOptics";
 import { LibraryInstrumentModel, type ClinicInstrumentSettings } from "./LibraryClinicEquipment";
 import { SensoryInstrumentModel } from "./SensoryClinicEquipment";
+import type { OphthalmoscopeControl } from "../interaction/xrScopeEquipment";
 import { XRSign } from "./XRClinicPanels";
 import { XRPrismBar } from "../practice/xr/XRClinicTools";
 import { CONSULTATION_EQUIPMENT, consultationToolDefinition, type ConsultationToolId, type ConsultationTools } from "../interaction/xrConsultationTools";
 
 /** One canonical model per instrument, shared by resting and held placement. */
-export function ConsultationInstrumentModel({ id, powered, fundusView, brucknerView, settings }: { settings?: ClinicInstrumentSettings; id: ConsultationToolId; powered: boolean; fundusView?: FundusScopeView; brucknerView?: BrucknerScopeView }) {
+export function ConsultationInstrumentModel({ id, powered, fundusView, brucknerView, scopeControl, settings }: { settings?: ClinicInstrumentSettings; scopeControl?: OphthalmoscopeControl; id: ConsultationToolId; powered: boolean; fundusView?: FundusScopeView; brucknerView?: BrucknerScopeView }) {
   const lightTarget = useMemo(() => {
     const target = new Object3D();
     target.position.set(0, .7, 0);
@@ -28,7 +29,7 @@ export function ConsultationInstrumentModel({ id, powered, fundusView, brucknerV
   }
   if (id === "objective" || id === "fundus") return <group>
     <Retinoscope p={[0, -.1, 0]} r={[0, 0, 0]} ophthalmo={id === "fundus"} />
-    <XRScopeOptics powered={powered} ophthalmo={id === "fundus"} view={fundusView} brucknerView={id === "fundus" ? brucknerView : undefined} />
+    <XRScopeOptics powered={powered} ophthalmo={id === "fundus"} view={fundusView} brucknerView={id === "fundus" ? brucknerView : undefined} scopeControl={id === "fundus" ? scopeControl : undefined} />
   </group>;
   if (id === "near") return <NearVisionCard r={[Math.PI / 2, 0, 0]} />;
   if (id === "subjective") return <group>
@@ -56,8 +57,8 @@ export function ConsultationInstrumentModel({ id, powered, fundusView, brucknerV
   </group>;
 }
 
-function InstrumentInstance({ id, state, highlighted, returnedAt, register, fundusView, brucknerView, settings }: {
-  settings?: ClinicInstrumentSettings;
+function InstrumentInstance({ id, state, highlighted, returnedAt, register, fundusView, brucknerView, scopeControl, settings }: {
+  settings?: ClinicInstrumentSettings; scopeControl?: OphthalmoscopeControl;
   fundusView?: FundusScopeView; brucknerView?: BrucknerScopeView;
   id: ConsultationToolId;
   state: ConsultationTools;
@@ -71,7 +72,6 @@ function InstrumentInstance({ id, state, highlighted, returnedAt, register, fund
   const [reducedMotion, setReducedMotion] = useState(() => matchMedia("(prefers-reduced-motion: reduce)").matches);
   const tool = state[id];
   const placement = tool.placement;
-  const definition = consultationToolDefinition(id);
   useEffect(() => {
     const preference = matchMedia("(prefers-reduced-motion: reduce)");
     const changed = () => setReducedMotion(preference.matches);
@@ -99,16 +99,15 @@ function InstrumentInstance({ id, state, highlighted, returnedAt, register, fund
     position={placement.kind === "held" ? undefined : [...placement.position]}
     quaternion={placement.kind === "held" ? undefined : [...placement.rotation]}
     userData={{ consultationToolId: id, examId: CONSULTATION_EQUIPMENT.includes(id) && id !== "prism" ? id : undefined, xrIgnoreRay: placement.kind === "held", station: (id === "subjective" || id === "prism") ? "refraction" : id === "fundus" ? "fundus" : "trolley" }}>
-    <ConsultationInstrumentModel id={id} powered={tool.powered} fundusView={fundusView} brucknerView={brucknerView} settings={settings} />
+    <ConsultationInstrumentModel id={id} powered={tool.powered} fundusView={fundusView} brucknerView={brucknerView} scopeControl={scopeControl} settings={settings} />
     {highlighted && <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
       <ringGeometry args={[.025, .036, 20]} /><meshBasicMaterial color="#8df5d3" side={DoubleSide} depthTest={false} />
     </mesh>}
-    {placement.kind !== "held" && <Sign fit text={[definition.label]} p={[0, -.08, .025]} size={[.13, .025]} bg="#173a3e" fg="#e8fff9" />}
   </group>;
 }
 
-export function ConsultationInstruments({ state, highlighted, returnedAt, register, fundusView, brucknerView, equipment = CONSULTATION_EQUIPMENT, settings }: {
-  settings?: ClinicInstrumentSettings;
+export function ConsultationInstruments({ state, highlighted, returnedAt, register, fundusView, brucknerView, scopeControl, equipment = CONSULTATION_EQUIPMENT, settings }: {
+  settings?: ClinicInstrumentSettings; scopeControl?: OphthalmoscopeControl;
   fundusView?: FundusScopeView; brucknerView?: BrucknerScopeView;
   state: ConsultationTools;
   equipment?: readonly ConsultationToolId[];
@@ -117,7 +116,7 @@ export function ConsultationInstruments({ state, highlighted, returnedAt, regist
   register: (id: ConsultationToolId, object: Group | null) => void;
 }) {
   return <>
-    {equipment.map(id => consultationToolDefinition(id)).map(tool => <InstrumentInstance key={tool.id} id={tool.id} state={state} highlighted={highlighted.includes(tool.id)} returnedAt={returnedAt[tool.id]} register={register} fundusView={fundusView} brucknerView={brucknerView} settings={settings} />)}
+    {equipment.map(id => consultationToolDefinition(id)).map(tool => <InstrumentInstance key={tool.id} id={tool.id} state={state} highlighted={highlighted.includes(tool.id)} returnedAt={returnedAt[tool.id]} register={register} fundusView={fundusView} brucknerView={brucknerView} scopeControl={scopeControl} settings={settings} />)}
     {equipment.map(id => consultationToolDefinition(id)).map(tool => <group key={`socket-${tool.id}`} position={[tool.home[0], tool.home[1] - tool.restHeight + .005, tool.home[2]]} userData={{ xrIgnoreRay: true }}>
       <Box s={[tool.footprint[0], .008, tool.footprint[1]]} c="#39565b" radius={.004} />
       {tool.id === "subjective" && <Box p={[0, .018, 0]} s={[.18, .027, .04]} c="#39565b" radius={.004} />}

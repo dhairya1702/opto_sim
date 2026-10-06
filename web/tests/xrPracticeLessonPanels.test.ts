@@ -53,6 +53,8 @@ describe("headset panel layout", () => {
     expect(labels).toContain("ENTRY +1 cpm"); expect(labels).toContain("PROCEDURE CONTROLS");
     expect(mirror!.lesson.mode).toBe("none");
     await act(async () => mirror!.record()); expect(complete).not.toHaveBeenCalled();
+    await sim.click(1, sim.button("SUBMIT / CHECK"));
+    expect(sim.labels()).toContain("NOT READY YET"); expect(complete).not.toHaveBeenCalled();
     await sim.event(1, "squeezeend"); await sim.step();
     expect(panelBounds(sim.state.scene).map(button => button.label)).toContain("ENTRY +1 cpm");
   });
@@ -64,7 +66,7 @@ describe("headset panel layout", () => {
     expect(panelBounds(sim.state.scene).map(button => button.label)).toContain("CLOSE");
     await act(async () => mirror!.lesson.setMode("record")); await sim.step(1 / 72, 12);
     const labels = panelBounds(sim.state.scene).map(button => button.label);
-    expect(labels).toContain("RIGHT HYPER"); expect(labels).toContain("RECORD OBSERVATION");
+    expect(labels).toContain("RIGHT HYPER"); expect(labels).toContain("SUBMIT / CHECK");
   });
   it.each(["npc", "relative"] as const)("fits paged decimal %s entries and navigation without overlap", async kind => {
     let mirror: BatchMirror;
@@ -73,7 +75,7 @@ describe("headset panel layout", () => {
       return kind === "npc" ? createElement(VergencePracticeController, { ...common, kind }) : createElement(AccommodationPracticeController, { ...common, kind });
     } }); dispose = sim.dispose;
     await act(async () => mirror!.lesson.setMode("record")); await sim.step(1 / 72, 12);
-    const labels = panelBounds(sim.state.scene).map(button => button.label); expect(labels).toContain("NEXT ENTRIES"); expect(labels).toContain("RECORD OBSERVATION");
+    const labels = panelBounds(sim.state.scene).map(button => button.label); expect(labels).toContain("NEXT ENTRIES"); expect(labels).toContain("SUBMIT / CHECK");
     await sim.click(1, sim.button("NEXT ENTRIES")); panelBounds(sim.state.scene);
   });
 });

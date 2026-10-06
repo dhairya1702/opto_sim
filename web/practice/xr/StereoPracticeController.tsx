@@ -159,7 +159,7 @@ export function StereoPracticeController({ active, preview = false, onComplete, 
   </XRHeadPanel>;
   const book = consultationToolDefinition("stereo");
   return <>
-    <XRClinicRuntimeView runtime={runtime} active={active && !preview} preview={preview} sensoryStation="stereo" title="STEREOPSIS · PRACTICE" />
+    <XRClinicRuntimeView cleanHands runtime={runtime} active={active && !preview} preview={preview} sensoryStation="stereo" title="STEREOPSIS · PRACTICE" />
     <group ref={pageRoot} userData={{ xrInteractiveSurface: "stereo", xrToolControls: "stereo" }}>
       <group position={book.workingPoint} rotation={[0, Math.PI, 0]}>
         {Array.from({ length: stereoPracticeLevels.length - run.page }, (_, index) => <Box key={index} p={[index * .0008, index * -.0007, .003 - index * .0006]} s={[.23, .115, .0005]} c={index % 2 ? "#d9d3c3" : "#efeada"} />)}

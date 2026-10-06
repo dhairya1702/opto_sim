@@ -102,12 +102,6 @@ export function ConsultationInterior({ held, xr = false }: { held?: string; xr?:
           fg="#24363b"
         />
       </group>
-      <Box p={[1.29, 1.98, -2.46]} s={[0.48, 0.6, 0.03]} c="#a6bdb6" />
-      <Sign
-        text={["EYE HEALTH", "Observe", "Ask · Assess · Explain"]}
-        p={[1.29, 1.98, -2.438]}
-        size={[0.44, 0.56]}
-      />
     </>
   );
 }

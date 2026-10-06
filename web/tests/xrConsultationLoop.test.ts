@@ -274,7 +274,7 @@ describe("free-roam consultation presentation", () => {
   it("never opens a test panel on selection, pickup, placement, or hand transfer", async () => {
     const sim = await clinic({ selectedExamId: "pupils" }); dispose = sim.dispose;
     const unguided = () => {
-      expect(sim.controls().filter(control => !control.userData.xrRecordTool)).toHaveLength(0);
+      expect(sim.controls().filter(control => !control.userData.xrRecordTool && !control.userData.xrInstrumentControl)).toHaveLength(0);
       expect(sim.labels().some(label => /PUPIL ASSESSMENT|COVER TEST|OCULAR MOTILITY|CHOOSE EXAMINATION|TECHNIQUE PAUSED|gaze positions|technique steps/.test(label))).toBe(false);
     };
     unguided();
@@ -305,13 +305,13 @@ describe("free-roam consultation presentation", () => {
     await sim.click(1, sim.button("MY ASSESSMENT"));
     expect(sim.openPanel.mock.calls.map(([panel]) => panel)).toEqual(["interview", "notes", "submission"]);
     await sim.click(1, sim.button("CLOSE MENU"));
-    expect(sim.controls().filter(control => !control.userData.xrRecordTool)).toHaveLength(0);
+    expect(sim.controls().filter(control => !control.userData.xrRecordTool && !control.userData.xrInstrumentControl)).toHaveLength(0);
     expect(sim.record).not.toHaveBeenCalled();
     await sim.panel(1);
     await sim.panel(1);
     expect(sim.labels()).toContain("FOLLOW THIS TARGET");
     await sim.panel(1);
-    expect(sim.controls().filter(control => !control.userData.xrRecordTool)).toHaveLength(0);
+    expect(sim.controls().filter(control => !control.userData.xrRecordTool && !control.userData.xrInstrumentControl)).toHaveLength(0);
   });
 });
 

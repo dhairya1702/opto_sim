@@ -124,6 +124,8 @@ The existing authored examples are left exotropia (20Δ BI) and left esotropia (
 
 Bruckner, motility, cover–uncover, and alternating cover now join Hirschberg in the same consultation clinic/runtime. Existing scenarios, interpretation labels, dwell math, and neutralising endpoints are reused; Krimsky subsequently joins these adapters, and phoria, vergence and accommodation now complete the 20-module XR library while preserving desktop attempts. Optional help/guide controls and blank explicit recording live inside the headset. Near-card motion selects near fixation, with an assisted 40 cm stand socket for two-hand prism/occluder use. The prism uses one selected working cell with illustrative base/power settings. Distance fixation is represented within the room, not a calibrated 6 m lane. Engineering cover placement/tilt, transit, aperture and eye-motion tolerances need review. Clinical review status remains draft; no new case facts, diagnoses or scoring rules are added. See `vr-practice-batch-plan.md`.
 
+In XR, the ophthalmoscope has a shared physical small/large aperture wheel below its rear peephole, available in Practice and consultation. A nearby free controller points and presses/releases trigger to adjust it. Bruckner requires the large setting plus actual distance, aim, illumination, fixation and rear-view alignment; no wall button substitutes for the setup. Changing aperture clears pending inspection and entries. The desktop trainer retains its existing aperture controls.
+
 
 ## Shared-clinic Krimsky
 

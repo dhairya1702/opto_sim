@@ -94,8 +94,8 @@ describe("stereo Practice in the real shared XR loop", () => {
     await sim.pickup(0, "stereo"); await sim.at(0, consultationToolDefinition("stereo").home); await sim.event(0, "squeezeend"); await sim.step(1 / 72, 12);
     expect(sim.mirror().ready).toBe(true);
     await sim.click(1, sim.button("RECORD FINDING"));
-    await sim.click(1, sim.button("60 ARCSEC")); await sim.click(1, sim.button("RECORD OBSERVATION")); expect(sim.complete).not.toHaveBeenCalled();
-    await sim.click(1, sim.button("100 ARCSEC")); await sim.click(1, sim.button("RECORD OBSERVATION")); expect(sim.complete).toHaveBeenCalledTimes(1);
+    await sim.click(1, sim.button("60 ARCSEC")); await sim.click(1, sim.button("SUBMIT / CHECK")); expect(sim.complete).not.toHaveBeenCalled();
+    await sim.click(1, sim.button("100 ARCSEC")); await sim.click(1, sim.button("SUBMIT / CHECK")); expect(sim.complete).toHaveBeenCalledTimes(1);
     await act(async () => sim.mirror().record()); expect(sim.complete).toHaveBeenCalledTimes(1);
     expect(sim.record).not.toHaveBeenCalled(); expect(sim.encounter().results).toHaveLength(0);
   });

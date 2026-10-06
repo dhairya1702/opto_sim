@@ -8,7 +8,7 @@ import { consultationXRArrival } from "../interaction/xrConsultationNavigation";
 import { consultationToolDefinition, consultationPickupLabel, toolInHand } from "../interaction/xrConsultationTools";
 import type { XRClinicRuntime, XRClinicHand } from "../interaction/useXRClinicRuntime";
 import type { FundusScopeView, BrucknerScopeView } from "./XRScopeOptics";
-export function XRClinicRuntimeView({ runtime, active, preview = false, title = "VR CONSULTATION", instruction = "Explore freely · A/X · patient menu", helperHand, helperReady = false, fundusView, brucknerView, sensoryStation, instrumentSettings }: {
+export function XRClinicRuntimeView({ runtime, active, preview = false, title = "VR CONSULTATION", instruction = "Explore freely · A/X · patient menu", cleanHands = false, helperHand, helperReady = false, fundusView, brucknerView, sensoryStation, instrumentSettings }: {
   instrumentSettings?: ClinicInstrumentSettings;
   runtime: XRClinicRuntime;
   sensoryStation?: "worth" | "stereo" | "four-prism";
@@ -16,6 +16,7 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
   preview?: boolean;
   title?: string;
   instruction?: string;
+  cleanHands?: boolean;
   helperHand?: XRClinicHand | null;
   helperReady?: boolean;
   fundusView?: FundusScopeView;
@@ -40,7 +41,7 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
     })}
     {(active || preview) && <>
       <SensoryClinicStation active={active} runtime={runtime} distanceLetter={sensoryStation === "four-prism"} />
-      <ConsultationInstruments equipment={runtime.equipment} settings={instrumentSettings} fundusView={fundusView} brucknerView={brucknerView} state={tools} highlighted={highlighted} returnedAt={returnedAt} register={registerTool} />
+      <ConsultationInstruments equipment={runtime.equipment} scopeControl={{ aperture: runtime.scopeAperture, cycle: runtime.cycleScopeAperture }} settings={instrumentSettings} fundusView={fundusView} brucknerView={brucknerView} state={tools} highlighted={highlighted} returnedAt={returnedAt} register={registerTool} />
       <group ref={hoverMarker} visible={false} userData={{ xrIgnoreRay: true }}>
         <mesh renderOrder={1100}><boxGeometry args={[1, 1, 1]} /><meshBasicMaterial color="#b0ffe7" wireframe depthTest={false} depthWrite={false} /></mesh>
       </group>
@@ -49,7 +50,7 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
         return <group key={index} userData={{ xrIgnoreRay: true }}>
           <primitive object={slot.grip}>
             <mesh rotation={[Math.PI / 2, 0, 0]}><capsuleGeometry args={[.025, .075, 5, 10]} /><meshStandardMaterial color={slot.hand === "left" ? "#6a8fa0" : "#72ae9f"} roughness={.5} /></mesh>
-            <Sign text={[slot.panel ? "MENU · A/X TO RETURN" : id ? `${consultationToolDefinition(id).label}${consultationToolDefinition(id).illuminates ? tools[id].powered ? " · LIGHT ON" : consultationToolDefinition(id).powerMode === "persistent" ? " · LIGHT OFF · USE SWITCH" : " · TRIGGER FOR LIGHT" : ""}` : slot.hand ? consultationPickupLabel(pickupHints[slot.hand]) : "BRING HAND TO A TOOL"]} p={[0, .075, 0]} size={[.26, .042]} rotation={[-Math.PI / 2, 0, 0]} bg={slot.panel ? "#176b5e" : "#173a3e"} fg="#e8fff9" />
+            {!cleanHands && <Sign text={[slot.panel ? "MENU · A/X TO RETURN" : id ? `${consultationToolDefinition(id).label}${consultationToolDefinition(id).illuminates ? tools[id].powered ? " · LIGHT ON" : consultationToolDefinition(id).powerMode === "persistent" ? " · LIGHT OFF · USE SWITCH" : " · TRIGGER FOR LIGHT" : ""}` : slot.hand ? consultationPickupLabel(pickupHints[slot.hand]) : "BRING HAND TO A TOOL"]} p={[0, .075, 0]} size={[.26, .042]} rotation={[-Math.PI / 2, 0, 0]} bg={slot.panel ? "#176b5e" : "#173a3e"} fg="#e8fff9" />}
             {helperHand && slot.hand && helperHand !== slot.hand && !id && !slot.panel && <group position={[0, 0, -.1]}>
               <mesh><sphereGeometry args={[.018, 20, 14]} /><meshBasicMaterial color={helperReady ? "#f06b55" : "#a16960"} /></mesh>
               <mesh position={[0, 0, .001]}><ringGeometry args={[.026, .032, 24]} /><meshBasicMaterial color="#fff2c5" side={DoubleSide} /></mesh>

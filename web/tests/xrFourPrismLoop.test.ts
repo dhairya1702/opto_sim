@@ -55,8 +55,8 @@ describe("mounted shared-clinic 4Δ base-out Practice", () => {
     await sim.step(1 / 72, 12);
     await sim.panel(1); await sim.click(1, sim.button("RECORD FINDING"));
     expect(sim.mirror().lesson.entries.interpretation || "").toBe("");
-    await sim.click(1, sim.button("CENTRAL SUPPRESSION OF OS")); await sim.click(1, sim.button("RECORD OBSERVATION")); expect(sim.complete).not.toHaveBeenCalled();
-    await sim.click(1, sim.button("NORMAL RESPONSE · NO SUPPRESSION")); await sim.click(1, sim.button("RECORD OBSERVATION"));
+    await sim.click(1, sim.button("CENTRAL SUPPRESSION OF OS")); await sim.click(1, sim.button("SUBMIT / CHECK")); expect(sim.complete).not.toHaveBeenCalled();
+    await sim.click(1, sim.button("NORMAL RESPONSE · NO SUPPRESSION")); await sim.click(1, sim.button("SUBMIT / CHECK"));
     expect(sim.complete).toHaveBeenCalledTimes(1); sim.mirror().record(); expect(sim.complete).toHaveBeenCalledTimes(1);
     expect(sim.record).not.toHaveBeenCalled(); expect(sim.encounter().results).toHaveLength(0);
   });

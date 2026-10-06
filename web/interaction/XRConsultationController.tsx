@@ -4,7 +4,7 @@ import { DoubleSide, Object3D, Quaternion, Vector3 } from "three";
 import type { ClinicalCase, Eye, StationId } from "../domain/types";
 import { Box } from "../scene/Models";
 import { XRSign as Sign, XRPanelButton, XRHeadPanel, XRObservationPanel, XRToolControls } from "../scene/XRClinicPanels";
-import { useXRClinicRuntime } from "./useXRClinicRuntime";
+import { useXRClinicRuntime, type XRClinicInterruption } from "./useXRClinicRuntime";
 import { XRClinicRuntimeView } from "../scene/XRClinicRuntimeView";
 import { pauseConsultationTechnique } from "./xrConsultationProcedure";
 import { CONSULTATION_TOOLS, consultationToolDefinition, consultationToolReady, toolInHand } from "./xrConsultationTools";
@@ -293,7 +293,11 @@ export function XRConsultationController({ active, preview = false, guided = fal
     retinoSweeps.current.OS = pauseScopeSweep(retinoSweeps.current.OS);
   };
 
-  const pauseTechnique = useCallback(() => {
+  const pauseTechnique = useCallback((reason?: XRClinicInterruption) => {
+    if (reason === "configuration") {
+      fundusInspections.current = { OD: initialScopeInspection(), OS: initialScopeInspection() };
+      setDiscEntry(""); setMaculaEntry(""); setPoleEntry(""); setExtentEntry("");
+    }
     const paused = pauseConsultationTechnique({ pupils: pupilDwell.current, cover: coverStateRef.current, motility: motilityCoverageRef.current });
     pupilDwell.current = paused.pupils;
     setActiveEye(null);

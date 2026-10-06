@@ -66,10 +66,10 @@ describe("mounted Krimsky Practice in the shared clinic", () => {
     await sim.event(0, "selectend"); await sim.at(1, [.3, 1.2, .1]); await sim.event(1, "squeezeend"); await sim.event(0, "squeezeend"); await sim.step(1 / 72, 12);
     expect(sim.mirror().ready).toBe(true);
     await sim.panel(1); await sim.click(1, sim.button("RECORD FINDING")); expect(sim.mirror().lesson.entries.power).toBeUndefined();
-    expect(sim.controls().some(button => button.userData.xrLabel === "RECORD OBSERVATION")).toBe(false);
-    await sim.enterPower(15); await sim.click(1, sim.button("RECORD OBSERVATION"));
+    await sim.click(1, sim.button("SUBMIT / CHECK")); expect(sim.complete).not.toHaveBeenCalled();
+    await sim.enterPower(15); await sim.click(1, sim.button("SUBMIT / CHECK"));
     expect(sim.complete).not.toHaveBeenCalled(); expect(sim.mirror().lesson.feedback).toContain("Read the captured");
-    await sim.click(1, sim.button("ENTRY +5Δ")); await sim.click(1, sim.button("RECORD OBSERVATION"));
+    await sim.click(1, sim.button("ENTRY +5Δ")); await sim.click(1, sim.button("SUBMIT / CHECK"));
     expect(sim.complete).toHaveBeenCalledTimes(1); expect(sim.mirror().lesson.feedback).toContain("20Δ BI, prism before OS");
     sim.mirror().record(); expect(sim.complete).toHaveBeenCalledTimes(1);
     expect(sim.record).not.toHaveBeenCalled(); expect(sim.encounter().results).toHaveLength(0);
@@ -85,7 +85,7 @@ describe("mounted Krimsky Practice in the shared clinic", () => {
       if (power === 15) { await sim.action("PRISM −1Δ"); expect(sim.reflex("OS").position.x).not.toBe(.048); await sim.action("PRISM +1Δ"); }
       await sim.compare(); expect(sim.mirror().ready).toBe(true);
       await sim.panel(1); await sim.click(1, sim.button("RECORD FINDING")); await sim.enterPower(power);
-      await sim.click(1, sim.button("RECORD OBSERVATION")); expect(sim.mirror().lesson.feedback).toContain(`Modified Krimsky: ${power}Δ ${base}, prism before OD`);
+      await sim.click(1, sim.button("SUBMIT / CHECK")); expect(sim.mirror().lesson.feedback).toContain(`Modified Krimsky: ${power}Δ ${base}, prism before OD`);
       await sim.click(1, sim.button("NEW PATIENT FINDING"));
       expect(sim.mirror().ready).toBe(false); expect(sim.mirror().lesson.entries).toEqual({});
       await sim.event(0, "selectend"); await sim.event(0, "squeezeend"); await sim.event(1, "squeezeend");

@@ -162,7 +162,7 @@ export function KrimskyPracticeController({ active, preview = false, onComplete,
     <XRSign text={[status]} p={[0, -.37, .012]} size={[.72, .15]} bg="#102329" fg="#eefbf7" />
   </XRHeadPanel>;
   return <>
-    <XRClinicRuntimeView runtime={runtime} active={active && !preview} preview={preview} title="KRIMSKY · PRACTICE" instruction="Prism-hand trigger · compare · A/X · controls and recording" instrumentSettings={{ prism: { power: setup.power, base: setup.base } }} />
+    <XRClinicRuntimeView cleanHands runtime={runtime} active={active && !preview} preview={preview} title="KRIMSKY · PRACTICE" instruction="Prism-hand trigger · compare · A/X · controls and recording" instrumentSettings={{ prism: { power: setup.power, base: setup.base } }} />
     {active && <group ref={reflexes} visible={false} userData={{ xrIgnoreRay: true }}>
       {(["OD", "OS"] as const).map(eye => <mesh key={eye} position={[CLINIC_PATIENT_EYES[eye][0], CLINIC_PATIENT_EYES[eye][1], -.568]} userData={{ xrKrimskyReflex: eye }}>
         <circleGeometry args={[.0015, 24]} /><meshBasicMaterial args={[{ color: "#fff9d8", transparent: true, depthWrite: false }]} />

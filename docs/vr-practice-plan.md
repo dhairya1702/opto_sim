@@ -40,12 +40,12 @@ Pickup is within 12 cm of the handle; socket return is within 10 cm. These are i
 
 1. Open Practice → Hirschberg → Quest / WebXR → Enter VR.
 2. Identify and grip the penlight on the consultation trolley.
-3. Select Look at the light beside the held tool or through A/X lesson controls.
+3. Select Look at the light on the rear-wall board or through A/X lesson controls.
 4. Hold the tool trigger, move it to about 50 cm, aim at the eyes, and centre the examiner view.
-5. Select Record finding with the other controller. Choose an interpretation and landmark; submit explicitly.
-6. Review feedback. New patient finding resets the procedure and changes the visible reflexes without ending VR. Reset recalls equipment; Exit VR closes the lesson. Saved Practice progress stays in the library session.
+5. Choose an interpretation and landmark on the rear-wall board, then select Submit / Check with either controller. Completed inspection survives looking away or putting the penlight down.
+6. Review feedback. New patient finding resets the procedure and changes the visible reflexes without ending VR; Hirschberg/Bruckner retain tool ownership/pose and actual trigger/light state while requiring a fresh fixation/setup and inspection. Reset recalls equipment; Exit VR closes the lesson. Saved Practice progress stays in the library session.
 
-The illustrative working zone remains 46–54 cm, with existing 8° aim/view tolerances. Immediate reflex clarity changes with setup; broader illumination can reveal a reflex without enabling recording. Invalid technique clears unfinished entry. Successful feedback persists until retry/reset/new finding. Wrong tools, cancelled/incomplete attempts, layout preview, and exit award no completion. Correct submission is idempotent for each attempt and never dispatches a Test finding.
+The illustrative working zone remains 46–54 cm, with existing 8° aim/view tolerances. Immediate reflex clarity changes with setup; broader illumination can reveal a reflex without enabling recording. Invalid technique clears unfinished entry. Successful feedback stays on the wall; a readable headset HUD appears for five seconds after submission. Wrong tools, cancelled/incomplete attempts, layout preview, and exit award no completion. Correct submission is idempotent for each attempt and never dispatches a Test finding.
 
 ## Rendering and comfort
 

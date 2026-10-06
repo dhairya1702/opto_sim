@@ -151,7 +151,7 @@ export function WorthPracticeController({ active, preview = false, onComplete, o
     <XRPanelButton label="EXIT VR" position={[.18, -.25, .025]} width={.34} onClick={onExit} />
   </XRHeadPanel>;
   return <>
-    <XRClinicRuntimeView runtime={runtime} active={active} preview={preview} sensoryStation="worth" title="WORTH FOUR DOT · PRACTICE" instruction="Fit frames · check filters · move target · ask and record each endpoint" />
+    <XRClinicRuntimeView cleanHands runtime={runtime} active={active} preview={preview} sensoryStation="worth" title="WORTH FOUR DOT · PRACTICE" instruction="Fit frames · check filters · move target · ask and record each endpoint" />
     {active && captured && <group position={[.62, 1.65, -.15]} userData={{ xrIgnoreRay: true }}>
       <Box s={[.47, .34, .012]} c="#07151b" />
       <XRSign text={["FICTIONAL PATIENT-REPORTED VIEW", captured.report, "Enlarged illustration; not calibrated optics."]} p={[0, .10, .012]} size={[.45, .13]} bg="#07151b" fg="#eefbf7" />

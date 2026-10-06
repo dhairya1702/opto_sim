@@ -2,12 +2,14 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import type { XRClinicRuntime } from "../../interaction/useXRClinicRuntime";
 import type { ConsultationToolId } from "../../interaction/xrConsultationTools";
 import { Box } from "../../scene/Models";
-import { XRHeadPanel, XRPanelButton, XRSign, XRToolControls } from "../../scene/XRClinicPanels";
+import { XRHeadPanel, XRPanelButton, XRSign } from "../../scene/XRClinicPanels";
 import { XRPracticeFindingsBoard } from "../../scene/XRPracticeFindingsBoard";
+import { useXRPracticeResult, XRPracticeResultHUD } from "../../scene/XRPracticeResultHUD";
 
 export type LessonAction = { label: string; run: () => void; active?: boolean; disabled?: boolean };
 export type LessonField = { id: string; label: string; choices: readonly (readonly [string, string])[]; number?: { min: number; max: number; unit: string; step?: number } };
 export function usePracticeLesson(onComplete: () => void) {
+  const { result, showResult, clearResult } = useXRPracticeResult();
   const [mode, setMode] = useState<"none" | "menu" | "help" | "record" | "settings">("none");
   const [entries, setEntries] = useState<Record<string, string>>({});
   const entriesRef = useRef(entries);
@@ -24,14 +26,17 @@ export function usePracticeLesson(onComplete: () => void) {
     setFeedback("");
   }, []);
   const reset = useCallback(() => {
+    clearResult();
     awarded.current = false; entriesRef.current = {}; setEntries({}); setFeedback(""); setRecorded(false); setMode("none");
-  }, []);
+  }, [clearResult]);
   const submit = (valid: boolean, correct: boolean, text: string) => {
     if (awarded.current || !valid) return;
     setFeedback(text);
+    showResult(correct ? "correct" : "retry", text);
     if (correct) { awarded.current = true; setRecorded(true); onComplete(); }
   };
-  return { mode, setMode, entries, entriesRef, awarded, feedback, recorded, choose, clearPending, reset, submit };
+  const explain = (text: string) => { setFeedback(text); showResult("incomplete", text); };
+  return { mode, setMode, entries, entriesRef, awarded, feedback, recorded, choose, clearPending, reset, submit, explain, result, clearResult };
 }
 export type PracticeLesson = ReturnType<typeof usePracticeLesson>;
 export type BatchMirror = {
@@ -79,10 +84,18 @@ export function PracticeLessonUI({ runtime, active, title, status, help, tools, 
   const recordRows = visibleFields.reduce((sum, field) => sum + fieldRows(field), 0);
   const recordBottom = Math.min(-.315, .16 - recordRows * .08 - (paginated ? .12 : .035));
   const recordHeight = .50 - (recordBottom - .23);
-  const cancel = () => { if (onCancel) onCancel(); else { lesson.clearPending(); lesson.setMode("none"); } };
+  const cancel = () => { lesson.clearResult(); if (onCancel) onCancel(); else { lesson.clearPending(); lesson.setMode("none"); } };
+  const boardActions = directActions ?? actions.slice(0, 2);
+  const actionExtension = Math.max(0, boardActions.length - 1) * .10;
+  const submit = () => {
+    if (!runtime.frameValid.current) { lesson.explain("Restore headset/controller tracking before submitting."); return; }
+    if (!ready) { lesson.explain("Before submitting: " + status); return; }
+    if (fields.some(field => !lesson.entriesRef.current[field.id])) { lesson.explain("Choose an answer for every observation field, including the other pages."); return; }
+    onRecord();
+  };
   const findings = <>
-      <Box p={[0, (.50 + recordBottom - .23) / 2 + .06, -.015]} s={[.78, recordHeight + .12, .018]} c="#102329" radius={.012} />
-      {actions[0] && <XRPanelButton label={actions[0].label} position={[0, .565, .02]} width={.70} active={actions[0].active} disabled={actions[0].disabled} onClick={actions[0].run} />}
+      <Box p={[0, (.50 + recordBottom - .23) / 2 + .06 + actionExtension / 2, -.015]} s={[.78, recordHeight + .12 + actionExtension, .018]} c="#102329" radius={.012} />
+      {boardActions.map((action, index) => <XRPanelButton key={action.label} label={action.label} position={[0, .565 + index * .10, .02]} width={.70} active={action.active} disabled={action.disabled} onClick={action.run} />)}
       <XRSign text={[title + " · MY OBSERVATIONS", status]} p={[0, .31, 0]} size={[.72, .15]} bg="#102329" fg="#eefbf7" />
       <XRPanelButton label="PROCEDURE CONTROLS" position={[-.105, .46, .02]} width={.55} onClick={() => lesson.setMode("menu")} />
       <XRPanelButton label="EXIT VR" position={[.28, .46, .02]} width={.18} onClick={onExit} />
@@ -107,17 +120,13 @@ export function PracticeLessonUI({ runtime, active, title, status, help, tools, 
       })}
       {paginated && <><XRPanelButton label="PREVIOUS ENTRIES" position={[-.18, recordBottom + .085, .012]} width={.34} disabled={page === 0} onClick={() => setEntryPage(page - 1)} /><XRPanelButton label="NEXT ENTRIES" position={[.18, recordBottom + .085, .012]} width={.34} disabled={page >= pages - 1} onClick={() => setEntryPage(page + 1)} /></>}
       <XRPanelButton label="CANCEL" position={[-.18, recordBottom, .012]} width={.34} onClick={cancel} />
-      <XRPanelButton label="RECORD OBSERVATION" position={[.18, recordBottom, .012]} width={.34} disabled={!ready || lesson.recorded || fields.some(field => !lesson.entries[field.id])} onClick={onRecord} />
+      <XRPanelButton label="SUBMIT / CHECK" position={[.18, recordBottom, .012]} width={.34} disabled={lesson.recorded} active={ready && fields.every(field => Boolean(lesson.entries[field.id]))} onClick={submit} />
       <XRSign text={[lesson.feedback || (ready ? "Choose your finding, then record." : status)]} p={[0, recordBottom - .09, .012]} size={[.72, .085]} bg="#102329" fg="#eefbf7" />
       {lesson.recorded && onNext && <XRPanelButton label="NEW PATIENT FINDING" position={[0, recordBottom - .185, .012]} width={.70} onClick={onNext} />}
     </>;
   return <>
-    <XRPracticeFindingsBoard runtime={runtime} active={active} tools={tools} hidden={lesson.mode !== "none"}>{findings}</XRPracticeFindingsBoard>
-    {tools.map(id => <XRToolControls key={id} runtime={runtime} id={id}>
-      <XRSign text={[title, status]} p={[0, .09, 0]} size={[.36, .10]} bg="#173a3e" fg="#e8fff9" />
-      <XRPanelButton label="RECORD FINDING" position={[0, 0, 0]} width={.36} recordTool={id} onClick={() => lesson.setMode("record")} />
-      {(directActions ?? actions.slice(0, 2)).map((action, i) => <XRPanelButton key={action.label} label={action.label} active={action.active} disabled={action.disabled} position={[0, -.085 * (i + 1), 0]} width={.36} onClick={action.run} />)}
-    </XRToolControls>)}
+    <XRPracticeResultHUD active={active} result={lesson.result} />
+    <XRPracticeFindingsBoard runtime={runtime} active={active} tools={tools} forceVisible={lesson.mode === "record"} hidden={lesson.mode !== "none" && lesson.mode !== "record"}>{findings}</XRPracticeFindingsBoard>
     {lesson.mode === "menu" && <XRHeadPanel>
       <Box p={[0, (.40 + menuBottom - .08) / 2, 0]} s={[.72, menuHeight, .018]} c="#102329" radius={.012} />
       <XRSign text={[title, status]} p={[0, .29, .012]} size={[.66, .15]} bg="#102329" fg="#eefbf7" />
@@ -135,6 +144,5 @@ export function PracticeLessonUI({ runtime, active, title, status, help, tools, 
       <XRPanelButton label="EXIT VR" position={[.17, -.26, .025]} width={.32} onClick={onExit} />
     </XRHeadPanel>}
     {lesson.mode === "settings" && settings}
-    {lesson.mode === "record" && <XRHeadPanel>{findings}</XRHeadPanel>}
   </>;
 }

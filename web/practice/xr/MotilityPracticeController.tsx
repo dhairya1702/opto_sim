@@ -73,7 +73,7 @@ export function MotilityPracticeController({ active, preview = false, onComplete
   useEffect(() => { onMirror?.({ title: "Motility", status, ready, entryReady: ready, fields, actions, lesson, reset, record }); },
     [onMirror, status, ready, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, following, asked, guides]);
   return <>
-    <XRClinicRuntimeView runtime={runtime} active={active && !preview} preview={preview} title="MOTILITY · PRACTICE" />
+    <XRClinicRuntimeView cleanHands runtime={runtime} active={active && !preview} preview={preview} title="MOTILITY · PRACTICE" />
     {active && guides && gazePositions.map(position => <XRSign key={position.id} text={[`${coverage.current.seen.includes(position.id) ? "✓" : "○"} ${position.label}`]}
       p={[position.x * .35 * .65, 1.5 + position.y * .35 * .45, CLINIC_EYE_MIDPOINT[2] + .35]} size={[.08, .023]} bg="#173a3e" fg="#e8fff9" />)}
     <PracticeLessonUI runtime={runtime} active={active} title="MOTILITY" status={status} tools={["pupils"]} actions={actions} fields={fields} lesson={lesson}

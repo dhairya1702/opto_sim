@@ -101,7 +101,7 @@ export function AccommodationPracticeController({ kind, active, preview = false,
   const ready = live && state.captured;
   useEffect(() => { onMirror?.({ title: LIBRARY_TITLES[kind], findingPosition: { current: eyeIndex.current + 1, total: accommodationEyes(kind).length }, status, ready, entryReady: ready, fields, actions, lesson, reset, record, cancel, reportLines: state.history }); }, [onMirror, status, ready, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
   return <>
-    <XRClinicRuntimeView runtime={runtime} active={live} preview={preview} title={LIBRARY_TITLES[kind].toUpperCase()} instrumentSettings={{ "trial-lens": { power: state.power }, "lens-flipper": { side: state.side } }} />
+    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title={LIBRARY_TITLES[kind].toUpperCase()} instrumentSettings={{ "trial-lens": { power: state.power }, "lens-flipper": { side: state.side } }} />
     {(live || preview) && <><LibraryEquipmentTray active={live} equipment={runtime.equipment} />{kind !== "push-up" && <LibraryNearStand />}</>}
     {live && state.ready && <XRSign text={["FICTIONAL PATIENT · REPORTED RESPONSE", state.report]} p={[.55, 1.75, -.10]} size={[.55, .20]} bg="#07151b" fg="#eefbf7" />}
     <PracticeLessonUI runtime={runtime} active={live} title={LIBRARY_TITLES[kind]} status={status} tools={[libraryTool(kind)]} actions={actions} directActions={actions.slice(1)} fields={fields} lesson={lesson} ready={ready} entryReady={ready} onRecord={record} onReset={reset} onExit={onExit} onCancel={cancel}

@@ -167,9 +167,22 @@ export async function clinic({ guided = false, selectedExamId, renderAdapter }: 
     await event(index, "selectend");
     await step();
   };
+  const apertureWheel = () => {
+    let wheel: THREE.Object3D | undefined;
+    tool("fundus").traverse(object => { if (object.userData.xrInstrumentControl === "fundus") wheel = object; });
+    if (!wheel) throw new Error("Missing ophthalmoscope aperture wheel");
+    return wheel;
+  };
+  const cycleAperture = async (index: number) => {
+    const wheel = apertureWheel();
+    const rotation = wheel.getWorldQuaternion(new THREE.Quaternion());
+    const point = wheel.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0, .09).applyQuaternion(rotation));
+    grips[index].position.copy(point); rays[index].position.copy(point); rays[index].quaternion.copy(rotation);
+    await step(); await event(index, "selectstart"); await event(index, "selectend"); await step();
+  };
   await step();
   return {
-    state: state!, rerender: render, viewerCamera, physicalViewer, viewerTracked, referenceOffsets, grips, rays, tool, at, pickup, event, step, panel, controls, click, labels, tracked, rayTracked, session,
+    state: state!, rerender: render, viewerCamera, physicalViewer, viewerTracked, referenceOffsets, grips, rays, tool, at, pickup, event, step, panel, controls, click, labels, apertureWheel, cycleAperture, tracked, rayTracked, session,
     interact, record, openPanel, exitVR, encounter: () => encounter,
     directRecord: (id: ConsultationToolId) => {
       const button = controls().find(object => object.userData.xrRecordTool === id);
@@ -188,6 +201,7 @@ export async function clinic({ guided = false, selectedExamId, renderAdapter }: 
       return eyes;
     },
     exit: async () => { active = false; await render(); },
+    enter: async () => { reference = baseReference; active = true; await render(); await step(); },
     dispose: async () => { await act(async () => root.unmount()); },
   };
 }
