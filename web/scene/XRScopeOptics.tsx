@@ -1,16 +1,16 @@
 import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { DoubleSide, Group, Mesh, MeshBasicMaterial, Object3D } from "three";
+import { DoubleSide, Group, Object3D } from "three";
 import { scopeBeamAngle, type OphthalmoscopeControl } from "../interaction/xrScopeEquipment";
-import { PosteriorPole } from "./PosteriorPole";
+import { XRScopeObservation } from "./XRScopeObservation";
 
-export type FundusScopeView = { visible: boolean; x: number; y: number };
-export type BrucknerScopeView = { visible: boolean; brighter: "equal" | "od" | "os" };
+export type ScopeEyepiece = { active: boolean; ready: boolean; title: string; message: string };
+export type FundusScopeView = { visible: boolean; x: number; y: number; eye: "OD" | "OS" | null; appearance: import("../domain/types").Finding["posteriorPole"] | null; eyepiece?: ScopeEyepiece };
+export type BrucknerScopeView = { visible: boolean; brighter: "equal" | "od" | "os"; eyepiece?: ScopeEyepiece };
 /** The existing authored schematic is visible only through the scope's rear aperture. */
 export function XRScopeOptics({ powered, ophthalmo, view, brucknerView, scopeControl }: { powered: boolean; ophthalmo: boolean; view?: FundusScopeView; brucknerView?: BrucknerScopeView; scopeControl?: OphthalmoscopeControl }) {
   const field = useRef<Group>(null);
   const reflexes = useRef<Group>(null);
-  const movement = useRef({ x: 0, y: 0, used: true });
   const target = useMemo(() => {
     const target = new Object3D(); target.position.set(0, .17, .7); return target;
   }, []);
@@ -18,13 +18,7 @@ export function XRScopeOptics({ powered, ophthalmo, view, brucknerView, scopeCon
     if (field.current) field.current.visible = Boolean(powered && view?.visible && !brucknerView);
     if (reflexes.current) {
       reflexes.current.visible = Boolean(powered && brucknerView?.visible);
-      reflexes.current.children.forEach(child => {
-        if (child instanceof Mesh && child.material instanceof MeshBasicMaterial) {
-          child.material.color.set(brucknerView?.brighter === child.userData.eye ? "#ffb55d" : "#b82714");
-        }
-      });
     }
-    movement.current.x = view?.x ?? 0; movement.current.y = view?.y ?? 0;
   });
   return <>
     <primitive object={target} />
@@ -45,16 +39,17 @@ export function XRScopeOptics({ powered, ophthalmo, view, brucknerView, scopeCon
       <mesh position={[.012, -.008, .008]}><circleGeometry args={[.007, 20]} /><meshBasicMaterial color={scopeControl.aperture === "large" ? "#f9d178" : "#a3b6b1"} /></mesh>
     </group>}
     {ophthalmo && <>
+      <mesh position={[0, .17, -.033]} rotation={[0, Math.PI, 0]} userData={{ xrScopePeephole: true }}>
+        <ringGeometry args={[.0205, .0245, 32]} /><meshBasicMaterial color={powered ? "#f9d178" : "#a3b6b1"} />
+      </mesh>
       <mesh position={[0, .17, -.028]} rotation={[0, Math.PI, 0]}>
         <circleGeometry args={[.022, 32]} /><meshBasicMaterial color="#040909" />
       </mesh>
       {brucknerView && <group ref={reflexes} visible={false} position={[0, .17, -.032]} rotation={[0, Math.PI, 0]} userData={{ xrBrucknerField: true }}>
-        {(["od", "os"] as const).map((eye, index) => <mesh key={eye} position={[index === 0 ? -.009 : .009, 0, 0]} userData={{ eye }}>
-          <circleGeometry args={[.006, 24]} /><meshBasicMaterial args={[{ color: "#b82714" }]} />
-        </mesh>)}
+        <XRScopeObservation brucknerView={brucknerView} />
       </group>}
-      <group ref={field} visible={false} position={[0, .17, -.031]} rotation={[0, Math.PI, 0]} scale={.115} userData={{ xrFundusField: true }}>
-        <PosteriorPole x={0} movement={movement} />
+      <group ref={field} visible={false} position={[0, .17, -.031]} rotation={[0, Math.PI, 0]} userData={{ xrFundusField: true }}>
+        <XRScopeObservation fundusView={view} />
       </group>
     </>}
   </>;

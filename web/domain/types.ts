@@ -18,6 +18,8 @@ export type Refraction = {
   workingDistanceAccounted: boolean;
 };
 export type Finding = {
+  /** Explicit authored visual; unsupported/missing appearances must not default to normal. */
+  posteriorPole?: "schematic-within-normal-limits";
   value: string;
   method: string;
   units: string;

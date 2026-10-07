@@ -55,7 +55,7 @@ describe("headset panel layout", () => {
     await act(async () => mirror!.record()); expect(complete).not.toHaveBeenCalled();
     await sim.click(1, sim.button("SUBMIT / CHECK"));
     expect(sim.labels()).toContain("NOT READY YET"); expect(complete).not.toHaveBeenCalled();
-    await sim.event(1, "squeezeend"); await sim.step();
+    await sim.putDown(1); await sim.step();
     expect(panelBounds(sim.state.scene).map(button => button.label)).toContain("ENTRY +1 cpm");
   });
   it("fits long menus and all Worth entry choices inside the backing without overlapping footer controls", async () => {

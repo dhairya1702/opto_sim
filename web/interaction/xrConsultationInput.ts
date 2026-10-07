@@ -9,7 +9,8 @@ export function pressConsultationGrip(state: ConsultationInputState): Consultati
   return state.gripDown ? state : { ...state, gripDown: true, triggerRoute: null };
 }
 export function releaseConsultationGrip(state: ConsultationInputState): ConsultationInputState {
-  return { ...state, gripDown: false, triggerRoute: null };
+  // Grip release only rearms the next squeeze; trigger operation is independent.
+  return { ...state, gripDown: false };
 }
 export function toggleConsultationPanel(state: ConsultationInputState): ConsultationInputState {
   return { ...state, panel: !state.panel, triggerRoute: null };

@@ -8,6 +8,7 @@ import { consultationXRArrival } from "../interaction/xrConsultationNavigation";
 import { consultationToolDefinition, consultationPickupLabel, toolInHand } from "../interaction/xrConsultationTools";
 import type { XRClinicRuntime, XRClinicHand } from "../interaction/useXRClinicRuntime";
 import type { FundusScopeView, BrucknerScopeView } from "./XRScopeOptics";
+import { XRScopeView } from "./XRScopeView";
 export function XRClinicRuntimeView({ runtime, active, preview = false, title = "VR CONSULTATION", instruction = "Explore freely · A/X · patient menu", cleanHands = false, helperHand, helperReady = false, fundusView, brucknerView, sensoryStation, instrumentSettings }: {
   instrumentSettings?: ClinicInstrumentSettings;
   runtime: XRClinicRuntime;
@@ -25,8 +26,9 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
   const { tools, slots, highlighted, returnedAt, registerTool, hoverMarker, pickupHints, handlingMessage } = runtime;
   const showGuides = active || preview;
   return <>
+    <XRScopeView active={active && !preview && runtime.scopeViewHand !== null} brucknerView={brucknerView} fundusView={fundusView} />
     {showGuides && <Sign text={active
-      ? [title, "Grip · pick up / transfer · release to place", "Trigger · use tool · A/X · panel mode", instruction]
+      ? [title, "Grip once · pick up / transfer · again · place", "Trigger · use · A/X · menu · B/Y · scope", instruction]
       : ["DESKTOP VR PREVIEW", "WASD + mouse · inspect the clinic", "E / click · select tools", "Floor rings · headset destinations"]
     } p={[0, 1.42, 1.38]} size={[.82, .38]} bg="#153b3c" fg="#e8fff9" />}
     {showGuides && stations.filter(station => station.id !== "fundus").map(station => {
@@ -42,6 +44,20 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
     {(active || preview) && <>
       <SensoryClinicStation active={active} runtime={runtime} distanceLetter={sensoryStation === "four-prism"} />
       <ConsultationInstruments equipment={runtime.equipment} scopeControl={{ aperture: runtime.scopeAperture, cycle: runtime.cycleScopeAperture }} settings={instrumentSettings} fundusView={fundusView} brucknerView={brucknerView} state={tools} highlighted={highlighted} returnedAt={returnedAt} register={registerTool} />
+      {active && (["left", "right"] as const).map(hand => <group key={hand} visible={false}
+        ref={object => { if (object) runtime.placementMarkers.current.set(hand, object); else runtime.placementMarkers.current.delete(hand); }}
+        userData={{ xrIgnoreRay: true, xrPlacementPreview: hand }}>
+        {(["place", "return"] as const).map(kind => <group key={kind} name={kind}>
+          <mesh name="outline">
+            <boxGeometry args={[1, 1, 1]} />
+            <meshBasicMaterial color={kind === "place" ? "#78e8b1" : "#ffcd70"} wireframe />
+          </mesh>
+          <group name="label" position={[0, .22, 0]}>
+            <Sign text={[kind === "place" ? "GRIP AGAIN · PLACE HERE" : "GRIP AGAIN · RETURN TO REST"]}
+              p={[0, 0, 0]} size={[.36, .055]} bg={kind === "place" ? "#153d2c" : "#493519"} fg="#fff9ed" />
+          </group>
+        </group>)}
+      </group>)}
       <group ref={hoverMarker} visible={false} userData={{ xrIgnoreRay: true }}>
         <mesh renderOrder={1100}><boxGeometry args={[1, 1, 1]} /><meshBasicMaterial color="#b0ffe7" wireframe depthTest={false} depthWrite={false} /></mesh>
       </group>

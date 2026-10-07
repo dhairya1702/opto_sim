@@ -28,14 +28,14 @@ async function lesson(preview = false) {
     for (const [hand, id, socketId] of [[0, "subjective", "sensory-correction"], [1, "polarised", "sensory-polarised"]] as const) {
       const socket = SENSORY_SOCKETS.find(item => item.id === socketId);
       if (!socket) throw new Error(`Missing socket ${socketId}`);
-      await sim.pickup(hand, id); await sim.at(hand, socket.position); await sim.event(hand, "squeezeend"); await sim.step(1 / 72, 12);
+      await sim.pickup(hand, id); await sim.at(hand, socket.position); await sim.putDown(hand); await sim.step(1 / 72, 12);
     }
   };
   const book = async (placed = true) => {
     const socket = SENSORY_SOCKETS.find(item => item.id === "sensory-stereo-near");
     if (!socket) throw new Error("Missing stereo stand");
     await sim.pickup(0, "stereo"); await sim.at(0, socket.position); await sim.step(1 / 72, 12);
-    if (placed) { await sim.event(0, "squeezeend"); await sim.step(1 / 72, 12); }
+    if (placed) { await sim.putDown(0); await sim.step(1 / 72, 12); }
   };
   const reply = async () => { await act(async () => vi.advanceTimersByTime(1000)); await sim.step(1 / 72, 12); };
   const run = async () => {
@@ -91,7 +91,7 @@ describe("stereo Practice in the real shared XR loop", () => {
       if (page < 5) await sim.click(1, sim.button("NEXT PAGE"));
     }
     expect(sim.mirror().entryReady).toBe(true); expect(sim.mirror().lesson.entries).toEqual({});
-    await sim.pickup(0, "stereo"); await sim.at(0, consultationToolDefinition("stereo").home); await sim.event(0, "squeezeend"); await sim.step(1 / 72, 12);
+    await sim.pickup(0, "stereo"); await sim.at(0, consultationToolDefinition("stereo").home); await sim.putDown(0); await sim.step(1 / 72, 12);
     expect(sim.mirror().ready).toBe(true);
     await sim.click(1, sim.button("RECORD FINDING"));
     await sim.click(1, sim.button("60 ARCSEC")); await sim.click(1, sim.button("SUBMIT / CHECK")); expect(sim.complete).not.toHaveBeenCalled();
@@ -141,7 +141,7 @@ describe("stereo Practice in the real shared XR loop", () => {
     expect(sim.mirror().entryReady).toBe(false); expect(sim.mirror().lesson.entries).toEqual({}); expect(sim.complete).not.toHaveBeenCalled();
     await sim.run(); expect(sim.mirror().ready).toBe(true);
     await sim.pickup(1, "polarised"); await sim.step(1 / 72, 12); expect(sim.mirror().entryReady).toBe(false);
-    await sim.event(1, "squeezeend"); await sim.step(1 / 72, 12);
+    await sim.putDown(1); await sim.step(1 / 72, 12);
     expect(sim.mirror().entryReady).toBe(false);
   });
   it("preview equipment can be inspected but cannot obtain responses or award completion", async () => {

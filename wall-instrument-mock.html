@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#e8ede7" />
+    <meta name="description" content="Interactive Opto wall-mounted instrument station concept." />
+    <title>Opto · Wall Instrument Station</title>
+  </head>
+  <body>
+    <main>
+      <header class="masthead">
+        <div>
+          <p class="eyebrow">OPTO · CLINIC ENVIRONMENT STUDY</p>
+          <h1>Every instrument has a home.</h1>
+        </div>
+        <div class="intro-block">
+          <p class="intro">A permanent wall station replaces the six-slot case. All twenty clinic tools remain visible, grouped by task and ready to pick up.</p>
+          <a href="/instrument-library-mock.html">View instrument designs ↗</a>
+        </div>
+      </header>
+
+      <section class="wall-stage" aria-label="Interactive three-dimensional wall instrument station">
+        <div id="wall-root"></div>
+        <div class="stage-note"><span>CLICK A TOOL TO PICK IT UP</span><span>DRAG TO ORBIT · SCROLL TO ZOOM</span></div>
+        <div id="wall-error" role="alert" hidden></div>
+      </section>
+
+      <section class="station-controls" aria-label="Wall station controls">
+        <div class="selected-copy" aria-live="polite">
+          <p class="eyebrow">INSTRUMENT STATUS</p>
+          <h2 id="selected-name">All 20 tools are on the wall</h2>
+          <p id="selected-note">Choose any instrument to pull it forward. Its clinical behavior and controls stay connected when this rack is integrated.</p>
+        </div>
+        <div class="control-stack">
+          <div class="filters" aria-label="Highlight an instrument group">
+            <button type="button" data-filter="all" aria-pressed="true">All tools</button>
+            <button type="button" data-filter="diagnostic" aria-pressed="false">Diagnostic</button>
+            <button type="button" data-filter="scopes" aria-pressed="false">Scopes &amp; refraction</button>
+            <button type="button" data-filter="sensory" aria-pressed="false">Sensory</button>
+            <button type="button" data-filter="binocular" aria-pressed="false">Binocular vision</button>
+          </div>
+          <button id="return-tool" type="button" disabled>Return to rack</button>
+        </div>
+      </section>
+
+      <section class="design-notes">
+        <article><span>01</span><h3>Visible inventory</h3><p>The learner can see every available tool without opening a case or menu.</p></article>
+        <article><span>02</span><h3>Shaped cradles</h3><p>Each silhouette has a clear home position, label, and return target.</p></article>
+        <article><span>03</span><h3>Lesson guidance</h3><p>The relevant row can glow during Practice while Test keeps the full station available.</p></article>
+        <article><span>04</span><h3>Existing behavior</h3><p>Pickup, grip pose, optics, aperture settings, placement, and recording stay attached to each tool.</p></article>
+      </section>
+
+      <footer><span>Concept geometry · illustrative educational simulator</span><span>Wall layout mock · production room unchanged</span></footer>
+    </main>
+    <script type="module" src="/web/wall-instrument-mock.tsx"></script>
+  </body>
+</html>

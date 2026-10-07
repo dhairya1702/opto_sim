@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#e7ebe4" />
+    <meta name="description" content="Interactive Opto patient redesign study." />
+    <title>Opto patient study · Arun</title>
+  </head>
+  <body>
+    <main>
+      <header class="masthead">
+        <div><p class="eyebrow">OPTO · PATIENT FORM STUDY 01</p><h1>Arun, with a human silhouette.</h1></div>
+        <p class="intro">A more believable seated patient built around the existing eye anchors. Use the controls to inspect the face and verify gaze and light-driven pupil reactions.</p>
+      </header>
+
+      <section class="stage patient-stage" aria-label="Interactive comparison of the current and proposed patient models">
+        <canvas id="patient-canvas"></canvas>
+        <div id="patient-error" role="alert" hidden></div>
+        <div class="model-label current-label"><span>01 / CURRENT</span><strong>Primitive figure</strong><small>Orb head · block chair pose</small></div>
+        <div class="model-label proposed-label"><span>02 / PROPOSED</span><strong>Stylized realistic</strong><small>Structured face · anatomical seated pose</small></div>
+        <div class="divider" aria-hidden="true"></div>
+        <div class="patient-controls" aria-label="Patient preview controls">
+          <div><span>VIEW</span><button type="button" data-view="body" aria-pressed="true">Full body</button><button type="button" data-view="face" aria-pressed="false">Face</button></div>
+          <div><span>PUPILS</span><button id="light-button" type="button" aria-pressed="false">Light off</button></div>
+          <div><span>GAZE</span><button type="button" data-gaze="left" aria-pressed="false">Left</button><button type="button" data-gaze="centre" aria-pressed="true">Centre</button><button type="button" data-gaze="right" aria-pressed="false">Right</button><button type="button" data-gaze="up" aria-pressed="false">Up</button></div>
+        </div>
+      </section>
+
+      <section class="patient-notes">
+        <div><p class="eyebrow">NON-NEGOTIABLE RIG</p><h2>New body, same clinical anchors.</h2></div>
+        <div class="anchor-grid">
+          <article><b>OD / OS</b><span>Eye centres remain at ±48 mm and 1.5 m seated height.</span></article>
+          <article><b>Pupil response</b><span>The existing light state continues to scale each pupil independently.</span></article>
+          <article><b>Gaze response</b><span>Motility, cover, prism, and vergence logic still moves the same gaze nodes.</span></article>
+          <article><b>Reflex layers</b><span>Hirschberg, Krimsky, Bruckner, and scope effects retain their canonical planes.</span></article>
+        </div>
+      </section>
+      <footer><span>Concept geometry · fictional patient Arun</span><span>No production patient files changed</span></footer>
+    </main>
+    <script type="module" src="/web/patient-mock.ts"></script>
+  </body>
+</html>

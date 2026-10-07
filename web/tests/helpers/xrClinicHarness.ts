@@ -21,7 +21,8 @@ extend({
   CircleGeometry: THREE.CircleGeometry, PlaneGeometry: THREE.PlaneGeometry,
   RingGeometry: THREE.RingGeometry, ConeGeometry: THREE.ConeGeometry,
   CapsuleGeometry: THREE.CapsuleGeometry,
-  ExtrudeGeometry: THREE.ExtrudeGeometry,
+  ExtrudeGeometry: THREE.ExtrudeGeometry, LatheGeometry: THREE.LatheGeometry,
+  TubeGeometry: THREE.TubeGeometry,
   MeshPhysicalMaterial: THREE.MeshPhysicalMaterial, MeshBasicMaterial: THREE.MeshBasicMaterial, MeshStandardMaterial: THREE.MeshStandardMaterial, ShaderMaterial: THREE.ShaderMaterial,
   AmbientLight: THREE.AmbientLight, HemisphereLight: THREE.HemisphereLight,
   DirectionalLight: THREE.DirectionalLight, PointLight: THREE.PointLight, SpotLight: THREE.SpotLight,
@@ -123,17 +124,30 @@ export async function clinic({ guided = false, selectedExamId, renderAdapter }: 
     grips[index].position.set(...position);
     await step();
   };
+  const grip = async (index: number) => {
+    await event(index, "squeezestart");
+    await event(index, "squeezeend");
+    await step();
+  };
+  const putDown = async (index: number) => {
+    // A previous raw press may still be held; release only rearms the next edge.
+    await event(index, "squeezeend");
+    await grip(index);
+  };
   const pickup = async (index: number, id: ConsultationToolId) => {
     const position = tool(id).getWorldPosition(new THREE.Vector3());
     await at(index, position.toArray() as [number, number, number]);
-    await event(index, "squeezestart");
-    await step();
+    await grip(index);
   };
   const panel = async (index: number) => {
     buttons[index][4].pressed = true;
     await step();
     buttons[index][4].pressed = false;
     await step();
+  };
+  const scope = async (index: number) => {
+    buttons[index][5].pressed = true; await step();
+    buttons[index][5].pressed = false; await step();
   };
   const controls = () => {
     const controls: THREE.Object3D[] = [];
@@ -182,7 +196,7 @@ export async function clinic({ guided = false, selectedExamId, renderAdapter }: 
   };
   await step();
   return {
-    state: state!, rerender: render, viewerCamera, physicalViewer, viewerTracked, referenceOffsets, grips, rays, tool, at, pickup, event, step, panel, controls, click, labels, apertureWheel, cycleAperture, tracked, rayTracked, session,
+    state: state!, rerender: render, viewerCamera, physicalViewer, viewerTracked, referenceOffsets, grips, rays, tool, at, pickup, grip, putDown, event, step, panel, scope, buttons, controls, click, labels, apertureWheel, cycleAperture, tracked, rayTracked, session,
     interact, record, openPanel, exitVR, encounter: () => encounter,
     directRecord: (id: ConsultationToolId) => {
       const button = controls().find(object => object.userData.xrRecordTool === id);

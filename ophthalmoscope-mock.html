@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#e7ebe4" />
+    <meta name="description" content="Interactive Opto ophthalmoscope form study." />
+    <title>Opto instrument study · Ophthalmoscope</title>
+  </head>
+  <body>
+    <main>
+      <header class="masthead">
+        <div>
+          <p class="eyebrow">OPTO · INSTRUMENT FORM STUDY 02</p>
+          <h1>Ophthalmoscope, built around the eye.</h1>
+        </div>
+        <p class="intro">The family grip carries over from the retinoscope. A wider optical head, rear eye cup, lens wheel, and distinct illumination window make this instrument readable before the learner picks it up.</p>
+      </header>
+
+      <section class="stage" aria-label="Interactive three-dimensional comparison of the current and proposed ophthalmoscope models">
+        <canvas id="instrument-canvas"></canvas>
+        <div class="model-label current-label">
+          <span>01 / CURRENT</span>
+          <strong>Shared box body</strong>
+          <small>Generic head · ambiguous controls</small>
+        </div>
+        <div class="model-label proposed-label">
+          <span>02 / PROPOSED</span>
+          <strong>Direct scope</strong>
+          <small>Eye cup · lens wheel · light window</small>
+        </div>
+        <div class="divider" aria-hidden="true"></div>
+        <div class="drag-cue">DRAG TO INSPECT · SCROLL TO ZOOM</div>
+        <div class="stage-controls">
+          <button id="spin-button" type="button" aria-pressed="true">Pause rotation</button>
+          <button id="reset-button" type="button">Reset view</button>
+        </div>
+      </section>
+
+      <section class="design-notes" aria-labelledby="notes-heading">
+        <div>
+          <p class="eyebrow">WHAT CHANGED</p>
+          <h2 id="notes-heading">A different tool, not a wider retinoscope.</h2>
+        </div>
+        <ol>
+          <li><b>Optical head</b><span>A broad rounded shell gives the direct scope its own silhouette.</span></li>
+          <li><b>Viewing side</b><span>A soft eye cup and small rear aperture tell the learner where to look.</span></li>
+          <li><b>Lens wheel</b><span>A visible indexed dial suggests selectable lenses without copying a branded device.</span></li>
+          <li><b>Front face</b><span>The illumination window and protective brow separate the patient-facing side.</span></li>
+        </ol>
+      </section>
+
+      <footer>
+        <span>Concept geometry · illustrative educational simulator</span>
+        <span>No branded design or calibrated optics</span>
+      </footer>
+    </main>
+    <script type="module" src="/web/ophthalmoscope-mock.ts"></script>
+  </body>
+</html>

@@ -1,9 +1,9 @@
-import { DoubleSide } from "three";
+import { CatmullRomCurve3, DoubleSide, Vector2, Vector3 } from "three";
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import { CLINIC_EYE_MIDPOINT } from "../interaction/clinicPatient";
 import type { Group } from "three";
-import { Box, Cylinder, Ring } from "./Models";
+import { Box, Cylinder } from "./Models";
 import { XRSign as Sign } from "./XRClinicPanels";
 import {
   SENSORY_DISTANCE_TARGET, SENSORY_MIRROR, SENSORY_NEAR_TARGET, SENSORY_SOCKETS, sensoryMirrorPath,
@@ -24,28 +24,72 @@ export function WorthTargetFace({ powered = true, point = false, mirror = false 
     </mesh>)}
   </group>;
 }
-export function SensoryInstrumentModel({ id, powered, point }: { id: ConsultationToolId; powered: boolean; point?: boolean }) {
-  if (id === "worth") return <group>
-    <Cylinder h={.11} radius={.012} c="#69817e" />
-    <group position={[0, .12, -.012]}><WorthTargetFace powered={powered} point={point} /></group>
-    <Sign text={[powered ? "ON" : "OFF"]} p={[0, .04, .018]} size={[.045, .024]} bg="#173a3e" fg="#e8fff9" />
+
+const sensoryGripProfile = [
+  new Vector2(.0105, -.05), new Vector2(.013, -.043), new Vector2(.012, 0),
+  new Vector2(.013, .038), new Vector2(.015, .05),
+];
+
+function SensoryGrip({ position = [0, 0, 0] }: { position?: [number, number, number] }) {
+  return <group position={position}>
+    <mesh castShadow receiveShadow>
+      <latheGeometry args={[sensoryGripProfile, 28]} />
+      <meshStandardMaterial color="#17383a" roughness={.73} metalness={.02} />
+    </mesh>
+    {[-.024, -.012, 0, .012, .024].map(y => <mesh key={y} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
+      <torusGeometry args={[.0114, .001, 5, 24]} />
+      <meshStandardMaterial color="#4c5f5e" roughness={.36} metalness={.54} />
+    </mesh>)}
   </group>;
-  if (id === "stereo") return <group>
-    <Cylinder h={.06} radius={.012} c="#708f8b" />
-    <Box p={[0, .08, 0]} s={[.22, .15, .01]} c="#ececdf" radius={.008} />
-    {/* Page and ray-selectable circle overlay supplied by the lesson in local XY at z=-.008. */}
-    <Box p={[-.106, .08, -.001]} s={[.008, .15, .012]} c="#617b78" />
-  </group>;
-  const redGreen = id === "red-green";
+}
+
+function SensoryGlasses({ redGreen }: { redGreen: boolean }) {
+  const bridge = new CatmullRomCurve3([
+    new Vector3(-.014, .007, 0), new Vector3(0, .017, .004), new Vector3(.014, .007, 0),
+  ]);
   return <group>
     {([-.048, .048] as const).map((x, index) => <group key={x} position={[x, 0, 0]}>
-      <Ring p={[0, 0, 0]} radius={.036} c="#303f46" />
-      <mesh><circleGeometry args={[.033, 24]} /><meshBasicMaterial color={redGreen ? index === 0 ? "#de3333" : "#26a965" : "#729498"} transparent opacity={.35} side={DoubleSide} /></mesh>
+      <mesh castShadow><torusGeometry args={[.038, .006, 10, 36]} /><meshStandardMaterial color="#24383b" roughness={.54} metalness={.11} /></mesh>
+      <mesh position={[0, 0, -.006]} castShadow><torusGeometry args={[.032, .002, 8, 32]} /><meshStandardMaterial color="#a8b6b0" roughness={.30} metalness={.72} /></mesh>
+      <mesh position={[0, 0, -.004]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[.031, .031, .007, 36]} />
+        <meshPhysicalMaterial color={redGreen ? index === 0 ? "#d83d4b" : "#35b773" : "#9fded7"} roughness={.14}
+          transmission={.32} thickness={.01} transparent opacity={redGreen ? .74 : .62} side={DoubleSide} />
+      </mesh>
+      <mesh position={[0, .046, 0]}><capsuleGeometry args={[.006, .006, 4, 12]} /><meshStandardMaterial color="#d39b42" roughness={.42} metalness={.42} /></mesh>
     </group>)}
-    <Box p={[0, .009, 0]} s={[.035, .009, .012]} c="#607a80" />
-    <Cylinder p={[-.102, 0, -.065]} h={.13} radius={.004} r={[Math.PI / 2, 0, 0]} c="#4a656b" />
-    <Cylinder p={[.102, 0, -.065]} h={.13} radius={.004} r={[Math.PI / 2, 0, 0]} c="#4a656b" />
+    <mesh castShadow><tubeGeometry args={[bridge, 16, .004, 10, false]} /><meshStandardMaterial color="#a8b6b0" roughness={.30} metalness={.72} /></mesh>
+    {([-1, 1] as const).map(side => <mesh key={side} position={[side * .109, 0, -.075]} rotation={[Math.PI / 2, 0, side * -.10]} castShadow>
+      <cylinderGeometry args={[.004, .004, .17, 20]} />
+      <meshStandardMaterial color="#4c5f5e" roughness={.36} metalness={.54} />
+    </mesh>)}
   </group>;
+}
+
+function StereoBooklet() {
+  return <group>
+    <SensoryGrip position={[0, -.025, 0]} />
+    {([-1, 1] as const).map(side => <group key={side}>
+      <Box p={[side * .058, .08, 0]} s={[.116, .17, .009]} c="#f3f0df" radius={.010} />
+      <Box p={[side * .058, .146, -.005]} s={[.094, .004, .001]} c="#3f827a" radius={.001} />
+    </group>)}
+    <Cylinder p={[0, .08, -.003]} h={.17} radius={.004} c="#4c5f5e" />
+    {/* Lesson-owned page stacks and selectable circles remain immediately outside this model. */}
+  </group>;
+}
+
+export function SensoryInstrumentModel({ id, powered, point }: { id: ConsultationToolId; powered: boolean; point?: boolean }) {
+  if (id === "worth") return <group>
+    <SensoryGrip />
+    <Box p={[0, .12, 0]} s={[.135, .135, .024]} c="#24383b" radius={.042} />
+    <group position={[0, .12, -.012]}><WorthTargetFace powered={powered} point={point} /></group>
+    <mesh position={[.045, .04, -.017]} rotation={[0, 0, Math.PI / 2]}>
+      <capsuleGeometry args={[.006, .014, 5, 14]} />
+      <meshStandardMaterial color={powered ? "#d39b42" : "#4c5f5e"} roughness={.42} metalness={.42} />
+    </mesh>
+  </group>;
+  if (id === "stereo") return <StereoBooklet />;
+  return <SensoryGlasses redGreen={id === "red-green"} />;
 }
 
 /** Lightweight illustrative virtual image; one physical target retains all ownership. */

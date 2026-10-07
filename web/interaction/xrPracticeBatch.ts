@@ -1,6 +1,5 @@
 import { opticTechniqueChecks } from "./opticPractice";
 import { scopeBeamAngle } from "./xrScopeEquipment";
-import { xrScopeViewer } from "./xrScopes";
 import { CLINIC_EYE_MIDPOINT, CLINIC_PATIENT_EYES } from "./clinicPatient";
 import { advancePracticeCoverStep, practiceCoverProcedures, type PracticeCoverKind, type EyeMovement } from "./practiceCover";
 import type { CoverPosition, CoverEye } from "./cover";
@@ -12,14 +11,14 @@ export const PRACTICE_NEAR_SOCKET: PlacementSocket = {
   rotation: [0, 1, 0, 0], radius: .12,
 };
 export function xrBrucknerTechnique(input: {
-  origin: ToolPoint; forward: ToolPoint; aperture: ToolPoint; viewer: ToolPoint; look: ToolPoint;
-  held: boolean; light: boolean; fixation: boolean; largeSpot: boolean;
+  origin: ToolPoint; forward: ToolPoint;
+  held: boolean; light: boolean; fixation: boolean; largeSpot: boolean; scopeOpen: boolean;
 }) {
   const { origin, forward } = input;
   const distanceCm = Math.hypot(...origin.map((v, i) => v - CLINIC_EYE_MIDPOINT[i])) * 100;
   const t = forward[2] < -.001 ? (CLINIC_EYE_MIDPOINT[2] - origin[2]) / forward[2] : -1;
   const error = t > 0 ? Math.hypot(origin[0] + t * forward[0], origin[1] + t * forward[1] - CLINIC_EYE_MIDPOINT[1]) : 10;
-  const viewAligned = xrScopeViewer(input.viewer, input.look, input.aperture, forward);
+  const viewAligned = input.scopeOpen;
   const checks = opticTechniqueChecks("bruckner", {
     aimX: error / .25, aimY: 0, distanceCm, light: input.held && input.light,
     fixation: input.fixation, largeSpot: input.largeSpot, viewAligned,
@@ -27,6 +26,16 @@ export function xrBrucknerTechnique(input: {
   const illuminated = input.held && input.light && t > 0 && distanceCm >= 10 && distanceCm <= 140
     && error + .056 <= t * Math.tan(scopeBeamAngle(input.largeSpot ? "large" : "small"));
   return { ...checks, ready: checks.ready && illuminated, distanceCm, viewAligned, illuminated };
+}
+export function xrBrucknerPrompt(technique: ReturnType<typeof xrBrucknerTechnique>, setup: { tracked: boolean; held: boolean; light: boolean; fixation: boolean; largeSpot: boolean }) {
+  if (!setup.tracked) return "Restore headset/controller tracking.";
+  if (!setup.held) return "Pick up the ophthalmoscope using the side grip.";
+  if (!setup.fixation) return "Ask the patient to look at the light.";
+  if (!setup.light) return "Ophthalmoscope held · hold its trigger to switch on the light.";
+  if (!setup.largeSpot) return "Turn the rear aperture wheel to the large gold circle with your free hand.";
+  if (!technique.distanceReady) return `Light-to-patient distance: ${Math.round(technique.distanceCm)} cm · move the light to 90–110 cm.`;
+  if (!technique.aimReady || !technique.illuminated) return "Aim the light at the midpoint between both pupils so the beam covers both.";
+  return !technique.viewAligned ? "Press B/Y on the instrument hand to look through the scope." : "Both reflexes visible · record their relative brightness.";
 }
 /** Tolerances keep one full-size paddle over one pupil, not the midpoint/both eyes. */
 export function xrPracticeEyePlacement(point: ToolPoint, forward: ToolPoint, prism = false): CoverEye | null {

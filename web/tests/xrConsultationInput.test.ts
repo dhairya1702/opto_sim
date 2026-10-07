@@ -35,6 +35,16 @@ describe("consultation input routing", () => {
     expect(pressConsultationGrip(transferred)).toBe(transferred);
     expect(pressConsultationGrip(releaseConsultationGrip(transferred)).gripDown).toBe(true);
   });
+  it("rearms grip without cancelling a held tool trigger or panel action", () => {
+    for (const hasTool of [true, false]) {
+      const pressed = pressConsultationTrigger(pressConsultationGrip(initialConsultationInput()), hasTool);
+      const relaxed = releaseConsultationGrip(pressed);
+      expect(relaxed.gripDown).toBe(false);
+      expect(relaxed.triggerDown).toBe(true);
+      expect(relaxed.triggerRoute).toBe(hasTool ? "tool" : "panel");
+      expect(pressConsultationGrip(relaxed).triggerRoute).toBeNull();
+    }
+  });
 });
 
 describe("consultation procedure interruption", () => {

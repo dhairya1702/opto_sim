@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#e7ebe4" />
+    <meta name="description" content="Interactive Opto retinoscope form study." />
+    <title>Opto instrument study · Retinoscope</title>
+  </head>
+  <body>
+    <main>
+      <header class="masthead">
+        <div>
+          <p class="eyebrow">OPTO · INSTRUMENT FORM STUDY 01</p>
+          <h1>Retinoscope, with a real silhouette.</h1>
+        </div>
+        <p class="intro">Same simulator role and working scale. The right-hand study replaces the stacked primitives with a tapered grip, shaped optical housing, and controls that read from across the room.</p>
+      </header>
+
+      <section class="stage" aria-label="Interactive three-dimensional comparison of the current and proposed retinoscope models">
+        <canvas id="instrument-canvas"></canvas>
+        <div class="model-label current-label">
+          <span>01 / CURRENT</span>
+          <strong>Primitive stack</strong>
+          <small>Box head · uniform handle</small>
+        </div>
+        <div class="model-label proposed-label">
+          <span>02 / PROPOSED</span>
+          <strong>Purpose-shaped</strong>
+          <small>Tapered grip · optical housing</small>
+        </div>
+        <div class="divider" aria-hidden="true"></div>
+        <div class="drag-cue">DRAG TO INSPECT · SCROLL TO ZOOM</div>
+        <div class="stage-controls">
+          <button id="spin-button" type="button" aria-pressed="true">Pause rotation</button>
+          <button id="reset-button" type="button">Reset view</button>
+        </div>
+      </section>
+
+      <section class="design-notes" aria-labelledby="notes-heading">
+        <div>
+          <p class="eyebrow">WHAT CHANGED</p>
+          <h2 id="notes-heading">Form first. Detail second.</h2>
+        </div>
+        <ol>
+          <li><b>Grip</b><span>A gentle waist and flared end replace the constant-width tube.</span></li>
+          <li><b>Transition</b><span>A curved neck joins the handle to the head instead of colliding two primitives.</span></li>
+          <li><b>Housing</b><span>A rounded asymmetric shell creates a recognizable clinical silhouette.</span></li>
+          <li><b>Controls</b><span>Lens window, focusing sleeve, thumb wheel, and rear aperture explain how it is held.</span></li>
+        </ol>
+      </section>
+
+      <footer>
+        <span>Concept geometry · illustrative educational simulator</span>
+        <span>No branded design or calibrated optics</span>
+      </footer>
+    </main>
+    <script type="module" src="/web/instrument-mock.ts"></script>
+  </body>
+</html>

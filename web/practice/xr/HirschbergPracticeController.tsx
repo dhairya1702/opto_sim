@@ -92,7 +92,7 @@ export function HirschbergPracticeController({ active, preview = false, scenario
     onMenu: open => { setMenu(open); if (!open) { setRecording(false); setHelp(false); } },
     onSelection: selection => {
       if (selection.station === "patient" && !selection.examId) setMenu(true);
-      else if (selection.examId) runtime.setHandlingMessage("Hold the side grip beside the handle to pick up the instrument.");
+      else if (selection.examId) runtime.setHandlingMessage("Squeeze the side grip once beside the handle to pick up the instrument.");
     },
   });
   const viewerPosition = useMemo(() => new Vector3(), []);

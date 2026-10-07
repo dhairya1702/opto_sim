@@ -20,7 +20,7 @@ import { gazePositions, observeTarget, type FixationTarget, type MotilityCoverag
 import { xrMotilityTarget } from "./xrMotility";
 
 import { formatSignedDioptres, reflexMotion } from "./retinoscopy";
-import { advanceScopeInspection, advanceScopeSweep, initialScopeInspection, initialScopeSweep, pauseScopeSweep, scopeCaseSphere, scopeReflex, scopeSweepComplete, xrScopeAim, xrScopeViewer, type ScopeAim } from "./xrScopes";
+import { advanceScopeInspection, advanceScopeSweep, initialScopeInspection, initialScopeSweep, pauseScopeSweep, scopeCaseSphere, scopeReflex, scopeSweepComplete, xrScopeAim, scopeCaseFundus, type ScopeAim } from "./xrScopes";
 import { XRRetinoscopyReflex, type RetinoReflexVisual } from "../scene/XRRetinoscopyReflex";
 import type { FundusScopeView } from "../scene/XRScopeOptics";
 import { CLINIC_PATIENT_EYES as PUPIL_EYES, CLINIC_EYE_MIDPOINT as EYE_MIDPOINT } from "./clinicPatient";
@@ -261,7 +261,8 @@ export function XRConsultationController({ active, preview = false, guided = fal
   const lastScopeEye = useRef<Record<"objective" | "fundus", XRPupilEye>>({ objective: "OD", fundus: "OD" });
   const retinoSweeps = useRef({ OD: initialScopeSweep(), OS: initialScopeSweep() });
   const fundusInspections = useRef({ OD: initialScopeInspection(), OS: initialScopeInspection() });
-  const fundusView = useMemo<FundusScopeView>(() => ({ visible: false, x: 0, y: 0 }), []);
+  const fundusEyepiece = useMemo(() => ({ active: false, ready: false, title: "OPHTHALMOSCOPY", message: "" }), []);
+  const fundusView = useMemo<FundusScopeView>(() => ({ visible: false, x: 0, y: 0, eye: null, appearance: null, eyepiece: fundusEyepiece }), [fundusEyepiece]);
   const reflexVisual = useMemo<RetinoReflexVisual>(() => ({ eye: null, offset: 0, brightness: 0, width: 0, axis: 90 }), []);
   const [grossEntry, setGrossEntry] = useState("");
   const [correctionEntry, setCorrectionEntry] = useState("");
@@ -305,12 +306,13 @@ export function XRConsultationController({ active, preview = false, guided = fal
     retinoSweeps.current.OS = pauseScopeSweep(retinoSweeps.current.OS);
     fundusInspections.current.OD.dwell = 0; fundusInspections.current.OS.dwell = 0;
     fundusView.visible = false; reflexVisual.eye = null;
+    fundusEyepiece.active = false; fundusEyepiece.ready = false;
     coverStateRef.current = paused.cover;
     setCoverState(paused.cover);
     motilityCoverageRef.current = paused.motility;
     setMotilityCoverage(paused.motility);
-  }, [fundusView, reflexVisual]);
-  const runtime = useXRClinicRuntime({ active, editorOpen: Boolean(recordingExam), onInterrupt: pauseTechnique,
+  }, [fundusView, fundusEyepiece, reflexVisual]);
+  const runtime = useXRClinicRuntime({ active, editorOpen: Boolean(recordingExam || menuOpen), scopeViewEnabled: true, onInterrupt: pauseTechnique,
     onMenu: open => { setMenuOpen(open); if (!open) setRecordingExam(null); },
     onToolUsed: (id, action) => {
       if (isConsultationExam(id)) lastUsedExam.current = id;
@@ -318,7 +320,7 @@ export function XRConsultationController({ active, preview = false, guided = fal
     },
     onSelection: data => {
       if (guided && isConsultationExam(data.examId)) setPanelExam(data.examId);
-      else if (!guided && data.examId && CONSULTATION_TOOLS.some(tool => tool.id === data.examId)) runtime.setHandlingMessage("Bring your hand beside the handle and hold the side grip to pick it up.");
+      else if (!guided && data.examId && CONSULTATION_TOOLS.some(tool => tool.id === data.examId)) runtime.setHandlingMessage("Bring your hand beside the handle and squeeze the side grip once to pick it up.");
       else if (!guided && data.station === "patient") setMenuOpen(true);
       else if (!guided && (data.station === "trolley" || data.station === "refraction" || data.station === "fundus")) return;
       else if (data.station) onInteract(data.station, data.examId);
@@ -466,12 +468,9 @@ export function XRConsultationController({ active, preview = false, guided = fal
     } else coverStateRef.current = next;
   });
 
-  const apertureOrigin = useMemo(() => new Vector3(), []);
-  const viewerOrigin = useMemo(() => new Vector3(), []);
-  const viewerDirection = useMemo(() => new Vector3(), []);
-  const viewerRotation = useMemo(() => new Quaternion(), []);
-  useFrame(({ camera }, dt) => {
+  useFrame((_, dt) => {
     reflexVisual.eye = null; fundusView.visible = false; retinoAim.current = null;
+    fundusEyepiece.active = false; fundusEyepiece.ready = false;
     if (!active) return;
     const retinoReady = workingPose("objective") && toolsRef.current.objective.powered;
     const aim = retinoReady ? xrScopeAim(origin.toArray() as [number, number, number], direction.toArray() as [number, number, number], PUPIL_EYES) : null;
@@ -490,22 +489,24 @@ export function XRConsultationController({ active, preview = false, guided = fal
     }
     const fundusReady = workingPose("fundus") && toolsRef.current.fundus.powered;
     const fieldAim = fundusReady ? xrScopeAim(origin.toArray() as [number, number, number], direction.toArray() as [number, number, number], PUPIL_EYES) : null;
-    const object = objects.current.get("fundus");
-    let viewerAligned = false;
-    if (fieldAim && object && fieldAim.distanceCm <= 25 && caseData.exams.find(exam => exam.id === "fundus")?.findings[`${fieldAim.eye}:default`]) {
-      apertureOrigin.set(0, .17, -.032); object.localToWorld(apertureOrigin);
-      const viewer = gl.xr.isPresenting ? gl.xr.getCamera() : camera;
-      const cameras = "cameras" in viewer ? (viewer as import("three").ArrayCamera).cameras : [viewer];
-      viewerAligned = cameras.some(eyeCamera => {
-        eyeCamera.getWorldPosition(viewerOrigin); eyeCamera.getWorldQuaternion(viewerRotation);
-        viewerDirection.set(0, 0, -1).applyQuaternion(viewerRotation);
-        return xrScopeViewer(viewerOrigin.toArray() as [number, number, number], viewerDirection.toArray() as [number, number, number], apertureOrigin.toArray() as [number, number, number], direction.toArray() as [number, number, number]);
-      });
-      if (viewerAligned) {
-        fundusView.visible = frameValid.current;
-        fundusView.x = Math.max(-1, Math.min(1, fieldAim.x / .025)); fundusView.y = Math.max(-1, Math.min(1, fieldAim.y / .025));
-        lastScopeEye.current.fundus = fieldAim.eye;
-      }
+    const appearance = fieldAim ? scopeCaseFundus(caseData, fieldAim.eye) : null;
+    const aimReady = Boolean(fieldAim && fieldAim.distanceCm <= 25 && appearance);
+    const viewerAligned = runtime.scopeViewHandRef.current !== null && aimReady && frameValid.current;
+    fundusEyepiece.active = runtime.scopeViewHandRef.current !== null && frameValid.current;
+    fundusEyepiece.ready = viewerAligned;
+    fundusEyepiece.title = fieldAim ? `OPHTHALMOSCOPY · ${fieldAim.eye} · ${fieldAim.eye === "OD" ? "RIGHT" : "LEFT"} EYE` : "OPHTHALMOSCOPY";
+    fundusEyepiece.message = !toolsRef.current.fundus.powered ? "Hold the instrument trigger to illuminate the eye. B/Y closes scope mode."
+      : !fieldAim || fieldAim.distanceCm > 25 ? "Aim the lit scope at one pupil from within 25 cm of the patient."
+      : !appearance ? "No authored view is available for this eye."
+      : "Limited posterior-pole view · hold steady to inspect. B/Y closes scope mode.";
+    fundusView.eye = viewerAligned && fieldAim ? fieldAim.eye : null;
+    fundusView.appearance = viewerAligned ? appearance : null;
+    if (viewerAligned && fieldAim) {
+      fundusView.visible = true;
+      // Keep the authored illustration steady; instrument pose selects the eye,
+      // rather than turning controller tremor into image motion.
+      fundusView.x = 0; fundusView.y = 0;
+      lastScopeEye.current.fundus = fieldAim.eye;
     }
     for (const eye of ["OD", "OS"] as const) fundusInspections.current[eye] = advanceScopeInspection(fundusInspections.current[eye], Boolean(frameValid.current && viewerAligned && fieldAim?.eye === eye), dt);
     scopeClock.current += dt;
@@ -666,7 +667,7 @@ export function XRConsultationController({ active, preview = false, guided = fal
     ]} extra={{ label: `EYE · ${recordEye}`, enabled: true, onClick: () => { setRecordEye(eye => eye === "OD" ? "OS" : "OD"); scopeFieldsReset(); } }}
       ready={scopeReady && lensNeutral && retinoEntriesComplete && !tools.objective.powered} onRecord={recordRetinoscopy} onCancel={() => { retinoSweeps.current[recordEye] = initialScopeSweep(); scopeFieldsReset(); setRecordingExam(null); }} />}
     {active && recordingExam === "fundus" && <XRObservationPanel tool={`Ophthalmoscope · ${recordEye}`} status={
-      !fundusReady ? "Illuminate the eye, then look through the rear aperture." : tools.fundus.powered ? "Release the light trigger before saving." : "Record the limited posterior-pole view."
+      !fundusReady ? "Illuminate the eye, press B/Y for scope mode, and inspect steadily." : tools.fundus.powered ? "Release the light trigger before saving." : "Record the limited posterior-pole view."
     } fields={[
       { label: "DISC", value: discEntry, enabled: fundusReady, onChange: () => cycle(discEntry, ["", "within normal limits", "abnormal suspected", "uncertain"], setDiscEntry) },
       { label: "MACULA", value: maculaEntry, enabled: fundusReady, onChange: () => cycle(maculaEntry, ["", "within normal limits", "abnormal suspected", "uncertain"], setMaculaEntry) },

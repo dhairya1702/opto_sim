@@ -120,7 +120,7 @@ export function Room(props: Props) {
           shadows
           frameloop={props.suspended ? "never" : "always"}
           dpr={[1, 1.5]}
-          camera={{ position: [0, 1.6, 1.65], fov: 66, near: 0.05, far: 20 }}
+          camera={{ position: [0, 1.6, 1.65], fov: 66, near: 0.01, far: 20 }}
           onCreated={({ gl }) => {
             gl.xr.enabled = true;
             props.onCanvas(gl.domElement);

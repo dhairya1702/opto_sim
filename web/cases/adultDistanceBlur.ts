@@ -381,10 +381,10 @@ const exams: ExamDefinition[] = [
     rationale:
       "Adds observations of the disc, macula and visible posterior pole, within the stated view limitations.",
     findings: eyes(
-      f(
+      { ...f(
         "Disc, macula and visible posterior pole: authored findings within normal limits. Peripheral retina not fully assessed.",
         "Simulated undilated direct ophthalmoscopy",
-      ),
+      ), posteriorPole: "schematic-within-normal-limits" },
     ),
     weight: 3,
   },

@@ -22,7 +22,7 @@ async function lesson(kind: LibraryKind, preview = false) {
     return kind === "maddox" || kind === "thorington" ? createElement(PhoriaPracticeController, { ...common, kind }) : kind === "push-up" || kind === "minus-lens" || kind === "relative" || kind === "accommodative-facility" ? createElement(AccommodationPracticeController, { ...common, kind }) : createElement(VergencePracticeController, { ...common, kind });
   } }); dispose = sim.dispose;
   const action = async (label: string) => { const item = mirror!.actions.find(a => a.label === label); if (!item) throw new Error(`Missing ${label}: ${mirror!.actions.map(a => a.label).join(", ")}`); await act(async () => item.run()); await sim.step(1 / 72, 12); };
-  const fit = async (id: ConsultationToolId, socketId?: string) => { const socket = librarySockets(kind).find(s => s.tool === id && (!socketId || s.id === socketId))!; await sim.pickup(0, id); sim.grips[0].quaternion.copy(new Quaternion(...socket.rotation).multiply(new Quaternion(...consultationToolDefinition(id).gripRotation).invert())); await sim.at(0, socket.position); await sim.event(0, "squeezeend"); await sim.step(1 / 72, 12); sim.grips[0].quaternion.identity(); };
+  const fit = async (id: ConsultationToolId, socketId?: string) => { const socket = librarySockets(kind).find(s => s.tool === id && (!socketId || s.id === socketId))!; await sim.pickup(0, id); sim.grips[0].quaternion.copy(new Quaternion(...socket.rotation).multiply(new Quaternion(...consultationToolDefinition(id).gripRotation).invert())); await sim.at(0, socket.position); await sim.putDown(0); await sim.step(1 / 72, 12); sim.grips[0].quaternion.identity(); };
   const enter = async (values: Record<string, string>) => { await act(async () => { for (const [id, value] of Object.entries(values)) mirror!.lesson.choose(id, value); }); await act(async () => mirror!.record()); await sim.step(1 / 72, 12); };
   const tick = async (ms: number) => { now += ms; await sim.step(1 / 72, 12); };
   const settle = () => sim.step(1 / 72, 90);
@@ -89,7 +89,7 @@ describe("mounted remaining shared-clinic XR modules", () => {
     await sim.at(1, [0, 1.4, -.511 + .06]); await sim.action("MARK PATIENT ENDPOINT"); expect(sim.mirror().ready).toBe(false);
     await sim.at(1, [0, 1.4, -.111]); await sim.step(1 / 72, 12);
     for (const cm of [5.8, 4.9, 8.3, 9.2]) { await sim.at(1, [0, 1.4, -.511 + cm / 100]); await sim.action("MARK PATIENT ENDPOINT"); }
-    expect(sim.mirror().ready).toBe(true); await sim.event(1, "squeezeend"); await sim.panel(1); await sim.click(1, sim.button("RECORD FINDING"));
+    expect(sim.mirror().ready).toBe(true); await sim.putDown(1); await sim.panel(1); await sim.click(1, sim.button("RECORD FINDING"));
     expect(sim.controls().some(b => b.userData.xrLabel === "ENTRY +0.1 cm")).toBe(true); expect(sim.controls().some(b => b.userData.xrLabel === "NEXT ENTRIES")).toBe(true);
     await sim.enter(Object.fromEntries(npcPhases.map((id, i) => [id, String([5.8, 4.9, 8.3, 9.2][i])]))); expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
   });
@@ -97,18 +97,18 @@ describe("mounted remaining shared-clinic XR modules", () => {
     const sim = await lesson(kind); await sim.prepare(kind === "accommodative-facility" ? "OS" : undefined);
     const tool = kind === "facility" ? "prism-flipper" : "lens-flipper", flip = kind === "facility" ? "CLEAR + SINGLE / FLIP" : "CLEAR / FLIP ±2 D";
     for (let eye = 0; eye < (kind === "facility" ? 1 : 3); eye++) {
-      if (eye === 1) await sim.fit("cover", "sensory-occlude-OD"); if (eye === 2) { await sim.pickup(0, "cover"); await sim.at(0, [-1.31, .9775, .59]); await sim.event(0, "squeezeend"); }
+      if (eye === 1) await sim.fit("cover", "sensory-occlude-OD"); if (eye === 2) { await sim.pickup(0, "cover"); await sim.at(0, [-1.31, .9775, .59]); await sim.putDown(0); }
       await sim.pickup(1, tool); await sim.at(1, [0, 1.4, -.46]); await sim.action("START 60-SECOND RUN"); await sim.action(flip); expect(sim.mirror().status).toContain("0 cycles");
       await sim.tick(kind === "facility" ? 850 : 1500); await sim.action(flip); await sim.tick(kind === "facility" ? 650 : 1800); await sim.action(flip); expect(sim.mirror().status).toContain("1 cycles");
       if (eye === 0) { sim.tracked[1] = false; await sim.step(); sim.tracked[1] = true; await sim.step(1 / 72, 12); expect(sim.mirror().status).toContain("0 cycles"); await sim.action("START 60-SECOND RUN"); }
-      await sim.tick(60000); expect(sim.mirror().ready).toBe(true); await sim.event(1, "squeezeend"); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(true); await sim.enter({ cycles: eye === 0 ? "0" : "1" });
+      await sim.tick(60000); expect(sim.mirror().ready).toBe(true); await sim.putDown(1); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(true); await sim.enter({ cycles: eye === 0 ? "0" : "1" });
     }
     expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
   });
   it("completes push-up OD, OS and OU with fitted occlusion and independently calculated amplitudes", async () => {
     const sim = await lesson("push-up"); await sim.prepare("OS"); await sim.pickup(1, "fixation");
     for (let i = 0; i < 3; i++) {
-      if (i === 1) await sim.fit("cover", "sensory-occlude-OD"); if (i === 2) { await sim.pickup(0, "cover"); await sim.at(0, [-1.31, .9775, .59]); await sim.event(0, "squeezeend"); }
+      if (i === 1) await sim.fit("cover", "sensory-occlude-OD"); if (i === 2) { await sim.pickup(0, "cover"); await sim.at(0, [-1.31, .9775, .59]); await sim.putDown(0); }
       await sim.at(1, [0, 1.4, -.111]); await sim.step(1 / 72, 12); const cm = [10, 11, 12][i]; await sim.at(1, [0, 1.4, -.511 + cm / 100]); await sim.action("MARK SUSTAINED BLUR"); expect(sim.mirror().ready).toBe(true);
       await sim.enter({ distance: String(cm), amplitude: (100 / cm).toFixed(2) });
     }
@@ -120,7 +120,7 @@ describe("mounted remaining shared-clinic XR modules", () => {
       if (i) await sim.fit("cover", "sensory-occlude-OD"); await sim.pickup(1, "trial-lens"); await sim.at(1, [0, 1.4, -.46]);
       for (let step = 0; step < 16; step++) { await sim.settle(); await sim.action("ADD −0.25 D"); }
       await sim.action("MARK SUSTAINED BLUR"); expect(sim.mirror().ready).toBe(false); await sim.settle(); await sim.action("MARK SUSTAINED BLUR"); expect(sim.mirror().ready).toBe(true);
-      await sim.event(1, "squeezeend"); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(true); await sim.enter({ amplitude: "6.5" });
+      await sim.putDown(1); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(true); await sim.enter({ amplitude: "6.5" });
     }
     expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
   });
@@ -145,13 +145,13 @@ describe("mounted remaining shared-clinic XR modules", () => {
     await act(async () => sim.mirror().cancel?.()); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(false); expect(sim.complete).not.toHaveBeenCalled();
     await observe(); expect(sim.mirror().ready).toBe(true);
     await sim.pickup(0, "subjective"); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(false);
-    await act(async () => sim.mirror().record()); expect(sim.complete).not.toHaveBeenCalled(); await sim.event(0, "squeezeend"); await sim.fit("subjective");
+    await act(async () => sim.mirror().record()); expect(sim.complete).not.toHaveBeenCalled(); await sim.putDown(0); await sim.fit("subjective");
     await observe(); expect(sim.mirror().ready).toBe(true); const late = sim.mirror().record;
     await sim.exit(); await act(async () => late()); expect(sim.complete).not.toHaveBeenCalled(); sim.noTest();
   });
   it("preserves Thorington capture when light is released, then refuses a changed rod setup", async () => {
     const sim = await lesson("thorington"); await sim.fit("subjective"); await sim.fit("maddox"); await sim.fit("thorington"); await sim.pickup(1, "pupils"); await sim.at(1, [0, 1.425, .137]); await sim.event(1, "selectstart"); await sim.action("FIXATE THE LIGHT"); await sim.action("HORIZONTAL GROOVES"); await sim.action("ASK NUMBER / STREAK POSITION");
-    await sim.event(1, "selectend"); await sim.event(1, "squeezeend"); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(true);
+    await sim.event(1, "selectend"); await sim.putDown(1); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(true);
     await sim.enter({ power: "5", direction: "esophoria" }); expect(sim.mirror().lesson.feedback).toContain("Read the captured"); expect(sim.mirror().findingPosition?.current).toBe(1);
     await sim.action("VERTICAL GROOVES"); expect(sim.mirror().ready).toBe(false); expect(sim.mirror().lesson.entries).toEqual({}); sim.noTest();
   });
@@ -167,7 +167,7 @@ describe("mounted remaining shared-clinic XR modules", () => {
     for (let i = 0; i < 8; i++) { await sim.settle(); await sim.action("ADD +0.25 D"); } await sim.settle(); await sim.action("MARK SUSTAINED BLUR");
     for (let i = 0; i < 8; i++) { await sim.settle(); await sim.action("REMOVE +0.25 D"); } await sim.settle(); await sim.action("CONFIRM CLEAR BASELINE");
     for (let i = 0; i < 9; i++) { await sim.settle(); await sim.action("ADD −0.25 D"); } await sim.settle(); await sim.action("MARK SUSTAINED BLUR");
-    await sim.event(1, "squeezeend"); await sim.panel(1); await sim.click(1, sim.button("RECORD FINDING"));
+    await sim.putDown(1); await sim.panel(1); await sim.click(1, sim.button("RECORD FINDING"));
     await sim.click(1, sim.button("ENTRY +1 D")); await sim.click(1, sim.button("ENTRY +1 D")); expect(sim.mirror().lesson.entries.nra).toBe("2");
     await sim.click(1, sim.button("NEXT ENTRIES")); await sim.click(1, sim.button("ENTRY −1 D")); await sim.click(1, sim.button("ENTRY −1 D")); await sim.click(1, sim.button("ENTRY −0.25 D"));
     expect(sim.mirror().lesson.entries).toEqual({ nra: "2", pra: "-2.25" }); await sim.click(1, sim.button("SUBMIT / CHECK")); expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();

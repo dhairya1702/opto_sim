@@ -30,8 +30,8 @@ function rayTo(scene: Object3D, target: Vector3, direction: Vector3) {
 describe("XR review regressions against mounted scene geometry", () => {
   it("aligns the actual occluder head with its declared working point through both nested rotations", async () => {
     const sim = await setup("push-up"), tool = sim.tool("cover");
-    let head: Mesh | undefined;
-    tool.traverse(object => { if (object instanceof Mesh && object.geometry.type === "SphereGeometry" && Math.abs(object.scale.x - .058) < 1e-8) head = object; });
+    let head: Object3D | undefined;
+    tool.traverse(object => { if (object.userData.instrumentWorkingFace) head = object; });
     expect(head).toBeDefined();
     const working = tool.localToWorld(new Vector3(...consultationToolDefinition("cover").workingPoint));
     expect(head!.getWorldPosition(new Vector3()).distanceTo(working)).toBeLessThan(1e-8);
@@ -40,7 +40,7 @@ describe("XR review regressions against mounted scene geometry", () => {
     const sim = await setup();
     const socket = librarySockets("maddox").find(socket => socket.id === "sensory-worth-distance")!;
     await sim.pickup(0, "worth"); sim.grips[0].rotation.set(0, Math.PI, 0);
-    await sim.at(0, socket.position); await sim.event(0, "squeezeend");
+    await sim.at(0, socket.position); await sim.putDown(0);
     await act(async () => sim.runtime().setToolPower("worth", true)); await sim.step();
     let dot: Object3D | undefined;
     sim.state.scene.traverse(object => { if (object.userData.xrWorthDot && object.parent?.userData.xrWorthFace === "mirror") dot = object; });

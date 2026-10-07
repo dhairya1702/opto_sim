@@ -63,7 +63,7 @@ describe("mounted Krimsky Practice in the shared clinic", () => {
     await sim.setPrism("BI", 20); expect(sim.reflex("OS").position.x).toBeCloseTo(.048, 5);
     expect(sim.mirror().ready).toBe(false); // Matching alone records/captures nothing.
     await sim.compare(); expect(sim.mirror().ready).toBe(true); expect(sim.complete).not.toHaveBeenCalled();
-    await sim.event(0, "selectend"); await sim.at(1, [.3, 1.2, .1]); await sim.event(1, "squeezeend"); await sim.event(0, "squeezeend"); await sim.step(1 / 72, 12);
+    await sim.event(0, "selectend"); await sim.at(1, [.3, 1.2, .1]); await sim.putDown(1); await sim.putDown(0); await sim.step(1 / 72, 12);
     expect(sim.mirror().ready).toBe(true);
     await sim.panel(1); await sim.click(1, sim.button("RECORD FINDING")); expect(sim.mirror().lesson.entries.power).toBeUndefined();
     await sim.click(1, sim.button("SUBMIT / CHECK")); expect(sim.complete).not.toHaveBeenCalled();
@@ -88,7 +88,7 @@ describe("mounted Krimsky Practice in the shared clinic", () => {
       await sim.click(1, sim.button("SUBMIT / CHECK")); expect(sim.mirror().lesson.feedback).toContain(`Modified Krimsky: ${power}Δ ${base}, prism before OD`);
       await sim.click(1, sim.button("NEW PATIENT FINDING"));
       expect(sim.mirror().ready).toBe(false); expect(sim.mirror().lesson.entries).toEqual({});
-      await sim.event(0, "selectend"); await sim.event(0, "squeezeend"); await sim.event(1, "squeezeend");
+      await sim.event(0, "selectend"); await sim.putDown(0); await sim.putDown(1);
     }
     expect(sim.complete).toHaveBeenCalledTimes(2); expect(sim.record).not.toHaveBeenCalled();
   });
@@ -96,7 +96,7 @@ describe("mounted Krimsky Practice in the shared clinic", () => {
     const sim = await lesson(); await sim.pickup(0, "objective"); await sim.at(0, [0, 1.33, -.041]); await sim.event(0, "selectstart");
     await sim.action("LOOK AT THE LIGHT"); await sim.action("CONFIRM MONOCULAR VIEW"); await sim.action("INSPECT BASELINE");
     expect(sim.mirror().ready).toBe(false); expect(sim.mirror().actions.find(action => action.label === "INSPECT BASELINE")?.disabled).toBe(true);
-    await sim.event(0, "selectend"); await sim.at(0, consultationToolDefinition("objective").home); await sim.event(0, "squeezeend");
+    await sim.event(0, "selectend"); await sim.at(0, consultationToolDefinition("objective").home); await sim.putDown(0);
     await sim.pickup(0, "pupils"); sim.viewerCamera.position.set(0, 1.5, .65); await sim.at(0, [0, 1.5, .064]); await sim.event(0, "selectstart"); await sim.step(1 / 72, 12);
     await sim.pickup(1, "prism"); await sim.prismAt("OS"); await sim.action("INSPECT BASELINE");
     expect(sim.mirror().actions.find(action => action.label === "INSPECT BASELINE")?.disabled).toBe(true);

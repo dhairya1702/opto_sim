@@ -91,7 +91,7 @@ describe("Hirschberg in the shared consultation clinic", () => {
     const sim = await lesson(); await sim.prepare();
     expect(sim.mirror().technique.ready).toBe(true);
     sim.viewerCamera.rotation.y = -.45; await sim.event(0, "selectend");
-    await sim.event(0, "squeezeend"); await sim.step(1 / 72, 12);
+    await sim.putDown(0); await sim.step(1 / 72, 12);
     expect(sim.mirror().technique.ready).toBe(false);
     await sim.click(1, sim.button("EXOTROPIA")); await sim.click(1, sim.button("PUPIL EDGE · ~15°"));
     await sim.click(1, sim.button("SUBMIT / CHECK"));
@@ -165,7 +165,7 @@ describe("Hirschberg in the shared consultation clinic", () => {
     expect(sim.reflexes().every(object => object.visible)).toBe(true); // Existing light still reveals the changed reflexes.
     expect(sim.mirror().direction).toBe(""); expect(sim.mirror().fixation).toBe(false);
     expect(sim.mirror().technique.ready).toBe(false); expect(sim.mirror().light).toBe(true); expect(sim.mirror().held).toBe(true);
-    await sim.event(0, "selectend"); await sim.event(0, "squeezeend");
+    await sim.event(0, "selectend"); await sim.putDown(0);
     await sim.prepare();
 
     await sim.click(1, sim.button("HYPERTROPIA")); await sim.click(1, sim.button("LIMBUS · ~45°"));

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { clinicalCase } from "../cases/adultDistanceBlur";
-import { advanceScopeInspection, advanceScopeSweep, initialScopeInspection, initialScopeSweep, pauseScopeSweep, scopeCaseSphere, scopeReflex, scopeSweepComplete, xrScopeAim, xrScopeViewer } from "../interaction/xrScopes";
+import { advanceScopeInspection, advanceScopeSweep, initialScopeInspection, initialScopeSweep, pauseScopeSweep, scopeCaseSphere, scopeReflex, scopeSweepComplete, xrScopeAim, scopeCaseFundus } from "../interaction/xrScopes";
 const eyes = { OD: [-.048, 1.5, -.573] as const, OS: [.048, 1.5, -.573] as const };
 describe("patient-relative XR scopes", () => {
   it("intersects the patient plane, chooses the correct eye, and rejects misses and backwards beams", () => {
@@ -31,11 +31,15 @@ describe("patient-relative XR scopes", () => {
     interrupted = advanceScopeSweep(interrupted, { aim: { eye: "OD", distanceCm: 67, x: -.006, y: 0 }, motion: "with", lens: 0, axis: 90, ready: true });
     expect(interrupted.observed).toEqual([]);
   });
-  it("requires an observer behind the scope looking through its aperture", () => {
-    expect(xrScopeViewer([0, 0, .06], [0, 0, -1], [0, 0, 0], [0, 0, -1])).toBe(true);
-    expect(xrScopeViewer([0, 0, -.06], [0, 0, 1], [0, 0, 0], [0, 0, -1])).toBe(false);
-    expect(xrScopeViewer([.1, 0, .06], [0, 0, -1], [0, 0, 0], [0, 0, -1])).toBe(false);
-    expect(xrScopeViewer([0, 0, .06], [0, 0, 1], [0, 0, 0], [0, 0, -1])).toBe(false);
+  it("reads each authored eye independently and never substitutes a normal view for missing content", () => {
+    expect(scopeCaseFundus(clinicalCase, "OD")).toBe("schematic-within-normal-limits");
+    expect(scopeCaseFundus(clinicalCase, "OS")).toBe("schematic-within-normal-limits");
+    const fundus = clinicalCase.exams.find(exam => exam.id === "fundus")!;
+    const caseData = { ...clinicalCase, exams: [{ ...fundus, findings: { "OD:default": fundus.findings["OD:default"] } }] };
+    expect(scopeCaseFundus(caseData, "OD")).toBe("schematic-within-normal-limits");
+    expect(scopeCaseFundus(caseData, "OS")).toBeNull();
+    expect(scopeCaseFundus({ ...clinicalCase, exams: [] }, "OD")).toBeNull();
+    expect(scopeCaseFundus({ ...clinicalCase, exams: [{ ...fundus, findings: { "OD:default": { ...fundus.findings["OD:default"], posteriorPole: undefined } } }] }, "OD")).toBeNull();
   });
   it("pauses unfinished fundus inspection rather than completing it across a tracking gap", () => {
     let state = initialScopeInspection();

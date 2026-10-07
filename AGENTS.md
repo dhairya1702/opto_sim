@@ -19,7 +19,7 @@ These instructions apply to the entire repository.
 - Manual interactions for distance/pinhole/near acuity, pupils, near pupil response, cover testing, motility, and retinoscopy.
 - Illustrative anterior-segment and posterior-pole views.
 - Desktop first-person controls plus click-based station mode and a WebGL-failure fallback.
-- Experimental native-WebXR adapters for all 20 Practice modules and Test consultation share the canonical clinic, controller/tool runtime, teleportation, pickup/transfer/placement, trigger illumination, tracking recovery, and headset panels. Practice supplies its own existing scenarios, technique checks, teaching/help, direct interpretation entry, and local feedback/completion. Layout preview and the existing desktop trainer remain available. Physical-device validation of the migrated lessons remains pending. Alternating cover includes illustrative prism neutralisation; near fixation uses a tool-specific stand socket to free both hands.
+- Experimental native-WebXR adapters for all 20 Practice modules and Test consultation share the canonical clinic, controller/tool runtime, teleportation, toggle-grip pickup/transfer/placement with destination previews, trigger illumination, tracking recovery, and headset panels. Practice supplies its own existing scenarios, technique checks, teaching/help, direct interpretation entry, and local feedback/completion. Layout preview and the existing desktop trainer remain available. Physical-device validation of the migrated lessons remains pending. Alternating cover includes illustrative prism neutralisation; near fixation uses a tool-specific stand socket to free both hands.
 - Test consultation defaults to free exploration of the authored case: independent two-hand tools, assisted placement/transfer, immediate supported patient visuals, and an A/X menu for patient instructions/history/notebook/assessment. Pickup must not open examination panels or technique guidance. Optional guided adapters are retained internally and disabled in Room. Record finding beside a held supported tool explicitly opens a headset-following entry drawer with completion checks; Record observation in the menu remains an alternative. In-room retinoscopy and schematic ophthalmoscopy use the same case findings and eye-specific recording path. Free exploration records no findings automatically. Exit VR must preserve saved session data and record nothing from unfinished technique.
 - Session state is memory-only and is cleared by reload or restart.
 
@@ -58,6 +58,8 @@ No backend is required. `main.py` is a small pre-existing Python entry point and
 | `web/scene/SensoryClinicEquipment.tsx` | Original sensory instruments/tray/stand/mirrored display, enabled only for relevant lessons |
 | `web/interaction/xrPracticeBatch.ts` | Pure Bruckner geometry, single-eye cover/prism placement, near fixation, and alternate-cover transit rules |
 | `web/interaction/xrScopeEquipment.ts` | Shared small/large ophthalmoscope aperture settings, illustrative beam angles and physical selector reach |
+| `web/interaction/xrViewer.ts` | Renderer adapter sampling actual headset eye cameras for shared scope-view checks; desktop single-camera fallback |
+| `web/scene/XRScopeView.tsx`, `XRScopeObservation.tsx` | Shared B/Y observation view without instructional overlays, with transparent incomplete fundus aiming and beam-driven Bruckner reflexes; technique credit remains separate |
 | `web/practice/xr/PhoriaPracticeController.tsx`, `VergencePracticeController.tsx`, `AccommodationPracticeController.tsx` | Shared-clinic XR adapters for the 11 phoria/vergence/accommodation modules |
 | `web/interaction/xrLibraryEquipment.ts`, `xrPhoriaPractice.ts`, `xrVergencePractice.ts`, `xrAccommodationPractice.ts` | Selected kits, physical readiness, ordered sequences, immutable captures and independent entry |
 | `web/interaction/vergencePractice.ts`, `accommodationPractice.ts` | Existing authored desktop/XR findings and illustrative gaze formulas |
@@ -86,12 +88,12 @@ No backend is required. `main.py` is a small pre-existing Python entry point and
 | `web/patient/scripted.ts` | Deterministic question matching and scripted patient replies |
 | `web/interaction/` | Input/controller code plus pure procedure logic for acuity, cover, motility, pupils, retinoscopy, navigation, and optional WebMCP exposure |
 | `web/interaction/useXRClinicRuntime.ts` | Shared physical WebXR controller/tool/input/placement/tracking/teleport loop, optional lesson equipment, persistent power and supported working poses; no lesson answers or case scoring |
-| `web/scene/XRClinicRuntimeView.tsx`, `XRClinicPanels.tsx` | Shared canonical instruments/controllers/pads, hand controls, and headset observation panels |
+| `web/scene/XRClinicRuntimeView.tsx`, `XRClinicPanels.tsx`, `XRScopeView.tsx` | Shared canonical instruments/controllers/pads, hand controls, headset observation panels and B/Y scope viewing |
 | `web/interaction/clinicPatient.ts`, `xrHirschbergPractice.ts` | Canonical patient anchors and pure conversion of existing Hirschberg landmarks/submission gates |
 | `web/interaction/XRConsultationController.tsx` | Consultation's clinical/menu/recording adapter over the shared physical runtime |
 | `web/interaction/xrClinic.ts` | Retained earlier experiment's pure stations/tool/procedure domain; active adapters use the canonical consultation registry |
 | `web/interaction/xrPupils.ts`, `xrCover.ts`, `xrMotility.ts` | Pure patient-relative conversion and ordered technique logic used by the first Test-room XR procedure adapters |
-| `web/interaction/xrScopes.ts` | Pure scope-to-pupil aim, case-derived reflexes, sweep checkpoints, aperture-view alignment, and interrupted inspection logic |
+| `web/interaction/xrScopes.ts` | Pure scope-to-pupil aim, case-derived reflexes, sweep checkpoints, explicit case-authored posterior-pole appearance lookup and interrupted inspection logic |
 | `web/scene/XRScopeOptics.tsx`, `XRRetinoscopyReflex.tsx` | Illustrative consultation scope beam/aperture and patient-pupil reflex, driven by mutable visual state |
 | `web/interaction/xrConsultationTools.ts`, `xrConsultationInput.ts`, `xrConsultationProcedure.ts` | Canonical ownership/placement and input routing reused in both modes; consultation-specific technique interruption remains an adapter concern |
 | `web/scene/ConsultationInstruments.tsx` | Canonical portable consultation models, grip/working-point visualization, and home sockets |

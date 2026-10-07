@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { DoubleSide, Group, Mesh, Object3D, type Material } from "three";
-import { Box, Cylinder, NearVisionCard, Paddle, Retinoscope, Ring, Sign } from "./Models";
+import { Box, NearVisionCard, Paddle, Retinoscope, Sign } from "./Models";
+import { MotilityTargetModel, PenlightModel, PrismBarModel, TrialFrameModel } from "./ExamInstrumentModels";
 import { XRScopeOptics, type FundusScopeView, type BrucknerScopeView } from "./XRScopeOptics";
 import { LibraryInstrumentModel, type ClinicInstrumentSettings } from "./LibraryClinicEquipment";
 import { SensoryInstrumentModel } from "./SensoryClinicEquipment";
 import type { OphthalmoscopeControl } from "../interaction/xrScopeEquipment";
 import { XRSign } from "./XRClinicPanels";
-import { XRPrismBar } from "../practice/xr/XRClinicTools";
 import { CONSULTATION_EQUIPMENT, consultationToolDefinition, type ConsultationToolId, type ConsultationTools } from "../interaction/xrConsultationTools";
 
 /** One canonical model per instrument, shared by resting and held placement. */
@@ -19,33 +19,23 @@ export function ConsultationInstrumentModel({ id, powered, fundusView, brucknerV
   }, []);
   if (["maddox", "thorington", "trial-lens", "lens-flipper", "prism-flipper", "fixation"].includes(id)) return <LibraryInstrumentModel id={id} setting={settings?.[id]} />;
   if (["worth", "red-green", "polarised", "stereo"].includes(id)) return <SensoryInstrumentModel id={id} powered={powered} point={settings?.[id]?.point} />;
-  if (id === "prism") return <group><XRPrismBar />{settings?.prism && <XRSign text={[`${settings.prism.power ?? 0}Δ ${settings.prism.base ?? ""}`]} p={[0, .04, .02]} size={[.12, .025]} bg="#173a3e" fg="#e8fff9"/>}
+  if (id === "prism") return <group><PrismBarModel />{settings?.prism && <XRSign text={[`${settings.prism.power ?? 0}Δ ${settings.prism.base ?? ""}`]} p={[0, .04, .02]} size={[.12, .025]} bg="#173a3e" fg="#e8fff9"/>}
     <mesh position={[0, .143, .025]} userData={{ xrPrismWorkingCell: true }}>
       <ringGeometry args={[.027, .030, 24]} /><meshBasicMaterial color="#e5b55a" side={DoubleSide} />
     </mesh>
   </group>;
   if (id === "distance" || id === "pinhole" || id === "cover") {
-    return <group rotation={[Math.PI / 2, 0, 0]}><Paddle p={[0, 0, -.06]} pinhole={id === "pinhole"} /></group>;
+    return <group rotation={[Math.PI / 2, 0, 0]}><Paddle p={[0, 0, -.06]} pinhole={id === "pinhole"} cover={id === "cover"} /></group>;
   }
   if (id === "objective" || id === "fundus") return <group>
-    <Retinoscope p={[0, -.1, 0]} r={[0, 0, 0]} ophthalmo={id === "fundus"} />
+    <Retinoscope p={[0, -.1, 0]} r={[0, 0, 0]} ophthalmo={id === "fundus"} showApertureSelector={id !== "fundus"} />
     <XRScopeOptics powered={powered} ophthalmo={id === "fundus"} view={fundusView} brucknerView={id === "fundus" ? brucknerView : undefined} scopeControl={id === "fundus" ? scopeControl : undefined} />
   </group>;
   if (id === "near") return <NearVisionCard r={[Math.PI / 2, 0, 0]} />;
-  if (id === "subjective") return <group>
-    <Ring p={[-.048, 0, 0]} radius={.034} c="#922e2e" /><Ring p={[.048, 0, 0]} radius={.034} c="#283948" />
-    <Box p={[0, .017, 0]} s={[.035, .012, .02]} c="#b2bab9" />
-    <Cylinder p={[-.115, 0, -.08]} h={.16} radius={.006} r={[Math.PI / 2, 0, 0]} />
-    <Cylinder p={[.115, 0, -.08]} h={.16} radius={.006} r={[Math.PI / 2, 0, 0]} />
-  </group>;
+  if (id === "subjective") return <TrialFrameModel />;
   const target = id === "motility";
   return <group>
-    <Cylinder h={.22} radius={target ? .009 : .017} c={target ? "#667b8b" : "#c7d1ce"} />
-    <Cylinder p={[0, .12, 0]} h={.025} radius={target ? .016 : .021} c="#283a3d" />
-    <mesh position={[0, .137, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-      <circleGeometry args={[target ? .014 : .012, 20]} />
-      <meshBasicMaterial color={powered ? "#fff1a8" : target ? "#d65347" : "#c4c9bd"} side={DoubleSide} />
-    </mesh>
+    {target ? <MotilityTargetModel powered={powered} /> : <PenlightModel powered={powered} />}
     <primitive object={lightTarget} />
     {powered && <>
       <mesh position={[0, .437, 0]} rotation={[Math.PI, 0, 0]}>

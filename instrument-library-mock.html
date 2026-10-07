@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#e7ebe4" />
+    <meta name="description" content="Interactive Opto instrument design catalog." />
+    <title>Opto · Instrument Design Lab</title>
+  </head>
+  <body>
+    <main>
+      <header class="masthead library-masthead">
+        <div>
+          <p class="eyebrow">OPTO · INSTRUMENT DESIGN LAB</p>
+          <h1>One family. Distinct clinical tools.</h1>
+        </div>
+        <div class="intro-block">
+          <p class="intro">Select an instrument to compare its current primitive construction with a shaped concept. These are visual studies; the simulator remains unchanged until each design is approved.</p>
+          <nav class="approved-links" aria-label="Approved instrument studies">
+            <a href="/instrument-mock.html">Retinoscope study ↗</a>
+            <a href="/ophthalmoscope-mock.html">Ophthalmoscope study ↗</a>
+          </nav>
+        </div>
+      </header>
+
+      <section class="library-layout">
+        <aside class="catalog" aria-label="Instrument catalog">
+          <div class="catalog-heading"><span>CATALOG</span><strong>18 remaining tools</strong></div>
+          <div id="instrument-list"></div>
+        </aside>
+
+        <div class="study-column">
+          <section class="stage library-stage" aria-label="Interactive three-dimensional instrument comparison">
+            <canvas id="instrument-canvas"></canvas>
+            <div class="model-label current-label">
+              <span>01 / CURRENT</span>
+              <strong id="current-title">Primitive model</strong>
+              <small id="current-note">Loading comparison</small>
+            </div>
+            <div class="model-label proposed-label">
+              <span>02 / PROPOSED</span>
+              <strong id="proposed-title">Shaped concept</strong>
+              <small id="proposed-note">Loading comparison</small>
+            </div>
+            <div class="divider" aria-hidden="true"></div>
+            <div class="drag-cue">DRAG TO INSPECT · SCROLL TO ZOOM</div>
+            <div class="stage-controls">
+              <button id="spin-button" type="button" aria-pressed="true">Pause rotation</button>
+              <button id="reset-button" type="button">Reset view</button>
+            </div>
+          </section>
+          <section class="selected-brief" aria-live="polite">
+            <div><p class="eyebrow">DESIGN INTENT</p><h2 id="tool-name">Instrument</h2></div>
+            <p id="tool-brief"></p>
+          </section>
+        </div>
+      </section>
+
+      <footer>
+        <span>Concept geometry · illustrative educational simulator</span>
+        <span>No branded designs or calibrated optics</span>
+      </footer>
+    </main>
+    <script type="module" src="/web/instrument-library-mock.ts"></script>
+  </body>
+</html>

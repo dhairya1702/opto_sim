@@ -2,6 +2,8 @@ import { useEffect, useMemo } from "react";
 import { RoundedBox } from "@react-three/drei";
 import { CanvasTexture, SRGBColorSpace, Vector3, Quaternion } from "three";
 import { CLINIC_IRIS_RADIUS, CLINIC_PUPIL_RADIUS } from "../interaction/clinicPatient";
+import { RetinoscopeModel } from "./RetinoscopeModel";
+import { ExamPaddleModel, MotilityTargetModel, NearCardModel, OphthalmoscopeModel, PenlightModel, TrialFrameModel } from "./ExamInstrumentModels";
 type V = [number, number, number];
 export function Box({
   p = [0, 0, 0],
@@ -222,29 +224,14 @@ export function Patient({ xr = false }: { xr?: boolean }) {
     </group>
   );
 }
-export function Retinoscope({ p = [0, 0, 0], ophthalmo = false, r = [0, 0, -.12] }: { p?: V; ophthalmo?: boolean; r?: V }) {
-  return (
-    <group position={p} rotation={r}>
-      <Cylinder p={[0, 0.1, 0]} h={0.21} radius={0.027} c="#303b41" />
-      <Cylinder p={[0, 0.215, 0]} h={0.025} radius={0.032} c="#a6b8b7" />
-      <Box p={[0, 0.265, 0]} s={[ophthalmo ? 0.09 : 0.065, 0.09, 0.044]} c="#26333a" />
-      <Cylinder p={[0, 0.27, 0.026]} h={0.012} radius={0.018} c="#8ab2b4" r={[Math.PI / 2, 0, 0]} />
-      <Cylinder
-        p={[0.037, 0.248, 0]}
-        h={0.012}
-        radius={0.025}
-        c="#697879"
-        r={[0, 0, Math.PI / 2]}
-      />
-    </group>
-  );
+export function Retinoscope({ p = [0, 0, 0], ophthalmo = false, r = [0, 0, -.12], showApertureSelector = true }: { p?: V; ophthalmo?: boolean; r?: V; showApertureSelector?: boolean }) {
+  if (!ophthalmo) return <RetinoscopeModel p={p} r={r} />;
+  return <OphthalmoscopeModel p={p} r={r} showApertureSelector={showApertureSelector} />;
 }
-export function Paddle({ p, pinhole = false }: { p: V; pinhole?: boolean }) {
+export function Paddle({ p, pinhole = false, cover = false }: { p: V; pinhole?: boolean; cover?: boolean }) {
   return (
     <group position={p} rotation={[-Math.PI / 2, 0, 0]}>
-      <Box p={[0, -0.06, 0]} s={[0.022, 0.19, 0.012]} c="#28363b" />
-      <Orb p={[0, 0.061, 0]} s={[0.058, 0.074, 0.012]} c="#28363b" />
-      {pinhole && <Orb p={[0, 0.061, 0.012]} s={[0.009, 0.009, 0.002]} c="#c3d7d5" />}
+      <ExamPaddleModel pinhole={pinhole} cover={cover} />
     </group>
   );
 }
@@ -252,16 +239,7 @@ export function Paddle({ p, pinhole = false }: { p: V; pinhole?: boolean }) {
 export function NearVisionCard({ p = [0, 0, 0], r = [0, 0, 0] }: { p?: V; r?: V }) {
   return (
     <group position={p} rotation={r}>
-      <Box s={[0.24, 0.008, 0.16]} c="#fcfdf7" />
-      <Sign
-        text={["NEAR VISION", "N6  N8  N10", "Reading sample", "40 cm"]}
-        p={[0, 0.005, 0]}
-        size={[0.22, 0.14]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        bg="#fffef7"
-        fg="#1f3538"
-      />
-      <Box p={[0, -0.006, 0.071]} s={[0.24, 0.018, 0.018]} c="#3e7774" />
+      <NearCardModel />
     </group>
   );
 }
@@ -298,29 +276,17 @@ export function Trolley({ held, portable = true }: { held?: string; portable?: b
       )}
       {portable && held !== "cover" && (
         <group userData={{ examId: "cover", xrGrabbable: true }}>
-          <Paddle p={[0.08, 0.895, -0.15]} />
+          <Paddle p={[0.08, 0.895, -0.15]} cover />
         </group>
       )}
       {portable && held !== "pupils" && (
         <group userData={{ examId: "pupils", xrGrabbable: true }}>
-          <Cylinder
-            p={[0.08, 0.9, 0.07]}
-            h={0.22}
-            radius={0.018}
-            c="#b6bfc0"
-            r={[Math.PI / 2, 0, 0]}
-          />
+          <PenlightModel p={[0.08, 0.9, 0.07]} r={[Math.PI / 2, 0, 0]} />
         </group>
       )}
       {portable && held !== "motility" && (
         <group userData={{ examId: "motility", xrGrabbable: true }}>
-          <Cylinder
-            p={[0.19, 0.9, 0.06]}
-            h={0.23}
-            radius={0.009}
-            c="#667b8b"
-            r={[Math.PI / 2, 0, 0]}
-          />
+          <MotilityTargetModel p={[0.19, 0.9, 0.06]} r={[Math.PI / 2, 0, 0]} />
         </group>
       )}
       {portable && held !== "objective" && (
@@ -363,11 +329,7 @@ export function Refraction({ portable = true }: { portable?: boolean }) {
         rotation={[-0.7, 0, 0]}
         userData={{ examId: "subjective", xrGrabbable: true }}
       >
-        <Ring p={[-0.078, 0, 0]} c="#922e2e" />
-        <Ring p={[0.078, 0, 0]} c="#283948" />
-        <Box p={[0, 0.017, 0]} s={[0.035, 0.012, 0.02]} c="#b2bab9" />
-        <Cylinder p={[-0.148, 0, -0.08]} h={0.16} radius={0.006} r={[Math.PI / 2, 0, 0]} />
-        <Cylinder p={[0.148, 0, -0.08]} h={0.16} radius={0.006} r={[Math.PI / 2, 0, 0]} />
+        <TrialFrameModel />
       </group>}
     </group>
   );

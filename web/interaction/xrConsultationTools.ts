@@ -38,7 +38,7 @@ export const CONSULTATION_TOOLS: readonly ConsultationToolDefinition[] = [
   { ...paddle, id: "cover", label: "Cover occluder", home: [-1.31, .9775, .59] },
   { id: "pupils", label: "Penlight", home: [-1.34, .9925, .77], workingPoint: [0, .137, 0], forward: [0, 1, 0], gripRotation: forwardGrip, restRotation: upright, restHeight: .115, footprint: [.06, .06], illuminates: true },
   { id: "motility", label: "Motility target", home: [-1.13, .9975, .77], workingPoint: [0, .137, 0], forward: [0, 1, 0], gripRotation: forwardGrip, restRotation: upright, restHeight: .12, footprint: [.055, .055], illuminates: true },
-  { id: "objective", label: "Retinoscope", home: [-1.1, .99, .59], workingPoint: [0, .17, .032], forward: [0, 0, 1], gripRotation: reverseGrip, restRotation: upright, restHeight: .1125, footprint: [.12, .065], illuminates: true },
+  { id: "objective", label: "Retinoscope", home: [-1.1, .99, .59], workingPoint: [0, .17, .032], forward: [0, 0, 1], gripRotation: reverseGrip, restRotation: upright, restHeight: .1125, footprint: [.125, .085], illuminates: true },
   { id: "near", label: "Near card", home: [-1.57, .8945, .92], workingPoint: [0, 0, .005], forward: [0, 0, 1], gripRotation: reverseGrip, restRotation: flatCard, restHeight: .017, footprint: [.25, .18], illuminates: false },
   { id: "subjective", label: "Trial frame", home: [-1.45, .9625, -1.08], workingPoint: [0, 0, 0], forward: [0, 0, -1], gripRotation: upright, restRotation: upright, restHeight: .0825, footprint: [.34, .20], illuminates: false },
   { id: "prism", label: "Prism bar", home: [-1.73, 1.0325, -.95], workingPoint: [0, .143, .012], forward: [0, 0, -1], gripRotation: upright, restRotation: upright, restHeight: .1525, footprint: [.10, .065], illuminates: false },

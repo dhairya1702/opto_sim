@@ -19,7 +19,7 @@ async function lesson(preview = false) {
   };
   const fit = async () => {
     const socket = SENSORY_SOCKETS.find(socket => socket.id === "sensory-correction")!;
-    await sim.pickup(0, "subjective"); await sim.at(0, socket.position); await sim.event(0, "squeezeend"); await sim.step(1 / 72, 12);
+    await sim.pickup(0, "subjective"); await sim.at(0, socket.position); await sim.putDown(0); await sim.step(1 / 72, 12);
   };
   const prism = async (eye: "OD" | "OS") => { await sim.at(1, [eye === "OD" ? -.048 : .048, 1.357, -.481]); };
   const prepare = async () => {
@@ -45,7 +45,7 @@ describe("mounted shared-clinic 4Δ base-out Practice", () => {
     await sim.prism("OS"); await sim.step(1 / 72, 175); expect(sim.mirror().ready).toBe(false);
     await sim.at(1, [.4, 1.357, -.481]); await sim.prism("OS"); await sim.step(1 / 72, 175);
     expect(sim.mirror().ready).toBe(true); expect(sim.complete).not.toHaveBeenCalled();
-    await sim.event(1, "squeezeend"); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(true);
+    await sim.putDown(1); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(true);
     await act(async () => {
       sim.session.visibilityState = "hidden"; sim.session.dispatchEvent(new Event("visibilitychange"));
       sim.mirror().lesson.choose("interpretation", "normal"); sim.mirror().record();
@@ -75,7 +75,7 @@ describe("mounted shared-clinic 4Δ base-out Practice", () => {
     const sim = await lesson(); await sim.prepare(); await sim.bilateral();
     await act(async () => sim.mirror().cancel?.()); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(false);
     await sim.bilateral(); await act(async () => sim.mirror().next?.()); await sim.step(1 / 72, 12);
-    await sim.event(0, "squeezeend"); await sim.event(1, "squeezeend");
+    await sim.putDown(0); await sim.putDown(1);
     await sim.prepare(); await sim.prism("OD"); await sim.step(1 / 72, 100);
     expect(sim.eyes("consultationGaze").map(eye => eye.position.x)).toEqual([.012, .012]);
     await sim.step(1 / 72, 80); await sim.at(1, [.4, 1.357, -.481]); await sim.prism("OS"); await sim.step(1 / 72, 100);

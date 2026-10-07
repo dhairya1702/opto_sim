@@ -7,10 +7,12 @@ export function Debrief({
   c,
   session,
   restart,
+  onLeave,
 }: {
   c: ClinicalCase;
   session: Session;
   restart: () => void;
+  onLeave: () => void;
 }) {
   const f = assess(c, session);
   const exportReview = () => {
@@ -205,6 +207,7 @@ export function Debrief({
         </ol>
       </details>
       <div className="button-row">
+        <button className="secondary" onClick={onLeave}>Leave consultation</button>
         <button className="secondary" onClick={exportReview}>
           <Download size={16} /> Export review
         </button>

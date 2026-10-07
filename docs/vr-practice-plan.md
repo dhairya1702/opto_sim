@@ -14,6 +14,7 @@ Consultation and Practice use one clinic interior and physical interaction runti
 - `PracticeVRClinic` owns a reusable lesson session/dialog lifecycle and renders the same interior. It requests only `immersive-vr` and `local-floor` tracking; session entry always follows a learner action.
 - `HirschbergPracticeController` supplies the first migrated Practice lesson. Existing four scenarios drive the patient's reflexes rather than consultation findings. Existing distance/aim/view math gates observation/entry; direct interpretation/landmark buttons and explicit submission provide local feedback/completion. Help is optional.
 - `PracticeBatchVRStage` and `PracticeLessonUI` provide Bruckner, motility, cover–uncover and alternating cover adapters, sharing the same session/controls/mirror. `xrPracticeBatch` holds pure geometry and interruption rules. Bruckner/cover scenario content is shared with desktop; Test scoring remains separate.
+- `xrViewer` samples the actual headset cameras for a stable centred scope window. `XRScopeView` replaces the automatic assisted eyepiece: B/Y on the held ophthalmoscope controller explicitly opens/closes it, independently of trigger illumination. `XRScopeObservation` renders the lesson’s two red reflexes or the aimed eye’s case-authored schematic; no headset-to-peephole gate remains. Setup, inspection, recording and completion remain adapter responsibilities. Scope mode closes on menus/recording, ownership changes, tracking/visibility loss, reset and exit; device validation is pending.
 - The canonical kit includes a prism bar; optional tool-specific placement sockets let Practice mount the near card at about 40 cm. Cover observation remains paused in panel mode, while completed entry can use tracked held instruments in panel mode.
 - `KrimskyPracticeController` reuses the shared penlight/prism and existing Krimsky method/residual logic. Explicit comparison capture permits two-hand recording after putting tools down; independent numeric fields extend the shared lesson panel/mirror. Monocular viewing is acknowledged, not detected.
 - Desktop Practice teaching and all 20 modules remain available. All 20 modules now have shared-clinic XR adapters; see [full-library completion](vr-library-completion.md). Layout preview permits desktop inspection but does not emulate tracked hands or grant completion.
@@ -24,10 +25,12 @@ The earlier separate Hirschberg VR experiment, its kit models, controller previe
 
 | Input | Shared behavior |
 | --- | --- |
-| Side grip near a handle | Pick up and hold a canonical instrument with either hand |
+| Squeeze grip once near a handle | Pick up a canonical instrument with either hand; relax grip to keep carrying |
 | Other hand grips a carried handle | Transfer ownership atomically |
-| Release grip | Place on a clear supported surface/socket; otherwise return to last valid rest |
+| Squeeze grip again while carrying | Place at the green destination guide; amber indicates fallback return to rest |
+| Release grip | Rearm the next squeeze without dropping the tool or interrupting trigger input |
 | Trigger in tool mode | Illuminate supported lights/scopes while held |
+| B/Y on the ophthalmoscope controller | Toggle a read-only enlarged scope view; illumination and spatial setup remain required |
 | Empty controller ray + trigger | Select a visible panel control or floor destination |
 | A/X | Toggle that controller's panel mode and request case/lesson controls |
 | Controller translation/rotation | Supply working-point position and aim; illuminating tools use aim orientation at grip position |

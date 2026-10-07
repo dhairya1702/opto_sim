@@ -85,14 +85,14 @@ describe("mounted consultation two-controller walkthrough", () => {
     expect(light.getObjectByProperty("type", "SpotLight")).toBeUndefined();
     // Return the right tool, then transfer the left penlight to the empty right hand.
     await sim.at(1, consultationToolDefinition("cover").home);
-    await sim.event(1, "squeezeend");
+    await sim.putDown(1);
     await sim.at(1, sim.tool("pupils").position.toArray() as [number, number, number]);
     await sim.event(1, "squeezestart");
     await sim.event(0, "squeezeend");
     await sim.at(1, [.2, 1.4, 0]);
     expect(sim.tool("pupils").position.distanceTo(sim.grips[1].position)).toBeLessThan(1e-8);
     await sim.at(1, consultationToolDefinition("pupils").home);
-    await sim.event(1, "squeezeend");
+    await sim.putDown(1);
     await sim.pickup(0, "pupils");
     await sim.at(0, [-.1, 1.4, 0]);
     expect(sim.tool("pupils").position.distanceTo(sim.grips[0].position)).toBeLessThan(1e-8);
@@ -154,7 +154,7 @@ describe("mounted consultation two-controller walkthrough", () => {
     await sim.pickup(0, "pupils");
     await sim.pickup(1, "cover");
     await sim.at(0, [-1.14, 1, -.94]);
-    await sim.event(0, "squeezeend");
+    await sim.putDown(0);
     await sim.step();
     expect(sim.tool("pupils").position.y).toBeCloseTo(.995);
     expect(sim.tool("pupils").position.z).toBeCloseTo(-.94);
@@ -286,7 +286,7 @@ describe("free-roam consultation presentation", () => {
       await sim.event(0, "squeezeend");
       unguided();
       await sim.at(1, consultationToolDefinition(id).home);
-      await sim.event(1, "squeezeend");
+      await sim.putDown(1);
       unguided();
     }
     expect(sim.interact).not.toHaveBeenCalled();
@@ -486,7 +486,7 @@ it("aims the retinoscope correctly, reverses its visible reflex with lenses, and
   expect(result.value).toContain("sphere −2.00 D"); // entered value retained, never silently corrected
 });
 
-it("reveals the authored fundus only through the lit aperture and handles interruption and OS recording", async () => {
+it("reveals the authored fundus only in explicit lit scope mode and handles interruption and OS recording", async () => {
   const sim = await clinic(); dispose = sim.dispose;
   await sim.pickup(0, "fundus");
   sim.grips[0].rotation.x = Math.PI / 2;
@@ -501,8 +501,8 @@ it("reveals the authored fundus only through the lit aperture and handles interr
   };
   await sim.event(0, "selectstart");
   await sim.step(1 / 72, 5);
-  expect(field().visible).toBe(false); // headset still at entrance
-  sim.viewerCamera.position.set(.048, 1.5, -.369);
+  expect(field().visible).toBe(false); // No scope mode yet.
+  await sim.scope(0);
   await sim.step(1 / 72, 60);
   expect(field().visible).toBe(true);
   sim.tracked[0] = false;
@@ -511,12 +511,12 @@ it("reveals the authored fundus only through the lit aperture and handles interr
   sim.tracked[0] = true;
   await sim.step();
   await sim.event(0, "selectend");
-  await sim.event(0, "selectstart");
+  await sim.event(0, "selectstart"); await sim.scope(0);
   await sim.step(1 / 72, 40);
   await sim.click(1, sim.directRecord("fundus"));
   expect(sim.controls().some(button => button.userData.xrLabel === "DISC · CHOOSE")).toBe(false);
   await sim.click(1, sim.button("CANCEL"));
-  await sim.step(1 / 72, 100);
+  await sim.scope(0); await sim.step(1 / 72, 100);
   await sim.event(0, "selectend");
   await sim.step(1 / 72, 3);
   expect(field().visible).toBe(false);

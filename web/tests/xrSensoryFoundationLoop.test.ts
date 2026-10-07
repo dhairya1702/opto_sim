@@ -29,6 +29,100 @@ async function foundation(kind?: "worth" | "stereo", preview = false) {
 }
 
 describe("sensory shared runtime foundation", () => {
+  it("holds after grip release, preserves the trigger, and places only on a fresh second squeeze", async () => {
+    const sim = await foundation();
+    await sim.at(0, consultationToolDefinition("pupils").home);
+    await sim.event(0, "squeezestart");
+    await sim.event(0, "squeezestart"); // Duplicate device event must not put it down.
+    expect(sim.runtime().toolsRef.current.pupils.placement).toEqual({ kind: "held", hand: "left" });
+    await sim.at(0, [-1.14, 1, -.94]);
+    await sim.event(0, "selectstart");
+    const interrupts = sim.interruption.mock.calls.length;
+    await sim.event(0, "squeezeend"); await sim.step();
+    expect(sim.runtime().toolsRef.current.pupils.powered).toBe(true);
+    expect(sim.runtime().slots[0].triggerRoute).toBe("tool");
+    expect(sim.interruption).toHaveBeenCalledTimes(interrupts);
+    expect(sim.tool("pupils").position.equals(sim.grips[0].position)).toBe(true);
+    const marker = sim.runtime().placementMarkers.current.get("left")!;
+    expect(marker.visible).toBe(true);
+    expect(marker.getObjectByName("place")?.visible).toBe(true);
+    const destination = marker.position.clone();
+    const revision = sim.runtime().toolsRef.current.pupils.revision;
+    await sim.step(1 / 72, 12); // Preview must never mutate ownership/power/revision.
+    expect(sim.runtime().toolsRef.current.pupils.revision).toBe(revision);
+    await sim.event(0, "squeezestart"); await sim.step();
+    expect(sim.runtime().toolsRef.current.pupils.placement.kind).toBe("surface");
+    expect(sim.tool("pupils").position.equals(destination)).toBe(true);
+    expect(sim.runtime().toolsRef.current.pupils.powered).toBe(false);
+    expect(marker.visible).toBe(false);
+    await sim.event(0, "squeezestart");
+    expect(sim.runtime().toolsRef.current.pupils.placement.kind).toBe("surface");
+    await sim.event(0, "squeezeend"); await sim.event(0, "selectend");
+    expect(sim.record).not.toHaveBeenCalled();
+  });
+  it("previews fallback return and fitting sockets using the actual placement destination", async () => {
+    const sim = await foundation("worth");
+    await sim.pickup(0, "red-green"); await sim.at(0, [0, 2, 0]);
+    const marker = sim.runtime().placementMarkers.current.get("left")!;
+    expect(marker.visible).toBe(true);
+    expect(marker.getObjectByName("return")?.visible).toBe(true);
+    expect(marker.position.toArray()).toEqual(consultationToolDefinition("red-green").home);
+    await sim.putDown(0);
+    expect(sim.tool("red-green").position.equals(marker.position)).toBe(true);
+    await sim.pickup(0, "red-green");
+    const socket = SENSORY_SOCKETS.find(s => s.id === "sensory-red-green")!;
+    await sim.at(0, socket.position);
+    expect(marker.getObjectByName("place")?.visible).toBe(true);
+    expect(marker.position.toArray()).toEqual(socket.position);
+    await sim.putDown(0);
+    expect(isPatientFitted(sim.runtime().toolsRef.current, "red-green")).toBe(true);
+    expect(sim.tool("red-green").position.equals(marker.position)).toBe(true);
+  });
+  it("keeps a flat card's footprint preview horizontal instead of tilting it with the model", async () => {
+    const sim = await foundation(); await sim.pickup(0, "near");
+    await sim.at(0, consultationToolDefinition("near").home);
+    const marker = sim.runtime().placementMarkers.current.get("left")!;
+    const outline = marker.getObjectByName("place")!.getObjectByName("outline")!;
+    expect(outline.quaternion.angleTo(new Quaternion())).toBeCloseTo(0);
+    expect(outline.scale.toArray()).toEqual([.25, .035, .18]);
+  });
+  it("transfers atomically and never drops on old-hand release or a stale grip after tracking loss", async () => {
+    const sim = await foundation();
+    await sim.pickup(0, "pupils"); await sim.at(0, [0, 1.4, .2]);
+    await sim.event(0, "selectstart");
+    await sim.at(1, sim.tool("pupils").position.toArray() as [number, number, number]);
+    await sim.event(1, "squeezestart"); await sim.event(0, "squeezeend");
+    expect(sim.runtime().toolsRef.current.pupils.placement).toEqual({ kind: "held", hand: "right" });
+    expect(sim.runtime().toolsRef.current.pupils.powered).toBe(false);
+    await sim.step();
+    const marker = sim.runtime().placementMarkers.current.get("right")!;
+    expect(sim.runtime().placementMarkers.current.get("left")?.visible).toBe(false);
+    sim.tracked[1] = false; await sim.step(); expect(marker.visible).toBe(false);
+    sim.tracked[1] = true; await sim.step();
+    await sim.event(1, "squeezestart");
+    expect(sim.runtime().toolsRef.current.pupils.placement.kind).toBe("held");
+    await sim.at(1, consultationToolDefinition("pupils").home);
+    await sim.event(1, "squeezeend"); await sim.grip(1);
+    expect(sim.runtime().toolsRef.current.pupils.placement.kind).toBe("socket");
+    expect(marker.visible).toBe(false);
+  });
+  it("clears placement guides on visibility interruption, reset and session exit", async () => {
+    const sim = await foundation(); await sim.pickup(0, "cover");
+    const marker = sim.runtime().placementMarkers.current.get("left")!;
+    expect(marker.visible).toBe(true);
+    await act(async () => { sim.session.visibilityState = "hidden"; sim.session.dispatchEvent(new Event("visibilitychange")); });
+    expect(marker.visible).toBe(false);
+    sim.session.visibilityState = "visible"; await sim.step();
+    expect(sim.runtime().toolsRef.current.cover.placement.kind).toBe("held");
+    expect(marker.visible).toBe(true);
+    await act(async () => sim.runtime().resetClinic()); expect(marker.visible).toBe(false);
+    await sim.pickup(0, "cover");
+    await act(async () => sim.session.dispatchEvent(new Event("end")));
+    expect(marker.visible).toBe(false);
+    expect(sim.runtime().toolsRef.current.cover.placement.kind).toBe("socket");
+    await sim.event(0, "squeezestart");
+    expect(sim.runtime().toolsRef.current.cover.placement.kind).toBe("socket");
+  });
   it("keeps optional sensory tools out of consultation and only renders a selected lesson kit", async () => {
     const sim = await foundation();
     expect(sim.ids()).not.toContain("worth");
@@ -61,7 +155,7 @@ describe("sensory shared runtime foundation", () => {
     sim.tracked[0] = true; await sim.step();
     const socket = SENSORY_SOCKETS.find(candidate => candidate.id === "sensory-stereo-near");
     if (!socket) throw new Error("Missing near stand");
-    await sim.at(0, socket.position); await sim.event(0, "squeezeend"); await sim.step();
+    await sim.at(0, socket.position); await sim.putDown(0); await sim.step();
     const resting = sim.runtime().supportedWorkingPose(id);
     expect(resting).not.toBeNull();
     sim.tracked[0] = false; await sim.step();
@@ -75,17 +169,17 @@ describe("sensory shared runtime foundation", () => {
     for (const [hand, id, name] of [[0, "subjective", "sensory-correction"], [1, "red-green", "sensory-red-green"]] as const) {
       const socket = SENSORY_SOCKETS.find(candidate => candidate.id === name);
       if (!socket) throw new Error(name);
-      await sim.pickup(hand, id); await sim.at(hand, socket.position); await sim.event(hand, "squeezeend"); await sim.step();
+      await sim.pickup(hand, id); await sim.at(hand, socket.position); await sim.putDown(hand); await sim.step();
       expect(isPatientFitted(sim.runtime().toolsRef.current, id)).toBe(true);
     }
     await sim.pickup(1, "red-green");
     expect(isPatientFitted(sim.runtime().toolsRef.current, "red-green")).toBe(false);
-    await sim.event(1, "squeezeend"); await sim.step();
+    await sim.putDown(1); await sim.step();
     await sim.pickup(0, "worth");
     await act(async () => sim.runtime().setToolPower("worth", true));
     await sim.event(0, "selectstart"); await sim.event(0, "selectend"); await sim.panel(0);
     expect(sim.runtime().toolsRef.current.worth.powered).toBe(true);
-    await sim.event(0, "squeezeend"); await sim.step();
+    await sim.putDown(0); await sim.step();
     expect(sim.runtime().toolsRef.current.worth.powered).toBe(true);
     await sim.exit();
     expect(sim.runtime().toolsRef.current.worth.powered).toBe(false);

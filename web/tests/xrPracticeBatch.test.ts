@@ -1,15 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { advanceXRPracticeCover, emptyPracticeCoverSequence, coverPracticePulse, xrPracticeEyePlacement, xrPracticeCoverPosition, xrPracticeNearFixation, xrBrucknerTechnique, PRACTICE_NEAR_SOCKET } from "../interaction/xrPracticeBatch";
+import { advanceXRPracticeCover, emptyPracticeCoverSequence, coverPracticePulse, xrPracticeEyePlacement, xrPracticeCoverPosition, xrPracticeNearFixation, xrBrucknerTechnique, xrBrucknerPrompt, PRACTICE_NEAR_SOCKET } from "../interaction/xrPracticeBatch";
 import { initialConsultationTools, grabConsultationTool, releaseConsultationTool } from "../interaction/xrConsultationTools";
 
 describe("Practice batch spatial adapters", () => {
-  const bruckner = { origin: [0, 1.5, .427] as const, forward: [0, 0, -1] as const, aperture: [0, 1.5, .491] as const, viewer: [0, 1.5, .56] as const,
-    look: [0, 0, -1] as const, held: true, light: true, fixation: true, largeSpot: true };
-  it("requires broad binocular illumination, existing 1 m gate, and viewing through the aperture", () => {
+  const bruckner = { origin: [0, 1.5, .427] as const, forward: [0, 0, -1] as const,
+    held: true, light: true, fixation: true, largeSpot: true, scopeOpen: true };
+  it("requires broad binocular illumination, the existing 1 m gate and explicit scope mode", () => {
     expect(xrBrucknerTechnique(bruckner).ready).toBe(true);
-    for (const change of [{ largeSpot: false }, { fixation: false }, { light: false }, { held: false }, { origin: [0, 1.5, .1] as const }, { viewer: [.2, 1.5, .56] as const }, { forward: [0, 0, 1] as const }])
+    for (const change of [{ largeSpot: false }, { fixation: false }, { light: false }, { held: false }, { scopeOpen: false }, { origin: [0, 1.5, .1] as const }, { forward: [0, 0, 1] as const }])
       expect(xrBrucknerTechnique({ ...bruckner, ...change }).ready).toBe(false);
+    expect(xrBrucknerTechnique({ ...bruckner, scopeOpen: false }).illuminated).toBe(true);
     expect(xrBrucknerTechnique({ ...bruckner, largeSpot: false }).illuminated).toBe(false);
+  });
+  it("explains the actual setup blocker without requiring headset-to-peephole alignment", () => {
+    const setup = { tracked: true, held: true, light: true, fixation: true, largeSpot: true };
+    const ready = xrBrucknerTechnique(bruckner);
+    expect(xrBrucknerPrompt(ready, { ...setup, held: false })).toContain("Pick up");
+    expect(xrBrucknerPrompt(ready, { ...setup, light: false })).toContain("Ophthalmoscope held");
+    expect(xrBrucknerPrompt(ready, { ...setup, fixation: false })).toContain("Ask the patient");
+    expect(xrBrucknerPrompt(ready, { ...setup, largeSpot: false })).toContain("wheel");
+    expect(xrBrucknerPrompt(ready, { ...setup, tracked: false })).toContain("tracking");
+    expect(xrBrucknerPrompt(xrBrucknerTechnique({ ...bruckner, origin: [0, 1.5, .927] }), setup)).toContain("150 cm");
+    expect(xrBrucknerPrompt(xrBrucknerTechnique({ ...bruckner, forward: [.15, 0, -1] }), setup)).toContain("Aim the light");
+    expect(xrBrucknerPrompt(xrBrucknerTechnique({ ...bruckner, scopeOpen: false }), setup)).toContain("Press B/Y");
   });
   it("rejects binocular midpoint, tilted and behind-eye occlusion, and recognizes either eye/fully away", () => {
     expect(xrPracticeEyePlacement([-.048, 1.5, -.51], [0, 0, -1])).toBe("OD");

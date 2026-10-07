@@ -20,14 +20,15 @@ async function lesson(preview = false) {
     if (!action) throw new Error(`Missing action ${label}`);
     await act(async () => action.run()); await sim.step(1 / 72, 12);
   };
-  const seat = async (id: ConsultationToolId, socketId: string, hand = 1) => {
+  const seat = async (id: ConsultationToolId, socketId: string, hand = 1, alreadyHeld = false) => {
     const socket = SENSORY_SOCKETS.find(item => item.id === socketId)!;
-    await sim.pickup(hand, id);
+    if (!alreadyHeld) await sim.pickup(hand, id);
     sim.grips[hand].quaternion.set(...socket.rotation); sim.rays[hand].quaternion.set(...socket.rotation);
-    await sim.at(hand, socket.position); await sim.event(hand, "squeezeend"); await sim.step(1 / 72, 12);
+    await sim.at(hand, socket.position); await sim.putDown(hand); await sim.step(1 / 72, 12);
   };
-  const near = async () => {
-    await sim.pickup(0, "worth"); sim.rays[0].rotation.set(0, 0, 0); sim.grips[0].rotation.set(0, 0, 0);
+  const near = async (alreadyHeld = false) => {
+    if (!alreadyHeld) await sim.pickup(0, "worth");
+    sim.rays[0].rotation.set(0, 0, 0); sim.grips[0].rotation.set(0, 0, 0);
     const point = consultationToolDefinition("worth").workingPoint;
     await sim.at(0, SENSORY_NEAR_TARGET.map((value, i) => value - point[i]) as [number, number, number]); await sim.step(1 / 72, 12);
   };
@@ -57,7 +58,7 @@ describe("mounted Worth Practice with the shared clinic runtime", () => {
     await sim.setup(); await sim.event(0, "selectstart"); await sim.event(0, "selectend"); await sim.step(1 / 72, 12);
     expect(sim.mirror().status).toContain("Four dots"); expect(sim.mirror().ready).toBe(true);
     expect(sim.mirror().lesson.entries).toEqual({}); expect(sim.complete).not.toHaveBeenCalled();
-    await sim.at(0, [1.04, 1.055, .88]); await sim.event(0, "squeezeend"); await sim.step(1 / 72, 12);
+    await sim.at(0, [1.04, 1.055, .88]); await sim.putDown(0); await sim.step(1 / 72, 12);
     expect(sim.mirror().ready).toBe(true);
     await sim.enter(5, "FLAT FUSION"); expect(sim.complete).not.toHaveBeenCalled(); expect(sim.mirror().lesson.feedback).toContain("Recheck");
     await sim.enter(4, "FLAT FUSION"); expect(sim.complete).not.toHaveBeenCalled(); expect(sim.mirror().status).toContain("Near recorded");
@@ -77,13 +78,13 @@ describe("mounted Worth Practice with the shared clinic runtime", () => {
     expect(sim.mirror().ready).toBe(true); // Released/moved capture remains recordable.
     await sim.action("ASK COUNT, COLOURS AND POSITIONS"); expect(sim.mirror().ready).toBe(false);
     expect(sim.mirror().status).toContain("intermediate");
-    await sim.near(); await sim.action("ASK COUNT, COLOURS AND POSITIONS"); expect(sim.mirror().ready).toBe(true);
+    await sim.near(true); await sim.action("ASK COUNT, COLOURS AND POSITIONS"); expect(sim.mirror().ready).toBe(true);
     await act(async () => sim.mirror().cancel?.()); await sim.step(1 / 72, 12);
     expect(sim.mirror().ready).toBe(false); expect(sim.mirror().lesson.entries).toEqual({});
     await sim.action("ASK COUNT, COLOURS AND POSITIONS");
     await sim.pickup(1, "red-green"); await sim.step(1 / 72, 12);
     expect(sim.mirror().ready).toBe(false); expect(sim.mirror().status).toContain("Fit red OD");
-    await sim.seat("red-green", "sensory-red-green"); expect(sim.mirror().status).toContain("each isolated filter");
+    await sim.seat("red-green", "sensory-red-green", 1, true); expect(sim.mirror().status).toContain("each isolated filter");
     await sim.action("NEW PATIENT PATTERN"); expect(sim.mirror().ready).toBe(false);
     await act(async () => sim.mirror().reset()); await sim.step(1 / 72, 12);
     expect(sim.tool("worth").position.toArray()).toEqual(consultationToolDefinition("worth").home);
@@ -109,7 +110,7 @@ describe("mounted Worth Practice with the shared clinic runtime", () => {
     // Transfer a powered physical target; the receiving grip atomically owns its sole model.
     await sim.pickup(1, "worth"); await sim.event(0, "squeezeend"); await sim.step(1 / 72, 12);
     expect(sim.mirror().actions.some(action => action.label === "SWITCH TARGET OFF")).toBe(true);
-    expect(sim.mirror().ready).toBe(true); await sim.event(1, "squeezeend");
+    expect(sim.mirror().ready).toBe(true); await sim.putDown(1);
     await sim.enter(4, "FLAT FUSION"); expect(sim.mirror().status).toContain("Near recorded");
     await sim.action("NEW PATIENT PATTERN"); expect(sim.mirror().status).toContain("Near pending");
     expect(sim.mirror().lesson.entries).toEqual({}); expect(sim.complete).not.toHaveBeenCalled();

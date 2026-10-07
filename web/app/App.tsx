@@ -38,6 +38,7 @@ type PanelName =
   | "submission"
   | "controls"
   | "restart"
+  | "leave"
   | null;
 const uid = () => crypto.randomUUID();
 export function App() {
@@ -50,6 +51,7 @@ export function App() {
 function TestEncounter({ onExit }: { onExit: () => void }) {
   const [session, setSession] = useState(() => newSession(c, uid()));
   const [panel, setPanel] = useState<PanelName>("briefing");
+  const panelBeforeLeave = useRef<PanelName>(null);
   const [station, setStation] = useState<StationId>("patient");
   const [target, setTarget] = useState<StationId | null>(null);
   const [targetExam, setTargetExam] = useState<string | undefined>();
@@ -134,6 +136,18 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
     if (document.pointerLockElement) document.exitPointerLock();
     setPanel(p);
   }, []);
+  const requestLeave = () => {
+    if (panel === "leave") return;
+    panelBeforeLeave.current = panel;
+    open("leave");
+  };
+  const cancelLeave = () => setPanel(panelBeforeLeave.current);
+  const leaveConsultation = () => {
+    unlock();
+    setXrPreview(false);
+    void endXR();
+    onExit();
+  };
   const interact = useCallback(
     (id: StationId, examId?: string) => {
       if (examId) {
@@ -369,8 +383,8 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
           <button className={xrActive || xrPreview ? "xr-active" : ""} disabled={!inEncounter || Boolean(panel) || Boolean(animation) || xrSupport === "checking" || sceneFailed} onClick={toggleXRExperience} title={xrSupport === "unavailable" ? "Inspect the VR layout with desktop controls; tracked controllers require a headset" : undefined}>
             <Glasses size={17} /> {xrActive ? "Exit VR" : xrPreview ? "Exit VR preview" : xrSupport === "checking" ? "Checking VR…" : xrSupport === "supported" ? "Enter VR" : "Preview VR"}
           </button>
-          <button aria-label="Return to mode selection" onClick={() => { unlock(); setXrPreview(false); void endXR(); onExit(); }}>
-            Modes
+          <button onClick={requestLeave}>
+            Leave consultation
           </button>
           <button aria-label="Notes" onClick={() => open("notes")} disabled={!inEncounter}>
             <BookOpen size={17} />
@@ -782,9 +796,9 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
           />
         </Panel>
       )}
-      {session.phase === "debrief" && (
+      {session.phase === "debrief" && panel !== "leave" && (
         <Panel title="Consultation debrief" eyebrow="CASE 01 / DRAFT EDUCATIONAL FEEDBACK" wide>
-          <Debrief c={c} session={session} restart={restart} />
+          <Debrief c={c} session={session} restart={restart} onLeave={requestLeave} />
         </Panel>
       )}
       {panel === "controls" && session.phase !== "debrief" && (
@@ -804,9 +818,9 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
             <kbd>Escape</kbd>
             <p>Release the mouse or close a panel. Use Return to room to capture again.</p>
             <kbd>VR grip</kbd>
-            <p>Hold to carry a nearby instrument. Grip its handle with the empty other hand to transfer; release over a clear surface or its home socket to place.</p>
-            <kbd>VR trigger · A/X</kbd>
-            <p>Trigger uses the held tool. A/X toggles panel mode while retaining the instrument; trigger then selects controls. Choose and start an examination separately.</p>
+            <p>Squeeze once to pick up a nearby instrument; relaxing your grip keeps it held. Squeeze again to put it down at the placement guide. Grip its handle with the empty other hand to transfer.</p>
+            <kbd>VR trigger · A/X · B/Y</kbd>
+            <p>Trigger uses the held tool. A/X toggles panel mode while retaining the instrument; trigger then selects controls. With the ophthalmoscope held, B/Y on its controller opens or closes scope mode. Position and illuminate the tool before inspecting.</p>
           </div>
           <h2>Station mode</h2>
           <p>
@@ -852,6 +866,15 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
             <button className="primary" onClick={restart}>
               Restart encounter
             </button>
+          </div>
+        </Panel>
+      )}
+      {panel === "leave" && (
+        <Panel title="Leave this consultation?" eyebrow="RETURN TO MODE SELECTION" onDismiss={cancelLeave}>
+          <p>Your current interview, findings, and assessment will be discarded. Attempts are not saved automatically.</p>
+          <div className="button-row">
+            <button className="secondary" onClick={cancelLeave}>Keep this attempt</button>
+            <button className="primary" onClick={leaveConsultation}>Leave consultation</button>
           </div>
         </Panel>
       )}

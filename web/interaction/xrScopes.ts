@@ -23,6 +23,10 @@ export function scopeCaseSphere(caseData: ClinicalCase, eye: XRPupilEye): number
   const value = caseData.exams.find(exam => exam.id === "objective")?.findings[`${eye}:default`]?.refraction?.find(refraction => refraction.eye === eye)?.sphere;
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
+export function scopeCaseFundus(caseData: ClinicalCase, eye: XRPupilEye) {
+  const appearance = caseData.exams.find(exam => exam.id === "fundus")?.findings[`${eye}:default`]?.posteriorPole;
+  return appearance === "schematic-within-normal-limits" ? appearance : null;
+}
 export function scopeReflex(aim: ScopeAim, caseData: ClinicalCase, lens: number) {
   const sphere = scopeCaseSphere(caseData, aim.eye);
   if (sphere === null) return null;
@@ -43,16 +47,7 @@ export function advanceScopeSweep(state: ScopeSweep, input: { aim: ScopeAim | nu
   return { ...current, last: zone, crossings, observed: crossings === 2 && !current.observed.includes(key) ? [...current.observed, key] : current.observed };
 }
 export const scopeSweepComplete = (state: ScopeSweep) => ["with:any", "against:any", "neutral:90", "neutral:180"].every(key => state.observed.includes(key));
-/** Headset eye must be behind and close to the rear aperture, looking through it. */
-export function xrScopeViewer(viewer: XRPoint3, viewerForward: XRPoint3, aperture: XRPoint3, toolForward: XRPoint3) {
-  const d = viewer.map((value, i) => value - aperture[i]);
-  const length = Math.hypot(...d), axisLength = Math.hypot(...toolForward), lookLength = Math.hypot(...viewerForward);
-  if (!axisLength || !lookLength || length < .01 || length > .14) return false;
-  const behind = d.reduce((sum, value, i) => sum + value * toolForward[i], 0) / axisLength;
-  const lateral = Math.sqrt(Math.max(0, length * length - behind * behind));
-  const looking = -d.reduce((sum, value, i) => sum + value * viewerForward[i], 0) / (length * lookLength);
-  return behind < -.008 && lateral <= .035 && looking >= Math.cos(25 * Math.PI / 180);
-}
+export type ScopeViewerPose = { viewer: XRPoint3; look: XRPoint3 };
 export type ScopeInspection = { dwell: number; seen: boolean };
 export const initialScopeInspection = (): ScopeInspection => ({ dwell: 0, seen: false });
 export function advanceScopeInspection(state: ScopeInspection, valid: boolean, dt: number): ScopeInspection {
