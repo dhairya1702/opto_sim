@@ -19,6 +19,7 @@ type Hand = XRClinicHand;
 export type XRClinicControllerSlot = ConsultationInputState & {
   hand: Hand | null; source: XRInputSource | null; ray: Group; grip: Group;
   tracked: boolean; buttonDown: boolean; scopeButtonDown: boolean; candidate: ConsultationToolId | null;
+  pendingSelection: { data: XRClinicSelection; point: Vector3 | null } | null;
 };
 type ControllerSlot = XRClinicControllerSlot;
 function ancestorData(object: Object3D | null) {
@@ -44,6 +45,7 @@ export type XRClinicInterruption = "procedure" | "configuration" | "panel" | "sc
 type Options = {
   active: boolean;
   editorOpen?: boolean;
+  panelModeEnabled?: boolean;
   scopeViewEnabled?: boolean;
   equipment?: readonly ConsultationToolId[];
   placementSurfaces?: readonly PlacementSurface[];
@@ -64,7 +66,7 @@ export function useXRClinicRuntime(options: Options) {
     ...initialConsultationInput(), hand: null, source: null, tracked: false,
     ray: gl.xr.getController(index),
     grip: gl.xr.getControllerGrip(index),
-    buttonDown: false, scopeButtonDown: false, candidate: null,
+    buttonDown: false, scopeButtonDown: false, candidate: null, pendingSelection: null,
   })), [gl]);
   const [, refresh] = useState(0);
   const [tools, setTools] = useState(initialConsultationTools);
@@ -92,6 +94,13 @@ export function useXRClinicRuntime(options: Options) {
   const frameValid = useRef(false);
   const [scopeViewHand, setScopeViewHand] = useState<Hand | null>(null);
   const scopeViewHandRef = useRef<Hand | null>(null);
+  const [utilityOpen, setUtilityOpen] = useState(false);
+  const utilityOpenRef = useRef(false);
+  const closeUtilityPanel = useCallback(() => {
+    if (!utilityOpenRef.current) return;
+    utilityOpenRef.current = false;
+    setUtilityOpen(false);
+  }, []);
   const closeScopeView = useCallback(() => {
     if (scopeViewHandRef.current === null) return;
     scopeViewHandRef.current = null; setScopeViewHand(null);
@@ -118,7 +127,8 @@ export function useXRClinicRuntime(options: Options) {
   const hoverMarker = useRef<Group>(null);
   const workingOrigin = useMemo(() => new Vector3(), []);
   const baseSpace = useRef<XRReferenceSpace | null>(null);
-  const physicalViewer = useRef<[number, number] | null>(null);
+  const physicalViewer = useRef<{ x: number; z: number; yaw: number } | null>(null);
+  const clinicYaw = useRef(0);
   const initialArrival = useRef(true);
   const raycaster = useMemo(() => new Raycaster(), []);
   const origin = useMemo(() => new Vector3(), []);
@@ -153,28 +163,40 @@ export function useXRClinicRuntime(options: Options) {
   const stopLights = useCallback(() => {
     let next = toolsRef.current;
     for (const hand of ["left", "right"] as const) next = powerConsultationTool(next, hand, false);
-    slots.forEach(slot => { slot.triggerRoute = null; });
+    slots.forEach(slot => { slot.triggerRoute = null; slot.pendingSelection = null; });
     updateTools(next);
   }, [slots, updateTools]);
   const resetClinic = useCallback(() => {
+    closeUtilityPanel();
     closeScopeView();
     hidePlacementMarkers();
     scopeApertureRef.current = "small"; setScopeAperture("small");
     // Keep button edges latched: reset must not turn a held grip/trigger into a new action.
-    slots.forEach(slot => { slot.triggerRoute = null; slot.panel = false; slot.candidate = null; });
+    slots.forEach(slot => { slot.triggerRoute = null; slot.panel = false; slot.candidate = null; slot.pendingSelection = null; });
     updateTools(initialConsultationTools());
     setHighlighted([]); setHandlingMessage("");
     pauseTechnique("reset");
-  }, [closeScopeView, hidePlacementMarkers, pauseTechnique, slots, updateTools]);
+  }, [closeScopeView, closeUtilityPanel, hidePlacementMarkers, pauseTechnique, slots, updateTools]);
   const closePanels = useCallback(() => {
     // Returning to a lesson keeps physical ownership and held-button edges.
     slots.forEach(slot => {
       slot.panel = false;
-      if (slot.triggerRoute === "panel") slot.triggerRoute = null;
+      if (slot.triggerRoute === "panel") { slot.triggerRoute = null; slot.pendingSelection = null; }
     });
     optionsRef.current.onMenu?.(false);
     refresh(value => value + 1);
   }, [slots]);
+  const toggleUtilityPanel = useCallback((hand: Hand) => {
+    const slot = slots.find(candidate => candidate.hand === hand);
+    if (!activeRef.current || !frameValid.current || !slot?.tracked
+      || toolInHand(toolsRef.current, hand)) return;
+    if (utilityOpenRef.current) { closeUtilityPanel(); return; }
+    closeScopeView();
+    closePanels();
+    utilityOpenRef.current = true;
+    setUtilityOpen(true);
+    pauseTechnique("panel");
+  }, [closePanels, closeScopeView, closeUtilityPanel, pauseTechnique, slots]);
   const handStatus = () => Object.fromEntries((["left", "right"] as const).map(hand => {
     const slot = slots.find(candidate => candidate.hand === hand);
     return [hand, { tracked: frameValid.current && Boolean(slot?.tracked), panel: Boolean(slot?.panel) }];
@@ -222,12 +244,24 @@ export function useXRClinicRuntime(options: Options) {
     if (!activeRef.current) { frameValid.current = false; return; }
     const reference = gl.xr.getReferenceSpace();
     const visible = gl.xr.getSession()?.visibilityState === "visible";
-    frameValid.current = Boolean(frame && reference && visible && dt <= .1);
+    // A slow rendered frame is not tracking loss. Quest can occasionally exceed
+    // 100 ms while compiling shaders or recovering performance; only current XR
+    // poses/session visibility determine whether physical input is valid.
+    frameValid.current = Boolean(frame && reference && visible);
     if (frameValid.current && frame && reference) {
       const pose = frame.getViewerPose(baseSpace.current ?? reference);
-      physicalViewer.current = pose ? [pose.transform.position.x, pose.transform.position.z] : null;
+      const orientation = pose?.transform.orientation;
+      if (pose) {
+        sampleRotation.set(orientation?.x ?? 0, orientation?.y ?? 0, orientation?.z ?? 0, orientation?.w ?? 1);
+        sampleForward.set(0, 0, -1).applyQuaternion(sampleRotation);
+        physicalViewer.current = {
+          x: pose.transform.position.x,
+          z: pose.transform.position.z,
+          yaw: Math.atan2(-sampleForward.x, -sampleForward.z),
+        };
+      } else physicalViewer.current = null;
       frameValid.current = Boolean(pose);
-      if (pose && initialArrival.current) { initialArrival.current = false; teleport([0, 0, 1.9]); }
+      if (pose && initialArrival.current) { initialArrival.current = false; recenterClinic(false); }
     }
     for (const slot of slots) {
       const wasTracked = slot.tracked;
@@ -237,30 +271,40 @@ export function useXRClinicRuntime(options: Options) {
         && frame.getPose(slot.source.gripSpace, reference) && frame.getPose(slot.source.targetRaySpace, reference));
       if (wasTracked !== slot.tracked) refresh(value => value + 1);
       if (wasTracked && !slot.tracked) {
+        closeUtilityPanel();
         closeScopeView();
         if (slot.hand) updateTools(powerConsultationTool(toolsRef.current, slot.hand, false));
         Object.assign(slot, interruptConsultationInput(slot));
-        slot.candidate = null;
+        slot.candidate = null; slot.pendingSelection = null;
         pauseTechnique("tracking");
       }
       const buttonPressed = Boolean(slot.source?.gamepad?.buttons[4]?.pressed);
       if (buttonPressed && !slot.buttonDown && slot.tracked && slot.hand) {
-        closeScopeView();
-        Object.assign(slot, toggleConsultationPanel(slot));
-        updateTools(powerConsultationTool(toolsRef.current, slot.hand, false));
-        const open = slots.some(candidate => candidate.panel);
-        optionsRef.current.onMenu?.(open);
-        pauseTechnique("panel");
-        refresh(value => value + 1);
+        if (optionsRef.current.panelModeEnabled !== false) {
+          closeUtilityPanel();
+          closeScopeView();
+          Object.assign(slot, toggleConsultationPanel(slot));
+          updateTools(powerConsultationTool(toolsRef.current, slot.hand, false));
+          const open = slots.some(candidate => candidate.panel);
+          optionsRef.current.onMenu?.(open);
+          pauseTechnique("panel");
+          refresh(value => value + 1);
+        }
       }
       slot.buttonDown = buttonPressed;
       // Quest B/Y is the second face button in the xr-standard mapping.
       const scopePressed = Boolean(slot.source?.gamepad?.buttons[5]?.pressed);
-      if (scopePressed && !slot.scopeButtonDown && slot.hand) toggleScopeView(slot.hand);
+      if (scopePressed && !slot.scopeButtonDown && slot.hand && slot.tracked) {
+        const held = toolInHand(toolsRef.current, slot.hand);
+        if (held === "fundus") {
+          closeUtilityPanel();
+          toggleScopeView(slot.hand);
+        } else if (!held) toggleUtilityPanel(slot.hand);
+      }
       // Latch even while unavailable: recovery must not synthesize a fresh press.
       slot.scopeButtonDown = scopePressed;
       slot.grip.visible = slot.tracked;
-      slot.ray.visible = slot.tracked && (editorOpen || findingsPanels.current.size > 0 || slot.panel || !slot.hand || !toolInHand(toolsRef.current, slot.hand));
+      slot.ray.visible = slot.tracked && (utilityOpenRef.current || editorOpen || findingsPanels.current.size > 0 || slot.panel || !slot.hand || !toolInHand(toolsRef.current, slot.hand));
     }
     if (scopeViewHandRef.current && (editorOpen || !optionsRef.current.scopeViewEnabled
       || toolInHand(toolsRef.current, scopeViewHandRef.current) !== "fundus"
@@ -370,7 +414,7 @@ export function useXRClinicRuntime(options: Options) {
         button.getWorldPosition(hoverMarker.current.position);
         button.getWorldQuaternion(hoverMarker.current.quaternion);
         button.getWorldScale(workingOrigin);
-        hoverMarker.current.scale.set((Number(button.userData.xrWidth ?? .27) + .012) * workingOrigin.x, Number(button.userData.xrHeight ?? .077) * workingOrigin.y, .028 * workingOrigin.z);
+        hoverMarker.current.scale.set((Number(button.userData.xrWidth ?? .27) + .012) * workingOrigin.x, Number(button.userData.xrHeight ?? .077) * workingOrigin.y, workingOrigin.z);
       }
     }
   });
@@ -420,20 +464,43 @@ export function useXRClinicRuntime(options: Options) {
     baseSpace.current ??= reference;
     // The floor pad names the viewer's position, including any physical room-scale
     // displacement from the reference origin. Keep physical height unchanged.
-    const [x, z] = viewer;
+    const rotation = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), clinicYaw.current);
+    const target = new Vector3(destination[0], 0, destination[2]).applyQuaternion(rotation);
     gl.xr.setReferenceSpace(reference.getOffsetReferenceSpace(new XRRigidTransform({
-      x: x - destination[0], y: 0, z: z - destination[2],
-    })));
+      x: viewer.x - target.x, y: 0, z: viewer.z - target.z,
+    }, { x: rotation.x, y: rotation.y, z: rotation.z, w: rotation.w })));
   }, [gl]);
+
+  const recenterClinic = useCallback((announce = true) => {
+    if (!activeRef.current) return;
+    const reference = baseSpace.current ?? gl.xr.getReferenceSpace(), viewer = physicalViewer.current;
+    if (!reference || !viewer) return;
+    baseSpace.current ??= reference;
+    clinicYaw.current = viewer.yaw;
+    const destination = new Vector3(0, 0, 1.9);
+    const rotation = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), viewer.yaw);
+    destination.applyQuaternion(rotation);
+    gl.xr.setReferenceSpace(reference.getOffsetReferenceSpace(new XRRigidTransform({
+      x: viewer.x - destination.x, y: 0, z: viewer.z - destination.z,
+    }, { x: rotation.x, y: rotation.y, z: rotation.z, w: rotation.w })));
+    if (announce) {
+      closeUtilityPanel();
+      closeScopeView();
+      pauseTechnique("procedure");
+      setHandlingMessage("Clinic recentered in front of you.");
+    }
+  }, [closeScopeView, closeUtilityPanel, gl, pauseTechnique]);
 
   const rayHitRef = useRef(rayHit);
   rayHitRef.current = rayHit;
   useEffect(() => {
     if (!active) {
+      closeUtilityPanel();
       closeScopeView();
       hidePlacementMarkers();
       scopeApertureRef.current = "small"; setScopeAperture("small");
       baseSpace.current = null;
+      clinicYaw.current = 0;
       physicalViewer.current = null; initialArrival.current = true;
       frameValid.current = false;
       updateTools(resetConsultationHands(toolsRef.current));
@@ -441,13 +508,14 @@ export function useXRClinicRuntime(options: Options) {
       slots.forEach(slot => {
         slot.panel = false; slot.triggerRoute = null; slot.triggerDown = false;
         slot.gripDown = false; slot.scopeButtonDown = false; slot.candidate = null; slot.tracked = false;
+        slot.pendingSelection = null;
       });
       setHighlighted([]);
       setHandlingMessage("");
       pauseTechnique("exit");
       return;
     }
-  }, [active, closeScopeView, extinguishAll, hidePlacementMarkers, pauseTechnique, slots, updateTools]);
+  }, [active, closeScopeView, closeUtilityPanel, extinguishAll, hidePlacementMarkers, pauseTechnique, slots, updateTools]);
 
   useEffect(() => {
     if (!handlingMessage) return;
@@ -459,6 +527,7 @@ export function useXRClinicRuntime(options: Options) {
     const session = active ? gl.xr.getSession() : null;
     if (!session) return;
     const interrupt = () => {
+      closeUtilityPanel();
       closeScopeView();
       hidePlacementMarkers();
       frameValid.current = false;
@@ -466,6 +535,7 @@ export function useXRClinicRuntime(options: Options) {
       pauseTechnique("visibility");
       slots.forEach(slot => {
         Object.assign(slot, interruptConsultationInput(slot));
+        slot.pendingSelection = null;
         slot.tracked = false;
         slot.grip.visible = false;
         slot.ray.visible = false;
@@ -481,7 +551,7 @@ export function useXRClinicRuntime(options: Options) {
       interrupt();
       updateTools(resetConsultationHands(toolsRef.current));
       extinguishAll();
-      slots.forEach(slot => Object.assign(slot, initialConsultationInput()));
+      slots.forEach(slot => { Object.assign(slot, initialConsultationInput()); slot.pendingSelection = null; });
     };
     session.addEventListener("visibilitychange", visibility);
     session.addEventListener("end", end);
@@ -489,7 +559,7 @@ export function useXRClinicRuntime(options: Options) {
       session.removeEventListener("visibilitychange", visibility);
       session.removeEventListener("end", end);
     };
-  }, [active, closeScopeView, extinguishAll, gl, hidePlacementMarkers, pauseTechnique, slots, stopLights, updateTools]);
+  }, [active, closeScopeView, closeUtilityPanel, extinguishAll, gl, hidePlacementMarkers, pauseTechnique, slots, stopLights, updateTools]);
 
   useEffect(() => {
     const cleanups = slots.map(slot => {
@@ -497,11 +567,12 @@ export function useXRClinicRuntime(options: Options) {
         const source = (event as { data: XRInputSource }).data;
         slot.source = source;
         slot.hand = source.handedness === "left" || source.handedness === "right" ? source.handedness : null;
-        slot.triggerRoute = null; slot.triggerDown = false; slot.gripDown = false; slot.panel = false;
+        slot.triggerRoute = null; slot.triggerDown = false; slot.gripDown = false; slot.panel = false; slot.pendingSelection = null;
         slot.scopeButtonDown = Boolean(source.gamepad?.buttons[5]?.pressed);
         refresh(value => value + 1);
       };
       const disconnected = () => {
+        closeUtilityPanel();
         closeScopeView();
         if (slot.hand) { const marker = placementMarkers.current.get(slot.hand); if (marker) marker.visible = false; }
         if (slot.hand) {
@@ -511,7 +582,7 @@ export function useXRClinicRuntime(options: Options) {
           if (returnedId) setReturnedAt(previous => ({ ...previous, [returnedId]: performance.now() }));
         }
         slot.source = null; slot.hand = null; slot.tracked = false;
-        slot.triggerRoute = null; slot.triggerDown = false; slot.gripDown = false; slot.panel = false;
+        slot.triggerRoute = null; slot.triggerDown = false; slot.gripDown = false; slot.panel = false; slot.pendingSelection = null;
         pauseTechnique("tracking");
         refresh(value => value + 1);
       };
@@ -559,14 +630,15 @@ export function useXRClinicRuntime(options: Options) {
       const selectStart = () => {
         if (!activeRef.current || !slot.hand || !slot.tracked) return;
         const id = toolInHand(toolsRef.current, slot.hand);
-        // Aiming directly at the standing findings board selects its controls
-        // even in the instrument hand; aiming at the patient still uses the tool.
+        // A held instrument owns that hand's trigger. Wall/menu controls require
+        // the free hand so a board behind the patient cannot steal illumination.
         const hit = rayHitRef.current(slot);
-        let target: Object3D | null = hit?.object ?? null, pointsAtPanel = false;
-        while (target) { pointsAtPanel ||= Boolean(target.userData.xrPanel || target.userData.xrInstrumentControl); target = target.parent; }
-        const pressed = pressConsultationTrigger(slot, Boolean(id) && !pointsAtPanel);
+        const pressed = pressConsultationTrigger(slot, Boolean(id));
         if (pressed === slot) return;
         Object.assign(slot, pressed);
+        slot.pendingSelection = slot.triggerRoute === "panel"
+          ? { data: ancestorData(hit?.object ?? null), point: hit?.point.clone() ?? null }
+          : null;
         if (slot.triggerRoute === "tool") {
           if (id) optionsRef.current.onToolUsed?.(id, "activate");
           updateTools(powerConsultationTool(toolsRef.current, slot.hand, true));
@@ -574,11 +646,12 @@ export function useXRClinicRuntime(options: Options) {
       };
       const selectEnd = () => {
         const route = slot.triggerRoute;
+        const pending = slot.pendingSelection;
+        slot.pendingSelection = null;
         Object.assign(slot, releaseConsultationTrigger(slot));
         if (slot.hand) updateTools(powerConsultationTool(toolsRef.current, slot.hand, false));
         if (route !== "panel" || !activeRef.current || !slot.tracked) return;
-        const hit = rayHitRef.current(slot);
-        const data = ancestorData(hit?.object ?? null);
+        const data = pending?.data ?? ancestorData(null);
         if (data.instrumentControl) {
           if (!slot.hand) return;
           const placement = toolsRef.current[data.instrumentControl].placement;
@@ -586,7 +659,7 @@ export function useXRClinicRuntime(options: Options) {
             setHandlingMessage("Use your free hand to adjust the instrument selector."); return;
           }
           slot.grip.getWorldPosition(workingOrigin);
-          if (!hit || workingOrigin.distanceTo(hit.point) > SCOPE_SELECTOR_REACH_M) {
+          if (!pending?.point || workingOrigin.distanceTo(pending.point) > SCOPE_SELECTOR_REACH_M) {
             setHandlingMessage("Bring your free hand beside the aperture wheel, then point and press/release its trigger."); return;
           }
         }
@@ -600,12 +673,12 @@ export function useXRClinicRuntime(options: Options) {
       return () => Object.entries(events).forEach(([name, listener]) => ray.removeEventListener(name, listener));
     });
     return () => cleanups.forEach(cleanup => cleanup());
-  }, [closeScopeView, direction, hidePlacementMarkers, origin, pauseTechnique, quaternion, resolvePlacement, slots, teleport, updateTools, workingOrigin]);
+  }, [closeScopeView, closeUtilityPanel, direction, hidePlacementMarkers, origin, pauseTechnique, quaternion, resolvePlacement, slots, teleport, updateTools, workingOrigin]);
 
   return {
-    tools, toolsRef, slots, objects, toolControls, findingsPanels, frameValid, scopeAperture, scopeApertureRef, cycleScopeAperture, scopeViewHand, scopeViewHandRef, closeScopeView, toggleScopeView, highlighted, pickupHints, returnedAt,
+    tools, toolsRef, slots, objects, toolControls, findingsPanels, frameValid, scopeAperture, scopeApertureRef, cycleScopeAperture, scopeViewHand, scopeViewHandRef, closeScopeView, toggleScopeView, utilityOpen, closeUtilityPanel, toggleUtilityPanel, highlighted, pickupHints, returnedAt,
     handlingMessage, setHandlingMessage, hoverMarker, placementMarkers, registerTool, updateTools, stopLights, resetClinic, closePanels,
-    origin, direction, quaternion, workingPose, supportedWorkingPose, handStatus, teleport, equipment, setToolPower,
+    origin, direction, quaternion, workingPose, supportedWorkingPose, handStatus, teleport, recenterClinic, equipment, setToolPower,
   };
 }
 export type XRClinicRuntime = ReturnType<typeof useXRClinicRuntime>;

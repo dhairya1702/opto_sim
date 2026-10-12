@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { act } from "@react-three/fiber";
-import { Mesh, Object3D, Raycaster, Vector3 } from "three";
+import { Mesh, Object3D, Quaternion, Raycaster, Vector3 } from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { clinic } from "./helpers/xrClinicHarness";
 import { useXRClinicRuntime, type XRClinicRuntime } from "../interaction/useXRClinicRuntime";
@@ -28,6 +28,17 @@ function rayTo(scene: Object3D, target: Vector3, direction: Vector3) {
   return new Raycaster(target.clone().addScaledVector(direction, -.05), direction).intersectObject(scene, true).filter(hit => visible(hit.object));
 }
 describe("XR review regressions against mounted scene geometry", () => {
+  it("mounts the shared arrival instructions on the clinic wall instead of in front of the headset", async () => {
+    const sim = await setup();
+    let welcome: Object3D | undefined;
+    sim.state.scene.traverse(object => { if (object.userData.xrWallWelcome) welcome = object; });
+    expect(welcome).toBeDefined();
+    const centre = new Vector3();
+    let sign: Object3D | undefined;
+    welcome!.traverse(object => { if (!sign && object instanceof Mesh) sign = object; });
+    sign!.getWorldPosition(centre);
+    expect(centre.z).toBeLessThan(-2.4);
+  });
   it("aligns the actual occluder head with its declared working point through both nested rotations", async () => {
     const sim = await setup("push-up"), tool = sim.tool("cover");
     let head: Object3D | undefined;
@@ -62,11 +73,12 @@ describe("XR review regressions against mounted scene geometry", () => {
   });
   it("keeps the physical Thorington centre aperture clear for the light", async () => {
     const sim = await setup("thorington"), card = sim.tool("thorington");
-    const centre = card.localToWorld(new Vector3(...consultationToolDefinition("thorington").workingPoint));
+    const [cx, cy, cz] = consultationToolDefinition("thorington").workingPoint;
+    const rotation = card.getWorldQuaternion(new Quaternion());
     // Sample the centre and inside the entire 6 mm radius from either face.
     for (const x of [-.004, 0, .004]) for (const y of [-.004, 0, .004]) {
-      const target = centre.clone().add(new Vector3(x, y, 0));
-      for (const z of [-1, 1]) expect(rayTo(card, target, new Vector3(0, 0, z))).toHaveLength(0);
+      const target = card.localToWorld(new Vector3(cx + x, cy + y, cz));
+      for (const z of [-1, 1]) expect(rayTo(card, target, new Vector3(0, 0, z).applyQuaternion(rotation))).toHaveLength(0);
     }
   });
   it("cannot re-enable tracking, pickup, power or teleport after end while active props remain true", async () => {
@@ -93,6 +105,14 @@ describe("XR review regressions against mounted scene geometry", () => {
     await sim.event(0, "selectend"); await sim.event(0, "selectstart");
     expect(sim.runtime().toolsRef.current.pupils.powered).toBe(true);
   });
+  it("keeps current tracking and a held trigger through an ordinary slow XR frame", async () => {
+    const sim = await setup("thorington"); await sim.pickup(0, "pupils"); await sim.event(0, "selectstart");
+    expect(sim.runtime().toolsRef.current.pupils.powered).toBe(true);
+    await sim.step(.18);
+    expect(sim.runtime().frameValid.current).toBe(true);
+    expect(sim.runtime().slots[0].tracked).toBe(true);
+    expect(sim.runtime().toolsRef.current.pupils.powered).toBe(true);
+  });
   it("lands at each requested pad with room-scale headset offsets and rejects viewer tracking loss", async () => {
     const sim = await setup(); sim.physicalViewer.x = .23; sim.physicalViewer.z = -.31;
     await sim.step(); await act(async () => sim.runtime().teleport([.65, 0, 1.75]));
@@ -105,6 +125,36 @@ describe("XR review regressions against mounted scene geometry", () => {
     sim.viewerTracked.current = false; await sim.step();
     expect(sim.runtime().frameValid.current).toBe(false);
     expect(sim.runtime().slots.every(slot => !slot.tracked)).toBe(true);
+  });
+  it.each([0, 1])("latches a floor-ring destination on controller %s so release drift cannot cancel teleport", async controller => {
+    const sim = await setup();
+    let pad: Object3D | undefined;
+    sim.state.scene.traverse(object => { if (!pad && object.userData.xrTeleport) pad = object; });
+    expect(pad).toBeDefined();
+    const destination = pad!.userData.xrTeleport as [number, number, number];
+    sim.rays[controller].position.copy(pad!.getWorldPosition(new Vector3())).add(new Vector3(0, 1, 0));
+    sim.rays[controller].rotation.set(-Math.PI / 2, 0, 0); await sim.step();
+    const before = sim.referenceOffsets.length;
+    await sim.event(controller, "selectstart");
+    sim.rays[controller].position.set(8, 8, 8); sim.rays[controller].rotation.set(0, 0, 0); await sim.step();
+    await sim.event(controller, "selectend");
+    expect(sim.referenceOffsets).toHaveLength(before + 1);
+    expect(sim.referenceOffsets.at(-1)?.x).toBeCloseTo(-destination[0]);
+    expect(sim.referenceOffsets.at(-1)?.z).toBeCloseTo(-destination[2]);
+  });
+  it("recenters the clinic to the current headset yaw and preserves that orientation across floor moves", async () => {
+    const sim = await setup();
+    sim.physicalViewer.x = .4; sim.physicalViewer.z = -.2; sim.physicalViewer.yaw = Math.PI / 2; await sim.step();
+    await act(async () => sim.runtime().recenterClinic());
+    expect(sim.referenceOffsets.at(-1)?.x).toBeCloseTo(-1.5);
+    expect(sim.referenceOffsets.at(-1)?.z).toBeCloseTo(-.2);
+    expect(sim.referenceRotations.at(-1)?.y).toBeCloseTo(Math.SQRT1_2);
+    expect(sim.referenceRotations.at(-1)?.w).toBeCloseTo(Math.SQRT1_2);
+    sim.physicalViewer.yaw = 0; await sim.step();
+    await act(async () => sim.runtime().teleport([0, 0, .25]));
+    expect(sim.referenceOffsets.at(-1)?.x).toBeCloseTo(.15);
+    expect(sim.referenceOffsets.at(-1)?.z).toBeCloseTo(-.2);
+    expect(sim.referenceRotations.at(-1)?.y).toBeCloseTo(Math.SQRT1_2);
   });
   it.each(["library-thorington-near", "practice-near-stand"])("does not restore lesson readiness on unsupported release from %s", id => {
     const socket = LIBRARY_SOCKETS.find(socket => socket.id === id)!;

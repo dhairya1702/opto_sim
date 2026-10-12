@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#07191b" />
+    <meta name="description" content="Interactive Opto Bruckner VR workflow prototype." />
+    <title>Opto · Bruckner scope prototype</title>
+  </head>
+  <body>
+    <main id="prototype-shell">
+      <canvas id="clinic-canvas" aria-label="Interactive Bruckner clinic prototype"></canvas>
+
+      <header class="prototype-header">
+        <div>
+          <p>OPTO · INTERACTION PROTOTYPE</p>
+          <h1>Bruckner test</h1>
+        </div>
+        <span>Wall-led workflow · headset scope</span>
+      </header>
+
+      <section class="desktop-controls" aria-label="Prototype controls">
+        <button id="enter-clinic" type="button">Enter clinic</button>
+        <button id="fixation-control" type="button">Look at the light</button>
+        <button id="aperture-control" type="button">Select large aperture</button>
+        <button id="scope-control" type="button">Open scope</button>
+        <button id="recenter-control" type="button">Recenter view</button>
+      </section>
+
+      <div id="crosshair" aria-hidden="true"></div>
+      <div id="interaction-prompt" role="status">Select Enter clinic, then use WASD + mouse.</div>
+      <div id="scope-caption" hidden>
+        <span>BINOCULAR RED REFLEX VIEW</span>
+        <strong id="scope-status">Ask fixation and select the large aperture.</strong>
+        <small>B / Space / B·Y · close scope</small>
+      </div>
+
+      <aside class="control-legend">
+        <span><b>WASD</b> move</span>
+        <span><b>Mouse</b> look</span>
+        <span><b>E</b> select</span>
+        <span><b>B / Space</b> scope</span>
+        <span><b>Quest B/Y</b> scope</span>
+      </aside>
+
+      <div id="prototype-error" role="alert" hidden></div>
+    </main>
+    <script type="module" src="/web/bruckner-scope-prototype.ts"></script>
+  </body>
+</html>

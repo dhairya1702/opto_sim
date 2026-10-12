@@ -11,6 +11,6 @@ export function pauseConsultationTechnique(state: {
   return {
     pupils: { ...state.pupils, eye: null, dwell: 0 },
     cover: { ...state.cover, dwell: 0 },
-    motility: { ...state.motility, current: null, dwell: 0 },
+    motility: { ...state.motility, current: null, dwell: 0, spatialGrace: 0 },
   };
 }

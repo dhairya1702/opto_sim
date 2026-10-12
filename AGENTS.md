@@ -66,7 +66,7 @@ No backend is required. `main.py` is a small pre-existing Python entry point and
 | `docs/vr-library-completion.md` | Full-library XR implementation, software checks and physical Quest acceptance still pending |
 | `docs/vr-code-review.md` | Confirmed XR review fixes, geometry/interruption regressions and remaining physical acceptance |
 | `web/scene/XRPracticeFindingsBoard.tsx` | Practice-only findings form fixed on the rear wall; keep physical procedure sampling independent of its visibility and preserve submission gates |
-| `web/scene/XRPracticeResultHUD.tsx` | Temporary, read-only headset result feedback; wrap text, dismiss after five seconds, ignore controller rays, and clean up timers |
+| `web/scene/XRPracticeResultHUD.tsx` | Temporary headset result feedback; wrap text, place it at a comfortable distance, dismiss after five seconds, ignore rays unless a correct result exposes the shared Try new case action, and clean up timers |
 | `web/practice/HirschbergLegacyVRStage.tsx`, `web/practice/xr/XRClinicTools.tsx`, `procedures.ts` | Retained earlier VR experiment/tool models/declarations; not the active immersive lesson path |
 | `web/practice/CoverPracticeStage.tsx` | Full-screen cover–uncover and alternating-cover practice, two-hand tools, simulated refixation, and prism neutralisation |
 | `web/practice/KrimskyPracticeStage.tsx` | Full-screen standard and modified Krimsky setup, direct prism handling, illustrative reflex neutralisation, and recording |

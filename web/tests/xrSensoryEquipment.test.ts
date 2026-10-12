@@ -13,6 +13,7 @@ import {
   sensoryNearCondition, sensorySockets, sensoryTargetCondition,
 } from "../interaction/xrSensoryEquipment";
 import { walkable } from "../interaction/navigation";
+import { instrumentKitPoint } from "../interaction/clinicLayout";
 
 const socket = (id: string) => {
   const found = SENSORY_SOCKETS.find(candidate => candidate.id === id);
@@ -40,32 +41,31 @@ describe("sensory equipment and patient fitting", () => {
     expect(sensoryEquipment("worth")).toEqual(["subjective", "red-green", "worth"]);
     expect(sensoryEquipment("stereo")).toEqual(["subjective", "polarised", "stereo"]);
     expect(sensoryEquipment("four-prism")).toEqual(["subjective", "prism"]);
-    expect(consultationToolDefinition("subjective").home).toEqual([-1.45, .9625, -1.08]);
+    expect(consultationToolDefinition("subjective").home).toEqual(instrumentKitPoint(.70, .96, .08));
     expect(sensorySockets("stereo").some(s => s.tool === "red-green")).toBe(false);
   });
   it("reserves distinct visible handle homes for all instruments and both-hand transfer", () => {
     for (const tool of ALL_CLINIC_TOOLS) {
       const state = grabConsultationTool(initialConsultationTools(), tool.id, "right");
-      expect(releaseConsultationTool(state, "right", { position: tool.home, rotation: tool.restRotation }).returned, tool.id).toBe(false);
+      expect(releaseConsultationTool(state, "right", { position: tool.home, rotation: tool.restRotation }, SENSORY_SURFACES, [], [tool.id]).returned, tool.id).toBe(false);
     }
     let state = grabConsultationTool(initialConsultationTools(), "worth", "left");
     state = grabConsultationTool(state, "worth", "right");
     expect(toolInHand(state, "left")).toBeNull();
     expect(toolInHand(state, "right")).toBe("worth");
-    const hint = consultationPickupHint([1.04, .93, 1.18], ALL_CLINIC_TOOLS.map(tool => ({ id: tool.id, position: tool.home, visible: true })));
+    const hint = consultationPickupHint(instrumentKitPoint(-.44, .9275, .08), ALL_CLINIC_TOOLS.map(tool => ({ id: tool.id, position: tool.home, visible: true })));
     expect(hint?.id).toBe("red-green");
     expect(hint?.reachable).toBe(true);
   });
   it("uses rotated sensory footprints at tray edges and ignores homes absent from the selected kit", () => {
     const held = grabConsultationTool(initialConsultationTools(), "stereo", "left");
-    const forward = releaseConsultationTool(held, "left", { position: [1.69, 1, 1.04], rotation: [0, 0, 0, 1] }, SENSORY_SURFACES);
-    expect(forward.returned).toBe(true);
-    const rotated = releaseConsultationTool(held, "left", { position: [1.69, 1, 1.04], rotation: [0, Math.SQRT1_2, 0, Math.SQRT1_2] }, SENSORY_SURFACES);
-    expect(rotated.returned).toBe(false);
-    const pupilHome = consultationToolDefinition("pupils").home;
-    const clearTrolley = [{ id: "lesson-trolley", x: -1.37, z: .75, y: .8775, width: .84, depth: .55 }];
+    const forward = releaseConsultationTool(held, "left", { position: [-1.47, 1, 1.53], rotation: [0, 0, 0, 1] }, SENSORY_SURFACES, [], ["stereo"]);
+    expect(forward.returned).toBe(false);
+    const rotated = releaseConsultationTool(held, "left", { position: [-1.47, 1, 1.53], rotation: [0, Math.SQRT1_2, 0, Math.SQRT1_2] }, SENSORY_SURFACES, [], ["stereo"]);
+    expect(rotated.returned).toBe(true);
+    const clearTrolley = [{ id: "lesson-trolley", x: -1.47, z: .65, y: .8775, width: .60, depth: 2 }];
     const worth = grabConsultationTool(initialConsultationTools(), "worth", "left");
-    const selected = releaseConsultationTool(worth, "left", { position: pupilHome, rotation: [0, 0, 0, 1] }, clearTrolley, [], sensoryEquipment("worth"));
+    const selected = releaseConsultationTool(worth, "left", { position: [-1.30, 1, .65], rotation: [0, 0, 0, 1] }, clearTrolley, [], sensoryEquipment("worth"));
     expect(selected.returned).toBe(false);
     expect(selected.state.worth.placement.kind).toBe("surface");
   });

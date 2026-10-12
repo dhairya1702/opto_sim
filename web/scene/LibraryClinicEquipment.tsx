@@ -166,17 +166,11 @@ export function LibraryInstrumentModel({ id, setting = {} }: { id: ConsultationT
 
 export function LibraryEquipmentTray({ active = false, equipment = [] }: { active?: boolean; equipment?: readonly ConsultationToolId[] }) {
   return <>
-    {([[.65, 1.75, "LENSES / FLIPPERS"], [0, .25, "PATIENT FITTING"]] as const).map(([x, z, label]) => <group key={label} position={[x, .012, z]} userData={active ? { xrTeleport: [x, 0, z] } : { xrPreviewPad: true }}>
+    {([[0, .25, "PATIENT FITTING"]] as const).map(([x, z, label]) => <group key={label} position={[x, .012, z]} userData={active ? { xrTeleport: [x, 0, z] } : { xrPreviewPad: true }}>
       <mesh rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[.19, .26, 32]} /><meshBasicMaterial color="#4fae9d" transparent opacity={.65}/></mesh>
       <XRSign text={[label]} p={[0, .008, 0]} size={[.33, .08]} rotation={[-Math.PI / 2, 0, 0]} bg="#153b3c" fg="#e8fff9"/>
     </group>)}
     {LIBRARY_SOCKETS.filter(socket => socket.fittingLayer && equipment.includes(socket.tool)).map(socket => <group key={socket.id} position={[...socket.position]} userData={{ xrIgnoreRay: true }}><mesh><ringGeometry args={[.009, .012, 20]}/><meshBasicMaterial color="#f1da96" transparent opacity={.5} side={DoubleSide}/></mesh></group>)}
-    <group userData={{ xrIgnoreRay: true }}>
-      <Box p={[1.31, .85, 1.75]} s={[.92, .06, .76]} c="#d9e1d9" radius={.02} />
-      <Cylinder p={[1.31, .43, 1.75]} h={.82} radius={.045} c="#9bafaa" />
-      <Box p={[1.31, .02, 1.75]} s={[.65, .03, .40]} c="#8ca39f" />
-      <XRSign text={["RODS · LENSES · FLIPPERS"]} p={[1.31, .72, 2.14]} size={[.68, .06]} bg="#173a3e" fg="#e8fff9" />
-    </group>
   </>;
 }
 

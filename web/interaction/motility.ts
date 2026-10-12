@@ -12,6 +12,9 @@ export const gazePositions = [
   { id: "right-up", label: "Right + up", x: 0.8, y: 0.7 },
   { id: "right-down", label: "Right + down", x: 0.8, y: -0.7 },
 ] as const;
+export const MOTILITY_TARGET_RADIUS = 0.24;
+export const MOTILITY_DWELL_SECONDS = 0.7;
+export const MOTILITY_SPATIAL_GRACE_SECONDS = 0.2;
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
 export function targetFromControls(x: number, y: number, z: number): FixationTarget {
   const distance = clamp(z, 0.3, 0.4);
@@ -23,15 +26,21 @@ export function gazeForEye(target: FixationTarget, eyeX: number) {
     pitch: clamp(Math.atan2(target.y, Math.hypot(target.z, target.x - eyeX)), -0.48, 0.48),
   };
 }
-export type MotilityCoverage = { seen: string[]; current: string | null; dwell: number };
+export type MotilityCoverage = { seen: string[]; current: string | null; dwell: number; spatialGrace?: number };
 export function observeTarget(state: MotilityCoverage, target: FixationTarget, dt: number, active: boolean): MotilityCoverage {
   const x = target.x / (target.z * 0.65), y = target.y / (target.z * 0.45);
-  const position = active && gazePositions.find(p => Math.hypot(p.x - x, p.y - y) < 0.17);
-  if (!position) return { ...state, current: null, dwell: 0 };
+  if (!active) return { ...state, current: null, dwell: 0, spatialGrace: 0 };
+  const position = gazePositions.find(p => Math.hypot(p.x - x, p.y - y) < MOTILITY_TARGET_RADIUS);
+  if (!position) {
+    const spatialGrace = (state.spatialGrace ?? 0) + clamp(dt, 0, 0.1);
+    return state.current && spatialGrace < MOTILITY_SPATIAL_GRACE_SECONDS
+      ? { ...state, spatialGrace }
+      : { ...state, current: null, dwell: 0, spatialGrace: 0 };
+  }
   // Cap a frame's contribution: tab suspension must not complete an observation.
   const dwell = (state.current === position.id ? state.dwell : 0) + clamp(dt, 0, 0.1);
-  const seen = dwell >= 0.7 && !state.seen.includes(position.id) ? [...state.seen, position.id] : state.seen;
-  return { seen, current: position.id, dwell };
+  const seen = dwell >= MOTILITY_DWELL_SECONDS && !state.seen.includes(position.id) ? [...state.seen, position.id] : state.seen;
+  return { seen, current: position.id, dwell, spatialGrace: 0 };
 }
 
 export const motilityObservations = [

@@ -72,16 +72,16 @@ describe("Hirschberg in the shared consultation clinic", () => {
     await sim.step(1 / 72, 12); expect(board!.position.equals(anchored)).toBe(true);
     expect(sim.controls().some(object => object.parent?.userData.xrToolControls)).toBe(false);
     expect(sim.labels().filter(label => label === "Penlight")).toHaveLength(1);
-    await sim.click(1, sim.button("NO DEVIATION"));
-    await sim.click(1, sim.button("CENTRED · 0°"));
-    await sim.click(1, sim.button("SUBMIT / CHECK"));
+    await sim.click(0, sim.button("NO DEVIATION"));
+    await sim.click(0, sim.button("CENTRED · 0°"));
+    await sim.click(0, sim.button("SUBMIT / CHECK"));
     expect(sim.mirror().light).toBe(false); expect(sim.complete).not.toHaveBeenCalled();
     expect(sim.labels().some(label => label.includes("First inspect both reflexes"))).toBe(true);
     expect(sim.mirror().direction).toBe("none"); expect(sim.mirror().amount).toBe("0");
-    await sim.click(1, sim.button("HELP"));
-    expect(sim.rays[1].visible).toBe(true);
-    await sim.click(1, sim.button("CLOSE HELP")); expect(sim.mirror().help).toBe(false);
-    await sim.click(1, sim.button("LOOK AT THE LIGHT")); expect(sim.mirror().fixation).toBe(true);
+    await sim.click(0, sim.button("HELP"));
+    expect(sim.rays[0].visible).toBe(true);
+    await sim.click(0, sim.button("CLOSE HELP")); expect(sim.mirror().help).toBe(false);
+    await sim.click(0, sim.button("LOOK AT THE LIGHT")); expect(sim.mirror().fixation).toBe(true);
     await sim.event(1, "squeezeend"); await sim.step();
     const restored: THREE.Object3D[] = [];
     sim.state.scene.traverse(object => { if (object.userData.xrPersistentFindings) restored.push(object); });
@@ -120,11 +120,12 @@ describe("Hirschberg in the shared consultation clinic", () => {
     const dot = sim.rays[1].getObjectByName("clinic-pointer-dot")!;
     expect(beam.scale.y).toBeCloseTo(.439, 3); expect(dot.visible).toBe(true);
     let marker: THREE.Object3D | undefined;
-    sim.state.scene.traverse(object => {
-      if (object instanceof THREE.Mesh && object.material instanceof THREE.MeshBasicMaterial && object.material.wireframe) marker = object;
-    });
-    expect(marker?.parent?.visible).toBe(true);
-    expect(marker!.renderOrder).toBeGreaterThan(1000);
+    sim.state.scene.traverse(object => { if (object.userData.xrHoverOutline) marker = object; });
+    expect(marker?.visible).toBe(true);
+    expect(marker!.children).toHaveLength(4);
+    expect(marker!.children.every(object => object instanceof THREE.Mesh
+      && object.material instanceof THREE.MeshBasicMaterial && !object.material.wireframe)).toBe(true);
+    expect(marker!.children.every(object => object.renderOrder > 1000)).toBe(true);
     await sim.event(1, "selectstart"); await sim.event(1, "selectend"); await sim.step();
     expect(sim.mirror().fixation).toBe(true);
     expect(sim.controls().some(object => object.parent?.userData.xrObservationEditor)).toBe(false);

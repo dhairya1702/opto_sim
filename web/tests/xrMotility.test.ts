@@ -5,11 +5,19 @@ import { xrMotilityTarget } from "../interaction/xrMotility";
 const eyeMidpoint = [0, 1.5, -.57] as const;
 
 describe("XR ocular motility", () => {
-  it("derives the patient-relative target and working distance from controller position", () => {
-    const result = xrMotilityTarget([0, 1.5, -.22], eyeMidpoint);
-    expect(result.distanceCm).toBeCloseTo(35);
-    expect(result.distanceReady).toBe(true);
-    expect(xrMotilityTarget([0, 1.5, .03], eyeMidpoint).distanceReady).toBe(false);
+  it("derives patient-relative depth without changing working distance during a gaze scan", () => {
+    const centre = xrMotilityTarget([0, 1.5, -.22], eyeMidpoint);
+    const lateral = xrMotilityTarget([-.18, 1.5, -.22], eyeMidpoint);
+    const vertical = xrMotilityTarget([0, 1.62, -.22], eyeMidpoint);
+    const farther = xrMotilityTarget([0, 1.5, .03], eyeMidpoint);
+    expect(centre.distanceCm).toBeCloseTo(35);
+    expect(lateral.distanceCm).toBeCloseTo(centre.distanceCm);
+    expect(vertical.distanceCm).toBeCloseTo(centre.distanceCm);
+    expect(centre.distanceReady).toBe(true);
+    expect(lateral.distanceReady).toBe(true);
+    expect(vertical.distanceReady).toBe(true);
+    expect(farther.distanceCm).toBeCloseTo(60);
+    expect(farther.distanceReady).toBe(false);
   });
 
   it("feeds spatial checkpoints into the shared nine-position coverage logic", () => {

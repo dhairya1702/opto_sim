@@ -11,6 +11,9 @@ export function xrMotilityTarget(tool: XRPoint3, eyeMidpoint: XRPoint3): {
     y: tool[1] - eyeMidpoint[1],
     z: tool[2] - eyeMidpoint[2],
   };
-  const distanceCm = Math.hypot(target.x, target.y, target.z) * 100;
+  // Motility checkpoints lie on a working plane in front of the patient. Use
+  // depth from that face plane so scanning laterally through the H pattern
+  // does not appear to move the target farther away.
+  const distanceCm = Math.abs(target.z) * 100;
   return { target, distanceCm, distanceReady: distanceCm >= 28 && distanceCm <= 45 && target.z > 0 };
 }

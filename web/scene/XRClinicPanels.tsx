@@ -33,9 +33,13 @@ export function XRPanelButton({ label, position, width = .5, active = false, dis
   onClick: () => void;
   recordTool?: ConsultationToolId;
 }) {
+  const background = disabled ? "#334346" : active ? "#0d725f" : "#214149";
   return <group position={position} userData={{ xrAction: disabled ? undefined : onClick, xrButton: true, xrWidth: width, xrLabel: label, xrRecordTool: recordTool }}>
-    <Box s={[width, .065, .018]} c={disabled ? "#334346" : active ? "#176b5e" : "#214149"} radius={.008} />
-    <XRSign text={[label]} p={[0, 0, .011]} size={[width - .018, .052]} bg={disabled ? "#334346" : active ? "#176b5e" : "#214149"} fg={disabled ? "#82908e" : "#f7fffc"} />
+    <Box s={[width, .065, .018]} c={background} radius={.008} />
+    <XRSign text={[label]} p={[0, 0, .011]} size={[width - .018, .052]} bg={background} fg={disabled ? "#82908e" : "#f7fffc"} />
+    {active && <mesh position={[-width / 2 + .014, 0, .013]} userData={{ xrSelectedMarker: true }}>
+      <planeGeometry args={[.006, .038]} /><meshBasicMaterial color="#a9ffe5" />
+    </mesh>}
   </group>;
 }
 
@@ -62,6 +66,21 @@ export function XRHeadPanel({ children }: { children: React.ReactNode }) {
     root.current.updateMatrixWorld(true);
   }, -1); // Position the visible overlay before the runtime samples pointer hits.
   return <group ref={root} userData={{ xrPanel: true, xrObservationEditor: true }}>{children}</group>;
+}
+
+export function XRClinicUtilityPanel({ runtime, onHelp, onExit }: {
+  runtime: XRClinicRuntime;
+  onHelp: () => void;
+  onExit: () => void;
+}) {
+  if (!runtime.utilityOpen) return null;
+  return <XRHeadPanel>
+    <Box s={[.64, .40, .018]} c="#102329" radius={.012} />
+    <XRSign text={["VR CONTROLS", "B/Y on your free hand · close"]} p={[0, .105, .012]} size={[.58, .12]} bg="#102329" fg="#eefbf7" />
+    <XRPanelButton label="HELP" position={[0, .005, .025]} width={.56} onClick={() => { runtime.closeUtilityPanel(); onHelp(); }} />
+    <XRPanelButton label="RECENTER CLINIC" position={[0, -.075, .025]} width={.56} onClick={() => runtime.recenterClinic()} />
+    <XRPanelButton label="EXIT VR" position={[0, -.155, .025]} width={.56} onClick={() => { runtime.closeUtilityPanel(); onExit(); }} />
+  </XRHeadPanel>;
 }
 
 export function XRObservationPanel({ tool, status, fields, ready, onRecord, onCancel, extra }: {

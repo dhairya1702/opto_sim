@@ -9,11 +9,12 @@ let dispose: (() => Promise<void>) | undefined;
 afterEach(async () => { await dispose?.(); dispose = undefined; vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe("temporary Practice result HUD", () => {
-  it("wraps feedback near the headset, follows its pose and does not intercept rays", async () => {
+  it("wraps feedback at a comfortable distance and exposes a shared next-case action only after success", async () => {
     let notice: ReturnType<typeof useXRPracticeResult>;
+    const tryNewCase = vi.fn();
     function Feedback({ active }: { active: boolean }) {
       notice = useXRPracticeResult();
-      return createElement(XRPracticeResultHUD, { active, result: notice.result });
+      return createElement(XRPracticeResultHUD, { active, result: notice.result, onTryNewCase: tryNewCase });
     }
     const sim = await clinic({ renderAdapter: ({ active }) => createElement(Feedback, { active }) });
     dispose = sim.dispose;
@@ -29,11 +30,11 @@ describe("temporary Practice result HUD", () => {
     await sim.step();
     const board = hud()!;
     const rotation = sim.viewerCamera.getWorldQuaternion(new Quaternion());
-    const expected = new Vector3(0, -.04, -.9).applyQuaternion(rotation).add(sim.viewerCamera.position);
+    const expected = new Vector3(0, -.04, -1.25).applyQuaternion(rotation).add(sim.viewerCamera.position);
     expect(board.position.distanceTo(expected)).toBeLessThan(1e-8);
     expect(board.quaternion.angleTo(rotation)).toBeLessThan(1e-6);
-    expect(board.userData.xrIgnoreRay).toBe(true); expect(board.userData.xrPanel).toBeUndefined();
-    expect(sim.labels()).toContain("CORRECT");
+    expect(board.userData.xrIgnoreRay).toBe(false); expect(board.userData.xrPanel).toBe(true);
+    expect(sim.labels()).toContain("CORRECT"); expect(sim.labels()).toContain("TRY NEW CASE");
     const rows: string[] = [];
     board.traverse(child => {
       if (!(child instanceof Mesh)) return;
@@ -43,10 +44,12 @@ describe("temporary Practice result HUD", () => {
       materials.forEach(material => {
         if (!(material instanceof MeshBasicMaterial)) return;
         const image = material.map?.image as { renderedText?: string[] } | undefined;
-        rows.push(...(image?.renderedText ?? []).filter(line => line !== "CORRECT"));
+        rows.push(...(image?.renderedText ?? []).filter(line => line !== "CORRECT" && line !== "TRY NEW CASE"));
       });
     });
     expect(rows.join(" ")).toBe(message); expect(rows.every(line => line.length <= 44)).toBe(true);
+    await act(async () => sim.button("TRY NEW CASE").userData.xrAction());
+    expect(tryNewCase).toHaveBeenCalledTimes(1);
   });
 
   it("dismisses after five seconds, restarts for identical resubmissions and clears timers on unmount", async () => {

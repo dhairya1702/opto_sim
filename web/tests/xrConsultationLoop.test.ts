@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { consultationXRArrival } from "../interaction/xrConsultationNavigation";
 import { stations, walkable } from "../interaction/navigation";
 import { CONSULTATION_TOOLS, consultationToolDefinition } from "../interaction/xrConsultationTools";
+import { INSTRUMENT_KIT } from "../interaction/clinicLayout";
 import { coverProcedure } from "../interaction/cover";
 import { gazePositions } from "../interaction/motility";
 import { clinic } from "./helpers/xrClinicHarness";
@@ -14,11 +15,11 @@ afterEach(async () => { await dispose?.(); dispose = undefined; vi.unstubAllGlob
 describe("mounted consultation two-controller walkthrough", () => {
   it("explains an out-of-reach grip and highlights the tool when the hand reaches its handle", async () => {
     const sim = await clinic(); dispose = sim.dispose;
-    await sim.at(0, [-1.34, 1.05, 1.45]);
+    await sim.at(0, [0, 3, 3]);
     await sim.step(1 / 72, 10);
     expect(sim.labels().some(label => label.includes("MOVE CLOSER"))).toBe(true);
     await sim.event(0, "squeezestart");
-    expect(sim.labels().some(label => label.includes("then release and squeeze the side grip"))).toBe(true);
+    expect(sim.labels().join(" ")).toContain("then release and squeeze the side grip");
     expect(sim.interact).not.toHaveBeenCalled();
     await sim.event(0, "squeezeend");
     await sim.at(0, consultationToolDefinition("pupils").home);
@@ -29,18 +30,17 @@ describe("mounted consultation two-controller walkthrough", () => {
     expect(sim.tool("pupils").position.distanceTo(sim.grips[0].position)).toBeLessThan(1e-8);
   });
 
-  it("provides unobstructed VR arrivals close to equipment without changing desktop destinations", () => {
+  it("provides unobstructed VR arrivals close to the patient-side equipment kit", () => {
     for (const id of ["trolley", "refraction"] as const) {
       const station = stations.find(candidate => candidate.id === id)!;
       const arrival = consultationXRArrival(id, station.position);
       expect(arrival[1]).toBe(0);
       expect(walkable(arrival[0], arrival[2])).toBe(true);
-      const tools = id === "trolley" ? CONSULTATION_TOOLS.filter(tool => tool.home[2] > 0) : CONSULTATION_TOOLS.filter(tool => tool.home[2] < 0);
-      for (const tool of tools) {
-        expect(Math.hypot(tool.home[0] - arrival[0], tool.home[2] - arrival[2]), tool.label).toBeLessThan(.82);
+      if (id === "trolley") for (const tool of CONSULTATION_TOOLS) {
+        expect(Math.hypot(tool.home[0] - arrival[0], tool.home[2] - arrival[2]), tool.label).toBeLessThan(1.35);
       }
     }
-    expect(stations.find(station => station.id === "trolley")?.position).toEqual([-.65, 1.6, 1.7]);
+    expect(stations.find(station => station.id === "trolley")?.position).toEqual([...INSTRUMENT_KIT.desktopPosition]);
   });
 
   it("keeps the actual resting models inside their registered placement footprints", async () => {
@@ -51,8 +51,10 @@ describe("mounted consultation two-controller walkthrough", () => {
       for (const other of allBounds) expect(bounds.intersectsBox(other), `${definition.label} overlaps another model`).toBe(false);
       allBounds.push(bounds);
       const size = bounds.getSize(new THREE.Vector3());
-      expect(size.x, `${definition.label} width`).toBeLessThanOrEqual(definition.footprint[0] + .001);
-      expect(size.z, `${definition.label} depth`).toBeLessThanOrEqual(definition.footprint[1] + .001);
+      const actual = [size.x, size.z].sort((a, b) => a - b);
+      const registered = [...definition.footprint].sort((a, b) => a - b);
+      expect(actual[0], `${definition.label} short side`).toBeLessThanOrEqual(registered[0] + .001);
+      expect(actual[1], `${definition.label} long side`).toBeLessThanOrEqual(registered[1] + .001);
       const surfaceHeight = definition.home[1] - definition.restHeight;
       expect(bounds.min.y, `${definition.label} must not cut into its surface`).toBeGreaterThanOrEqual(surfaceHeight - .001);
     }
@@ -312,6 +314,33 @@ describe("free-roam consultation presentation", () => {
     expect(sim.labels()).toContain("FOLLOW THIS TARGET");
     await sim.panel(1);
     expect(sim.controls().filter(control => !control.userData.xrRecordTool && !control.userData.xrInstrumentControl)).toHaveLength(0);
+  });
+
+  it("opens the three-action VR utility panel with free-hand B/Y and keeps it out of the patient menu", async () => {
+    const sim = await clinic(); dispose = sim.dispose;
+    await sim.pickup(0, "pupils");
+    await sim.panel(1);
+    expect(sim.labels()).not.toContain("RECENTER CLINIC");
+    await sim.click(1, sim.button("CLOSE MENU"));
+
+    await sim.scope(1);
+    expect(["HELP", "RECENTER CLINIC", "EXIT VR"].every(label => sim.controls().some(control => control.userData.xrLabel === label))).toBe(true);
+    expect(sim.labels()).not.toContain("Patient instructions");
+    await sim.click(1, sim.button("HELP"));
+    expect(sim.labels()).toContain("TEST · HELP");
+    expect(sim.controls().some(control => control.userData.xrLabel === "RECENTER CLINIC")).toBe(false);
+
+    await sim.scope(1);
+    expect(sim.labels()).not.toContain("TEST · HELP");
+    const offsets = sim.referenceOffsets.length;
+    await sim.click(1, sim.button("RECENTER CLINIC"));
+    expect(sim.referenceOffsets).toHaveLength(offsets + 1);
+    expect(sim.controls().some(control => control.userData.xrLabel === "RECENTER CLINIC")).toBe(false);
+
+    await sim.scope(1);
+    await sim.click(1, sim.button("EXIT VR"));
+    expect(sim.exitVR).toHaveBeenCalledTimes(1);
+    expect(sim.record).not.toHaveBeenCalled();
   });
 });
 

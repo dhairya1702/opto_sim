@@ -44,7 +44,18 @@ async function lesson(kind: "bruckner" | "motility" | "cover-uncover" | "alterna
 describe("new Practice lessons in the shared clinic", () => {
   it("keeps Bruckner eyes visible during setup, lights pupils only with beam coverage, and still gates completion", async () => {
     const sim = await lesson("bruckner");
-    await sim.pickup(0, "fundus"); await sim.at(0, [0, 1.33, .459]);
+    expect(sim.button("LOOK AT THE LIGHT")).toBeDefined();
+    expect(sim.controls().some(control => control.userData.xrLabel === "RECENTER CLINIC")).toBe(false);
+    await sim.scope(1);
+    expect(["HELP", "RECENTER CLINIC", "EXIT VR"].every(label => sim.controls().some(control => control.userData.xrLabel === label))).toBe(true);
+    await sim.click(1, sim.button("RECENTER CLINIC"));
+    expect(sim.controls().some(control => control.userData.xrLabel === "RECENTER CLINIC")).toBe(false);
+    expect(sim.labels()).toContain("1 · FIXATION —");
+    expect(sim.labels()).toContain("2 · LARGE APERTURE —");
+    await sim.pickup(0, "fundus");
+    await sim.click(0, sim.button("LOOK AT THE LIGHT"));
+    expect(sim.mirror().actions[0].active).toBe(false); // Instrument trigger never operates wall UI.
+    await sim.at(0, [0, 1.33, .459]);
     await sim.scope(0); await sim.step(1 / 72, 12);
     let observation: THREE.Object3D | undefined;
     sim.state.scene.traverse(object => { if (object.userData.xrScopeViewObservation) observation = object; });
@@ -55,7 +66,7 @@ describe("new Practice lessons in the shared clinic", () => {
     };
     expect(observation?.visible).toBe(true);
     expect(pupilColours()).toEqual(["080b0b", "080b0b"]);
-    expect(sim.labels().join(" ")).toContain("Ask the patient to look at the light");
+    expect(sim.mirror().status).toContain("Ask the patient to look at the light");
     expect(sim.mirror().ready).toBe(false);
     // Light and small spot alone do not cover both pupils at this distance.
     await sim.event(0, "selectstart"); await sim.step(1 / 72, 12);
@@ -67,12 +78,14 @@ describe("new Practice lessons in the shared clinic", () => {
     await sim.at(0, [0, 1.33, .159]);
     await sim.action("LOOK AT THE LIGHT"); await sim.step(1 / 72, 12);
     expect(observation?.visible).toBe(true); expect(pupilColours()).toEqual(["ffb55d", "b82714"]);
-    expect(sim.labels().join(" ")).toContain("move the light to 90–110 cm");
+    expect(sim.mirror().status).toContain("move the light to 90–110 cm");
     expect(sim.mirror().ready).toBe(false); expect(sim.complete).not.toHaveBeenCalled();
     await sim.at(0, [0, 1.33, .459]); await sim.step(1 / 72, 12);
     expect(sim.mirror().ready).toBe(true);
     await sim.event(0, "selectend"); await sim.step(1 / 72, 12);
     expect(observation?.visible).toBe(true); expect(pupilColours()).toEqual(["080b0b", "080b0b"]);
+    expect(sim.labels()).toContain("4 · BOTH PUPILS ILLUMINATED ✓");
+    expect(sim.mirror().status).toContain("Both reflexes inspected");
     expect(sim.labels()).not.toContain("B/Y · CLOSE SCOPE");
     expect(sim.record).not.toHaveBeenCalled();
   });
@@ -92,6 +105,9 @@ describe("new Practice lessons in the shared clinic", () => {
     });
     expect(overlay?.visible).toBe(true); expect(observation?.visible).toBe(true);
     expect(overlay?.userData.xrIgnoreRay).toBe(true);
+    let canonicalEyes: THREE.Object3D | undefined;
+    observation!.traverse(object => { if (object.userData.xrCanonicalBrucknerEyes) canonicalEyes = object; });
+    expect(canonicalEyes).toBeDefined();
     const pupils: THREE.Mesh[] = [];
     observation!.traverse(object => { if (object instanceof THREE.Mesh && object.userData.eye) pupils.push(object); });
     expect(pupils).toHaveLength(2);
@@ -105,7 +121,7 @@ describe("new Practice lessons in the shared clinic", () => {
     // Head pose moves the window, never gates the patient's optical observation.
     sim.viewerCamera.position.set(1.4, 1.8, 2); sim.viewerCamera.rotation.y = .7;
     await sim.step(1 / 72, 12); expect(observation?.visible).toBe(true);
-    const expected = sim.viewerCamera.position.clone().add(new THREE.Vector3(0, 0, -.9).applyQuaternion(sim.viewerCamera.quaternion));
+    const expected = sim.viewerCamera.position.clone().add(new THREE.Vector3(0, 0, -.68).applyQuaternion(sim.viewerCamera.quaternion));
     expect(overlay!.position.distanceTo(expected)).toBeLessThan(1e-8);
     await sim.scope(0); await sim.step(); expect(sim.mirror().ready).toBe(true); // Completed inspection retained.
     await sim.event(0, "selectend"); await sim.putDown(0);
@@ -189,22 +205,35 @@ describe("new Practice lessons in the shared clinic", () => {
   });
   it("motility follows the held penlight, requires nine dwells and symptoms, and records an explicit observation", async () => {
     const sim = await lesson("motility");
+    expect(sim.labels()).toContain("○ Up");
+    expect(sim.labels()).toContain("FOLLOW LIGHT · HEAD STILL");
+    expect(sim.labels()).toContain("ASK ABOUT SYMPTOMS");
+    expect(sim.labels()).toContain("HIDE GAZE GUIDE");
+    expect(sim.labels()).toContain("RESET");
+    expect(sim.labels()).not.toContain("RECENTER");
+    expect(sim.labels()).not.toContain("PROCEDURE CONTROLS");
     await sim.pickup(0, "pupils");
-    await sim.click(1, sim.button("FOLLOW LIGHT · HEAD STILL")); await sim.event(0, "selectstart");
+    await sim.click(1, sim.button("FOLLOW LIGHT · HEAD STILL"));
+    await sim.panel(0); // Motility keeps A/X out of panel mode; the held trigger remains the light.
+    await sim.event(0, "selectstart");
+    await sim.at(0, [0, 1.5, -.086]); await sim.step(1 / 72, 15);
+    expect(sim.labels().some(label => /% · Centre/.test(label))).toBe(true);
     for (const gaze of gazePositions) {
       await sim.at(0, [gaze.x * .35 * .65, 1.5 + gaze.y * .35 * .45, -.086]);
       await sim.step(1 / 72, 60);
     }
+    await sim.event(0, "selectend");
     expect(sim.mirror().ready).toBe(false);
     expect(sim.eyes("consultationGaze").every(eye => eye.position.x > 0)).toBe(true);
     await sim.click(1, sim.button("ASK ABOUT SYMPTOMS"));
     expect(sim.mirror().ready).toBe(true);
+    expect(sim.mirror().status).toContain("choose the movement observation and submit");
     await sim.click(1, sim.button("FROM · FULL, SMOOTH AND ACCURATE OU"));
     await sim.click(1, sim.button("SUBMIT / CHECK")); expect(sim.complete).toHaveBeenCalledTimes(1);
     expect(sim.mirror().lesson.feedback).toContain("Full movements");
     expect(sim.record).not.toHaveBeenCalled();
     const eyeObjects = sim.eyes("consultationGaze");
-    await sim.exit(); await sim.event(0, "selectend");
+    await sim.exit();
     expect(eyeObjects.every(eye => eye.position.length() === 0)).toBe(true);
     expect(sim.mirror().lesson.entries).toEqual({});
   });

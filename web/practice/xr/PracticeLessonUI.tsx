@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import type { XRClinicRuntime } from "../../interaction/useXRClinicRuntime";
 import type { ConsultationToolId } from "../../interaction/xrConsultationTools";
 import { Box } from "../../scene/Models";
-import { XRHeadPanel, XRPanelButton, XRSign } from "../../scene/XRClinicPanels";
+import { XRClinicUtilityPanel, XRHeadPanel, XRPanelButton, XRSign } from "../../scene/XRClinicPanels";
 import { XRPracticeFindingsBoard } from "../../scene/XRPracticeFindingsBoard";
 import { useXRPracticeResult, XRPracticeResultHUD } from "../../scene/XRPracticeResultHUD";
 
@@ -65,10 +65,11 @@ export function BatchLessonMirror({ mirror }: { mirror: BatchMirror }) {
 }
 const numericSteps = (field: LessonField) => [...new Set([-(field.number?.step ?? 1), field.number?.step ?? 1, -1, 1, -5, 5])];
 const fieldRows = (field: LessonField) => (field.number ? Math.ceil(numericSteps(field).length / 2) + 1 : Math.ceil(field.choices.length / 2)) + .5;
-export function PracticeLessonUI({ runtime, active, title, status, help, tools, actions, fields, lesson, entryReady, ready, onRecord, onReset, onNext, onExit, settings, onCancel, directActions }: {
+export function PracticeLessonUI({ runtime, active, title, status, help, tools, actions, fields, lesson, entryReady, ready, onRecord, onReset, onNext, onExit, settings, onCancel, directActions, forceBoardVisible = false, wallOnly = false, boardStatusLines }: {
   runtime: XRClinicRuntime; active: boolean; title: string; status: string; help: string[];
   tools: ConsultationToolId[]; actions: LessonAction[]; directActions?: LessonAction[]; fields: LessonField[]; lesson: PracticeLesson;
   entryReady: boolean; ready: boolean; onRecord: () => void; onReset: () => void; onNext?: () => void; onExit: () => void; settings?: ReactNode; onCancel?: () => void;
+  forceBoardVisible?: boolean; wallOnly?: boolean; boardStatusLines?: readonly string[];
 }) {
   const [entryPage, setEntryPage] = useState(0);
   useEffect(() => { if (lesson.mode !== "record") setEntryPage(0); }, [lesson.mode]);
@@ -79,12 +80,20 @@ export function PracticeLessonUI({ runtime, active, title, status, help, tools, 
   const page = Math.min(entryPage, pages - 1);
   const visibleFields = paginated ? fields.slice(page * perPage, page * perPage + perPage) : fields;
   const menuRows = Math.ceil(actions.length / 2);
-  const menuBottom = -.195 - menuRows * .085;
+  const menuBottom = -.28 - menuRows * .085;
   const menuHeight = .40 - menuBottom + .08;
   const recordRows = visibleFields.reduce((sum, field) => sum + fieldRows(field), 0);
-  const recordBottom = Math.min(-.315, .16 - recordRows * .08 - (paginated ? .12 : .035));
+  const statusHeight = boardStatusLines ? Math.max(.24, (boardStatusLines.length + 1) * .052) : .15;
+  const fieldTop = boardStatusLines ? .44 - statusHeight - .075 : .16;
+  const fieldShift = .16 - fieldTop;
+  const recordBottom = Math.min(-.315 - fieldShift, fieldTop - recordRows * .08 - (paginated ? .12 : .035));
   const recordHeight = .50 - (recordBottom - .23);
-  const cancel = () => { lesson.clearResult(); if (onCancel) onCancel(); else { lesson.clearPending(); lesson.setMode("none"); } };
+  const closePanels = () => { lesson.setMode("none"); runtime.closePanels(); };
+  const cancel = () => {
+    lesson.clearResult();
+    if (onCancel) onCancel(); else lesson.clearPending();
+    closePanels();
+  };
   const boardActions = directActions ?? actions.slice(0, 2);
   const actionExtension = Math.max(0, boardActions.length - 1) * .10;
   const submit = () => {
@@ -96,12 +105,18 @@ export function PracticeLessonUI({ runtime, active, title, status, help, tools, 
   const findings = <>
       <Box p={[0, (.50 + recordBottom - .23) / 2 + .06 + actionExtension / 2, -.015]} s={[.78, recordHeight + .12 + actionExtension, .018]} c="#102329" radius={.012} />
       {boardActions.map((action, index) => <XRPanelButton key={action.label} label={action.label} position={[0, .565 + index * .10, .02]} width={.70} active={action.active} disabled={action.disabled} onClick={action.run} />)}
-      <XRSign text={[title + " · MY OBSERVATIONS", status]} p={[0, .31, 0]} size={[.72, .15]} bg="#102329" fg="#eefbf7" />
-      <XRPanelButton label="PROCEDURE CONTROLS" position={[-.105, .46, .02]} width={.55} onClick={() => lesson.setMode("menu")} />
-      <XRPanelButton label="EXIT VR" position={[.28, .46, .02]} width={.18} onClick={onExit} />
+      <XRSign text={[title + " · MY OBSERVATIONS", ...(boardStatusLines ?? [status])]} p={[0, boardStatusLines ? .44 - statusHeight / 2 : .31, 0]} size={[.72, statusHeight]} bg="#102329" fg="#eefbf7" />
+      {wallOnly ? <>
+        <XRPanelButton label="HELP" position={[-.24, .46, .02]} width={.22} onClick={() => lesson.setMode("help")} />
+        <XRPanelButton label="RESET" position={[0, .46, .02]} width={.22} onClick={onReset} />
+        <XRPanelButton label="EXIT" position={[.24, .46, .02]} width={.22} onClick={onExit} />
+      </> : <>
+        <XRPanelButton label="PROCEDURE CONTROLS" position={[-.105, .46, .02]} width={.55} onClick={() => lesson.setMode("menu")} />
+        <XRPanelButton label="EXIT VR" position={[.28, .46, .02]} width={.18} onClick={onExit} />
+      </>}
       {visibleFields.map((field, fieldIndex) => {
         const previousRows = visibleFields.slice(0, fieldIndex).reduce((sum, item) => sum + fieldRows(item), 0);
-        const top = .16 - previousRows * .08;
+        const top = fieldTop - previousRows * .08;
         return <group key={field.id}>
           <XRSign text={[field.number ? `${field.label} · ${lesson.entries[field.id] || "—"}${field.number.unit}` : field.label]} p={[0, top + .049, .012]} size={[.70, .035]} bg="#102329" fg="#eefbf7" />
           {field.number && <>
@@ -121,13 +136,17 @@ export function PracticeLessonUI({ runtime, active, title, status, help, tools, 
       {paginated && <><XRPanelButton label="PREVIOUS ENTRIES" position={[-.18, recordBottom + .085, .012]} width={.34} disabled={page === 0} onClick={() => setEntryPage(page - 1)} /><XRPanelButton label="NEXT ENTRIES" position={[.18, recordBottom + .085, .012]} width={.34} disabled={page >= pages - 1} onClick={() => setEntryPage(page + 1)} /></>}
       <XRPanelButton label="CANCEL" position={[-.18, recordBottom, .012]} width={.34} onClick={cancel} />
       <XRPanelButton label="SUBMIT / CHECK" position={[.18, recordBottom, .012]} width={.34} disabled={lesson.recorded} active={ready && fields.every(field => Boolean(lesson.entries[field.id]))} onClick={submit} />
-      <XRSign text={[lesson.feedback || (ready ? "Choose your finding, then record." : status)]} p={[0, recordBottom - .09, .012]} size={[.72, .085]} bg="#102329" fg="#eefbf7" />
+      <XRSign text={[lesson.feedback || (ready ? "Choose your finding, then record." : boardStatusLines ? "Complete the numbered steps above, then record." : status)]} p={[0, recordBottom - .09, .012]} size={[.72, .085]} bg="#102329" fg="#eefbf7" />
       {lesson.recorded && onNext && <XRPanelButton label="NEW PATIENT FINDING" position={[0, recordBottom - .185, .012]} width={.70} onClick={onNext} />}
     </>;
   return <>
-    <XRPracticeResultHUD active={active} result={lesson.result} />
-    <XRPracticeFindingsBoard runtime={runtime} active={active} tools={tools} forceVisible={lesson.mode === "record"} hidden={lesson.mode !== "none" && lesson.mode !== "record"}>{findings}</XRPracticeFindingsBoard>
-    {lesson.mode === "menu" && <XRHeadPanel>
+    <XRPracticeResultHUD active={active} result={lesson.result} onTryNewCase={() => {
+      lesson.clearResult();
+      if (onNext) onNext(); else onReset();
+    }} />
+    <XRClinicUtilityPanel runtime={runtime} onHelp={() => lesson.setMode("help")} onExit={onExit} />
+    <XRPracticeFindingsBoard runtime={runtime} active={active} tools={tools} forceVisible={forceBoardVisible || lesson.mode === "record"} hidden={lesson.mode !== "none" && lesson.mode !== "record"}>{findings}</XRPracticeFindingsBoard>
+    {!wallOnly && lesson.mode === "menu" && <XRHeadPanel>
       <Box p={[0, (.40 + menuBottom - .08) / 2, 0]} s={[.72, menuHeight, .018]} c="#102329" radius={.012} />
       <XRSign text={[title, status]} p={[0, .29, .012]} size={[.66, .15]} bg="#102329" fg="#eefbf7" />
       {actions.map((action, i) => <XRPanelButton key={action.label} label={action.label} position={[i % 2 ? .17 : -.17, .145 - Math.floor(i / 2) * .085, .025]} width={.32} active={action.active} disabled={action.disabled} onClick={action.run} />)}
@@ -135,12 +154,12 @@ export function PracticeLessonUI({ runtime, active, title, status, help, tools, 
       <XRPanelButton label="HELP" position={[.17, -.025 - Math.ceil(actions.length / 2) * .085, .025]} width={.32} onClick={() => lesson.setMode("help")} />
       <XRPanelButton label="RESET ATTEMPT" position={[-.17, -.11 - Math.ceil(actions.length / 2) * .085, .025]} width={.32} onClick={onReset} />
       <XRPanelButton label="EXIT VR" position={[.17, -.11 - Math.ceil(actions.length / 2) * .085, .025]} width={.32} onClick={onExit} />
-      <XRPanelButton label="CLOSE" position={[0, -.195 - Math.ceil(actions.length / 2) * .085, .025]} width={.66} onClick={() => lesson.setMode("none")} />
+      <XRPanelButton label="CLOSE" position={[0, -.195 - Math.ceil(actions.length / 2) * .085, .025]} width={.66} onClick={closePanels} />
     </XRHeadPanel>}
     {lesson.mode === "help" && <XRHeadPanel>
       <Box s={[.76, .72, .018]} c="#102329" radius={.012} />
       <XRSign text={[title, ...help, status]} p={[0, .055, .012]} size={[.70, .49]} bg="#102329" fg="#eefbf7" />
-      <XRPanelButton label="CLOSE HELP" position={[-.17, -.26, .025]} width={.32} onClick={() => lesson.setMode("none")} />
+      <XRPanelButton label="CLOSE HELP" position={[-.17, -.26, .025]} width={.32} onClick={closePanels} />
       <XRPanelButton label="EXIT VR" position={[.17, -.26, .025]} width={.32} onClick={onExit} />
     </XRHeadPanel>}
     {lesson.mode === "settings" && settings}

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Opto · Consulting room environment mock</title>
+  </head>
+  <body>
+    <main class="rm">
+      <header>
+        <p class="eyebrow">OPTO · ROOM ENVIRONMENT MOCK</p>
+        <h1>Consultation 01: current vs proposed room</h1>
+        <p class="sub">Same 4.15 × 5.15 × 3 m footprint, station positions and patient eye anchors as <code>ConsultingRoomShell</code> and <code>Room.tsx</code>. Only the room's surfaces, lighting and furnishing change. The patient is a neutral clay stand-in so you can judge the room by itself.</p>
+      </header>
+
+      <section class="stage" id="stage">
+        <canvas id="room-canvas" tabindex="0" aria-label="3D consulting room. Drag to look around, scroll to zoom."></canvas>
+        <div id="room-error" role="alert" hidden></div>
+        <div class="bar">
+          <div class="seg" role="group" aria-label="Room version">
+            <button type="button" data-room="current" aria-pressed="false">Current</button>
+            <button type="button" data-room="proposed" aria-pressed="true">Proposed</button>
+          </div>
+          <div class="seg" role="group" aria-label="Lighting">
+            <button type="button" data-light="consult" aria-pressed="true">Consult lighting</button>
+            <button type="button" data-light="dim" aria-pressed="false">Exam dim</button>
+          </div>
+          <div class="seg" role="group" aria-label="Viewpoint">
+            <button type="button" data-view="seat" aria-pressed="true">Examiner seat</button>
+            <button type="button" data-view="door" aria-pressed="false">Doorway</button>
+            <button type="button" data-view="wall" aria-pressed="false">Worktop</button>
+            <button type="button" data-view="top" aria-pressed="false">Plan</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="notes">
+        <article>
+          <h2>Surfaces</h2>
+          <ul>
+            <li><b>Dark slate wall behind the patient</b> (#2f4448). Corneal reflexes, the red reflex and the chart all stand out against it, and the patient's face is no longer lost against pale green.</li>
+            <li><b>Warm off-white side walls</b> (#ebe7df) with a faint paint texture, replacing four slightly different grey-greens.</li>
+            <li><b>Oak-effect clinical vinyl</b> in planks with grain. It gives scale and depth that the 0.5 m grid lines didn't.</li>
+            <li><b>Suspended ceiling tile grid</b> with recessed LED panels, plus proper skirting, door frame and window reveal.</li>
+          </ul>
+        </article>
+        <article>
+          <h2>Lighting</h2>
+          <ul>
+            <li>Replace flat ambient (0.55) + hemi (1.05) with <b>two ceiling area lights + window daylight + one soft key</b> over the chair. The room gets shadows and falloff.</li>
+            <li><b>Image-based environment light</b> (RoomEnvironment PMREM) so chrome, plastic and the chart screen reflect something.</li>
+            <li><b>Exam dim</b> is a real state: panels drop to about 8%, blinds close and the chart backlight remains. It matches “DIM ROOM LIGHTS” for pupils and retinoscopy.</li>
+            <li>Soft <b>contact shadows</b> under furniture. On Quest these should be baked decals, not real-time shadows.</li>
+          </ul>
+        </article>
+        <article>
+          <h2>Furnishing</h2>
+          <ul>
+            <li><b>Wall-mounted LCD acuity display</b> with a bezel and backlight, replacing the dark box and “SIMULATED DISPLAY” sign. The chart stays at the existing acuity anchor.</li>
+            <li><b>Left-wall worktop</b>: base units, sink, sanitiser, towel dispenser and upper cabinets. It reads as a clinic and fills the dead wall.</li>
+            <li><b>Ophthalmic chair</b> with a hydraulic column, headrest and footrest. The examiner gets a stool. Trolley, refraction unit and slit lamp keep their positions but get chrome, brushed metal and rounded shells.</li>
+            <li>Small cues: wall clock, eye anatomy poster, door plaque, bin. These are cheap and add a lot of believability.</li>
+          </ul>
+        </article>
+        <article>
+          <h2>Shipping on Quest</h2>
+          <ul>
+            <li>Everything here is procedural, with no third-party assets, so <code>docs/asset-manifest.md</code> stays clean.</li>
+            <li>For production, <b>bake lighting into lightmaps</b> (Blender → glTF with KTX2 textures). Keep only 1 real-time shadow light, near the patient.</li>
+            <li>Merge static room meshes into a few draw calls and keep texture sizes at 1k or below.</li>
+            <li><b>Layout question:</b> the chart is on the rear wall behind the patient, who faces the examiner. A real room would use a mirror or a reversed chart. That's a clinical/layout decision to review, not a visual one.</li>
+          </ul>
+        </article>
+      </section>
+      <footer>Concept mock · fictional patient · no production files changed</footer>
+    </main>
+    <script type="module" src="/web/room-environment-mock.ts"></script>
+  </body>
+</html>

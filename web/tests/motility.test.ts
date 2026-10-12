@@ -18,13 +18,22 @@ describe("manual fixation", () => {
       }
     }
   });
-  it("requires sustained observation, resets interrupted dwell, and never grants idle coverage", () => {
+  it("requires sustained observation, tolerates brief spatial jitter, and never grants idle coverage", () => {
     const empty: MotilityCoverage = { seen: [], current: null, dwell: 0 };
     const centre = targetFromControls(0, 0, 0.35);
     expect(observeTarget(empty, centre, 30, false).seen).toEqual([]);
     expect(observeTarget(empty, centre, 30, true).seen).toEqual([]);
     let state = empty;
     for (let i = 0; i < 5; i++) state = observeTarget(state, centre, 0.1, true);
+    state = observeTarget(state, targetFromControls(0.4, 0.4, 0.35), 0.1, true);
+    expect(state.current).toBe("centre");
+    expect(state.dwell).toBeCloseTo(0.5);
+    state = observeTarget(state, centre, 0.1, true);
+    expect(state.dwell).toBeCloseTo(0.6);
+    const inactive = observeTarget(state, centre, 0.1, false);
+    expect(inactive.current).toBeNull();
+    expect(inactive.dwell).toBe(0);
+    state = observeTarget(state, targetFromControls(0.4, 0.4, 0.35), 0.1, true);
     state = observeTarget(state, targetFromControls(0.4, 0.4, 0.35), 0.1, true);
     expect(state.dwell).toBe(0);
     for (const p of gazePositions) {
@@ -33,6 +42,11 @@ describe("manual fixation", () => {
     expect(state.seen).toHaveLength(9);
     for (let i = 0; i < 10; i++) state = observeTarget(state, centre, 0.1, true);
     expect(state.seen).toHaveLength(9);
+  });
+  it("uses forgiving, non-overlapping gaze zones", () => {
+    const empty: MotilityCoverage = { seen: [], current: null, dwell: 0 };
+    expect(observeTarget(empty, targetFromControls(0.2, 0.7, 0.35), 0.1, true).current).toBe("up");
+    expect(observeTarget(empty, targetFromControls(0.25, 0.7, 0.35), 0.1, true).current).toBeNull();
   });
 });
 describe("manual acuity tools", () => {

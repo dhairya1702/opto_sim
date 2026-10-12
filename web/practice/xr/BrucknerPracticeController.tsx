@@ -78,6 +78,14 @@ export function BrucknerPracticeController({ active, preview = false, scenario, 
   const actions = [
     { label: fixation ? "FIXATION GIVEN ✓" : "LOOK AT THE LIGHT", run: () => { setup.current.fixation = true; setFixation(true); }, active: fixation },
   ];
+  const boardActions = [actions[0]];
+  const boardStatusLines = [
+    `1 · FIXATION ${fixation ? "✓" : "—"}`,
+    `2 · LARGE APERTURE ${runtime.scopeAperture === "large" ? "✓" : "—"}`,
+    `3 · WORKING DISTANCE ${technique.distanceReady ? "✓" : "—"}`,
+    `4 · BOTH PUPILS ILLUMINATED ${captured || technique.illuminated ? "✓" : "—"}`,
+    `5 · B/Y SCOPE INSPECTION ${captured ? "✓" : "—"}`,
+  ];
   const status = captured ? "Both reflexes inspected · choose relative brightness and submit." : xrBrucknerPrompt(technique, {
     tracked: runtime.frameValid.current, held: runtime.tools.fundus.placement.kind === "held",
     light: runtime.tools.fundus.powered, fixation, largeSpot: runtime.scopeAperture === "large",
@@ -99,6 +107,7 @@ export function BrucknerPracticeController({ active, preview = false, scenario, 
     </group>}
     <PracticeLessonUI runtime={runtime} active={active} title="BRUCKNER" status={status} tools={["fundus"]} actions={actions} fields={fields} lesson={lesson}
       entryReady={captured} ready={active && !preview && captured} onRecord={record} onReset={reset} onNext={next} onExit={onExit} onCancel={() => { interrupt(); lesson.setMode("none"); }}
+      directActions={boardActions} forceBoardVisible boardStatusLines={boardStatusLines}
       help={["Pick the ophthalmoscope; hold the trigger.", "Use the free hand to select the large gold circle on the rear aperture wheel.", "Place the light about 1 metre from the patient and aim between both pupils.", "Press B/Y on the instrument hand to open the enlarged view of both pupils; press again to close.", "Compare the red reflex brightness in both pupils. Scope mode does not change your physical working distance."]} />
   </>;
 }

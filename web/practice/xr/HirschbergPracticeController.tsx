@@ -6,7 +6,7 @@ import { CLINIC_EYE_MIDPOINT, CLINIC_PATIENT_EYES } from "../../interaction/clin
 import { emptyHirschbergTechnique, clinicHirschbergReflex, hirschbergSubmission, type HirschbergPracticeFinding } from "../../interaction/xrHirschbergPractice";
 import { xrHirschbergPrompt, xrHirschbergTechnique, type XRHirschbergTechnique } from "../../interaction/xrPractice";
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
-import { XRHeadPanel, XRPanelButton, XRSign as Sign } from "../../scene/XRClinicPanels";
+import { XRClinicUtilityPanel, XRHeadPanel, XRPanelButton, XRSign as Sign } from "../../scene/XRClinicPanels";
 import { Box } from "../../scene/Models";
 import { XRPracticeFindingsBoard } from "../../scene/XRPracticeFindingsBoard";
 import { useXRPracticeResult, XRPracticeResultHUD } from "../../scene/XRPracticeResultHUD";
@@ -190,9 +190,10 @@ export function HirschbergPracticeController({ active, preview = false, scenario
         {checked && correct && <XRPanelButton label="NEW PATIENT FINDING" position={[0, -.51, .012]} width={.70} onClick={nextFinding} />}
       </>;
   return <>
-    <XRPracticeResultHUD active={active && !preview} result={resultNotice} />
+    <XRPracticeResultHUD active={active && !preview} result={resultNotice} onTryNewCase={nextFinding} />
     <XRClinicRuntimeView cleanHands runtime={runtime} active={active && !preview} preview={preview} title="HIRSCHBERG · PRACTICE" instruction="Pick up the penlight · findings on rear wall · trigger to select" />
     {active && <>
+      <XRClinicUtilityPanel runtime={runtime} onHelp={() => { setHelp(true); setMenu(false); setRecording(false); }} onExit={onExit} />
       <XRPracticeFindingsBoard runtime={runtime} active={active && !preview} tools={["pupils"]} forceVisible={recording} hidden={menu || help}>{findings}</XRPracticeFindingsBoard>
       <HirschbergReflexes scenario={scenario} visual={visual} />
       {menu && !recording && !help && <XRHeadPanel>

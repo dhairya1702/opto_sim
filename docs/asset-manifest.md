@@ -32,7 +32,7 @@ The button-operated scope window, vignette, reticle and labels in `XRScopeView.t
 
 | Asset | Source / creator | License | Modifications and intended use |
 | --- | --- | --- | --- |
-| Worth target, red–green and polarised frames, stereo booklet, sensory tray, near stand, distance dock and illustrative mirror display | Original project procedural geometry/canvas textures in `web/scene/SensoryClinicEquipment.tsx` | CC0-1.0 | Lesson-selected metre-scale equipment; no external textures/models or general reflection pass. Mirror presents a computed virtual target or illustrative isolated letter. |
+| Worth target, red–green and polarised frames, stereo booklet, shared left-wall cart, near stand, distance dock and illustrative mirror display | Original project procedural geometry/canvas textures in `web/scene/Models.tsx` and `web/scene/SensoryClinicEquipment.tsx` | CC0-1.0 | Lesson-selected metre-scale equipment; no external textures/models or general reflection pass. Mirror presents a computed virtual target or illustrative isolated letter. |
 | Worth isolated-filter and patient-reported diagrams; stereo pages and reported percept | Original project geometry in `WorthPracticeController.tsx` and `StereoPracticeController.tsx`, reusing existing authored content | CC0-1.0 | Two-sided booklet with labeled examiner response controls and enlarged fictional reported-view illustrations; not calibrated colour cancellation or stereoscopic stimuli. |
 | Canonical trial-frame fitting dimensions and 4Δ eye motion | Original project models and authored `fourPrismGaze` timeline | CC0-1.0 | Trial lens centres align to canonical OD/OS ±.048 m; correction/filter layers are separate. Eye displacement is patient-scale illustration with cleanup restoring gaze. |
 

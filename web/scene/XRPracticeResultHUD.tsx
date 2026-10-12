@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Group, Mesh, Quaternion, Vector3 } from "three";
-import { XRSign } from "./XRClinicPanels";
+import { XRPanelButton, XRSign } from "./XRClinicPanels";
 
 type Result = { id: number; kind: "correct" | "retry" | "incomplete"; message: string };
 export const XR_RESULT_DURATION_MS = 5000;
@@ -34,8 +34,8 @@ function resultLines(message: string) {
   return lines;
 }
 
-/** Read-only headset feedback; it never intercepts controller selection rays. */
-export function XRPracticeResultHUD({ result, active }: { result: Result | null; active: boolean }) {
+/** Shared feedback; only a correct result exposes the explicit next-case action. */
+export function XRPracticeResultHUD({ result, active, onTryNewCase }: { result: Result | null; active: boolean; onTryNewCase?: () => void }) {
   const root = useRef<Group>(null);
   const pose = useRef({ position: new Vector3(), rotation: new Quaternion(), offset: new Vector3() });
   useFrame(({ gl, camera }) => {
@@ -43,7 +43,7 @@ export function XRPracticeResultHUD({ result, active }: { result: Result | null;
     const viewer = gl.xr.isPresenting ? gl.xr.getCamera() : camera;
     const { position, rotation, offset } = pose.current;
     viewer.getWorldPosition(position); viewer.getWorldQuaternion(rotation);
-    root.current.position.copy(position).add(offset.set(0, -.04, -.9).applyQuaternion(rotation));
+    root.current.position.copy(position).add(offset.set(0, -.04, -1.25).applyQuaternion(rotation));
     root.current.quaternion.copy(rotation); root.current.updateMatrixWorld(true);
   }, -1);
   useEffect(() => {
@@ -59,9 +59,11 @@ export function XRPracticeResultHUD({ result, active }: { result: Result | null;
   const height = Math.max(.18, (lines.length + 1) * .055);
   const heading = result.kind === "correct" ? "CORRECT" : result.kind === "retry" ? "TRY AGAIN" : "NOT READY YET";
   const background = result.kind === "correct" ? "#125346" : result.kind === "retry" ? "#573323" : "#173a4b";
-  return <group ref={root} userData={{ xrPracticeResultHUD: true, xrIgnoreRay: true }}>
-    <mesh position={[0, -.02, -.012]}><planeGeometry args={[.84, height + .18]} /><meshBasicMaterial color={background} /></mesh>
+  const canTryNewCase = result.kind === "correct" && Boolean(onTryNewCase);
+  return <group ref={root} userData={{ xrPracticeResultHUD: true, xrIgnoreRay: !canTryNewCase, xrPanel: canTryNewCase || undefined }}>
+    <mesh position={[0, -.02, -.012]}><planeGeometry args={[.84, height + (canTryNewCase ? .30 : .18)]} /><meshBasicMaterial color={background} /></mesh>
     <XRSign text={[heading]} p={[0, height / 2 + .015, 0]} size={[.78, .075]} bg={background} fg="#ffffff" />
     <XRSign text={lines} p={[0, -.065, .002]} size={[.78, height]} bg={background} fg="#ffffff" />
+    {canTryNewCase && <XRPanelButton label="TRY NEW CASE" position={[0, -height / 2 - .085, .012]} width={.50} onClick={() => onTryNewCase?.()} />}
   </group>;
 }

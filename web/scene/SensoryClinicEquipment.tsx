@@ -117,12 +117,6 @@ export function SensoryClinicStation({ runtime, distanceLetter = false, active =
   if (!sensory && !distanceLetter) return null;
   const near = runtime.equipment.some(id => id === "worth" || id === "stereo");
   return <>
-    {sensory && <group userData={{ xrIgnoreRay: true }}>
-      <Box p={[1.31, .85, 1.04]} s={[.92, .06, .52]} c="#d9e1d9" radius={.02} />
-      <Cylinder p={[1.31, .43, 1.04]} h={.82} radius={.045} c="#9bafaa" />
-      <Box p={[1.31, .02, 1.04]} s={[.65, .03, .40]} c="#8ca39f" />
-      <Sign text={["SENSORY EQUIPMENT"]} p={[1.31, .73, 1.31]} size={[.62, .065]} bg="#173a3e" fg="#e8fff9" />
-    </group>}
     {near && <group userData={{ xrIgnoreRay: true }}>
       <Cylinder p={[.26, .70, SENSORY_NEAR_TARGET[2]]} h={1.37} radius={.012} c="#768e8c" />
       <Box p={[.13, 1.31, SENSORY_NEAR_TARGET[2] + .017]} s={[.28, .018, .065]} c="#78948e" />
@@ -150,9 +144,5 @@ export function SensoryClinicStation({ runtime, distanceLetter = false, active =
     {SENSORY_SOCKETS.filter(socket => socket.fittingLayer && runtime.equipment.includes(socket.tool)).map(socket => <group key={socket.id} position={[...socket.position]} userData={{ xrIgnoreRay: true }}>
       <mesh><ringGeometry args={[.009, .012, 20]} /><meshBasicMaterial color={socket.fittingLayer === "correction" ? "#f1da96" : "#8bcaba"} transparent opacity={.45} side={DoubleSide} /></mesh>
     </group>)}
-    {sensory && <group position={[.65, .012, 1.65]} userData={active ? { xrTeleport: [.65, 0, 1.65] } : { xrPreviewPad: true }}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[.19, .26, 32]} /><meshBasicMaterial color="#4fae9d" transparent opacity={.65} /></mesh>
-      <Sign text={["SENSORY KIT"]} p={[0, .008, 0]} size={[.33, .08]} rotation={[-Math.PI / 2, 0, 0]} bg="#153b3c" fg="#e8fff9" />
-    </group>}
   </>;
 }

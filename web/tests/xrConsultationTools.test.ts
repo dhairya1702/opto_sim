@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { Quaternion, Vector3 } from "three";
 import {
-  CONSULTATION_TOOLS, consultationToolDefinition, consultationToolReady,
+  ALL_CLINIC_TOOLS, CONSULTATION_SURFACES, EXERCISE_SURFACE, SENSORY_TOOLS,
+  CONSULTATION_TOOLS, EXERCISE_TOOLS, consultationToolDefinition, consultationToolReady,
   consultationPickupHint, consultationPickupLabel,
   grabConsultationTool, initialConsultationTools, powerConsultationTool,
   releaseConsultationTool, resetConsultationHands, toolInHand,
   type ConsultationTools,
 } from "../interaction/xrConsultationTools";
+import { SENSORY_SURFACES } from "../interaction/xrSensoryEquipment";
+import { INSTRUMENT_KIT } from "../interaction/clinicLayout";
 
 const identity = [0, 0, 0, 1] as const;
 const surface = [{ id: "clear", x: 0, z: 0, y: .8, width: 1, depth: 1 }];
@@ -60,13 +63,13 @@ describe("consultation assisted placement", () => {
     const home = consultationToolDefinition("pupils").home;
     const result = releaseConsultationTool(hold(), "left", { position: [home[0] + .04, home[1], home[2]], rotation: identity });
     expect(result.returned).toBe(false);
-    expect(result.state.pupils.placement).toEqual({ kind: "socket", position: home, rotation: identity });
+    expect(result.state.pupils.placement).toEqual({ kind: "socket", position: home, rotation: consultationToolDefinition("pupils").restRotation });
   });
 
   it("places above a clear surface and can be picked up again", () => {
     const result = releaseConsultationTool(hold(), "left", { position: [0, 1, 0], rotation: identity }, surface);
     expect(result.returned).toBe(false);
-    expect(result.state.pupils.placement).toEqual({ kind: "surface", position: [0, .915, 0], rotation: identity });
+    expect(result.state.pupils.placement).toEqual({ kind: "surface", position: [0, .915, 0], rotation: consultationToolDefinition("pupils").restRotation });
     const next = grabConsultationTool(result.state, "pupils", "right");
     expect(toolInHand(next, "right")).toBe("pupils");
     expect(next.pupils.lastRest).toEqual(result.state.pupils.placement);
@@ -124,11 +127,24 @@ describe("consultation assisted placement", () => {
     expect(returned.state.cover.placement.kind).toBe("surface");
   });
 
-  it("keeps every initial home distinct and within pickup clearance", () => {
-    for (const tool of CONSULTATION_TOOLS) {
+  it("keeps every authored home usable when its instrument is stocked", () => {
+    for (const tool of ALL_CLINIC_TOOLS) {
       const state = grabConsultationTool(initialConsultationTools(), tool.id, "left");
-      const result = releaseConsultationTool(state, "left", { position: tool.home, rotation: tool.restRotation });
+      const result = releaseConsultationTool(state, "left", { position: tool.home, rotation: tool.restRotation }, CONSULTATION_SURFACES, [], [tool.id]);
       expect(result.returned, tool.label).toBe(false);
+    }
+  });
+
+  it("stocks every lesson kit on the shared low cart against the learner-left wall", () => {
+    const trays = [CONSULTATION_SURFACES[0], SENSORY_SURFACES[0], EXERCISE_SURFACE];
+    for (const tray of trays) expect(tray).toMatchObject({ x: INSTRUMENT_KIT.x, z: INSTRUMENT_KIT.z, width: INSTRUMENT_KIT.depth, depth: INSTRUMENT_KIT.width });
+    for (const [tools, tray] of [[CONSULTATION_TOOLS, trays[0]], [SENSORY_TOOLS, trays[1]], [EXERCISE_TOOLS, trays[2]]] as const) {
+      expect(Math.max(...tools.map(tool => tool.home[0])) - Math.min(...tools.map(tool => tool.home[0])), "all handles share one shallow reach row").toBeLessThan(.001);
+      for (const tool of tools) {
+        expect(tool.home[0], `${tool.label} must remain left of the patient`).toBeLessThan(-.35);
+        expect(Math.abs(tool.home[0] - tray.x) + tool.footprint[0] / 2, `${tool.label} x footprint`).toBeLessThanOrEqual(tray.width / 2);
+        expect(Math.abs(tool.home[2] - tray.z) + tool.footprint[1] / 2, `${tool.label} z footprint`).toBeLessThanOrEqual(tray.depth / 2);
+      }
     }
   });
 

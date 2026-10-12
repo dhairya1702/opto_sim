@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { CLINIC_EYE_MIDPOINT, CLINIC_PATIENT_EYES } from "../../interaction/clinicPatient";
 import { useXRClinicRuntime } from "../../interaction/useXRClinicRuntime";
-import { gazeForEye, gazePositions, observeTarget, motilityObservations, motilityRecordedObservation, MOTILITY_PATIENT_REPLY, type MotilityCoverage } from "../../interaction/motility";
+import { gazeForEye, gazePositions, observeTarget, motilityObservations, motilityRecordedObservation, MOTILITY_DWELL_SECONDS, type MotilityCoverage } from "../../interaction/motility";
 import { xrMotilityTarget } from "../../interaction/xrMotility";
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
 import { XRSign } from "../../scene/XRClinicPanels";
@@ -10,20 +10,19 @@ import { useClinicEyeMotion } from "./useClinicEyeMotion";
 import { PracticeLessonUI, usePracticeLesson, type BatchMirror, type LessonField } from "./PracticeLessonUI";
 
 const fields: LessonField[] = [{ id: "observation", label: "Movement observation", choices: motilityObservations }];
-const initial = (): MotilityCoverage => ({ seen: [], current: null, dwell: 0 });
+const initial = (): MotilityCoverage => ({ seen: [], current: null, dwell: 0, spatialGrace: 0 });
+const initialReadout = () => ({ count: 0, current: "", distance: 0, tracking: false, progress: 0 });
 export function MotilityPracticeController({ active, preview = false, onComplete, onExit, onMirror }: {
   active: boolean; preview?: boolean; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
 }) {
   const lesson = usePracticeLesson(onComplete);
-  const [guides, setGuides] = useState(false);
+  const [guides, setGuides] = useState(true);
   const [following, setFollowing] = useState(false), [asked, setAsked] = useState(false);
   const followingRef = useRef(false), askedRef = useRef(false);
   const coverage = useRef(initial());
-  const [readout, setReadout] = useState({ count: 0, current: "", distance: 0, tracking: false });
-  const interrupt = useCallback(() => { coverage.current = { ...coverage.current, current: null, dwell: 0 }; }, []);
-  const runtime = useXRClinicRuntime({ active: active && !preview, editorOpen: lesson.mode !== "none", onInterrupt: interrupt,
-    onMenu: open => lesson.setMode(open ? "menu" : "none"), onSelection: selection => { if (selection.station === "patient") lesson.setMode("menu"); },
-  });
+  const [readout, setReadout] = useState(initialReadout);
+  const interrupt = useCallback(() => { coverage.current = { ...coverage.current, current: null, dwell: 0, spatialGrace: 0 }; }, []);
+  const runtime = useXRClinicRuntime({ active: active && !preview, editorOpen: lesson.mode !== "none", panelModeEnabled: false, onInterrupt: interrupt });
   const eyes = useClinicEyeMotion(active);
   const sample = () => {
     if (!active || !runtime.frameValid.current || !runtime.workingPose("pupils")) return null;
@@ -42,13 +41,19 @@ export function MotilityPracticeController({ active, preview = false, onComplete
     clock.current += dt;
     if (clock.current >= .1) {
       clock.current = 0;
-      const next = { count: coverage.current.seen.length, current: coverage.current.current ?? "", distance: Math.round(spatial?.distanceCm ?? 0), tracking: valid };
+      const next = {
+        count: coverage.current.seen.length,
+        current: coverage.current.current ?? "",
+        distance: Math.round(spatial?.distanceCm ?? 0),
+        tracking: valid,
+        progress: Math.min(100, Math.round(coverage.current.dwell / MOTILITY_DWELL_SECONDS * 100)),
+      };
       setReadout(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
     }
   });
   const reset = useCallback(() => {
     lesson.reset(); coverage.current = initial(); followingRef.current = false; askedRef.current = false;
-    setFollowing(false); setAsked(false); setGuides(false); setReadout({ count: 0, current: "", distance: 0, tracking: false });
+    setFollowing(false); setAsked(false); setGuides(true); setReadout(initialReadout());
     runtime.resetClinic(); eyes.forEach(eye => eye.position.set(0, 0, 0));
   }, [lesson.reset, runtime.resetClinic, eyes]);
   useEffect(() => { if (!active) reset(); }, [active, reset]);
@@ -61,22 +66,39 @@ export function MotilityPracticeController({ active, preview = false, onComplete
     { label: asked ? "SYMPTOMS ASKED ✓" : "ASK ABOUT SYMPTOMS", run: ask, disabled: readout.count !== gazePositions.length, active: asked },
     { label: guides ? "HIDE GAZE GUIDE" : "SHOW GAZE GUIDE", run: () => setGuides(value => !value), active: guides },
   ];
-  const ready = active && readout.count === gazePositions.length && asked && readout.tracking;
+  const ready = active && readout.count === gazePositions.length && asked;
   const status = !following ? "Ask the patient to follow the light and keep the head still."
     : readout.count < gazePositions.length ? `${readout.count}/9 gaze points · ${readout.distance} cm · ${readout.current || "hold the lit penlight at 30–40 cm"}`
-    : !asked ? "Nine gaze points observed · ask about symptoms." : `Patient: “${MOTILITY_PATIENT_REPLY}”`;
+    : !asked ? "Nine gaze points observed · ask about symptoms."
+      : "9/9 complete · patient reports no diplopia, pain or discomfort · choose the movement observation and submit.";
   const record = () => {
     const observation = lesson.entriesRef.current.observation;
-    const valid = sample()?.distanceReady && runtime.toolsRef.current.pupils.powered && coverage.current.seen.length === gazePositions.length && askedRef.current;
+    const valid = active && followingRef.current && coverage.current.seen.length === gazePositions.length && askedRef.current;
     lesson.submit(Boolean(valid && observation), true, motilityRecordedObservation(observation) + (observation !== "full" ? " Recheck the coordinated movements in this example." : ""));
   };
   useEffect(() => { onMirror?.({ title: "Motility", status, ready, entryReady: ready, fields, actions, lesson, reset, record }); },
     [onMirror, status, ready, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, following, asked, guides]);
   return <>
     <XRClinicRuntimeView cleanHands runtime={runtime} active={active && !preview} preview={preview} title="MOTILITY · PRACTICE" />
-    {active && guides && gazePositions.map(position => <XRSign key={position.id} text={[`${coverage.current.seen.includes(position.id) ? "✓" : "○"} ${position.label}`]}
-      p={[position.x * .35 * .65, 1.5 + position.y * .35 * .45, CLINIC_EYE_MIDPOINT[2] + .35]} size={[.08, .023]} bg="#173a3e" fg="#e8fff9" />)}
-    <PracticeLessonUI runtime={runtime} active={active} title="MOTILITY" status={status} tools={["pupils"]} actions={actions} fields={fields} lesson={lesson}
+    {active && guides && gazePositions.map(position => {
+      const seen = coverage.current.seen.includes(position.id);
+      const current = readout.current === position.id && !seen;
+      const progress = current ? readout.progress / 100 : 0;
+      return <group key={position.id} position={[position.x * .35 * .65, 1.5 + position.y * .35 * .45, CLINIC_EYE_MIDPOINT[2] + .35]}>
+        <mesh scale={[.055, .038, 1]}>
+          <ringGeometry args={[.78, 1, 48]} />
+          <meshBasicMaterial color={seen ? "#65c9b6" : current ? "#f3c969" : "#8da8a3"} transparent opacity={seen ? .9 : current ? .95 : .48} />
+        </mesh>
+        {current && progress > 0 && <mesh position={[0, 0, .001]} scale={[.055, .038, 1]}>
+          <ringGeometry args={[.54, .72, 48, 1, Math.PI / 2, Math.PI * 2 * progress]} />
+          <meshBasicMaterial color="#fff0a8" />
+        </mesh>}
+        <mesh position={[0, 0, .001]}><circleGeometry args={[.007, 20]} /><meshBasicMaterial color={seen ? "#dffff7" : current ? "#fff6c9" : "#c5d8d4"} /></mesh>
+        <XRSign text={[seen ? `✓ ${position.label}` : current ? `${readout.progress}% · ${position.label}` : `○ ${position.label}`]}
+          p={[0, -.052, .002]} size={[.13, .026]} bg={seen ? "#176b5e" : current ? "#6d5922" : "#173a3e"} fg="#f4fffc" />
+      </group>;
+    })}
+    <PracticeLessonUI runtime={runtime} active={active} title="MOTILITY" status={status} tools={["pupils"]} actions={actions} directActions={actions} forceBoardVisible wallOnly fields={fields} lesson={lesson}
       entryReady={ready} ready={ready} onRecord={record} onReset={reset} onExit={onExit}
       help={["Pick the penlight; hold its trigger.", "Ask the patient to follow it with the head still.", "Move slowly at 30–40 cm, holding all nine points.", "Use the H path and centre up/down positions.", "Ask about diplopia, pain and discomfort; record."]} />
   </>;

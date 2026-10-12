@@ -7,6 +7,8 @@ import { Controller } from "../interaction/Controller";
 import { XRConsultationController, type ConsultationExam, type ConsultationPanel } from "../interaction/XRConsultationController";
 import type { ClinicalCase, Eye, StationId } from "../domain/types";
 import { HeldInstrument } from "./ExaminationView";
+import { INSTRUMENT_KIT } from "../interaction/clinicLayout";
+import { consultationToolDefinition } from "../interaction/xrConsultationTools";
 type Props = {
   active: boolean;
   caseData: ClinicalCase;
@@ -49,10 +51,10 @@ class SceneBoundary extends Component<
 }
 const bounds: Record<StationId, { p: [number, number, number]; s: [number, number, number] }> = {
   patient: { p: [0, 0.92, -0.63], s: [0.85, 1.64, 0.93] },
-  trolley: { p: [-1.37, 0.65, 0.75], s: [0.92, 1.3, 0.63] },
+  trolley: { p: [INSTRUMENT_KIT.x, .47, INSTRUMENT_KIT.z], s: [INSTRUMENT_KIT.depth + .08, .94, INSTRUMENT_KIT.width + .08] },
   refraction: { p: [-1.45, 0.64, -1.4], s: [0.91, 1.25, 1.26] },
   slit: { p: [1.35, 1.2, -0.95], s: [0.75, 0.8, 0.65] },
-  fundus: { p: [-1.13, 1.09, 1.04], s: [0.18, 0.42, 0.16] },
+  fundus: { p: [consultationToolDefinition("fundus").home[0], 1.09, consultationToolDefinition("fundus").home[2]], s: [0.18, 0.42, 0.16] },
   acuity: { p: [0.05, 1.84, -2.41], s: [0.69, 1, 0.03] },
 };
 function Highlight({ id }: { id: StationId }) {
@@ -76,7 +78,7 @@ export function ConsultationInterior({ held, xr = false }: { held?: string; xr?:
         <Trolley held={held} portable={!xr} />
       </group>
       <group userData={{ station: "fundus", examId: "fundus" }}>
-        {!xr && held !== "fundus" && <Retinoscope p={[-1.13, 0.91, 1.04]} ophthalmo />}
+        {!xr && held !== "fundus" && <Retinoscope p={[consultationToolDefinition("fundus").home[0], .91, consultationToolDefinition("fundus").home[2]]} ophthalmo />}
       </group>
       <group userData={{ station: "refraction", examId: "subjective" }}>
         <Refraction portable={!xr} />

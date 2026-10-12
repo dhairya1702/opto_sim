@@ -12,6 +12,8 @@ export function XRScopeView({ active, brucknerView, fundusView }: { active: bool
   const background = useRef<MeshBasicMaterial>(null), border = useRef<MeshBasicMaterial>(null);
   const scratch = useMemo(() => ({ viewer: createXRViewerScratch(), position: new Vector3(), rotation: new Quaternion(), offset: new Vector3() }), []);
   const eyepiece = (brucknerView ?? fundusView)?.eyepiece;
+  const radius = brucknerView ? .34 : .24;
+  const distance = brucknerView ? .68 : .9;
   useFrame(({ gl, camera }) => {
     if (!root.current) return;
     const poses = xrViewerPoses(gl.xr.isPresenting ? gl.xr.getCamera() : camera, scratch.viewer);
@@ -21,7 +23,7 @@ export function XRScopeView({ active, brucknerView, fundusView }: { active: bool
     for (const pose of poses) scratch.position.add(scratch.offset.set(...pose.viewer));
     scratch.position.divideScalar(poses.length);
     scratch.rotation.copy(scratch.viewer.rotation);
-    root.current.position.copy(scratch.position).add(scratch.offset.set(0, 0, -.9).applyQuaternion(scratch.rotation));
+    root.current.position.copy(scratch.position).add(scratch.offset.set(0, 0, -distance).applyQuaternion(scratch.rotation));
     root.current.quaternion.copy(scratch.rotation); root.current.updateMatrixWorld(true);
     if (observation.current) observation.current.visible = Boolean(brucknerView || eyepiece?.ready);
     if (guide.current) guide.current.visible = !brucknerView && !eyepiece?.ready;
@@ -47,16 +49,16 @@ export function XRScopeView({ active, brucknerView, fundusView }: { active: bool
   });
   if (!active || !eyepiece) return null;
   return <group ref={root} visible={false} userData={{ xrScopeView: true, xrIgnoreRay: true }}>
-    <mesh position={[0, 0, -.012]} userData={{ xrScopeOrder: 1149 }}><ringGeometry args={[.247, 1.2, 64]} /><meshBasicMaterial color="#000000" transparent opacity={.45} /></mesh>
-    <mesh position={[0, 0, -.006]} userData={{ xrScopeOrder: 1150, xrScopeBackground: true }}><circleGeometry args={[.24, 64]} /><meshBasicMaterial ref={background} color="#040909" transparent opacity={brucknerView ? 1 : .12} /></mesh>
-    <mesh userData={{ xrScopeOrder: 1155 }}><ringGeometry args={[.24, .247, 64]} /><meshBasicMaterial ref={border} args={[{ color: "#f9d178" }]} /></mesh>
-    <group ref={observation} visible={false} position={[0, .025, 0]} scale={brucknerView ? 9 : 7.5} userData={{ xrScopeViewObservation: true, xrScopeOrder: 1152 }}><XRScopeObservation brucknerView={brucknerView} fundusView={fundusView} /></group>
+    <mesh position={[0, 0, -.012]} userData={{ xrScopeOrder: 1149 }}><ringGeometry args={[radius + .009, 1.2, 96]} /><meshBasicMaterial color="#000000" transparent opacity={brucknerView ? .76 : .45} /></mesh>
+    <mesh position={[0, 0, -.006]} userData={{ xrScopeOrder: 1150, xrScopeBackground: true }}><circleGeometry args={[radius, 96]} /><meshBasicMaterial ref={background} color={brucknerView ? "#160f0d" : "#040909"} transparent opacity={brucknerView ? 1 : .12} /></mesh>
+    <mesh userData={{ xrScopeOrder: 1155 }}><ringGeometry args={[radius, radius + .009, 96]} /><meshBasicMaterial ref={border} args={[{ color: "#f9d178" }]} /></mesh>
+    <group ref={observation} visible={false} position={[0, brucknerView ? .015 : .025, 0]} scale={brucknerView ? 1 : 7.5} userData={{ xrScopeViewObservation: true, xrScopeOrder: 1152 }}><XRScopeObservation expanded={Boolean(brucknerView)} brucknerView={brucknerView} fundusView={fundusView} /></group>
     <group ref={guide} visible={false} userData={{ xrScopeViewGuide: true, xrScopeOrder: 1152 }}>
       <mesh><ringGeometry args={[.02, .023, 32]} /><meshBasicMaterial color="#a3b6b1" /></mesh>
       <mesh><planeGeometry args={[.08, .002]} /><meshBasicMaterial color="#a3b6b1" /></mesh>
       <mesh><planeGeometry args={[.002, .08]} /><meshBasicMaterial color="#a3b6b1" /></mesh>
     </group>
-    <XRSign text={[eyepiece.title]} p={[0, .18, .008]} size={[.25, .025]} bg="#102329" fg="#e8fff9" />
-    {brucknerView && <><XRSign text={["OD · RIGHT"]} p={[-.108, -.08, .008]} size={[.18, .03]} bg="#040909" fg="#d6e8df" /><XRSign text={["OS · LEFT"]} p={[.108, -.08, .008]} size={[.18, .03]} bg="#040909" fg="#d6e8df" /></>}
+    <XRSign text={[eyepiece.title]} p={[0, brucknerView ? .285 : .18, .008]} size={[brucknerView ? .34 : .25, brucknerView ? .034 : .025]} bg="#102329" fg="#e8fff9" />
+    {brucknerView && <><XRSign text={["OD · RIGHT"]} p={[-.15, -.22, .008]} size={[.22, .034]} bg="#160f0d" fg="#d6e8df" /><XRSign text={["OS · LEFT"]} p={[.15, -.22, .008]} size={[.22, .034]} bg="#160f0d" fg="#d6e8df" /></>}
   </group>;
 }

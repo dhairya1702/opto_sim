@@ -1,4 +1,5 @@
 import type { StationId } from "../domain/types";
+import { INSTRUMENT_KIT } from "./clinicLayout";
 export const stations: {
   id: StationId;
   name: string;
@@ -20,8 +21,8 @@ export const stations: {
     name: "Instrument trolley",
     action: "Trolley: select examination kit",
     description: "Acuity, pupils, alignment & retinoscopy",
-    position: [-0.65, 1.6, 1.7],
-    look: [-1.25, 0.96, 0.65],
+    position: [...INSTRUMENT_KIT.desktopPosition],
+    look: [...INSTRUMENT_KIT.lookAt],
   },
   {
     id: "acuity",
@@ -52,14 +53,14 @@ export const stations: {
     name: "Ophthalmoscope",
     action: "Ophthalmoscope: examine fundus",
     description: "Limited undilated fundus assessment",
-    position: [-0.6, 1.6, 1.4],
-    look: [-1.1, 1.13, 0.8],
+    position: [...INSTRUMENT_KIT.desktopPosition],
+    look: [INSTRUMENT_KIT.x, 1.08, INSTRUMENT_KIT.z],
   },
 ];
 // World units are metres. Collision radius includes personal clearance.
 export const obstacles = [
   { x: 0, z: -0.57, w: 0.86, d: 1.24 },
-  { x: -1.37, z: 0.75, w: 0.92, d: 0.61 },
+  { x: INSTRUMENT_KIT.x, z: INSTRUMENT_KIT.z, w: INSTRUMENT_KIT.depth + .08, d: INSTRUMENT_KIT.width + .04 },
   { x: -1.45, z: -1.4, w: 0.85, d: 1.25 },
   { x: 1.35, z: -0.95, w: 1.02, d: 0.72 },
   { x: 1.4, z: -1.65, w: 0.55, d: 0.55 },

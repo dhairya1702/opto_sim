@@ -45,12 +45,14 @@ describe("explicit XR scope viewing", () => {
   });
   it("requires the instrument-hand button, toggles once per press and preserves grip/trigger behavior", async () => {
     const sim = await runtimeProbe();
-    await sim.scope(0); expect(sim.runtime().scopeViewHandRef.current).toBeNull();
-    await sim.pickup(0, "pupils"); await sim.scope(0); expect(sim.runtime().scopeViewHandRef.current).toBeNull();
+    await sim.scope(0); expect(sim.runtime().scopeViewHandRef.current).toBeNull(); expect(sim.runtime().utilityOpen).toBe(true);
+    await sim.scope(0); expect(sim.runtime().utilityOpen).toBe(false);
+    await sim.pickup(0, "pupils"); await sim.scope(0); expect(sim.runtime().scopeViewHandRef.current).toBeNull(); expect(sim.runtime().utilityOpen).toBe(false);
     await sim.putDown(0); await sim.pickup(0, "fundus"); await sim.at(0, [0, 1.33, .459]);
-    await sim.scope(1); expect(sim.runtime().scopeViewHandRef.current).toBeNull();
+    await sim.scope(1); expect(sim.runtime().scopeViewHandRef.current).toBeNull(); expect(sim.runtime().utilityOpen).toBe(true);
     await sim.event(0, "selectstart"); await sim.scope(0);
     expect(sim.runtime().scopeViewHandRef.current).toBe("left");
+    expect(sim.runtime().utilityOpen).toBe(false);
     expect(sim.runtime().toolsRef.current.fundus.powered).toBe(true);
     await sim.event(0, "squeezeend"); expect(sim.runtime().scopeViewHandRef.current).toBe("left");
     await sim.event(0, "selectend"); expect(sim.runtime().scopeViewHandRef.current).toBe("left");

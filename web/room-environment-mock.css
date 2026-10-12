@@ -1,0 +1,26 @@
+:root { font-family: Inter, system-ui, -apple-system, Segoe UI, Arial, sans-serif; color: #1d3236; background: #e9ebe6; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+[hidden] { display: none !important; }
+.rm { max-width: 1400px; margin: 0 auto; padding: 28px; }
+.eyebrow { margin: 0 0 6px; font-size: .72rem; font-weight: 700; letter-spacing: .14em; color: #2c7365; }
+h1 { margin: 0 0 8px; font-size: clamp(1.5rem, 2.5vw, 2.1rem); letter-spacing: -.02em; }
+.sub { margin: 0 0 18px; max-width: 900px; line-height: 1.5; color: #4a5c5d; }
+code { font-size: .88em; background: #dfe5e1; padding: 1px 5px; border-radius: 5px; }
+.stage { position: relative; aspect-ratio: 16 / 9; border-radius: 22px; overflow: hidden; background: #141a1c; box-shadow: 0 30px 60px -30px rgba(10, 30, 30, .5); }
+#room-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+#room-canvas:focus-visible { outline: 3px solid #2c9b85; outline-offset: -3px; }
+#room-error { position: absolute; left: 16px; bottom: 16px; padding: 10px 14px; border-radius: 10px; background: #5b2a22; color: #fff; }
+.bar { position: absolute; left: 16px; right: 16px; bottom: 16px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; pointer-events: none; }
+.seg { display: flex; gap: 3px; padding: 4px; border-radius: 999px; background: rgba(14, 22, 25, .72); border: 1px solid rgba(255, 255, 255, .14); backdrop-filter: blur(12px); pointer-events: auto; }
+.seg button { border: 0; border-radius: 999px; padding: 8px 14px; background: transparent; color: #c5d2d0; font: 600 .84rem/1 inherit; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: #5ee0c1; color: #06372d; }
+.seg button:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+.notes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 18px; }
+.notes article { padding: 18px; border-radius: 18px; background: #fff; border: 1px solid #d3dbd6; }
+.notes h2 { margin: 0 0 10px; font-size: 1rem; }
+.notes ul { margin: 0; padding-left: 18px; display: grid; gap: 8px; }
+.notes li { font-size: .86rem; line-height: 1.45; color: #2f4345; }
+footer { margin-top: 14px; font-size: .74rem; color: #5c6d6d; }
+@media (max-width: 1100px) { .notes { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 680px) { .rm { padding: 16px; } .notes { grid-template-columns: 1fr; } .stage { aspect-ratio: 4 / 5; } }

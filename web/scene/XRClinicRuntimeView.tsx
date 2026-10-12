@@ -27,10 +27,12 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
   const showGuides = active || preview;
   return <>
     <XRScopeView active={active && !preview && runtime.scopeViewHand !== null} brucknerView={brucknerView} fundusView={fundusView} />
-    {showGuides && <Sign text={active
-      ? [title, "Grip once · pick up / transfer · again · place", "Trigger · use · A/X · menu · B/Y · scope", instruction]
-      : ["DESKTOP VR PREVIEW", "WASD + mouse · inspect the clinic", "E / click · select tools", "Floor rings · headset destinations"]
-    } p={[0, 1.42, 1.38]} size={[.82, .38]} bg="#153b3c" fg="#e8fff9" />}
+    {showGuides && <group userData={{ xrWallWelcome: true }}>
+      <Sign text={active
+        ? [title, "Grip once · pick up / transfer · again · place", "Trigger · use · A/X · menu · free-hand B/Y · VR controls", instruction]
+        : ["DESKTOP VR PREVIEW", "WASD + mouse · inspect the clinic", "E / click · select tools", "Floor rings · headset destinations"]
+      } p={[-1.15, 1.72, -2.455]} size={[.72, .30]} bg="#153b3c" fg="#e8fff9" />
+    </group>}
     {showGuides && stations.filter(station => station.id !== "fundus").map(station => {
       const arrival = consultationXRArrival(station.id, station.position);
       return <group key={station.id} position={[arrival[0], .012, arrival[2]]} userData={active ? { xrTeleport: arrival } : { xrPreviewPad: true }}>
@@ -58,8 +60,13 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
           </group>
         </group>)}
       </group>)}
-      <group ref={hoverMarker} visible={false} userData={{ xrIgnoreRay: true }}>
-        <mesh renderOrder={1100}><boxGeometry args={[1, 1, 1]} /><meshBasicMaterial color="#b0ffe7" wireframe depthTest={false} depthWrite={false} /></mesh>
+      <group ref={hoverMarker} visible={false} userData={{ xrIgnoreRay: true, xrHoverOutline: true }}>
+        {([.5, -.5] as const).map(y => <mesh key={`horizontal-${y}`} position={[0, y, .025]} renderOrder={1100}>
+          <planeGeometry args={[1, .055]} /><meshBasicMaterial color="#a9ffe5" depthTest={false} depthWrite={false} />
+        </mesh>)}
+        {([.5, -.5] as const).map(x => <mesh key={`vertical-${x}`} position={[x, 0, .025]} renderOrder={1100}>
+          <planeGeometry args={[.018, 1]} /><meshBasicMaterial color="#a9ffe5" depthTest={false} depthWrite={false} />
+        </mesh>)}
       </group>
       {active && slots.map((slot, index) => {
         const id = slot.hand ? toolInHand(tools, slot.hand) : null;
@@ -82,7 +89,7 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
           </primitive>
         </group>;
       })}
-      {handlingMessage && <Sign text={[handlingMessage]} p={[0, 1.12, 1.38]} size={[.82, .08]} bg="#173a3e" fg="#e8fff9" />}
+      {handlingMessage && <Sign text={[handlingMessage]} p={[-1.15, 1.48, -2.45]} size={[.72, .08]} bg="#173a3e" fg="#e8fff9" />}
     </>}
   </>;
 }

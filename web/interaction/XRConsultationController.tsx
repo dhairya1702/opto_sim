@@ -3,7 +3,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { DoubleSide, Object3D, Quaternion, Vector3 } from "three";
 import type { ClinicalCase, Eye, StationId } from "../domain/types";
 import { Box } from "../scene/Models";
-import { XRSign as Sign, XRPanelButton, XRHeadPanel, XRObservationPanel, XRToolControls } from "../scene/XRClinicPanels";
+import { XRClinicUtilityPanel, XRSign as Sign, XRPanelButton, XRHeadPanel, XRObservationPanel, XRToolControls } from "../scene/XRClinicPanels";
 import { useXRClinicRuntime, type XRClinicInterruption } from "./useXRClinicRuntime";
 import { XRClinicRuntimeView } from "../scene/XRClinicRuntimeView";
 import { pauseConsultationTechnique } from "./xrConsultationProcedure";
@@ -208,6 +208,7 @@ export function XRConsultationController({ active, preview = false, guided = fal
 }) {
   const { gl, scene } = useThree();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [utilityHelpOpen, setUtilityHelpOpen] = useState(false);
   const [recordingExam, setRecordingExam] = useState<ConsultationExam | null>(null);
   const lastUsedExam = useRef<ConsultationExam | null>(null);
   const [panelExam, setPanelExam] = useState<ConsultationExam | null>(null);
@@ -312,8 +313,8 @@ export function XRConsultationController({ active, preview = false, guided = fal
     motilityCoverageRef.current = paused.motility;
     setMotilityCoverage(paused.motility);
   }, [fundusView, fundusEyepiece, reflexVisual]);
-  const runtime = useXRClinicRuntime({ active, editorOpen: Boolean(recordingExam || menuOpen), scopeViewEnabled: true, onInterrupt: pauseTechnique,
-    onMenu: open => { setMenuOpen(open); if (!open) setRecordingExam(null); },
+  const runtime = useXRClinicRuntime({ active, editorOpen: Boolean(recordingExam || menuOpen || utilityHelpOpen), scopeViewEnabled: true, onInterrupt: pauseTechnique,
+    onMenu: open => { setMenuOpen(open); if (!open) { setRecordingExam(null); setUtilityHelpOpen(false); } },
     onToolUsed: (id, action) => {
       if (isConsultationExam(id)) lastUsedExam.current = id;
       if (action === "pickup" && guided && isConsultationExam(id) && !(id === "motility" && runtime.toolsRef.current.cover.placement.kind === "held")) setPanelExam(id);
@@ -357,7 +358,7 @@ export function XRConsultationController({ active, preview = false, guided = fal
   useEffect(() => {
     if (active) return;
     resetPupil(); resetCover(); resetMotility();
-    setFixation(false); setDimmed(false); setMotilityFollowing(false); setPanelExam(null); setMenuOpen(false); setRecordingExam(null); lastUsedExam.current = null;
+    setFixation(false); setDimmed(false); setMotilityFollowing(false); setPanelExam(null); setMenuOpen(false); setUtilityHelpOpen(false); setRecordingExam(null); lastUsedExam.current = null;
     retinoSweeps.current = { OD: initialScopeSweep(), OS: initialScopeSweep() };
     fundusInspections.current = { OD: initialScopeInspection(), OS: initialScopeInspection() };
     fundusView.visible = false; reflexVisual.eye = null;
@@ -405,7 +406,7 @@ export function XRConsultationController({ active, preview = false, guided = fal
       setMotilityTarget(current => current.x || current.y || current.z !== .35 ? { x: 0, y: 0, z: .35 } : current);
       const previous = motilityCoverageRef.current;
       if (previous.dwell || previous.current) {
-        const paused = { ...previous, current: null, dwell: 0 };
+        const paused = { ...previous, current: null, dwell: 0, spatialGrace: 0 };
         motilityCoverageRef.current = paused;
         setMotilityCoverage(paused);
       }
@@ -614,6 +615,12 @@ export function XRConsultationController({ active, preview = false, guided = fal
   return <>
     {active && <XRRetinoscopyReflex visual={reflexVisual} />}
     <XRClinicRuntimeView runtime={runtime} active={active} preview={preview} helperHand={heldHand} helperReady={coverSetupValid} fundusView={fundusView} />
+    {active && onExitVR && <XRClinicUtilityPanel runtime={runtime} onHelp={() => setUtilityHelpOpen(true)} onExit={onExitVR} />}
+    {active && utilityHelpOpen && <XRHeadPanel>
+      <Box s={[.72, .62, .018]} c="#102329" radius={.012} />
+      <Sign text={["TEST · HELP", "Grip once to pick up, transfer, or place a tool.", "Trigger uses a held tool; a free-hand trigger selects.", "A/X opens patient instructions and recording.", "B/Y on the ophthalmoscope hand opens scope view.", "B/Y on a free hand opens VR controls."]} p={[0, .055, .012]} size={[.66, .42]} bg="#102329" fg="#eefbf7" />
+      <XRPanelButton label="CLOSE HELP" position={[0, -.235, .025]} width={.56} onClick={() => setUtilityHelpOpen(false)} />
+    </XRHeadPanel>}
     {(procedureActive || recordingExam === "pupils") && <>
       <XRPupilPanel recordingOnly={!guided} fixation={fixation} dimmed={dimmed} light={pupilLight} seen={seen} activeEye={activeEye} odSize={odSize} osSize={osSize} equality={equality} odDirect={odDirect} osDirect={osDirect} consensual={consensual}
         onFixation={() => { setFixation(true); setMotilityFollowing(false); resetMotility(); resetCover(); }}
