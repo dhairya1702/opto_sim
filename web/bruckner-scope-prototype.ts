@@ -368,7 +368,7 @@ function refreshVisuals() {
 }
 
 function positionHeadOverlay(object: THREE.Object3D, distance: number) {
-  const viewer = renderer.xr.isPresenting ? renderer.xr.getCamera(camera) : camera;
+  const viewer = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
   const position = new THREE.Vector3();
   const rotation = new THREE.Quaternion();
   viewer.getWorldPosition(position);
@@ -399,7 +399,7 @@ function resetDesktopView() {
 }
 
 function xrViewerPose() {
-  const viewer = renderer.xr.getCamera(camera);
+  const viewer = renderer.xr.getCamera();
   const position = new THREE.Vector3();
   const quaternion = new THREE.Quaternion();
   viewer.getWorldPosition(position);
