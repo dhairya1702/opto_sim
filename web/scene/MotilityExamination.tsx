@@ -2,6 +2,7 @@ import { Component, useEffect, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { EyeSurface } from "./EyeSurface";
 import { gazePositions, motilityRecordedObservation, MOTILITY_PATIENT_REPLY, observeTarget, targetFromControls, type MotilityCoverage } from "../interaction/motility";
+import { TestVoiceControl } from "../voice/TestVoiceControl";
 
 class ViewBoundary extends Component<{ children: ReactNode; onFailure: () => void }, { failed: boolean }> {
   state = { failed: false };
@@ -86,7 +87,7 @@ export function MotilityExamination({ onComplete, onCancel }: { onComplete: (obs
   };
   return (
     <dialog ref={dialog} className="examination-stage motility-stage" aria-labelledby="motility-title" onCancel={e => { e.preventDefault(); onCancel(); }}>
-      <header><div><p className="eyebrow">MANUAL EXAMINATION · BOTH EYES</p><h1 id="motility-title">Extraocular motilities</h1></div><button className="secondary" onClick={onCancel}>Cancel</button></header>
+      <header><div><p className="eyebrow">MANUAL EXAMINATION · BOTH EYES</p><h1 id="motility-title">Extraocular motilities</h1></div><TestVoiceControl /><button className="secondary" onClick={onCancel}>Cancel</button></header>
       <div className="motility-instructions">
         <p>Hold the target at 30–40 cm. Keep Arun’s head still, establish primary position, then move through all eight cardinal directions. Watch both eyes and hold each marked position.</p>
         <button className="primary" disabled={following} onClick={() => setFollowing(true)}>{following ? "Arun is following the target" : "Ask Arun to follow the target, head still"}</button>

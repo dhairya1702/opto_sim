@@ -9,6 +9,8 @@ import type { ClinicalCase, Eye, StationId } from "../domain/types";
 import { HeldInstrument } from "./ExaminationView";
 import { INSTRUMENT_KIT } from "../interaction/clinicLayout";
 import { consultationToolDefinition } from "../interaction/xrConsultationTools";
+import { XRVoiceIndicator } from "./XRVoiceIndicator";
+import { useVoiceStatus } from "../voice/VoiceStatusContext";
 type Props = {
   active: boolean;
   caseData: ClinicalCase;
@@ -108,6 +110,7 @@ export function ConsultationInterior({ held, xr = false }: { held?: string; xr?:
   );
 }
 export function Room(props: Props) {
+  const voiceStatus = useVoiceStatus();
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     const canvas = document.createElement("canvas");
@@ -137,6 +140,7 @@ export function Room(props: Props) {
           }
         >
           <ConsultationInterior held={props.held} xr={Boolean(props.xrActive)} />
+          {(props.xrActive || props.xrPreview) && <XRVoiceIndicator status={voiceStatus} />}
           <Controller
             active={props.active && !props.xrActive}
             onTarget={props.onTarget}

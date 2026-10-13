@@ -356,6 +356,35 @@ export function XRConsultationController({ active, preview = false, guided = fal
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const voiceInstruction = (event: Event) => {
+      if (!active) return;
+      const instructionId = (event as CustomEvent<{ instructionId?: string }>).detail?.instructionId;
+      if (!["look-straight", "fixate-target", "follow-target", "report-symptoms"].includes(instructionId || "")) return;
+      event.preventDefault();
+      if (instructionId === "look-straight") {
+        setMotilityFollowing(false); setFixation(true); resetMotility(); resetPupil(); resetCover();
+        setHandlingMessage("Arun is looking straight ahead.");
+      } else if (instructionId === "fixate-target") {
+        setMotilityFollowing(false); setFixation(false); resetPupil(); resetMotility(); resetCover(); setCoverAsked(true);
+        setHandlingMessage("Arun is looking at the target.");
+      } else if (instructionId === "follow-target") {
+        setMotilityFollowing(true); setFixation(false); resetMotility(); resetPupil(); resetCover();
+        setHandlingMessage("Arun is following the illuminated target.");
+      } else if (instructionId === "report-symptoms") {
+        if (motilityCoverageRef.current.seen.length !== gazePositions.length) {
+          setHandlingMessage("Complete the H-pattern before asking for the procedure symptom report.");
+          return;
+        }
+        setMotilitySymptomsAsked(true);
+        setHandlingMessage("Arun reports no diplopia or pain during the completed H-pattern.");
+      }
+    };
+    window.addEventListener("opto:voice-instruction", voiceInstruction);
+    return () => window.removeEventListener("opto:voice-instruction", voiceInstruction);
+  }, [active, resetCover, resetMotility, resetPupil, setHandlingMessage]);
+
+  useEffect(() => {
     if (active) return;
     resetPupil(); resetCover(); resetMotility();
     setFixation(false); setDimmed(false); setMotilityFollowing(false); setPanelExam(null); setMenuOpen(false); setUtilityHelpOpen(false); setRecordingExam(null); lastUsedExam.current = null;

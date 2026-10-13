@@ -4,6 +4,7 @@ import { Canvas } from "./PracticeWebGLFallback";
 import type { Group } from "three";
 import { EyeSurface } from "../scene/EyeSurface";
 import { facilityCanFlip, facilityNext, facilityRemaining, type FacilityEye, type FacilitySide } from "../interaction/accommodativeFacility";
+import { PracticeVoiceControl } from "../voice/PracticeVoiceControl";
 
 function FacilityScene({ eye, side, flips, occluded, correction, reducedMotion, onFlip }: { eye: FacilityEye; side: FacilitySide; flips: number; occluded: boolean; correction: boolean; reducedMotion: boolean; onFlip: () => void }) {
   const tool = useRef<Group>(null);
@@ -91,7 +92,7 @@ export function AccommodativeFacilityStage({ onClose, onComplete }: { onClose: (
     else { setEye(eye === "OD" ? "OS" : "OU"); reset(); }
   }
   return <dialog ref={dialog} className="clinical-practice-dialog" aria-labelledby="facility-title" onCancel={event => { event.preventDefault(); onClose(); }}>
-    <header className="clinical-stage-header"><div><p className="eyebrow">LIVE PRACTICE · ACCOMMODATION</p><h1 id="facility-title">Accommodative facility</h1></div><div className="clinical-stage-distance"><span>Near target</span><strong>40 cm · {eye}</strong></div><button className="secondary" onClick={onClose}>Close</button></header>
+    <header className="clinical-stage-header"><div><p className="eyebrow">LIVE PRACTICE · ACCOMMODATION</p><h1 id="facility-title">Accommodative facility</h1></div><div className="clinical-stage-distance"><span>Near target</span><strong>40 cm · {eye}</strong></div><PracticeVoiceControl /><button className="secondary" onClick={onClose}>Close</button></header>
     <div className="clinical-stage-body"><div className="clinical-viewport-wrap">
       <div className="clinical-viewport" tabIndex={0} aria-label="Click the lens flipper or press Space after the patient reports clear vision." onKeyDown={event => { if (event.key !== " " || event.repeat) return; event.preventDefault(); flip(); }}>
         <Canvas dpr={[1, 1.5]} camera={{ position: [0, 0, 2.5], fov: 40 }}><FacilityScene eye={eye} side={side} flips={flips} correction={correction} occluded={occluded} reducedMotion={reducedMotion} onFlip={flip} /></Canvas>

@@ -13,6 +13,7 @@ import {
   type RetinoscopePose,
 } from "../interaction/retinoscopy";
 import { EyeSurface } from "./EyeSurface";
+import { TestVoiceControl } from "../voice/TestVoiceControl";
 
 class RetinoscopyBoundary extends Component<
   { children: ReactNode; onFailure: () => void },
@@ -171,6 +172,7 @@ export function ManualRetinoscopyExamination({
           <p className="eyebrow">MANUAL RETINOSCOPY · {eye} · OBJECTIVE REFRACTION</p>
           <h1 id="retinoscopy-title">Neutralise the retinal reflex</h1>
         </div>
+        <TestVoiceControl />
         <button className="secondary" onClick={onCancel}>Cancel</button>
       </header>
       <div className="retinoscopy-instructions">

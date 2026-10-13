@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import {
   ArrowRight,
@@ -30,6 +30,15 @@ import { Debrief } from "../ui/Debrief";
 import { ExaminationView, type ExaminationAnimation } from "../scene/ExaminationView";
 import { ModeSelection, type ExperienceMode } from "../ui/ModeSelection";
 import { PracticeMode } from "../practice/PracticeMode";
+import { scriptedPatient } from "../patient/scripted";
+import { VoiceControl } from "../voice/VoiceControl";
+import { useVoiceSession } from "../voice/useVoiceSession";
+import { VoiceStatusContext } from "../voice/VoiceStatusContext";
+import { TEST_VOICE_INSTRUCTIONS, invokeTestVoiceInstruction } from "../voice/testInstructions";
+import type { VoiceCommand } from "../voice/contracts";
+import { socialVoiceReply } from "../voice/socialReplies";
+import { TestVoiceControlProvider } from "../voice/TestVoiceControl";
+import { patientVoiceReply } from "../voice/patientReplies";
 type PanelName =
   | "briefing"
   | "interview"
@@ -83,6 +92,45 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
     (action: Action) => setSession((s) => reduceSession(c, s, action)),
     [],
   );
+  const voiceContext = useMemo(() => ({
+    mode: "test" as const,
+    sessionId: session.id,
+    caseId: c.id,
+    caseVersion: c.version,
+    allowedFacts: c.historyFacts.map(({ id, patterns }) => ({ id, patterns })),
+    allowedActions: [...TEST_VOICE_INSTRUCTIONS],
+  }), [session.id]);
+  const handleVoiceCommand = useCallback((command: VoiceCommand) => {
+    if (command.kind === "history") {
+      const reply = scriptedPatient.answer(command.transcript, c, undefined, command.factIds);
+      dispatch({ type: "askQuestion", question: command.transcript, resolvedFactIds: command.factIds, utteranceId: command.utteranceId, source: "voice", at: Date.now() });
+      const cacheKeys = reply.factIds.map(factId => `${c.id}:${c.version}:history:${factId}`);
+      return { accepted: true, spokenText: reply.reply, cacheKey: `${c.id}:${c.version}:history:${reply.factIds.join("+") || "clarification"}`, cacheKeys };
+    }
+    if (command.kind === "patient-instruction") return invokeTestVoiceInstruction(command.instructionId);
+    if (command.kind === "social") return socialVoiceReply(command.socialId);
+    if (command.kind === "patient-reply") {
+      const reply = patientVoiceReply(command.replyId);
+      dispatch({
+        type: "askQuestion",
+        question: command.transcript,
+        resolvedFactIds: reply.factIds ?? [],
+        replyText: reply.spokenText,
+        replyStatus: reply.status,
+        utteranceId: command.utteranceId,
+        source: "voice",
+        at: Date.now(),
+      });
+      return reply;
+    }
+    if (command.kind === "clarification") {
+      const reply = scriptedPatient.answer(command.transcript, c, undefined, []);
+      dispatch({ type: "askQuestion", question: command.transcript, resolvedFactIds: [], utteranceId: command.utteranceId, source: "voice", at: Date.now() });
+      return { accepted: true, spokenText: reply.reply, cacheKey: `${c.id}:${c.version}:clarification` };
+    }
+    return { accepted: false, spokenText: "That voice action is not available in Test mode.", errorCode: "MODE_MISMATCH" };
+  }, [dispatch]);
+  const voice = useVoiceSession(voiceContext, handleVoiceCommand);
   useNotebookTool(session, c);
   const unlock = () => {
     if (document.pointerLockElement) document.exitPointerLock();
@@ -317,7 +365,14 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
   const time = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
   const complete = new Set(session.results.map((r) => r.examId)).size;
   const inEncounter = session.phase === "encounter";
+  const voiceWasInEncounter = useRef(false);
+  useEffect(() => {
+    if (voiceWasInEncounter.current && !inEncounter) voice.mute();
+    voiceWasInEncounter.current = inEncounter;
+  }, [inEncounter, voice.mute]);
   return (
+    <VoiceStatusContext.Provider value={voice.status}>
+    <TestVoiceControlProvider controls={voice}>
     <main className={`encounter ${session.phase === "briefing" ? "is-briefing" : ""}`}>
       <div
         className={`room ${sceneFailed ? "failed" : ""}`}
@@ -380,6 +435,7 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
         </div>
         <div className="hud-actions">
           <span className="draft-badge">FICTIONAL · DRAFT</span>
+          {inEncounter && <VoiceControl enabled={voice.enabled} status={voice.status} message={voice.message} partial={voice.partial} onEnable={voice.enable} onMute={voice.mute} />}
           <button className={xrActive || xrPreview ? "xr-active" : ""} disabled={!inEncounter || Boolean(panel) || Boolean(animation) || xrSupport === "checking" || sceneFailed} onClick={toggleXRExperience} title={xrSupport === "unavailable" ? "Inspect the VR layout with desktop controls; tracked controllers require a headset" : undefined}>
             <Glasses size={17} /> {xrActive ? "Exit VR" : xrPreview ? "Exit VR preview" : xrSupport === "checking" ? "Checking VR…" : xrSupport === "supported" ? "Enter VR" : "Preview VR"}
           </button>
@@ -879,5 +935,7 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
         </Panel>
       )}
     </main>
+    </TestVoiceControlProvider>
+    </VoiceStatusContext.Provider>
   );
 }

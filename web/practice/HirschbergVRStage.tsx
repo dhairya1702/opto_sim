@@ -31,7 +31,7 @@ export function HirschbergVRStage({ scenario, finding, findingPosition, onClose,
         <button className="secondary full" onClick={mirror.cancel}>Cancel recording</button>
       </>}
       {mirror.checked && <p role="status">{mirror.correct ? finding.feedback : "Recheck the reflex position, direction rule, and landmark."}</p>}
-      {mirror.checked && mirror.correct && <button className="secondary full" onClick={() => { mirror.reset(); onNext(); }}>New patient finding</button>}
+      {mirror.checked && mirror.correct && <button className="secondary full" onClick={mirror.next}>New patient finding</button>}
       <button className="secondary full" onClick={mirror.reset}>Reset attempt / return tools</button>
     </>}>
     {({ active, preview, exit }) => <HirschbergPracticeController active={active} preview={preview} scenario={scenario} finding={finding}

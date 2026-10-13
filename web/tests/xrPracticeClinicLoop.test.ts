@@ -60,13 +60,53 @@ describe("Hirschberg in the shared consultation clinic", () => {
     await sim.click(1, sim.button("SUBMIT / CHECK")); expect(sim.complete).toHaveBeenCalledTimes(2);
     expect(sim.labels()).toContain("CORRECT"); expect(sim.encounter().results).toHaveLength(0);
   });
+  it("uses the same preserve-tool next action from the browser mirror", async () => {
+    const sim = await lesson(true); await sim.prepare();
+    await sim.click(1, sim.button("NO DEVIATION")); await sim.click(1, sim.button("CENTRED · 0°"));
+    await sim.click(1, sim.button("SUBMIT / CHECK")); expect(sim.complete).toHaveBeenCalledTimes(1);
+    const toolPose = sim.tool("pupils").getWorldPosition(new THREE.Vector3());
+    sim.mirror().next(); await sim.rerender(); await sim.step(1 / 72, 12);
+    expect(sim.next).toHaveBeenCalledTimes(1);
+    expect(sim.mirror().held).toBe(true); expect(sim.mirror().light).toBe(true);
+    expect(sim.tool("pupils").getWorldPosition(new THREE.Vector3()).distanceTo(toolPose)).toBeLessThan(1e-8);
+    expect(sim.mirror().fixation).toBe(false); expect(sim.mirror().technique.ready).toBe(false);
+  });
+  it("never shows readable reflexes before the new finding is actually captured", async () => {
+    const sim = await lesson();
+    await sim.pickup(0, "pupils");
+    sim.grips[0].rotation.x = Math.PI / 2;
+    sim.rays[0].rotation.set(0, 0, 0);
+    await sim.at(0, [0, 1.5, .364]); // Correct aim, but about 80 cm instead of 50 cm.
+    await sim.click(1, sim.button("LOOK AT THE LIGHT"));
+    await sim.event(0, "selectstart"); await sim.step(1 / 72, 12);
+    expect(sim.mirror().technique.distanceReady).toBe(false);
+    expect(sim.reflexes().every(object => !object.visible)).toBe(true);
+    await sim.click(1, sim.button("NO DEVIATION")); await sim.click(1, sim.button("CENTRED · 0°"));
+    await sim.click(1, sim.button("SUBMIT / CHECK"));
+    expect(sim.complete).not.toHaveBeenCalled();
+    expect(sim.labels().some(label => label.includes("No observation was captured yet"))).toBe(true);
+
+    await sim.at(0, [0, 1.5, .064]); await sim.step(1 / 72, 12);
+    expect(sim.mirror().technique.ready).toBe(true);
+    expect(sim.reflexes().every(object => object.visible)).toBe(true);
+    expect(sim.labels()).toContain("OBSERVATION CAPTURED ✓ · choose answers and submit");
+  });
   it("puts one findings form on the rear wall, keeps hands clean and explains an incomplete submission", async () => {
     const sim = await lesson(); await sim.pickup(1, "pupils");
     let board: THREE.Object3D | undefined;
     sim.state.scene.traverse(object => { if (object.userData.xrPersistentFindings) board = object; });
     expect(board).toBeDefined();
-    expect(board!.position.toArray()).toEqual([1.2, 1.5, -2.46]);
-    expect(board!.scale.x).toBe(1.35);
+    expect(board!.position.toArray()).toEqual([1.2, 1.62, -2.46]);
+    expect(board!.scale.x).toBe(1.75);
+    const labelTextures: THREE.CanvasTexture[] = [];
+    board!.traverse(object => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const material = Array.isArray(object.material) ? object.material[0] : object.material;
+      if (material instanceof THREE.MeshBasicMaterial && material.map instanceof THREE.CanvasTexture) labelTextures.push(material.map);
+    });
+    expect(labelTextures.length).toBeGreaterThan(0);
+    expect(labelTextures.every(texture => texture.image.width >= 1536 && texture.image.height >= 160)).toBe(true);
+    expect(labelTextures.every(texture => !texture.generateMipmaps && texture.minFilter === THREE.LinearFilter)).toBe(true);
     const anchored = board!.position.clone();
     sim.viewerCamera.rotation.y = .35; sim.viewerCamera.position.x += .15;
     await sim.step(1 / 72, 12); expect(board!.position.equals(anchored)).toBe(true);
@@ -76,7 +116,7 @@ describe("Hirschberg in the shared consultation clinic", () => {
     await sim.click(0, sim.button("CENTRED · 0°"));
     await sim.click(0, sim.button("SUBMIT / CHECK"));
     expect(sim.mirror().light).toBe(false); expect(sim.complete).not.toHaveBeenCalled();
-    expect(sim.labels().some(label => label.includes("First inspect both reflexes"))).toBe(true);
+    expect(sim.labels().some(label => label.includes("No observation was captured yet"))).toBe(true);
     expect(sim.mirror().direction).toBe("none"); expect(sim.mirror().amount).toBe("0");
     await sim.click(0, sim.button("HELP"));
     expect(sim.rays[0].visible).toBe(true);
@@ -85,7 +125,7 @@ describe("Hirschberg in the shared consultation clinic", () => {
     await sim.event(1, "squeezeend"); await sim.step();
     const restored: THREE.Object3D[] = [];
     sim.state.scene.traverse(object => { if (object.userData.xrPersistentFindings) restored.push(object); });
-    expect(restored).toHaveLength(1); expect(restored[0].position.toArray()).toEqual([1.2, 1.5, -2.46]);
+    expect(restored).toHaveLength(1); expect(restored[0].position.toArray()).toEqual([1.2, 1.62, -2.46]);
   });
   it("retains an inspected finding for submission after looking at the wall and putting the light down", async () => {
     const sim = await lesson(); await sim.prepare();
@@ -163,7 +203,7 @@ describe("Hirschberg in the shared consultation clinic", () => {
     await sim.change();
     const odAfter = sim.reflexes().find(object => object.userData.xrHirschbergReflex === "OD")!.position;
     expect(odAfter.y).toBeLessThan(odBefore.y);
-    expect(sim.reflexes().every(object => object.visible)).toBe(true); // Existing light still reveals the changed reflexes.
+    expect(sim.reflexes().every(object => !object.visible)).toBe(true); // A new finding needs a fresh valid capture.
     expect(sim.mirror().direction).toBe(""); expect(sim.mirror().fixation).toBe(false);
     expect(sim.mirror().technique.ready).toBe(false); expect(sim.mirror().light).toBe(true); expect(sim.mirror().held).toBe(true);
     await sim.event(0, "selectend"); await sim.putDown(0);

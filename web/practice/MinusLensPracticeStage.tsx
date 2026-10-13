@@ -4,6 +4,7 @@ import { Canvas } from "./PracticeWebGLFallback";
 import type { Group } from "three";
 import { EyeSurface } from "../scene/EyeSurface";
 import { canRecordMinusLens, minusLensAmplitude, minusLensBlurPower, minusLensResponseMs, nextMinusLens, type MinusEye } from "../interaction/minusLens";
+import { PracticeVoiceControl } from "../voice/PracticeVoiceControl";
 
 export function LensScene({ eye, power, pending, correction, occluded, onInsert, binocular = false }: { eye: MinusEye; power: number; pending: boolean; correction: boolean; occluded: boolean; onInsert: () => void; binocular?: boolean }) {
   const movement = useRef({ x: 0, y: 0, used: true });
@@ -78,7 +79,7 @@ export function MinusLensPracticeStage({ onClose, onComplete }: { onClose: () =>
     else { setEye("OS"); resetRun(); }
   }
   return <dialog ref={dialog} className="clinical-practice-dialog" aria-labelledby="minus-lens-title" onCancel={event => { event.preventDefault(); onClose(); }}>
-    <header className="clinical-stage-header"><div><p className="eyebrow">LIVE PRACTICE · ACCOMMODATION</p><h1 id="minus-lens-title">Amplitude · minus lens</h1></div><div className="clinical-stage-distance"><span>Near target</span><strong>40 cm · {eye}</strong></div><button className="secondary" onClick={onClose}>Close</button></header>
+    <header className="clinical-stage-header"><div><p className="eyebrow">LIVE PRACTICE · ACCOMMODATION</p><h1 id="minus-lens-title">Amplitude · minus lens</h1></div><div className="clinical-stage-distance"><span>Near target</span><strong>40 cm · {eye}</strong></div><PracticeVoiceControl /><button className="secondary" onClick={onClose}>Close</button></header>
     <div className="clinical-stage-body"><div className="clinical-viewport-wrap">
       <div className="clinical-viewport" tabIndex={0} aria-label="Minus lens examination. Click the red trial lens or press minus to insert the next lens. Press plus to remove one step." onKeyDown={event => { if (event.repeat || !["-", "+", "="].includes(event.key)) return; event.preventDefault(); changeLens(event.key === "-" ? "add" : "remove"); }}>
         <Canvas dpr={[1, 1.5]} camera={{ position: [0, 0, 2.5], fov: 40 }}><LensScene eye={eye} power={power} pending={pending} correction={correction} occluded={occluded} onInsert={() => changeLens("add")} /></Canvas>

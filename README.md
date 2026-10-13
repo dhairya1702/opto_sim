@@ -1,6 +1,6 @@
 # Opto — optometry practice and clinical test simulator
 
-A React + TypeScript + Vite simulator with two modes. **Practice** teaches individual binocular-vision procedures, then opens a first-person hands-and-instrument attempt. All 20 Practice modules have experimental Meta Quest/WebXR controller attempts in the shared clinic. **Test** provides a scripted patient encounter, acquired-findings notebook, diagnosis/management submission, and deterministic educational debrief; its existing consultation room now also has an experimental immersive-VR navigation and instrument-handling foundation. No API key, backend, or account is required.
+A React + TypeScript + Vite simulator with two modes. **Practice** teaches individual binocular-vision procedures, then opens a first-person hands-and-instrument attempt. All 20 Practice modules have experimental Meta Quest/WebXR controller attempts in the shared clinic. **Test** provides a scripted patient encounter, acquired-findings notebook, diagnosis/management submission, and deterministic educational debrief; its existing consultation room now also has an experimental immersive-VR navigation and instrument-handling foundation. The complete typed simulator remains usable without an account or voice service. An optional open GCP voice adapter adds hands-free interaction after explicit microphone consent without becoming an authority for findings or scoring.
 
 The existing `main.py` and Python environment in `src/` are preserved. Web source lives in `web/` to avoid mixing it with that environment.
 
@@ -22,7 +22,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-`npm run preview` serves the production build. The app is fully scripted with no network requests needed once its static assets load. It is not an installable/offline-cached PWA. A local static server is needed; opening `index.html` from the filesystem is not supported.
+`npm run preview` serves the production build. With voice disabled (the default build flag), the app is fully scripted with no network requests needed once its static assets load. It is not an installable/offline-cached PWA. A local static server is needed; opening `index.html` from the filesystem is not supported.
 
 ## Controls and workflow
 
@@ -48,6 +48,8 @@ npm run test:e2e
 - `web/interaction`: semantic input adapter, raycasting, collisions and station destinations.
 - `web/ui`: native keyboard-trapped dialogs, interview, findings, submission and debrief.
 - `web/tests`: unit and browser tests.
+- `web/voice`: shared voice contracts, client capture/playback, action allowlists, and UI controls.
+- `server`: same-origin static hosting, open voice-session bootstrap, signed short-lived cookies, WebSocket limits, and Google speech/Live/TTS adapters.
 - `docs/clinical-review.md`: clinical packet, draft choices and unresolved review checklist.
 - `docs/asset-manifest.md`: visual provenance and licenses.
 
@@ -59,11 +61,48 @@ History matching is deterministic and domain-based. Unsupported details stay unk
 
 Minimal draft prerequisites: baseline of the same eye before pinhole; objective estimate of the same eye before subjective refinement. All other tests can be done in any order. The limited undilated fundus view cannot establish normal peripheral retina. Exact follow-up and referral policy await local clinical approval.
 
-No AI-generated dialogue, speech recognition, controller physics, hand tracking, institutional systems or secure exam delivery. The shared-clinic adapters for all 20 Practice modules and Test consultation-room foundation support tracked Quest controllers but have not yet been validated on physical hardware or as calibrated technique. Test interview, examination configuration, examination close-ups, notebook, and submission are still 2D interfaces; opening one ends the immersive session and preserves the existing deterministic workflow. Manual acuity responses can optionally be read aloud with the browser's local speech-synthesis voice. Static case/rubric/answer-key data are inspectable in the client. Session data live only in memory; reload clears them. Optional JSON export is initiated by the reviewer.
+No controller physics, hand tracking, institutional systems or secure exam delivery. Optional voice uses Google Speech-to-Text, Vertex Gemini Live routing, and Google-generated speech when deployed with `VITE_VOICE_ENABLED=true`; it stores no learner audio or transcript server-side and leaves the typed interface intact on failure. A 45-clip preloaded bank covers authored history, age and visit context, common rapport, clarification and privacy boundaries, and fixed procedure acknowledgements, including sequential clips for compound history questions. Dynamic conversation may use Gemini, but a two-second no-output deadline produces a prerecorded uncertainty reply instead of silence; unavailable assets retain cloud-generated fallback speech. Gemini cannot directly create findings, complete examinations, submit answers, or affect scores. The shared-clinic adapters for all 20 Practice modules and Test consultation-room foundation support tracked Quest controllers but have not yet been validated on physical hardware or as calibrated technique. Test interview, examination configuration, examination close-ups, notebook, and submission are still 2D interfaces; opening one ends the immersive session and preserves the existing deterministic workflow. Manual acuity responses can optionally be read aloud with the browser's local speech-synthesis voice. Static case/rubric/answer-key data are inspectable in the client. Session data live only in memory; reload clears them. Optional JSON export is initiated by the reviewer.
 
 Visuals use original stylized procedural geometry; no third-party GLB models have been added. Performance has not been benchmarked on representative trainee hardware. DPR is capped at 1.5; there is one modest shadow map and no post-processing.
 
 The stable desktop build is published at `https://opto-clinical-simulator.dhairya911.chatgpt.site`. Branch changes are not live until explicitly committed, pushed, and deployed.
+
+## Cloud Run and optional voice
+
+The production container builds the Vite client and runs one Node 22 service for `/`, `/assets/*`, `/healthz`, `/api/voice/access`, and `/api/voice/live`. Voice is compile-time disabled by default. Set `VITE_VOICE_ENABLED=true` only after Cloud Run/WebXR hosting validation and the Test/Practice acceptance stages described in [the hosting and voice runbook](docs/gcp-hosting-voice.md).
+
+### Test voice locally
+
+The usual `npm run dev` command runs only Vite. It has no voice backend or proxy to the deployed Cloud Run service, and voice is disabled unless it was enabled when the client was built. To test the complete voice flow locally, authenticate with Google Application Default Credentials, build with voice enabled, and serve the build and voice API from the local Node server:
+
+```sh
+# One-time local Google Cloud authentication
+gcloud auth application-default login
+gcloud auth application-default set-quota-project opto-simulator-dhairya
+
+# Build the client with its compile-time voice flag enabled
+VITE_VOICE_ENABLED=true npm run build
+
+# Run the same-origin application and voice server locally
+VOICE_COOKIE_SECRET='local-development-only-change-me' \
+GOOGLE_CLOUD_PROJECT='opto-simulator-dhairya' \
+PUBLIC_ORIGIN='http://127.0.0.1:8080' \
+npm start
+```
+
+Open `http://127.0.0.1:8080`, enter an active desktop attempt or VR launch view, select **Enable voice**, and approve microphone access. Voice is intentionally absent from the mode selector, Practice library, lesson overview, and Test briefing. Use that exact host rather than switching to `localhost`, because the WebSocket origin must match `PUBLIC_ORIGIN`. The microphone path is local browser → local Node server → Google Speech-to-Text and Vertex Gemini Live; it does not pass through the deployed Cloud Run revision, but it uses the configured Google Cloud project and may incur API charges. Fixed responses play from the preloaded local canonical-audio cache, with cloud TTS reserved for dynamic or missing responses. The cookie signing value above is only a local development secret; do not reuse a production secret.
+
+For ordinary UI work without voice, continue to use `npm run dev` and the Vite URL it prints.
+
+### Deploy
+
+```sh
+# one-time GCP foundation, then staged deploy
+./scripts/setup-gcp.sh
+VITE_VOICE_ENABLED=false ./scripts/deploy-gcp.sh
+```
+
+The `run.app` URL becomes the documented production URL only after physical Quest acceptance. Until then the ChatGPT Sites URL above remains the rollback target.
 
 ## Experimental Quest / WebXR
 
@@ -94,7 +133,7 @@ Consultation instrument handling uses independent hands:
 
 Physical exploration records no findings automatically and does not award examination credit. On-request in-headset recording and the existing desktop manual examinations both use the same case finding/event path and deterministic debrief. Learner observations remain distinct from expected case values. Experimental pupil, cover, and motility technique panels remain in the controller behind an internal `guided` option for future work; the production consultation leaves that option disabled. Ownership, transfer, supported placement, illumination, and interruption handling continue independently. Pupil response, physical occlusion, instructed target following, retinoscopy reflexes, and the schematic fundus view are supported in-room; holding the other registered instruments does not implement their full examinations. Illuminating tools use controller aim with grip position; scopes retain upright handles with forward-facing optics. The user has confirmed penlight pickup and response on Quest 3S; the new scope handling and recording layout still require device checking. These are draft interaction approximations, not validated optics or manual competency assessments.
 
-Choose **Practice → Hirschberg test → Quest / WebXR → Enter VR** in Meta Quest Browser. Hirschberg now uses the same clinic interior, canonical instruments, controllers, grip/transfer/placement behavior, ray controls, and tracking recovery as consultation. Find the penlight on the trolley and squeeze either controller's side grip once to carry it. Select **Look at the light** on the rear-wall findings board, then hold the penlight's trigger, move it to about 50 cm, and centre your view. The distance readout follows the actual instrument working point. Existing Practice scenarios drive the patient's corneal reflexes; they are independent of Arun's consultation findings.
+Choose **Practice → Hirschberg test → Quest / WebXR → Enter VR** in Meta Quest Browser. Hirschberg now uses the same clinic interior, canonical instruments, controllers, grip/transfer/placement behavior, ray controls, and tracking recovery as consultation. Find the penlight on the trolley and squeeze either controller's side grip once to carry it. Select **Look at the light** on the rear-wall findings board, then hold the penlight's trigger, move it to about 50 cm, and centre your view. The distance readout follows the actual instrument working point. Existing Practice scenarios drive the patient's corneal reflexes; they are independent of Arun's consultation findings. A readable reflex appears only when that setup is eligible for capture, and the wall board confirms **Observation captured** before entry; seeing a reflex and recording readiness cannot disagree.
 
 Use the rear-wall findings board for interpretation and landmark choices; nothing is preselected. **Submit / Check** gives temporary headset feedback and marks local Practice progress only when correct. **New patient finding** changes the visible reflexes and clears the previous inspection/answers while preserving instrument ownership, pose and physical trigger/light state. Give the new fixation instruction and inspect again. Completed inspection survives looking at the board and putting tools down; unfinished observation and invalid setup cannot award credit. A/X exposes optional help, procedure controls, recording, reset and Exit VR. Reset returns instruments to their sockets; second-squeeze placement uses the consultation supported-surface rules. Wrong instruments cannot satisfy Hirschberg.
 

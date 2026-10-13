@@ -12,6 +12,7 @@ import {
 } from "../interaction/cover";
 import type { FixationTarget } from "../interaction/motility";
 import { EyeSurface } from "./EyeSurface";
+import { TestVoiceControl } from "../voice/TestVoiceControl";
 
 class CoverViewBoundary extends Component<
   { children: ReactNode; onFailure: () => void },
@@ -186,6 +187,7 @@ export function ManualCoverExamination({
           <p className="eyebrow">MANUAL COVER TEST · BOTH EYES · {site.toUpperCase()}</p>
           <h1 id="cover-title">Cover–uncover and alternating cover test</h1>
         </div>
+        <TestVoiceControl />
         <button className="secondary" onClick={onCancel}>Cancel</button>
       </header>
       <div className="cover-instructions">

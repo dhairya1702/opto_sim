@@ -9,6 +9,7 @@ import {
 } from "../interaction/acuity";
 import { EyeSurface } from "./EyeSurface";
 import { Sign } from "./Models";
+import { TestVoiceControl } from "../voice/TestVoiceControl";
 
 const eyeName = (eye: ExamConfig["eye"]) => (eye === "OD" ? "right eye (OD)" : "left eye (OS)");
 
@@ -237,6 +238,7 @@ export function ManualAcuityExamination({
           <p className="eyebrow">MANUAL ACUITY EXAMINATION · {selectedEye}</p>
           <h1 id="acuity-title">{name}</h1>
         </div>
+        <TestVoiceControl />
         <button className="secondary" onClick={onCancel}>Cancel</button>
       </header>
       <div className="acuity-instructions">

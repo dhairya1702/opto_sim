@@ -11,6 +11,7 @@ import {
   type PupilToolPose,
 } from "../interaction/pupils";
 import { EyeSurface } from "./EyeSurface";
+import { TestVoiceControl } from "../voice/TestVoiceControl";
 
 class PupilViewBoundary extends Component<
   { children: ReactNode; onFailure: () => void },
@@ -254,6 +255,7 @@ export function ManualPupilExamination({
           <p className="eyebrow">MANUAL PUPIL EXAMINATION · BOTH EYES</p>
           <h1 id="pupil-title">{mode === "rapd" ? "Swinging-flashlight RAPD assessment" : "Pupil size and light responses"}</h1>
         </div>
+        <TestVoiceControl />
         <button className="secondary" onClick={onCancel}>Cancel</button>
       </header>
       <div className="pupil-instructions">

@@ -7,6 +7,9 @@ import { Controller } from "../../interaction/Controller";
 import type { StationId } from "../../domain/types";
 import { PracticeWebGLFallback } from "../PracticeWebGLFallback";
 import { usePracticeXRSessionLifetime } from "../../interaction/usePracticeXRSessionLifetime";
+import { XRVoiceIndicator } from "../../scene/XRVoiceIndicator";
+import { useVoiceStatus } from "../../voice/VoiceStatusContext";
+import { PracticeVoiceControl } from "../../voice/PracticeVoiceControl";
 
 class PracticeSceneBoundary extends Component<{ children: ReactNode; onFailure: () => void }, { failed: boolean }> {
   state = { failed: false };
@@ -23,6 +26,7 @@ export function PracticeVRClinic({ title, findingPosition, onClose, onDesktop, c
   children: (session: PracticeClinicSession) => ReactNode;
   mirror?: ReactNode;
 }) {
+  const voiceStatus = useVoiceStatus();
   const dialog = useRef<HTMLDialogElement>(null);
   const renderer = useRef<WebGLRenderer | null>(null);
   const { session, mounted, closing } = usePracticeXRSessionLifetime();
@@ -92,6 +96,7 @@ export function PracticeVRClinic({ title, findingPosition, onClose, onDesktop, c
     <header className="clinical-stage-header">
       <div><p className="eyebrow">SHARED VR CLINIC · PRACTICE</p><h1 id="practice-vr-title">{title} · VR</h1></div>
       <div className="clinical-stage-distance"><span>Finding</span><strong>{findingPosition.current}/{findingPosition.total}</strong></div>
+      <PracticeVoiceControl />
       <button className="secondary" onClick={() => void end()}><X size={16} /> Close</button>
     </header>
     <div className="xr-practice-body">
@@ -101,6 +106,7 @@ export function PracticeVRClinic({ title, findingPosition, onClose, onDesktop, c
             <Canvas shadows dpr={[1, 1.35]} camera={{ position: [0, 1.6, 1.65], fov: 66, near: .01, far: 20 }}
               onCreated={({ gl }) => { renderer.current = gl; gl.xr.enabled = true; gl.domElement.tabIndex = 0; gl.domElement.setAttribute("aria-label", "Practice clinic layout; drag to look and use WASD to move in preview"); }} fallback={<PracticeWebGLFallback />}>
               <ConsultationInterior xr />
+              <XRVoiceIndicator status={voiceStatus} />
               <Controller active={preview && !active} onTarget={() => undefined}
                 onInteract={id => setVisit(previous => ({ id, seq: (previous?.seq ?? 0) + 1 }))} visit={visit} />
               {children({ active, preview, exit: () => void end() })}

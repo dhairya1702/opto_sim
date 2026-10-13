@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Canvas } from "./PracticeWebGLFallback";
 import { LensScene } from "./MinusLensPracticeStage";
 import { initialRelativeState, recordRelative, relativeBlur, relativeStep } from "../interaction/relativeAccommodation";
+import { PracticeVoiceControl } from "../voice/PracticeVoiceControl";
 
 export function RelativeAccommodationStage({ onClose, onComplete }: { onClose: () => void; onComplete: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -36,7 +37,7 @@ export function RelativeAccommodationStage({ onClose, onComplete }: { onClose: (
     if (next.phase === "done") onComplete();
   }
   return <dialog ref={dialog} className="clinical-practice-dialog" aria-labelledby="relative-title" onCancel={event => { event.preventDefault(); onClose(); }}>
-    <header className="clinical-stage-header"><div><p className="eyebrow">LIVE PRACTICE · ACCOMMODATION</p><h1 id="relative-title">NRA / PRA · binocular</h1></div><div className="clinical-stage-distance"><span>Fixed near target</span><strong>40 cm · OU</strong></div><button className="secondary" onClick={onClose}>Close</button></header>
+    <header className="clinical-stage-header"><div><p className="eyebrow">LIVE PRACTICE · ACCOMMODATION</p><h1 id="relative-title">NRA / PRA · binocular</h1></div><div className="clinical-stage-distance"><span>Fixed near target</span><strong>40 cm · OU</strong></div><PracticeVoiceControl /><button className="secondary" onClick={onClose}>Close</button></header>
     <div className="clinical-stage-body"><div className="clinical-viewport-wrap">
       <div className="clinical-viewport" tabIndex={0} aria-label="Binocular trial lenses. Click the lens pair or press Space for the next quarter-diopter step." onKeyDown={event => { if (event.key !== " " || event.repeat) return; event.preventDefault(); step(); }}>
         <Canvas dpr={[1, 1.5]} camera={{ position: [0, 0, 2.5], fov: 40 }}><LensScene eye="OD" binocular power={state.power} correction={correction} pending={pending} occluded={false} onInsert={step} /></Canvas>

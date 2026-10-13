@@ -87,6 +87,8 @@ export type Turn = {
   text: string;
   status?: "answered" | "unsupported" | "clarification";
   factIds?: string[];
+  source?: "typed" | "voice";
+  utteranceId?: string;
 };
 export type SessionEvent = {
   id: string;
@@ -96,6 +98,8 @@ export type SessionEvent = {
   factIds?: string[];
   resultId?: string;
   status?: Turn["status"];
+  source?: "typed" | "voice";
+  utteranceId?: string;
 };
 export type AssessmentSubmission = {
   diagnosis: string;
@@ -122,7 +126,19 @@ export type Session = {
 };
 export type Action =
   | { type: "start"; at: number }
-  | { type: "askQuestion"; question: string; factId?: string; at: number }
+  | {
+      type: "askQuestion";
+      question: string;
+      factId?: string;
+      /** Fact identifiers resolved by the trusted voice router. Unknown IDs are ignored. */
+      resolvedFactIds?: string[];
+      utteranceId?: string;
+      source?: "typed" | "voice";
+      /** Trusted local reply selected by the deterministic voice adapter. */
+      replyText?: string;
+      replyStatus?: "answered" | "unsupported" | "clarification";
+      at: number;
+    }
   | { type: "selectProcedure"; examId: string; config: ExamConfig; at: number }
   | {
       type: "performExam";

@@ -1,0 +1,272 @@
+{
+  "adult_distance_blur_01:0.1-draft:history:onset": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpvbnNldA.mp3",
+    "textHash": "325e5d8f2aea7e3ef8e98042aec1d57c4bc6211f161250f14ce15652c0023cb7",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:visual-pattern": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTp2aXN1YWwtcGF0dGVybg.mp3",
+    "textHash": "61c8dee034efbff021e7b2222a8c9a98d8a3f62bf16bc57341113ad92fb3b60c",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:laterality": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpsYXRlcmFsaXR5.mp3",
+    "textHash": "a1394e49080048f3cba49e7a0d259850158a4766e45485b7de51c315c8c12d03",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:impact": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTppbXBhY3Q.mp3",
+    "textHash": "de4e847ae84af2bec1c4d63a02d97b9dcf238f0d5c76bd6ebfb30bd530827098",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:correction": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpjb3JyZWN0aW9u.mp3",
+    "textHash": "18d36b4edb06ea32e124b26b4c12a074424eaee7590fc2f0df28f3877c4450bb",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:symptoms": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpzeW1wdG9tcw.mp3",
+    "textHash": "52d4a60e813a73020e74ede6b351e51300c57c2ba9933ccd4ebdd5f747fe1f88",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:safety": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpzYWZldHk.mp3",
+    "textHash": "c6bb903dfe25930cae0f69da836633eefa699084edf71659977184caec462d72",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:general": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpnZW5lcmFs.mp3",
+    "textHash": "09ba8d119650ae04dcbd248677c9b741b7c3307f5a9b97e7d405a8fe4a4d097c",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:family": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpmYW1pbHk.mp3",
+    "textHash": "955981c7169846bb9af9dd27701b8d1d4b4adbaf8a0cde3645404e43cbaf9c7e",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:consent": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpjb25zZW50.mp3",
+    "textHash": "d6c1d55e20fe9879da8b0c460524a027908eff9ec98f5b2c3ef379216005843c",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:clarification": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6Y2xhcmlmaWNhdGlvbg.mp3",
+    "textHash": "5325c07b535c6e0f793a3cd6f92ba18d859f384d80ef2edce73871949598532e",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "social:greeting": {
+    "file": "c29jaWFsOmdyZWV0aW5n.mp3",
+    "textHash": "61ca426e389ebdbb2e435d89fb4f6050f3e497a72c083678965387bf82937542",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "social:thanks": {
+    "file": "c29jaWFsOnRoYW5rcw.mp3",
+    "textHash": "124eb273f9a0a470e3d6930f97e1402f311a753dc9d656b1ef17ef12367caffa",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "social:introduction": {
+    "file": "c29jaWFsOmludHJvZHVjdGlvbg.mp3",
+    "textHash": "a598007e5bdae657b840cfaa8199c3970033ab5c16b8a300e053b4012a40786c",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "social:ready": {
+    "file": "c29jaWFsOnJlYWR5.mp3",
+    "textHash": "869ce5286eb3e57eae49635f070cd24974e3250a29125fac55ddd55a178ee130",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "social:goodbye": {
+    "file": "c29jaWFsOmdvb2RieWU.mp3",
+    "textHash": "a1fcd448d33c642eb5043b8518df6fe3e3bd4c5d2d1ca21904635a7b2ec209b4",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "instruction:fixate-target": {
+    "file": "aW5zdHJ1Y3Rpb246Zml4YXRlLXRhcmdldA.mp3",
+    "textHash": "2e5de3000f5ae3dc189098c633003c23de4d65ee1ac560b503c8470a7c2b139a",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "instruction:follow-target": {
+    "file": "aW5zdHJ1Y3Rpb246Zm9sbG93LXRhcmdldA.mp3",
+    "textHash": "336a708c9cf82257c1dce21f1d3535df05ee1a2614017e794d354ea6f50f1c26",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "instruction:report-symptoms": {
+    "file": "aW5zdHJ1Y3Rpb246cmVwb3J0LXN5bXB0b21z.mp3",
+    "textHash": "ab9abc22197b0127a081a3efd5cfe3167a0b85d0787e6044f482742a017a69bc",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "practice:ack:fixate-light": {
+    "file": "cHJhY3RpY2U6YWNrOmZpeGF0ZS1saWdodA.mp3",
+    "textHash": "6e1f4993b1f1cdd124e4e0fbc29a4e8729994d578dcc89c08a39090c60f531c8",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "practice:ack:fixate-target": {
+    "file": "cHJhY3RpY2U6YWNrOmZpeGF0ZS10YXJnZXQ.mp3",
+    "textHash": "c81c86946fbb7e03abab4e65fb27da945237b084e88f7ec86fb3feb366528ae5",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "practice:ack:follow-target": {
+    "file": "cHJhY3RpY2U6YWNrOmZvbGxvdy10YXJnZXQ.mp3",
+    "textHash": "565fd7ae71a8a238a546b3e6610cc860ac3338ca3f251d8e67a53eb51b3d91fe",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "practice:ack:report-symptoms": {
+    "file": "cHJhY3RpY2U6YWNrOnJlcG9ydC1zeW1wdG9tcw.mp3",
+    "textHash": "ab9abc22197b0127a081a3efd5cfe3167a0b85d0787e6044f482742a017a69bc",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "practice:ack:request-report": {
+    "file": "cHJhY3RpY2U6YWNrOnJlcXVlc3QtcmVwb3J0.mp3",
+    "textHash": "7a3e2de1cf69486dd7d6a0032dc51a1a24ed4eef9fa0cda5a28363a8aff2eb84",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "practice:ack:report-clear": {
+    "file": "cHJhY3RpY2U6YWNrOnJlcG9ydC1jbGVhcg.mp3",
+    "textHash": "ff0065b9d549b1458581f4e9040dd532869becb9b524c7d11dd700e977e1ac9f",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "instruction:read-chart": {
+    "file": "aW5zdHJ1Y3Rpb246cmVhZC1jaGFydA.mp3",
+    "textHash": "5aa27730bc37f96c4a90458f140d51eb304f17bf9dfe2aebbc697abe4a5a38ef",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "patient:age": {
+    "file": "cGF0aWVudDphZ2U.mp3",
+    "textHash": "eb561ff8ac25565cdd1f4d5943b55f31d21c4b158f3771b8d5759d22025c59b5",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "patient:chief-concern": {
+    "file": "cGF0aWVudDpjaGllZi1jb25jZXJu.mp3",
+    "textHash": "56a65081b1a023ad215e98d25c4677da9210c4330187951646d6019a5bcd8248",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "patient:lecture-context": {
+    "file": "cGF0aWVudDpsZWN0dXJlLWNvbnRleHQ.mp3",
+    "textHash": "77d76cda38eac5cd2967edc0d0d3d49b0cc371e637bd3acec51349c04922337f",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "patient:confirm-name": {
+    "file": "cGF0aWVudDpjb25maXJtLW5hbWU.mp3",
+    "textHash": "f093f2c466d70ae69256e866a9af5d239da590ffd90c36ff31761a0055cf8baa",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "patient:can-see": {
+    "file": "cGF0aWVudDpjYW4tc2Vl.mp3",
+    "textHash": "973f0d31d31ca35abacc184c28e27f53fa29f63e5ea9307ae5ffeaa14240f23d",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "patient:comfortable": {
+    "file": "cGF0aWVudDpjb21mb3J0YWJsZQ.mp3",
+    "textHash": "553036bc7b58c0cc1300fbe816cfc156fb7f0f6859844290c9fc70cee910f170",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "patient:hear-you": {
+    "file": "cGF0aWVudDpoZWFyLXlvdQ.mp3",
+    "textHash": "aa8a38408553451e7647386e66d636170474fae36ce19bebb756d76be32fc3e4",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "patient:understand": {
+    "file": "cGF0aWVudDp1bmRlcnN0YW5k.mp3",
+    "textHash": "1c15a529462462499b430c5cd6693fdc7d207e9b56a458a776c77bb269d8b7b9",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "patient:take-time": {
+    "file": "cGF0aWVudDp0YWtlLXRpbWU.mp3",
+    "textHash": "6efaa27dbe816595dc7560909e99a35f208b82ee6229b6a794642974e4334c91",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "patient:no-questions": {
+    "file": "cGF0aWVudDpuby1xdWVzdGlvbnM.mp3",
+    "textHash": "8c40c42502b6cdf0d772b08b972066ba6f2c75a96f737e46795b1a719d345d1b",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "patient:continue": {
+    "file": "cGF0aWVudDpjb250aW51ZQ.mp3",
+    "textHash": "2710d83729fbb45c0cab698c3dd3455b18a6055cae03991c2e83374e4d81f73a",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "patient:apology": {
+    "file": "cGF0aWVudDphcG9sb2d5.mp3",
+    "textHash": "06c643a3b21becf52a9493286d4fd6bf202974bbe12374920f45a9c1d685a0c2",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "patient:explained": {
+    "file": "cGF0aWVudDpleHBsYWluZWQ.mp3",
+    "textHash": "fe1aba21faf0589b7cd441436b8f05a0dbcbe66373b3d64b908abb2aaa3f5aa0",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "patient:rephrase": {
+    "file": "cGF0aWVudDpyZXBocmFzZQ.mp3",
+    "textHash": "84e083d15afe193e94aca41234bbbfa210b80d34db68928c8565c117bbe16ceb",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "patient:relevance": {
+    "file": "cGF0aWVudDpyZWxldmFuY2U.mp3",
+    "textHash": "f25c7a60c59734c550dcd0925a278d2e1e102bc536e6c08b3f33784586cbe135",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "patient:unknown": {
+    "file": "cGF0aWVudDp1bmtub3du.mp3",
+    "textHash": "fbf02d06c14c9ea8dc549d4c1f25eddac4fa86c0b5cb5eed150528e6eedde051",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "patient:diagnosis": {
+    "file": "cGF0aWVudDpkaWFnbm9zaXM.mp3",
+    "textHash": "3eca573f409d2534b20531104af040eaba8d4f511b786e1aee1bea71227a1c88",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "patient:results": {
+    "file": "cGF0aWVudDpyZXN1bHRz.mp3",
+    "textHash": "a7b851c247d183c211d1f049e98dd562d70774f5681907012e400960a4a53f06",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "patient:personal-details": {
+    "file": "cGF0aWVudDpwZXJzb25hbC1kZXRhaWxz.mp3",
+    "textHash": "76c16ad01eb12a24cede9226b2debd1ca53dbc631da007eed10cb128132ca192",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  }
+}

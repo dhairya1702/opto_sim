@@ -2,6 +2,7 @@ import { Component, useEffect, useRef, useState, type ReactNode } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Check, Hand, MoveHorizontal, RotateCcw, Ruler, Target, X } from "lucide-react";
 import { EyeSurface } from "../scene/EyeSurface";
+import { PracticeVoiceControl } from "../voice/PracticeVoiceControl";
 import { coverPositionAt, coverTargets, type CoverEye, type CoverToolPose } from "../interaction/cover";
 import {
   advancePracticeCoverStep,
@@ -222,7 +223,7 @@ export function CoverPracticeStage({ kind, onClose, onComplete }: { kind: Practi
   const current = procedure[step];
   const activePosition = coverPositionAt(pose);
   return <dialog ref={dialog} className="clinical-practice-dialog cover-practice-dialog" aria-labelledby="cover-practice-title" onCancel={event => { event.preventDefault(); onClose(); }}>
-    <header className="clinical-stage-header"><div><p className="eyebrow">LIVE PRACTICE · BINOCULAR VISION</p><h1 id="cover-practice-title">{kind === "cover-uncover" ? "Cover–uncover test" : "Alternating cover + prism neutralisation"}</h1></div><div className="clinical-stage-distance"><span>Fixation</span><strong className={fixation ? "ready" : ""}>{site === "near" ? `${targetDistance} cm` : "Distance"}</strong></div><button className="secondary" onClick={onClose}><X size={16} /> Close</button></header>
+    <header className="clinical-stage-header"><div><p className="eyebrow">LIVE PRACTICE · BINOCULAR VISION</p><h1 id="cover-practice-title">{kind === "cover-uncover" ? "Cover–uncover test" : "Alternating cover + prism neutralisation"}</h1></div><div className="clinical-stage-distance"><span>Fixation</span><strong className={fixation ? "ready" : ""}>{site === "near" ? `${targetDistance} cm` : "Distance"}</strong></div><PracticeVoiceControl /><button className="secondary" onClick={onClose}><X size={16} /> Close</button></header>
     <div className="clinical-stage-body">
       <div className="clinical-viewport-wrap">
         <div className={`clinical-viewport cover-practice-viewport ${grabbed ? "is-grabbed" : ""}`} tabIndex={0} role="application" aria-label="Cover test. Drag the occluder over either eye or below the face. Arrow keys provide fine movement."

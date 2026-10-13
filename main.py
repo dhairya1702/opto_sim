@@ -14,3 +14,16 @@ if __name__ == '__main__':
     print_hi('PyCharm')
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
+
+"""
+voice over, voice control, talk
+
+when the student makes a mistake, it should rectify. basically give instructions
+
+the wall is too blurry, the back wall,
+
+light is falling in the center of the pupil, more test cases
+
+see whats haopening in VR on laptop? start on laptop but use VR
+
+"""

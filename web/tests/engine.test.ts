@@ -4,6 +4,7 @@ import { assess, examBlock, newSession, reduceSession, requiredKeys } from "../d
 import { scriptedPatient } from "../patient/scripted";
 import { stations, walkable } from "../interaction/navigation";
 import type { AssessmentSubmission, ExamConfig, Session } from "../domain/types";
+import voiceManifest from "../../voice-assets/manifest.json";
 const start = () => reduceSession(c, newSession(c, "test"), { type: "start", at: 100 });
 let request = 0;
 const perform = (
@@ -78,6 +79,12 @@ describe("history disclosure", () => {
         status: "answered",
       });
   });
+  it("keeps generated history audio text versioned against the authored case", () => {
+    for (const fact of c.historyFacts) {
+      const cached = voiceManifest.items.find(item => item.key === `${c.id}:${c.version}:history:${fact.id}`);
+      expect(cached?.text).toBe(fact.answer);
+    }
+  });
   it("gives consistent facts for paraphrases and no duplicate scoring", () => {
     let s = start();
     for (const q of ["When did it start?", "How long has this been happening?"])
@@ -114,6 +121,45 @@ describe("history disclosure", () => {
       expect(r.factIds).toEqual([]);
       expect(r.reply).not.toMatch(/myopia|6\/18|1\.25|100.point/);
     }
+  });
+  it("validates voice-resolved facts, preserves provenance, and ignores duplicate utterances", () => {
+    const first = reduceSession(c, start(), {
+      type: "askQuestion",
+      question: "Did this start suddenly and is it in both eyes?",
+      resolvedFactIds: ["onset", "laterality", "invented"],
+      utteranceId: "voice-1",
+      source: "voice",
+      at: 200,
+    });
+    expect(first.revealedFactIds).toEqual(["onset", "laterality"]);
+    expect(first.transcript.slice(-2).every(turn => turn.source === "voice" && turn.utteranceId === "voice-1")).toBe(true);
+    expect(first.events.at(-1)).toMatchObject({ source: "voice", utteranceId: "voice-1", factIds: ["onset", "laterality"] });
+    const duplicate = reduceSession(c, first, {
+      type: "askQuestion",
+      question: "replayed transcript",
+      resolvedFactIds: ["family"],
+      utteranceId: "voice-1",
+      source: "voice",
+      at: 220,
+    });
+    expect(duplicate).toBe(first);
+  });
+  it("records a trusted deterministic filler reply without inventing a scored history fact", () => {
+    const s = reduceSession(c, start(), {
+      type: "askQuestion",
+      question: "How old are you?",
+      resolvedFactIds: [],
+      replyText: "I'm 24 years old.",
+      replyStatus: "answered",
+      utteranceId: "voice-age",
+      source: "voice",
+      at: 210,
+    });
+    expect(s.transcript.slice(-2)).toMatchObject([
+      { role: "trainee", text: "How old are you?", source: "voice" },
+      { role: "patient", text: "I'm 24 years old.", status: "answered", factIds: [] },
+    ]);
+    expect(s.revealedFactIds).toEqual([]);
   });
 });
 describe("exam and session transitions", () => {

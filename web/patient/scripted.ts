@@ -7,11 +7,28 @@ export type PatientReply = {
 };
 export interface PatientProvider {
   mode: "scripted";
-  answer(question: string, caseData: ClinicalCase, factId?: string): PatientReply;
+  answer(question: string, caseData: ClinicalCase, factId?: string, resolvedFactIds?: string[]): PatientReply;
 }
 export const scriptedPatient: PatientProvider = {
   mode: "scripted",
-  answer(question, caseData, factId) {
+  answer(question, caseData, factId, resolvedFactIds) {
+    if (resolvedFactIds) {
+      const requested = new Set(resolvedFactIds);
+      const facts = caseData.historyFacts.filter((candidate) => requested.has(candidate.id));
+      if (facts.length)
+        return {
+          reply: facts.map((candidate) => candidate.answer).join(" "),
+          factIds: facts.map((candidate) => candidate.id),
+          needsClarification: false,
+          status: "answered",
+        };
+      return {
+        reply: "Could you ask a little more specifically about what you want to know?",
+        factIds: [],
+        needsClarification: true,
+        status: "clarification",
+      };
+    }
     if (factId) {
       const fact = caseData.historyFacts.find((f) => f.id === factId);
       if (fact)

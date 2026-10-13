@@ -67,26 +67,38 @@ export function reduceSession(c: ClinicalCase, s: Session, a: Action): Session {
       : s;
   if (s.phase !== "encounter") return s;
   if (a.type === "askQuestion") {
+    // Voice reconnects may resend a final transcript. Utterance IDs are the
+    // idempotency boundary, just as request IDs are for completed exams.
+    if (a.utteranceId && s.events.some((candidate) => candidate.utteranceId === a.utteranceId)) return s;
     const question = a.question.trim().slice(0, 500);
     if (!question) return s;
-    const reply = scriptedPatient.answer(question, c, a.factId);
+    const resolvedFactIds = a.resolvedFactIds
+      ? [...new Set(a.resolvedFactIds)].filter((factId) => c.historyFacts.some((fact) => fact.id === factId))
+      : undefined;
+    const scripted = scriptedPatient.answer(question, c, a.factId, resolvedFactIds);
+    const reply = a.replyText
+      ? { ...scripted, reply: a.replyText.slice(0, 1000), status: a.replyStatus ?? scripted.status }
+      : scripted;
+    const source = a.source ?? "typed";
     return {
       ...s,
       revealedFactIds: [...new Set([...s.revealedFactIds, ...reply.factIds])],
       transcript: [
         ...s.transcript,
-        { id: `${id}:q`, role: "trainee", text: question },
+        { id: `${id}:q`, role: "trainee", text: question, source, utteranceId: a.utteranceId },
         {
           id: `${id}:a`,
           role: "patient",
           text: reply.reply,
           status: reply.status,
           factIds: reply.factIds,
+          source,
+          utteranceId: a.utteranceId,
         },
       ],
       events: [
         ...s.events,
-        event("question", question, { factIds: reply.factIds, status: reply.status }),
+        event("question", question, { factIds: reply.factIds, status: reply.status, source, utteranceId: a.utteranceId }),
       ],
     };
   }

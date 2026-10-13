@@ -1,0 +1,29 @@
+substitutions:
+  _REGION: us-central1
+  _REPOSITORY: opto-platform
+  _SERVICE: opto-platform
+  _VOICE_ENABLED: "false"
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "--build-arg", "VITE_VOICE_ENABLED=${_VOICE_ENABLED}", "-t", "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$BUILD_ID", "."]
+  - name: gcr.io/cloud-builders/docker
+    args: ["push", "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$BUILD_ID"]
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$BUILD_ID
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --max-instances=2
+      - --min-instances=0
+      - --timeout=3600
+      - --remove-secrets=VOICE_ACCESS_CODE_HASH
+      - --update-secrets=VOICE_COOKIE_SECRET=opto-voice-cookie-secret:latest
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$BUILD_ID
+options:
+  logging: CLOUD_LOGGING_ONLY

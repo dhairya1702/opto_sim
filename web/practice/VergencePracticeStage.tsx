@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import { Canvas } from "./PracticeWebGLFallback";
 import { Check, RotateCcw, Target, X } from "lucide-react";
 import { EyeSurface } from "../scene/EyeSurface";
+import { PracticeVoiceControl } from "../voice/PracticeVoiceControl";
 
 export type VergenceMode = "npc" | "horizontal-distance" | "vertical-distance" | "horizontal-near" | "facility";
 import { vergenceFindings as data, npcFindings, vergenceFacilityDelay, npcGaze, prismVergenceGaze, facilityVergenceGaze } from "../interaction/vergencePractice";
@@ -227,6 +228,7 @@ export function VergencePracticeStage({ mode, onClose, onComplete }: { mode: Ver
 <p className="eyebrow">LIVE PRACTICE · VERGENCE</p>
 <h1>{npc ? "Near point of convergence" : facility ? "Fusional vergence facility at near" : vertical ? "Vertical fusional vergence at distance" : near ? "Horizontal fusional vergence at near" : "Horizontal fusional vergence at distance"}</h1>
 </div>
+<PracticeVoiceControl />
 <button className="secondary" onClick={onClose}>
 <X size={16} />Close</button>
 </header>

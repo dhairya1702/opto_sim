@@ -24,7 +24,7 @@ export type HirschbergPracticeMirror = {
   direction: string; amount: string; checked: boolean; correct: boolean; help: boolean; recording: boolean;
   giveFixation: () => void; toggleHelp: () => void; openRecording: () => void;
   chooseDirection: (value: string) => void; chooseAmount: (value: string) => void;
-  record: () => void; cancel: () => void; reset: () => void;
+  record: () => void; cancel: () => void; reset: () => void; next: () => void;
 };
 type Visual = { lit: boolean; quality: number };
 
@@ -92,7 +92,9 @@ export function HirschbergPracticeController({ active, preview = false, scenario
     onMenu: open => { setMenu(open); if (!open) { setRecording(false); setHelp(false); } },
     onSelection: selection => {
       if (selection.station === "patient" && !selection.examId) setMenu(true);
-      else if (selection.examId) runtime.setHandlingMessage("Squeeze the side grip once beside the handle to pick up the instrument.");
+      else if (selection.examId && !(selection.examId === "pupils" && runtime.toolsRef.current.pupils.placement.kind === "held")) {
+        runtime.setHandlingMessage("Squeeze the side grip once beside the handle to pick up the instrument.");
+      }
     },
   });
   const viewerPosition = useMemo(() => new Vector3(), []);
@@ -118,12 +120,15 @@ export function HirschbergPracticeController({ active, preview = false, scenario
     if (!next.ready) captureArmed.current = true;
     if (next.ready && captureArmed.current && !capturedRef.current) {
       capturedRef.current = { ...next }; setCaptured(capturedRef.current);
+      runtime.setHandlingMessage("Observation captured ✓ · choose answers on the findings board.");
     }
     if (wasReady.current && !next.ready && !capturedRef.current && !awarded.current) {
       entries.current = { direction: "", amount: "" }; setDirection(""); setAmount(""); setChecked(false);
     }
     wasReady.current = next.ready; techniqueRef.current = next;
-    visual.lit = active && runtime.frameValid.current && runtime.toolsRef.current.pupils.powered && next.aimErrorDeg <= 12 && next.distanceCm >= 3 && next.distanceCm <= 120;
+    // A visible reflex is a usable observation. Keep its gate identical to the
+    // immutable capture gate so the learner cannot see a finding that submission rejects.
+    visual.lit = active && next.ready;
     visual.quality = next.quality;
     clock.current += dt;
     if (clock.current >= .1) { clock.current = 0; setTechnique(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next); }
@@ -154,7 +159,9 @@ export function HirschbergPracticeController({ active, preview = false, scenario
     if (!active || preview || !runtime.frameValid.current) { explain("Restore headset/controller tracking before submitting."); return; }
     const result = hirschbergSubmission(capturedRef.current ?? emptyHirschbergTechnique(), entries.current.direction, entries.current.amount, finding);
     if (result === null) {
-      explain(!capturedRef.current ? "First inspect both reflexes: " + prompt : "Choose both a direction and a landmark, then submit.");
+      explain(!capturedRef.current
+        ? `No observation was captured yet. Continue until the board confirms OBSERVATION CAPTURED. ${prompt}`
+        : "Choose both a direction and a landmark, then submit.");
       return;
     }
     setSubmissionMessage("");
@@ -168,13 +175,13 @@ export function HirschbergPracticeController({ active, preview = false, scenario
   const held = runtime.tools.pupils.placement.kind === "held";
   const light = runtime.tools.pupils.powered;
   const prompt = xrHirschbergPrompt(technique, { held, light, fixation });
+  const nextFinding = useCallback(() => { if (!awarded.current) return; clearAttempt(); onNext(); }, [clearAttempt, onNext]);
   useEffect(() => { onMirror?.({ technique, held, light, fixation, direction, amount, checked, correct, help, recording,
-    giveFixation, toggleHelp, openRecording, chooseDirection, chooseAmount, record, cancel, reset,
-  }); }, [technique, held, light, fixation, direction, amount, checked, correct, help, recording, finding, active, captured, onMirror]);
-  const nextFinding = () => { if (!awarded.current) return; clearAttempt(); onNext(); };
+    giveFixation, toggleHelp, openRecording, chooseDirection, chooseAmount, record, cancel, reset, next: nextFinding,
+  }); }, [technique, held, light, fixation, direction, amount, checked, correct, help, recording, finding, active, captured, onMirror, nextFinding]);
   const findings = <>
         <Box p={[0, -.03, -.015]} s={[.76, 1.20, .018]} c="#102329" radius={.012} />
-        <Sign text={[`HIRSCHBERG · FINDING ${findingPosition.current}/${findingPosition.total}`, checked ? correct ? "Correct · finding recorded" : "Recheck direction and landmark." : captured ? "Observation captured · choose answers and submit." : prompt]} p={[0, .245, 0]} size={[.70, .16]} bg="#102329" fg="#eefbf7" />
+        <Sign text={[`HIRSCHBERG · FINDING ${findingPosition.current}/${findingPosition.total}`, checked ? correct ? "Correct · finding recorded" : "Recheck direction and landmark." : captured ? "OBSERVATION CAPTURED ✓ · choose answers and submit" : prompt]} p={[0, .245, 0]} size={[.70, .16]} bg="#102329" fg="#eefbf7" />
         <XRPanelButton label={fixation ? "FIXATION GIVEN ✓" : "LOOK AT THE LIGHT"} position={[0, .49, .02]} width={.70} onClick={giveFixation} />
         <XRPanelButton label="HELP" position={[-.18, .395, .02]} width={.34} onClick={toggleHelp} />
         <XRPanelButton label="EXIT VR" position={[.18, .395, .02]} width={.34} onClick={onExit} />

@@ -29,5 +29,5 @@ export function XRPracticeFindingsBoard({ runtime, active, tools, hidden = false
   }, [active, runtime.tools, key]);
   useFrame(() => { root.current?.updateMatrixWorld(true); }, -1);
   if (!active || (!shown && !forceVisible) || hidden) return null;
-  return <group ref={register} position={[1.2, 1.5, -2.46]} scale={1.35} userData={{ xrPanel: true, xrPersistentFindings: true }}>{children}</group>;
+  return <group ref={register} position={[1.2, 1.62, -2.46]} scale={1.75} userData={{ xrPanel: true, xrPersistentFindings: true }}>{children}</group>;
 }

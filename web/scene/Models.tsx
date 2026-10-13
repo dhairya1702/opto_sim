@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { RoundedBox } from "@react-three/drei";
-import { CanvasTexture, RepeatWrapping, SRGBColorSpace, Vector3, Quaternion } from "three";
+import { CanvasTexture, LinearFilter, RepeatWrapping, SRGBColorSpace, Vector3, Quaternion } from "three";
 import { CLINIC_IRIS_RADIUS, CLINIC_PUPIL_RADIUS } from "../interaction/clinicPatient";
 import { INSTRUMENT_KIT, INSTRUMENT_KIT_ROTATION_Y } from "../interaction/clinicLayout";
 import { RetinoscopeModel } from "./RetinoscopeModel";
@@ -112,8 +112,8 @@ export function Sign({
 }) {
   const texture = useMemo(() => {
     const canvas = document.createElement("canvas");
-    canvas.width = fit ? 1280 : 1024;
-    canvas.height = fit ? Math.max(80, Math.round(1280 * size[1] / size[0])) : 640;
+    canvas.width = fit ? 1536 : 1024;
+    canvas.height = fit ? Math.max(160, Math.round(1536 * size[1] / size[0])) : 640;
     const ctx = canvas.getContext("2d")!;
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -122,16 +122,25 @@ export function Sign({
     if (fit) ctx.textBaseline = "middle";
     text.forEach((t, i) => {
       let fontSize = fit ? canvas.height / (text.length + 1) * .85 : text.length > 4 ? Math.max(24, 100 - i * 12) : 44;
-      ctx.font = `600 ${fontSize}px system-ui, sans-serif`;
+      ctx.font = `${fit ? 800 : 600} ${fontSize}px system-ui, sans-serif`;
       if (fit) {
         fontSize *= Math.min(1, canvas.width * .92 / Math.max(1, ctx.measureText(t).width));
-        ctx.font = `600 ${fontSize}px system-ui, sans-serif`;
+        ctx.font = `800 ${fontSize}px system-ui, sans-serif`;
       }
       ctx.fillText(t, canvas.width / 2, (canvas.height * (i + 1)) / (text.length + 1));
     });
     const tex = new CanvasTexture(canvas);
     tex.colorSpace = SRGBColorSpace;
-    tex.anisotropy = 8;
+    if (fit) {
+      // Thin XR labels otherwise fall into tiny mip levels at normal room
+      // distance, turning letter strokes into an unreadable blur in-headset.
+      tex.generateMipmaps = false;
+      tex.minFilter = LinearFilter;
+      tex.magFilter = LinearFilter;
+      tex.anisotropy = 16;
+    } else {
+      tex.anisotropy = 8;
+    }
     return tex;
   }, [text.join("|"), bg, fg, fit, fit ? size[0] : 0, fit ? size[1] : 0]);
   useEffect(() => () => texture.dispose(), [texture]);

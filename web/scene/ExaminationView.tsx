@@ -11,6 +11,7 @@ import { ManualCoverExamination } from "./ManualCoverExamination";
 import { ManualNearPupilExamination } from "./ManualNearPupilExamination";
 import { ManualRetinoscopyExamination } from "./ManualRetinoscopyExamination";
 import type { ExamConfig } from "../domain/types";
+import { TestVoiceControl } from "../voice/TestVoiceControl";
 export type ExaminationAnimation = {
   examId: string;
   config: ExamConfig;
@@ -289,6 +290,7 @@ function ScriptedExaminationView({
           </p>
           <h1 id="examination-title">{animation.name}</h1>
         </div>
+        <TestVoiceControl />
         <button className="secondary" onClick={onCancel}>
           Cancel
         </button>

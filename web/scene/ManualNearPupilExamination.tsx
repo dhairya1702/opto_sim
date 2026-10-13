@@ -9,6 +9,7 @@ import {
 } from "../interaction/pupils";
 import type { FixationTarget } from "../interaction/motility";
 import { EyeSurface } from "./EyeSurface";
+import { TestVoiceControl } from "../voice/TestVoiceControl";
 
 class NearPupilBoundary extends Component<
   { children: ReactNode; onFailure: () => void },
@@ -172,6 +173,7 @@ export function ManualNearPupilExamination({
           <p className="eyebrow">MANUAL PUPIL EXAMINATION · NEAR RESPONSE</p>
           <h1 id="near-pupil-title">Convergence and pupillary constriction</h1>
         </div>
+        <TestVoiceControl />
         <button className="secondary" onClick={onCancel}>Cancel</button>
       </header>
       <div className="near-pupil-instructions">

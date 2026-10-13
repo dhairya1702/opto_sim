@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useCallback, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Check,
@@ -26,6 +26,13 @@ import { KrimskyPracticeStage } from "./KrimskyPracticeStage";
 import { brucknerScenarios, type BrucknerScenario } from "../interaction/brucknerPractice";
 import { PracticeBatchVRStage } from "./xr/PracticeBatchVRStage";
 import { HirschbergVRStage } from "./HirschbergVRStage";
+import { useVoiceSession } from "../voice/useVoiceSession";
+import { VoiceStatusContext } from "../voice/VoiceStatusContext";
+import { PracticeVoiceControlProvider } from "../voice/PracticeVoiceControl";
+import { PRACTICE_VOICE_ACTIONS, invokePracticeVoiceAction, type PracticeLessonId } from "../voice/practiceActions";
+import type { VoiceCommand } from "../voice/contracts";
+import { socialVoiceReply } from "../voice/socialReplies";
+import { patientVoiceReply } from "../voice/patientReplies";
 
 type SkillId = "motility" | "bruckner" | "hirschberg" | "krimsky" | "cover-uncover" | "alternate-cover" | "worth" | "stereopsis" | "four-prism" | "maddox" | "thorington" | VergenceMode | AccommodationMode;
 type Skill = {
@@ -245,14 +252,31 @@ function KrimskyModule({ onComplete }: { onComplete: () => void }) {
 export function PracticeMode({ onExit }: { onExit: () => void }) {
   const [selected, setSelected] = useState<SkillId>("motility");
   const [completed, setCompleted] = useState<SkillId[]>([]);
+  const voiceSessionId = useRef(crypto.randomUUID());
+  const voiceContext = useMemo(() => ({
+    mode: "practice" as const,
+    sessionId: voiceSessionId.current,
+    lessonId: selected,
+    allowedActions: PRACTICE_VOICE_ACTIONS[selected as PracticeLessonId].map(action => action.id),
+  }), [selected]);
+  const handleVoiceCommand = useCallback((command: VoiceCommand) => {
+    if (command.kind === "social") return socialVoiceReply(command.socialId);
+    if (command.kind === "patient-reply") return patientVoiceReply(command.replyId);
+    if (command.kind !== "practice-action" || command.lessonId !== selected)
+      return { accepted: false, spokenText: "That voice action is not available in this lesson.", errorCode: "LESSON_MISMATCH" };
+    return invokePracticeVoiceAction(selected as PracticeLessonId, command.actionId);
+  }, [selected]);
+  const voice = useVoiceSession(voiceContext, handleVoiceCommand);
   const complete = (id: SkillId) => setCompleted(items => items.includes(id) ? items : [...items, id]);
   const skill = skills.find(item => item.id === selected)!;
   const selectedIndex = skills.findIndex(item => item.id === selected);
   const nextSkill = [...skills.slice(selectedIndex + 1), ...skills.slice(0, selectedIndex)].find(item => item.available && !completed.includes(item.id));
   const allComplete = completed.length === skills.filter(item => item.available).length;
   return (
+    <PracticeVoiceControlProvider controls={voice}>
+    <VoiceStatusContext.Provider value={voice.status}>
     <main className="practice-shell">
-      <header className="practice-header"><button className="practice-wordmark" onClick={onExit}><span>opto<span className="wordmark-dot">.</span></span><small>Practice</small></button><div><GraduationCap size={18} /><span>Binocular vision</span><progress aria-label="Practice modules completed" value={completed.length} max={skills.filter(item => item.available).length} /><b>{completed.length}/{skills.filter(item => item.available).length} modules practised</b></div><button className="secondary" onClick={onExit}><ArrowLeft size={16} /> Modes</button></header>
+      <header className="practice-header"><button className="practice-wordmark" onClick={onExit}><span>opto<span className="wordmark-dot">.</span></span><small>Practice</small></button><div className="practice-progress"><GraduationCap size={18} /><span>Binocular vision</span><progress aria-label="Practice modules completed" value={completed.length} max={skills.filter(item => item.available).length} /><b>{completed.length}/{skills.filter(item => item.available).length} modules practised</b></div><button className="secondary" onClick={onExit}><ArrowLeft size={16} /> Modes</button></header>
       <div className="practice-layout">
         <aside className="practice-nav"><p className="eyebrow">PRACTICE LIBRARY</p><h2>Assessment of binocular vision</h2><p className="small muted">Choose a test to learn its purpose, sequence, observations, and recording.</p><nav>{skills.map((item, index) => <Fragment key={item.id}>{(index === 0 || practiceSection(skills[index - 1].index) !== practiceSection(item.index)) && <p className="practice-nav-section">{practiceSection(item.index)}</p>}<button disabled={!item.available} className={selected === item.id ? "selected" : ""} onClick={() => setSelected(item.id)}><span className="practice-index">{item.index}</span><span><b>{item.name}</b><small>{item.equipment} · {item.duration}</small></span>{completed.includes(item.id) ? <CheckCircle2 className="completed-icon" size={17} /> : item.available ? <ChevronRight size={16} /> : <LockKeyhole size={15} />}</button></Fragment>)}</nav><div className="practice-scope"><b>Training scope</b><p>Guided educational simulations. They support supervised learning and do not certify clinical technique.</p></div></aside>
         <article className="practice-content" key={selected}>
@@ -280,5 +304,7 @@ export function PracticeMode({ onExit }: { onExit: () => void }) {
         </article>
       </div>
     </main>
+    </VoiceStatusContext.Provider>
+    </PracticeVoiceControlProvider>
   );
 }

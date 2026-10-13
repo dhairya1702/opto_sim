@@ -5,6 +5,7 @@ import { DoubleSide, Group, Quaternion, Vector3 } from "three";
 import { EyeSurface } from "../scene/EyeSurface";
 import { hirschbergReflexOffset, opticTechniqueChecks, opticViewAligned, type OpticPracticeMode } from "../interaction/opticPractice";
 import { PracticeWebGLFallback } from "./PracticeWebGLFallback";
+import { PracticeVoiceControl } from "../voice/PracticeVoiceControl";
 
 export type OpticScenario = {
   id: string;
@@ -325,6 +326,7 @@ export function ClinicalPracticeStage({
       <header className="clinical-stage-header">
         <div><p className="eyebrow">LIVE PRACTICE · BOTH EYES</p><h1 id={`${mode}-practice-title`}>{mode === "bruckner" ? "Bruckner test" : "Hirschberg test"}</h1></div>
         <div className="clinical-stage-distance"><span>Working distance</span><strong className={distanceReady ? "ready" : ""}>{distance} cm</strong></div>
+        <PracticeVoiceControl />
         <button className="secondary" onClick={onClose}><X size={16} /> Close</button>
       </header>
       <div className="clinical-stage-body">

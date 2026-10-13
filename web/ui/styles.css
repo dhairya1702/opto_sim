@@ -55,6 +55,11 @@ button {
 button svg {
   flex-shrink: 0;
 }
+.voice-control { position: relative; }
+.voice-button { min-height: 38px; padding: 8px 11px; border: 1px solid #ffffff2b; border-radius: 6px; display: inline-flex; align-items: center; gap: 7px; color: inherit; background: #ffffff0a; font-size: .72rem; font-weight: 750; letter-spacing: .03em; }
+.voice-button.active { border-color: #71c8a999; background: #175f60; color: #f2fff9; }
+.voice-partial { position: absolute; top: calc(100% + 6px); right: 0; padding: 4px 7px; border-radius: 4px; white-space: nowrap; background: #102329; color: #bdebd8; font-size: .65rem; }
+.voice-error { position: absolute; z-index: 80; top: calc(100% + 6px); right: 0; width: min(320px, calc(100vw - 24px)); padding: 7px 9px; border-radius: 5px; background: #fff3e8; color: #713f25; box-shadow: 0 8px 24px #07171633; font-size: .7rem; }
 a {
   color: inherit;
 }
@@ -2014,12 +2019,12 @@ kbd {
 
 /* Binocular-vision practice workspace */
 .practice-shell { min-height: 100dvh; color: #183538; background: #e8eeea; }
-.practice-header { position: sticky; z-index: 8; top: 0; min-height: 72px; padding: 0 24px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 18px; border-bottom: 1px solid #cbd8d2; background: #f7faf6eF; backdrop-filter: blur(12px); }
+.practice-header { position: sticky; z-index: 8; top: 0; min-height: 72px; padding: 0 24px; display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 18px; border-bottom: 1px solid #cbd8d2; background: #f7faf6eF; backdrop-filter: blur(12px); }
 .practice-wordmark { justify-self: start; display: flex; align-items: baseline; gap: 9px; font-size: 1.35rem; font-weight: 750; letter-spacing: -.04em; }
 .practice-wordmark small { color: #618078; font-size: .68rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
-.practice-header > div { display: flex; align-items: center; gap: 8px; color: #486960; font-size: .8rem; }
+.practice-header > .practice-progress { display: flex; align-items: center; gap: 8px; color: #486960; font-size: .8rem; }
 .practice-header progress { width: 88px; height: 7px; accent-color: #28705e; }
-.practice-header > div b { margin-left: 9px; padding-left: 15px; border-left: 1px solid #cbd8d2; color: #28705e; font-size: .72rem; }
+.practice-header > .practice-progress b { margin-left: 9px; padding-left: 15px; border-left: 1px solid #cbd8d2; color: #28705e; font-size: .72rem; }
 .practice-header > .secondary { justify-self: end; }
 .practice-layout { min-height: calc(100dvh - 72px); display: grid; grid-template-columns: 310px minmax(0, 1fr); }
 .practice-nav { padding: 27px 20px; border-right: 1px solid #cad7d1; background: #f3f6f1; }
@@ -2103,10 +2108,11 @@ kbd {
 /* First-person binocular-vision practice */
 .clinical-practice-dialog { width: 100vw; max-width: none; height: 100dvh; max-height: none; margin: 0; padding: 0; border: 0; border-radius: 0; overflow: hidden; background: #0c1c21; color: #edf7f4; box-shadow: none; }
 .clinical-practice-dialog::backdrop { background: #061014e8; backdrop-filter: blur(8px); }
-.clinical-stage-header { height: 76px; padding: 0 20px; border-bottom: 1px solid #ffffff18; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 18px; background: #10272c; }
+.clinical-stage-header { height: 76px; padding: 0 20px; border-bottom: 1px solid #ffffff18; display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 18px; background: #10272c; }
 .clinical-stage-header h1 { margin: 2px 0 0; color: white; font-size: 1.28rem; }
 .clinical-stage-header .eyebrow { color: #79b8a9; font-size: .64rem; }
 .clinical-stage-header > .secondary { justify-self: end; color: #dce9e6; background: #ffffff0d; border-color: #ffffff25; }
+.clinical-stage-header > .voice-control { justify-self: end; }
 .clinical-stage-distance { min-width: 135px; text-align: center; }
 .clinical-stage-distance span { display: block; color: #91aaa5; font-size: .65rem; text-transform: uppercase; letter-spacing: .11em; }
 .clinical-stage-distance strong { display: block; margin-top: 3px; color: #f0bd70; font-size: 1.15rem; }
@@ -2230,7 +2236,7 @@ kbd {
   .clinical-control-rail { overflow: visible; border-left: 0; border-top: 1px solid #ffffff16; }
 }
 @media(max-width:600px) {
-  .clinical-stage-header { height: 66px; padding: 0 12px; grid-template-columns: 1fr auto; }
+  .clinical-stage-header { height: 66px; padding: 0 12px; grid-template-columns: 1fr auto auto; gap: 8px; }
   .clinical-stage-header .clinical-stage-distance { display: none; }
   .clinical-stage-header h1 { font-size: 1rem; }
   .clinical-stage-body { height: calc(100% - 66px); grid-template-rows: minmax(380px, 55dvh) auto; }
@@ -2283,8 +2289,8 @@ dialog.examination-stage {
 @media(max-width:850px) {
   .mode-grid { grid-template-columns: 1fr; }
   .mode-card { min-height: 245px; }
-  .practice-header { grid-template-columns: 1fr auto; }
-  .practice-header > div { display: none; }
+  .practice-header { grid-template-columns: 1fr auto auto; }
+  .practice-header > .practice-progress { display: none; }
   .practice-layout { grid-template-columns: 1fr; }
   .practice-nav { position: static; border-right: 0; border-bottom: 1px solid #cad7d1; }
   .practice-nav nav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -2301,6 +2307,7 @@ dialog.examination-stage {
   .mode-card { padding: 21px; }
   .practice-header { min-height: 62px; padding: 0 13px; }
   .practice-header > .secondary { padding: 8px 10px; }
+  .clinical-stage-header .voice-button { padding: 7px 9px; font-size: 0; }
   .practice-nav { padding: 18px 13px; }
   .practice-nav nav { display: flex; overflow-x: auto; padding-bottom: 5px; }
   .practice-nav nav button { min-width: 205px; }
