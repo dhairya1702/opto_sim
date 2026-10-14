@@ -29,7 +29,7 @@ The reducer, authored case, physical encounter state, and existing Practice cont
 
 ## Local voice testing
 
-`npm run dev` starts only the Vite client. The client uses same-origin `/api/voice/access` and `/api/voice/live` URLs, and `vite.config.ts` does not proxy them to Cloud Run. Setting `VITE_VOICE_ENABLED=true` on that command exposes the control but does not provide a working voice backend.
+`npm run dev` starts only the Vite client. The client uses same-origin `/api/voice/access` and `/api/voice/live` URLs, and `vite.config.ts` does not proxy them to Cloud Run. Voice controls are always included, but they require the same-origin Node voice backend to connect.
 
 Run the production-style Node server locally instead:
 
@@ -38,8 +38,7 @@ Run the production-style Node server locally instead:
 gcloud auth application-default login
 gcloud auth application-default set-quota-project opto-simulator-dhairya
 
-# VITE_VOICE_ENABLED is compiled into the client bundle
-VITE_VOICE_ENABLED=true npm run build
+npm run build
 
 # This process serves both the built client and its same-origin voice routes
 VOICE_COOKIE_SECRET='local-development-only-change-me' \
@@ -56,10 +55,10 @@ Local microphone audio follows browser → local Node server → Google Cloud AP
 
 Run `scripts/setup-gcp.sh` while authenticated as `dhairya.lalwani2001@gmail.com`. It prefers project `opto-simulator-dhairya`, falls back to `opto-simulator-dhairya-514231`, links `My Billing Account`, enables Cloud Run/Build, Artifact Registry, Vertex AI, Speech-to-Text, Text-to-Speech, Secret Manager and Billing Budgets, creates the repository/signing secret/IAM grants, and creates the project-filtered $25 monthly budget at 50%, 90%, and 100% thresholds.
 
-Deploy with voice off first:
+Deploy the application and voice backend together:
 
 ```sh
-VITE_VOICE_ENABLED=false ./scripts/deploy-gcp.sh
+./scripts/deploy-gcp.sh
 ```
 
 The service is public, in `us-central1`, scales to zero, has at most two instances, and uses a 60-minute Cloud Run request timeout. Voice enforces a 30-minute application session and five-minute audio inactivity limit. Before a live demonstration, temporarily keep one instance warm:
@@ -80,7 +79,7 @@ The generator reuses only an indexed file whose voice and text hash still match,
 
 ## Rollout and acceptance
 
-1. Deploy with voice disabled; verify `/healthz`, all typed workflows, station/WebGL fallback, and Quest immersive entry on the `run.app` HTTPS URL.
+1. Deploy and verify `/healthz`, all typed workflows, station/WebGL fallback, and Quest immersive entry on the `run.app` HTTPS URL.
 2. Enable Test voice. Verify paraphrases, compound questions, prohibited prompts, instructions, deterministic latency, Gemini fallback, barge-in, reconnection without answer replay, and typed fallback.
 3. Validate all 20 Practice allowlists and technique/report gates, including at least one physical-device lesson from each family.
 4. Complete physical Quest acceptance with both hands occupied, scope mode, XR exit/re-entry, tracking loss, network interruption, and no premature report/answer leakage.

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, type MutableRefObject } from "react";
-import { gazeForEye, type FixationTarget } from "../interaction/motility";
+import { gazeForEye, scenarioGazeForEye, type FixationTarget, type MotilityScenarioId } from "../interaction/motility";
 import { pupilRadiusTarget } from "../interaction/pupils";
 import { useFrame } from "@react-three/fiber";
 import {
@@ -11,6 +11,8 @@ import {
 } from "three";
 
 export type ExaminationMovement = MutableRefObject<{ x: number; y: number; used: boolean }>;
+/** Iris radius in the shader's surface units; gazeOffset is expressed in the same units. Keep in sync with `irisRadius` below. */
+export const EYE_SURFACE_IRIS_RADIUS = 0.05;
 
 // One continuous, curved surface carries sclera, iris and pupil. No intersecting
 // iris plane/sclera sphere: pupil dilation cannot expose white through the iris.
@@ -114,6 +116,7 @@ export function EyeSurface({
   ambientLevel,
   reflectionStrength = 1,
   gazeOffset,
+  motilityScenarioId,
 }: {
   x: number;
   pupils: boolean;
@@ -127,6 +130,7 @@ export function EyeSurface({
   ambientLevel?: MutableRefObject<number>;
   reflectionStrength?: number;
   gazeOffset?: MutableRefObject<{ x: number; y: number }>;
+  motilityScenarioId?: MotilityScenarioId;
 }) {
   const geometry = useMemo(makeSurface, []);
   const material = useMemo(
@@ -189,7 +193,11 @@ export function EyeSurface({
     material.uniforms.illumination.value = pupils ? stimulus : 0.5;
     const gaze = material.uniforms.gaze.value;
     if (fixation) {
-      const angles = tracking ? gazeForEye(fixation.current, x < 0 ? -0.032 : 0.032) : { yaw: 0, pitch: 0 };
+      const angles = tracking
+        ? motilityScenarioId
+          ? scenarioGazeForEye(motilityScenarioId, fixation.current, x < 0 ? "OD" : "OS", clock.elapsedTime)
+          : gazeForEye(fixation.current, x < 0 ? -0.032 : 0.032)
+        : { yaw: 0, pitch: 0 };
       const blend = 1 - Math.exp(-Math.min(dt, 0.1) * 12);
       const angle = material.uniforms.gazeAngle.value;
       angle.x += (angles.yaw - angle.x) * blend;

@@ -3,6 +3,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { Check, Crosshair, Eye, Flashlight, Hand, MousePointer2, Power, RotateCcw, X } from "lucide-react";
 import { DoubleSide, Group, Quaternion, Vector3 } from "three";
 import { EyeSurface } from "../scene/EyeSurface";
+import { brucknerReflexVisual } from "../interaction/brucknerPractice";
 import { hirschbergReflexOffset, opticTechniqueChecks, opticViewAligned, type OpticPracticeMode } from "../interaction/opticPractice";
 import { PracticeWebGLFallback } from "./PracticeWebGLFallback";
 import { PracticeVoiceControl } from "../voice/PracticeVoiceControl";
@@ -146,18 +147,18 @@ function PatientHead({ mode, scenario, reveal, reducedMotion, quality }: { mode:
         {[-.17, .17].map(x => <EyeSurface key={x} x={x} pupils={false} motility={false} progress={0} movement={movement} fixation={blank} reflectionStrength={0} />)}
       </group>
       {reveal && mode === "bruckner" && (["od", "os"] as const).map(eye => {
-        const brighter = scenario.brighter === eye;
+        const reflex = brucknerReflexVisual(scenario.brighter ?? "equal", eye);
         const x = eye === "od" ? -.22 : .22;
         return <group key={eye} position={[x, .115, .64]}>
           <mesh renderOrder={3}>
             <circleGeometry args={[.068, 40]} />
-            <meshBasicMaterial color={brighter ? "#ffe0aa" : "#e55227"} transparent opacity={(brighter ? 1 : .94) * (.38 + quality * .62)} side={DoubleSide} depthTest={false} />
+            <meshBasicMaterial color={reflex.color} transparent opacity={reflex.opacity * (.38 + quality * .62)} side={DoubleSide} depthTest={false} />
           </mesh>
           <mesh position={[0, 0, -.002]} renderOrder={2}>
             <ringGeometry args={[.07, .102, 40]} />
-            <meshBasicMaterial color={brighter ? "#ffc56e" : "#f07443"} transparent opacity={(brighter ? .5 : .32) * (.35 + quality * .65)} side={DoubleSide} depthTest={false} />
+            <meshBasicMaterial color={reflex.halo} transparent opacity={reflex.opacity * .48 * (.35 + quality * .65)} side={DoubleSide} depthTest={false} />
           </mesh>
-          <pointLight color={brighter ? "#ffcb80" : "#f05b32"} intensity={brighter ? 1.5 : .85} distance={.75} />
+          <pointLight color={reflex.glow} intensity={reflex.glowIntensity} distance={.75} />
         </group>;
       })}
       {reveal && mode === "hirschberg" && (["od", "os"] as const).map(eye => <HirschbergReflex key={eye} eye={eye} position={scenario[eye]} scenarioId={scenario.id} reducedMotion={reducedMotion} quality={quality} />)}

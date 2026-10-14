@@ -35,17 +35,22 @@ export function usePracticeLesson(onComplete: () => void) {
     showResult(correct ? "correct" : "retry", text);
     if (correct) { awarded.current = true; setRecorded(true); onComplete(); }
   };
+  const progress = (text: string) => {
+    if (awarded.current) return;
+    setFeedback(text); showResult("progress", text);
+  };
   const explain = (text: string) => { setFeedback(text); showResult("incomplete", text); };
-  return { mode, setMode, entries, entriesRef, awarded, feedback, recorded, choose, clearPending, reset, submit, explain, result, clearResult };
+  return { mode, setMode, entries, entriesRef, awarded, feedback, recorded, choose, clearPending, reset, submit, progress, explain, result, clearResult };
 }
 export type PracticeLesson = ReturnType<typeof usePracticeLesson>;
 export type BatchMirror = {
-  reportLines?: readonly string[]; title: string; findingPosition?: { current: number; total: number }; status: string; ready: boolean; entryReady: boolean; fields: LessonField[];
+  reportLines?: readonly string[]; voiceReport?: string; title: string; findingPosition?: { current: number; total: number }; status: string; ready: boolean; entryReady: boolean; fields: LessonField[];
   actions: LessonAction[]; lesson: PracticeLesson; reset: () => void; record: () => void; next?: () => void; cancel?: () => void;
 };
 export function BatchLessonMirror({ mirror }: { mirror: BatchMirror }) {
   return <>
     <p className="eyebrow">{mirror.title} · LIVE MIRROR</p><p role="status" data-voice-status>{mirror.status}</p>
+    {mirror.voiceReport && <p aria-label="Current patient reply" data-voice-report>{mirror.voiceReport}</p>}
     {mirror.reportLines && mirror.reportLines.length > 0 && <div aria-label="Acquired observations" data-voice-report>{mirror.reportLines.map((line, index) => <p key={index}>{line}</p>)}</div>}
     {mirror.actions.map(action => <button key={action.label} className="secondary full" disabled={action.disabled} onClick={action.run}>{action.label}</button>)}
     <button className="primary full" onClick={() => mirror.lesson.setMode("record")}>Record finding</button>
@@ -121,16 +126,16 @@ export function PracticeLessonUI({ runtime, active, title, status, help, tools, 
           <XRSign text={[field.number ? `${field.label} · ${lesson.entries[field.id] || "—"}${field.number.unit}` : field.label]} p={[0, top + .049, .012]} size={[.70, .035]} bg="#102329" fg="#eefbf7" />
           {field.number && <>
             {numericSteps(field).map((step, i) => <XRPanelButton key={step} label={`ENTRY ${step > 0 ? "+" : "−"}${Math.abs(step)}${field.number?.unit}`} position={[i % 2 ? .18 : -.18, top - Math.floor(i / 2) * .08, .012]} width={.34}
-              disabled={lesson.recorded} onClick={() => {
+              disabled={!entryReady || lesson.recorded} onClick={() => {
                 const number = field.number;
                 if (!number) return;
                 const current = Number(lesson.entriesRef.current[field.id] || 0);
                 lesson.choose(field.id, String(Number(Math.max(number.min, Math.min(number.max, (Number.isFinite(current) ? current : 0) + step)).toFixed(2))));
               }} />)}
-            <XRPanelButton label="CLEAR ENTRY" position={[0, top - Math.ceil(numericSteps(field).length / 2) * .08, .012]} width={.70} disabled={lesson.recorded} onClick={() => lesson.choose(field.id, "")} />
+            <XRPanelButton label="CLEAR ENTRY" position={[0, top - Math.ceil(numericSteps(field).length / 2) * .08, .012]} width={.70} disabled={!entryReady || lesson.recorded} onClick={() => lesson.choose(field.id, "")} />
           </>}
           {field.choices.map(([value, label], i) => <XRPanelButton key={value} label={label.toUpperCase()} position={[i % 2 ? .18 : -.18, top - Math.floor(i / 2) * .08, .012]} width={.34}
-            active={lesson.entries[field.id] === value} disabled={lesson.recorded} onClick={() => lesson.choose(field.id, value)} />)}
+            active={lesson.entries[field.id] === value} disabled={!entryReady || lesson.recorded} onClick={() => lesson.choose(field.id, value)} />)}
         </group>;
       })}
       {paginated && <><XRPanelButton label="PREVIOUS ENTRIES" position={[-.18, recordBottom + .085, .012]} width={.34} disabled={page === 0} onClick={() => setEntryPage(page - 1)} /><XRPanelButton label="NEXT ENTRIES" position={[.18, recordBottom + .085, .012]} width={.34} disabled={page >= pages - 1} onClick={() => setEntryPage(page + 1)} /></>}

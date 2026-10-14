@@ -56,7 +56,9 @@ No backend is required. `main.py` is a small pre-existing Python entry point and
 | `web/interaction/xrSensoryEquipment.ts`, `xrWorthPractice.ts`, `xrStereoPractice.ts`, `xrFourPrismPractice.ts` | Sensory lesson equipment/fitting/mirrored-distance geometry and pure report, run, bilateral sequence and immutable capture/submission logic |
 | `web/practice/xr/WorthPracticeController.tsx`, `StereoPracticeController.tsx`, `FourPrismPracticeController.tsx` | Shared-runtime sensory Practice adapters, fictional reports, local recording and canonical patient eye motion |
 | `web/scene/SensoryClinicEquipment.tsx` | Original sensory instruments/tray/stand/mirrored display, enabled only for relevant lessons |
-| `web/interaction/xrPracticeBatch.ts` | Pure Bruckner geometry, single-eye cover/prism placement, near fixation, and alternate-cover transit rules |
+| `web/interaction/xrPracticeBatch.ts` | Pure Bruckner geometry, single-eye cover/prism placement, cover-guide anchors, near fixation, and alternate-cover transit rules |
+| `web/interaction/coverDeviation.ts` | Pure sustained cover-test eye positions: tropia/phoria targets by occluder position, refixation/fusion/drift rates, prism residual and Δ-to-iris scaling |
+| `web/scene/XRCoverGuide.tsx` | Non-interactive Practice cover/uncover placement rings drawn from the shared cover tolerances; never advances or records |
 | `web/interaction/xrScopeEquipment.ts` | Shared small/large ophthalmoscope aperture settings, illustrative beam angles and physical selector reach |
 | `web/interaction/xrViewer.ts` | Renderer adapter sampling actual headset eye cameras for shared scope-view checks; desktop single-camera fallback |
 | `web/scene/XRScopeView.tsx`, `XRScopeObservation.tsx` | Shared B/Y observation view without instructional overlays, with transparent incomplete fundus aiming and beam-driven Bruckner reflexes; technique credit remains separate |

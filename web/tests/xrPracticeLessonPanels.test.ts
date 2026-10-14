@@ -53,7 +53,7 @@ describe("headset panel layout", () => {
     expect(labels).toContain("ENTRY +1 cpm"); expect(labels).toContain("PROCEDURE CONTROLS");
     expect(mirror!.lesson.mode).toBe("none");
     await act(async () => mirror!.record()); expect(complete).not.toHaveBeenCalled();
-    await sim.click(1, sim.button("SUBMIT / CHECK"));
+    await sim.click(0, sim.button("SUBMIT / CHECK"));
     expect(sim.labels()).toContain("NOT READY YET"); expect(complete).not.toHaveBeenCalled();
     await sim.putDown(1); await sim.step();
     expect(panelBounds(sim.state.scene).map(button => button.label)).toContain("ENTRY +1 cpm");

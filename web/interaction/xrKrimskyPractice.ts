@@ -1,18 +1,12 @@
 import { krimskyCases, krimskyEye, krimskyReady, krimskyResidual, type KrimskyBase, type KrimskyMethod } from "./krimsky";
-import { CLINIC_EYE_MIDPOINT, CLINIC_PATIENT_EYES, CLINIC_IRIS_RADIUS } from "./clinicPatient";
+import { CLINIC_EYE_MIDPOINT, CLINIC_IRIS_RADIUS } from "./clinicPatient";
 import { xrHirschbergTechnique, type XRHirschbergTechniqueInput } from "./xrPractice";
 import { xrPracticeEyePlacement } from "./xrPracticeBatch";
 import type { ToolPoint } from "./xrConsultationTools";
 
 export type KrimskyFinding = typeof krimskyCases[number];
 export type ExaminerEye = "left" | "right";
-export const KRIMSKY_BASELINE_DWELL_SECONDS = .8;
 export const KRIMSKY_PRISM_POWERS = [0, 5, 10, 15, 20, 25, 30, 40] as const;
-
-export function advanceKrimskyBaselineDwell(current: number, ready: boolean, dt: number) {
-  if (!ready) return 0;
-  return Math.min(KRIMSKY_BASELINE_DWELL_SECONDS, current + Math.max(0, Math.min(dt, .1)));
-}
 
 export function krimskyPrismPowerIndex(power: number) {
   let selected = 0;
@@ -32,23 +26,21 @@ export function krimskyPrismCellY(power: number) {
 }
 
 export type XRKrimskyInput = Omit<XRHirschbergTechniqueInput, "eyeMidpoint"> & {
-  method: KrimskyMethod; examinerEye: ExaminerEye | null; baseline: boolean; base: string; power: number;
+  method: KrimskyMethod; examinerEye: ExaminerEye | null; base: string; power: number;
   prismPosition: ToolPoint | null; prismForward: ToolPoint; prismHeld: boolean;
 };
 export function xrKrimskyTechnique(input: XRKrimskyInput, finding: KrimskyFinding) {
   const spatial = xrHirschbergTechnique({ ...input, eyeMidpoint: CLINIC_EYE_MIDPOINT });
   const viewing = spatial.ready && Boolean(input.examinerEye);
   const prismEye = input.prismHeld && input.prismPosition ? xrPracticeEyePlacement(input.prismPosition, input.prismForward, true) : null;
-  const prismPosition = input.prismPosition;
-  const prismClear = Boolean(prismPosition && Object.values(CLINIC_PATIENT_EYES).every(eye => Math.hypot(...eye.map((value, i) => value - prismPosition[i])) >= .2));
   const validPower = Number.isInteger(input.power) && input.power >= 0 && input.power <= 40;
-  const correctionReady = input.baseline && validPower && (input.base === "BI" || input.base === "BO")
+  const correctionReady = validPower && (input.base === "BI" || input.base === "BO")
     && input.held && spatial.aimReady && spatial.viewReady
     && krimskyReady(input.method, prismEye ?? "", input.light, input.fixation, spatial.distanceCm, Boolean(input.examinerEye));
   const residual = krimskyResidual(finding.power, correctionReady ? input.power : 0, input.base === finding.base);
   const lit = input.held && input.light && spatial.aimErrorDeg <= 12 && spatial.distanceCm >= 3 && spatial.distanceCm <= 120;
-  return { ...spatial, method: input.method, base: input.base, power: input.power, viewing, prismEye, prismClear, correctionReady, residual, lit,
-    baselineReady: viewing && prismClear, neutral: correctionReady && residual === 0 };
+  return { ...spatial, method: input.method, base: input.base, power: input.power, viewing, prismHeld: input.prismHeld, prismEye, correctionReady, residual, lit,
+    neutral: correctionReady && residual === 0 };
 }
 export type XRKrimskyTechnique = ReturnType<typeof xrKrimskyTechnique>;
 /** Same signed linear relative-reflex model as desktop, scaled to the clinic iris. */

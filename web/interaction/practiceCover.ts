@@ -1,4 +1,5 @@
-import type { CoverPosition } from "./cover";
+import type { CoverEye, CoverPosition } from "./cover";
+import { alternateCoverNeutralized, deviationFromLabel, type CoverDeviationModel } from "./coverDeviation";
 
 export type PracticeCoverKind = "cover-uncover" | "alternate-cover";
 export type EyeMovement = "none" | "in" | "out" | "up" | "down";
@@ -19,19 +20,29 @@ export const practiceCoverProcedures = {
   ],
 } as const satisfies Record<PracticeCoverKind, readonly { position: CoverPosition; label: string; dwell: number }[]>;
 
+/**
+ * Alternating-cover findings. `movement` is the refixation of OD when it is uncovered; horizontal
+ * deviations move both eyes alike, vertical deviations move the eyes in opposite directions.
+ * The eye assignment of the vertical cases (right hypo / right hyper) is a draft choice pending
+ * clinical review (docs/clinical-review.md). Neutralisation is computed from the eye model, so either
+ * correct option is accepted (for a right hypo: base up before OD, or base down before OS).
+ */
 export const alternateCoverScenarios = [
-  { id: "exo12", movement: "in", deviation: "exo", base: "base-in", amount: 12 },
-  { id: "eso18", movement: "out", deviation: "eso", base: "base-out", amount: 18 },
-  { id: "hypo8", movement: "up", deviation: "hypo", base: "base-up", amount: 8 },
-  { id: "hyper10", movement: "down", deviation: "hyper", base: "base-down", amount: 10 },
-] as const satisfies readonly { id: string; movement: EyeMovement; deviation: string; base: PrismBase; amount: number }[];
+  { id: "exo12", movement: "in", deviation: "exo", amount: 12 },
+  { id: "eso18", movement: "out", deviation: "eso", amount: 18 },
+  { id: "r-hypo8", movement: "up", deviation: "r-hypo", amount: 8 },
+  { id: "r-hyper10", movement: "down", deviation: "r-hyper", amount: 10 },
+] as const satisfies readonly { id: string; movement: EyeMovement; deviation: AlternateDeviation; amount: number }[];
+export type AlternateDeviation = "exo" | "eso" | "r-hyper" | "r-hypo";
+export const alternateDeviationChoices: readonly (readonly [AlternateDeviation, string])[] = [
+  ["exo", "Exo"], ["eso", "Eso"], ["r-hyper", "R hyper / L hypo"], ["r-hypo", "R hypo / L hyper"],
+];
+export const alternateDeviationLabel = (deviation: string) => alternateDeviationChoices.find(([id]) => id === deviation)?.[1] ?? deviation;
+export const prismBaseLabel = (base: string) => base.replace("-", " ");
 
-export function deviationForMovement(movement: EyeMovement) {
-  return movement === "in" ? "exo" : movement === "out" ? "eso" : movement === "up" ? "hypo" : movement === "down" ? "hyper" : "none";
-}
-
-export function prismBaseForDeviation(deviation: string): PrismBase | null {
-  return deviation === "exo" ? "base-in" : deviation === "eso" ? "base-out" : deviation === "hypo" ? "base-up" : deviation === "hyper" ? "base-down" : null;
+/** Interpretation of OD's refixation on uncovering. */
+export function deviationForMovement(movement: EyeMovement): AlternateDeviation | "none" {
+  return movement === "in" ? "exo" : movement === "out" ? "eso" : movement === "up" ? "r-hypo" : movement === "down" ? "r-hyper" : "none";
 }
 
 export function advancePracticeCoverStep(kind: PracticeCoverKind, index: number, dwell: number, position: CoverPosition | null, dt: number) {
@@ -43,12 +54,20 @@ export function advancePracticeCoverStep(kind: PracticeCoverKind, index: number,
   return nextDwell >= step.dwell ? { index: index + 1, dwell: 0 } : { index, dwell: nextDwell };
 }
 
-export function prismTrialNeutralizes(scenario: typeof alternateCoverScenarios[number], base: string, amount: number) {
-  return base === scenario.base && amount === scenario.amount;
+export const alternateCoverModel = (scenario: typeof alternateCoverScenarios[number]): CoverDeviationModel =>
+  ({ kind: "phoria", deviation: deviationFromLabel(scenario.deviation, scenario.amount) });
+/** True when the prism before `eye` leaves no refixation movement on alternating cover. */
+export function prismTrialNeutralizes(scenario: typeof alternateCoverScenarios[number], base: string, amount: number, eye: CoverEye) {
+  return Boolean(base) && alternateCoverNeutralized(alternateCoverModel(scenario), { eye, base, power: amount });
 }
 
+// Magnitudes for the cover–uncover patterns are illustrative draft values pending clinical review
+// (docs/clinical-review.md). They drive the sustained eye positions only; the answer remains the pattern.
 export const coverScenarios = [
-  { id: "orthophoria", label: "Orthophoria", feedback: "No movement was seen on covering or uncovering either eye." },
-  { id: "left-esotropia", label: "Left unilateral esotropia", feedback: "When OD was covered, OS moved outward to take fixation and returned inward when OD was uncovered." },
-  { id: "exophoria", label: "Exophoria", feedback: "The covered eye drifted outward after fusion was broken, then moved inward to refixate immediately on uncovering." },
-] as const;
+  { id: "orthophoria", label: "Orthophoria", feedback: "No movement was seen on covering or uncovering either eye.",
+    model: { kind: "none" } },
+  { id: "left-esotropia", label: "Left unilateral esotropia", feedback: "When OD was covered, OS moved outward to take fixation and returned inward when OD was uncovered.",
+    model: { kind: "tropia", deviatingEye: "OS", deviation: { h: -20, v: 0 } } },
+  { id: "exophoria", label: "Exophoria", feedback: "The covered eye drifted outward after fusion was broken, then moved inward to refixate immediately on uncovering.",
+    model: { kind: "phoria", deviation: { h: 10, v: 0 } } },
+] as const satisfies readonly { id: string; label: string; feedback: string; model: CoverDeviationModel }[];

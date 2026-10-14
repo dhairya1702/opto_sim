@@ -20,13 +20,25 @@ export function ConsultationInstrumentModel({ id, powered, fundusView, brucknerV
     return target;
   }, []);
   if (["maddox", "thorington", "trial-lens", "lens-flipper", "prism-flipper", "fixation"].includes(id)) return <LibraryInstrumentModel id={id} setting={settings?.[id]} />;
-  if (["worth", "red-green", "polarised", "stereo"].includes(id)) return <SensoryInstrumentModel id={id} powered={powered} point={settings?.[id]?.point} />;
+  if (["worth", "red-green", "polarised", "stereo"].includes(id)) return <SensoryInstrumentModel id={id} powered={powered} point={settings?.[id]?.point}
+    onPowerChange={settings?.[id]?.onPowerChange} />;
   if (id === "prism") {
     const selectedPower = settings?.prism?.power;
-    return <group><PrismBarModel selectedIndex={selectedPower === undefined ? 4 : krimskyPrismPowerIndex(selectedPower)} />{settings?.prism && <XRSign text={[`${selectedPower ?? 0}Δ ${settings.prism.base ?? ""}`]} p={[0, .04, .02]} size={[.12, .025]} bg="#173a3e" fg="#e8fff9"/>}
-    <mesh position={[0, selectedPower === undefined ? .143 : krimskyPrismCellY(selectedPower), .025]} userData={{ xrPrismWorkingCell: true, xrPrismPower: selectedPower }}>
-      <ringGeometry args={[.027, .030, 24]} /><meshBasicMaterial color="#e5b55a" side={DoubleSide} />
+    const anchorPower = settings?.prism?.anchorPower;
+    const selectedY = selectedPower === undefined ? .143 : krimskyPrismCellY(selectedPower);
+    const apertureY = anchorPower === undefined ? selectedY : krimskyPrismCellY(anchorPower);
+    const barOffsetY = apertureY - selectedY;
+    const baseLabel = settings?.prism?.base === "BI" ? "← BASE IN · BI" : settings?.prism?.base === "BO" ? "BASE OUT · BO →" : "← BI · BO →";
+    return <group><group position={[0, barOffsetY, 0]} userData={{ xrPrismSlidingBar: true }}><PrismBarModel selectedIndex={selectedPower === undefined ? 4 : krimskyPrismPowerIndex(selectedPower)} /></group>{settings?.prism && <XRSign text={[`${selectedPower ?? 0}Δ`, baseLabel]} p={[0, .045, .02]} size={[.14, .045]} bg="#173a3e" fg="#e8fff9"/>}
+    <mesh position={[0, apertureY, .026]} renderOrder={1160} userData={{ xrPrismWorkingCell: true, xrPrismPower: selectedPower, xrPrismAligned: settings?.prism?.aligned }}>
+      <ringGeometry args={[.027, .030, 32]} /><meshBasicMaterial color={settings?.prism?.aligned ? "#71f5bd" : "#e5b55a"} side={DoubleSide} depthTest={false} depthWrite={false} />
     </mesh>
+    {settings?.prism?.aligned && <mesh position={[0, apertureY, .024]} renderOrder={1159}>
+      <circleGeometry args={[.0265, 40]} /><meshBasicMaterial color="#c8f7ee" transparent opacity={.07} side={DoubleSide} depthWrite={false} />
+    </mesh>}
+    {settings?.prism?.aligned && settings.prism.showReflex && <mesh position={[settings.prism.reflexOffset ?? 0, apertureY + .004, .029]} renderOrder={1161} userData={{ xrPrismReflexWindow: true }}>
+      <circleGeometry args={[.0032, 24]} /><meshBasicMaterial color="#fff7bd" depthTest={false} depthWrite={false} />
+    </mesh>}
   </group>;
   }
   if (id === "distance" || id === "pinhole" || id === "cover") {

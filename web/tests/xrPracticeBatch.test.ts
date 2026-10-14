@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { advanceXRPracticeCover, emptyPracticeCoverSequence, coverPracticePulse, xrPracticeEyePlacement, xrPracticeCoverPosition, xrPracticeNearFixation, xrBrucknerTechnique, xrBrucknerPrompt, PRACTICE_NEAR_SOCKET } from "../interaction/xrPracticeBatch";
+import { advanceXRPracticeCover, emptyPracticeCoverSequence, xrPracticeEyePlacement, xrPracticeCoverPosition, xrPracticeNearFixation, xrCoverGuideAnchors, xrCoverGuideTarget, xrBrucknerTechnique, xrBrucknerPrompt, PRACTICE_NEAR_SOCKET } from "../interaction/xrPracticeBatch";
 import { initialConsultationTools, grabConsultationTool, releaseConsultationTool } from "../interaction/xrConsultationTools";
 
 describe("Practice batch spatial adapters", () => {
@@ -32,6 +32,18 @@ describe("Practice batch spatial adapters", () => {
     expect(xrPracticeEyePlacement([-.048, 1.5, -.51], [1, 0, 0])).toBeNull();
     expect(xrPracticeCoverPosition([0, 1.1, -.3], [0, 0, -1])).toBe("away");
   });
+  it("places cover guides where the shared sequence geometry accepts the paddle", () => {
+    const anchors = xrCoverGuideAnchors();
+    for (const eye of ["OD", "OS"] as const) {
+      expect(xrPracticeCoverPosition(anchors.cover[eye], [0, 0, -1])).toBe(eye);
+      expect(xrPracticeCoverPosition(anchors.away[eye], [0, 0, -1])).toBe("away");
+    }
+    expect(xrCoverGuideTarget("cover-uncover", 0)).toEqual({ position: "OD", eye: "OD" });
+    expect(xrCoverGuideTarget("cover-uncover", 1)).toEqual({ position: "away", eye: "OD" });
+    expect(xrCoverGuideTarget("cover-uncover", 3)).toEqual({ position: "away", eye: "OS" });
+    expect(xrCoverGuideTarget("alternate-cover", 1)).toEqual({ position: "OS", eye: "OS" });
+    expect(xrCoverGuideTarget("cover-uncover", 4)).toBeNull();
+  });
   it("requires a centred near target at about 40 cm and supports hands-free placement", () => {
     expect(xrPracticeNearFixation([0, 1.5, -.173]).ready).toBe(true);
     expect(xrPracticeNearFixation([0, 1.5, .1]).ready).toBe(false);
@@ -50,11 +62,7 @@ describe("Practice batch spatial adapters", () => {
     expect(state).toEqual(emptyPracticeCoverSequence());
     expect(advanceXRPracticeCover("cover-uncover", { index: 1, dwell: 0, transit: 0 }, "away", 1, true).dwell).toBe(.1);
   });
-  it("reuses authored eye/timing mappings and refuses dwell while technique is interrupted", () => {
-    expect(coverPracticePulse("cover-uncover", "left-esotropia", 0, "none")).toEqual({ eye: "OS", direction: "out" });
-    expect(coverPracticePulse("cover-uncover", "left-esotropia", 1, "none")).toEqual({ eye: "OS", direction: "in" });
-    expect(coverPracticePulse("cover-uncover", "exophoria", 3, "none")).toEqual({ eye: "OS", direction: "in" });
-    expect(coverPracticePulse("alternate-cover", "", 1, "up")).toEqual({ eye: "OD", direction: "up" });
+  it("refuses dwell while technique is interrupted", () => {
     expect(advanceXRPracticeCover("cover-uncover", { index: 1, dwell: .3, transit: 0 }, "away", .1, false)).toEqual({ index: 1, dwell: 0, transit: 0 });
   });
 });

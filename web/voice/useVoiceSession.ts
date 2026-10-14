@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { VoiceCommand, VoiceCommandResult, VoiceContext, VoiceStatus } from "./contracts";
 import { validVoiceCommand } from "./contracts";
+import { VOICE_AVAILABLE } from "./config";
 import { VoiceOutputArbiter } from "./outputArbiter";
 
 type ServerMessage =
@@ -12,11 +13,9 @@ type ServerMessage =
 
 type VoiceAssetIndex = Record<string, { file: string; textHash: string; voice: string }>;
 
-const flagEnabled = import.meta.env.VITE_VOICE_ENABLED === "true";
-
 export function useVoiceSession(context: VoiceContext, onCommand: (command: VoiceCommand) => VoiceCommandResult | Promise<VoiceCommandResult>) {
   const [status, setStatus] = useState<VoiceStatus>("locked");
-  const [message, setMessage] = useState(flagEnabled ? "Select enable voice, then allow microphone access." : "Voice is disabled for this deployment.");
+  const [message, setMessage] = useState("Select enable voice, then allow microphone access.");
   const [partial, setPartial] = useState("");
   const socket = useRef<WebSocket | null>(null);
   const stream = useRef<MediaStream | null>(null);
@@ -133,7 +132,6 @@ export function useVoiceSession(context: VoiceContext, onCommand: (command: Voic
   }, [play, playPreloaded]);
 
   const enable = useCallback(async () => {
-    if (!flagEnabled) { setStatus("error"); setMessage("Voice is disabled for this deployment."); return false; }
     setStatus("connecting");
     try {
       const response = await fetch("/api/voice/access", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: "{}" });
@@ -180,5 +178,5 @@ export function useVoiceSession(context: VoiceContext, onCommand: (command: Voic
     return () => window.removeEventListener("pagehide", suspend);
   }, [mute]);
 
-  return { enabled: flagEnabled, status, message, partial, enable, mute, reconnect: connect };
+  return { enabled: VOICE_AVAILABLE, status, message, partial, enable, mute, reconnect: connect };
 }

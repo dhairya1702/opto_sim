@@ -16,6 +16,8 @@ if __name__ == '__main__':
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
 
 """
+
+for bruckner, OD bright whatveer, why is it yellow and red, shouldbt it be red but illuminated less types, talk to me abt this please
 voice over, voice control, talk
 
 when the student makes a mistake, it should rectify. basically give instructions
@@ -43,4 +45,8 @@ prism bar is not proper, no prism bar in consulataion mode, why?? all tools must
 
 prism bar when u pick it up, its parallel to the arm, as in, its not upright in the hand, rather tis sleeping on myhand hprizontally, need to fix this
 
+
+when i press a/b one menu co es up, its too close to the eyes, its very distorting, move it back
+
+please look at the light, look at the light, etc doesnt work, only look directly at the eye works, why?
 """

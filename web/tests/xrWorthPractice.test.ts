@@ -4,7 +4,7 @@ import { worthAtDistance, worthCases, worthDots } from "../interaction/worth";
 import { interpretWorth, worthReports } from "../interaction/sensory";
 
 const input = (distanceCm = 40, endpoint: "near" | "distance" | null = "near"): XRWorthInput => ({ active: true, correction: true, glasses: true, light: true,
-  verified: { red: true, green: true }, filter: null, condition: { distanceCm, endpoint, facing: true } });
+  verified: { red: true, green: true }, filter: null, fixationEndpoint: endpoint, condition: { distanceCm, endpoint, facing: true } });
 describe("Worth XR report snapshots and independent endpoint recording", () => {
   it("preserves all eight authored patterns at both conditions without changing the physical target", () => {
     for (const scenario of worthCases) for (const [distance, endpoint] of [[40, "near"], [600, "distance"]] as const) {
@@ -23,11 +23,8 @@ describe("Worth XR report snapshots and independent endpoint recording", () => {
     }
     expect(xrWorthTechnique({ ...input(), verified: { red: false, green: false } }).filterReady).toBe(true);
   });
-  it("allows illustrative intermediate reports but cannot award an endpoint there", () => {
-    const capture = captureWorthReport(input(150, null), "central-os", 1, 1)!;
-    expect(capture.report).toBe(worthReports.fusion); expect(capture.nominalDistanceCm).toBeNull();
-    expect(worthCaptureSubmission(capture, "4", "flat-fusion", 1, 1)).toBeNull();
-    expect(recordWorthEndpoint({}, capture, "4", "flat-fusion", 1, 1)).toEqual({});
+  it("rejects intermediate reports before creating a recordable snapshot", () => {
+    expect(captureWorthReport(input(150, null), "central-os", 1, 1)).toBeNull();
   });
   it("retains sampled distance, distinguishes entries, guards duplicates and completes only two independent endpoints", () => {
     const near = captureWorthReport(input(39, "near"), "central-os", 4, 2)!;

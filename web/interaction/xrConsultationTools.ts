@@ -43,7 +43,9 @@ const restAtYaw = ([x, y, z, w]: ToolRotation, yaw: number): ToolRotation => {
 };
 const kitRest = (rotation: ToolRotation): ToolRotation => restAtYaw(rotation, Math.PI / 2);
 const auxiliaryRest = (rotation: ToolRotation): ToolRotation => restAtYaw(rotation, AUXILIARY_INSTRUMENT_KIT_ROTATION_Y);
-const paddle = { workingPoint: [0, .121, 0] as ToolPoint, forward: [0, 0, -1] as ToolPoint, gripRotation: upright, restRotation: upright, restHeight: .10, footprint: [.13, .065] as const, illuminates: false };
+// Paddles follow the aiming pose like the prism bar: the Quest grip pose is
+// tilted back toward the forearm, which laid the handle along the arm.
+const paddle = { workingPoint: [0, .121, 0] as ToolPoint, forward: [0, 0, -1] as ToolPoint, heldPose: "ray" as const, gripRotation: upright, restRotation: upright, restHeight: .10, footprint: [.13, .065] as const, illuminates: false };
 // Every mode uses the same stocked cart beside the patient's learner-left side.
 // Core consultation instruments stay on the learner-left cart. The larger
 // future-case inventory uses a separate learner-right cart so neither kit is

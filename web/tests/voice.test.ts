@@ -7,8 +7,12 @@ import voiceManifest from "../../voice-assets/manifest.json";
 import voiceIndex from "../../public/audio/voice/index.json";
 import { TEST_VOICE_INSTRUCTIONS, TEST_VOICE_INSTRUCTION_CONTROLS } from "../voice/testInstructions";
 import { PATIENT_VOICE_REPLIES, patientVoiceReply } from "../voice/patientReplies";
+import { VOICE_AVAILABLE } from "../voice/config";
 
 describe("voice contracts and Practice allowlists", () => {
+  it("includes voice controls in every build", () => {
+    expect(VOICE_AVAILABLE).toBe(true);
+  });
   it("publishes a non-empty, unique action allowlist for every Practice module", () => {
     expect(PRACTICE_LESSON_IDS).toHaveLength(20);
     for (const lessonId of PRACTICE_LESSON_IDS) {
@@ -48,7 +52,7 @@ describe("voice contracts and Practice allowlists", () => {
     expect(manifest.get("instruction:read-chart")).toBe("Okay, I will read what I can.");
     const acknowledgements = new Map<string, string>();
     for (const actions of Object.values(PRACTICE_VOICE_ACTIONS))
-      for (const action of actions) acknowledgements.set(action.id, action.acknowledgement);
+      for (const action of actions) if (action.id !== "target-on" && action.id !== "target-off") acknowledgements.set(action.id, action.acknowledgement);
     for (const [actionId, text] of acknowledgements)
       expect(manifest.get(`practice:ack:${actionId}`)).toBe(text);
     expect(manifest.get("practice:motility:report-symptoms")).toBe("No double vision, pain, or discomfort in any direction.");
@@ -70,6 +74,57 @@ describe("voice contracts and Practice allowlists", () => {
       cacheKey: "practice:motility:report-symptoms",
     });
     expect(click).toHaveBeenCalledTimes(1);
+  });
+  it("keeps Krimsky examiner-eye declarations silent while applying the control", async () => {
+    const click = vi.fn();
+    const button = {
+      disabled: false, offsetParent: {}, innerText: "CLOSE RIGHT EYE · LEFT VIEW", click,
+      getAttribute: () => null,
+    } as unknown as HTMLButtonElement;
+    const root = { querySelectorAll: () => [button] } as unknown as ParentNode;
+    await expect(invokePracticeVoiceAction("krimsky", "examiner-close-right-eye", root)).resolves.toEqual({
+      accepted: true,
+      spokenText: "Left examiner-eye view active.",
+      suppressAudio: true,
+    });
+    expect(click).toHaveBeenCalledTimes(1);
+  });
+  it("applies explicit Worth power commands silently and never toggles through the opposite control", async () => {
+    const click = vi.fn();
+    const button = { disabled: false, offsetParent: {}, innerText: "SWITCH TARGET ON", click, getAttribute: () => null } as unknown as HTMLButtonElement;
+    const root = { querySelectorAll: () => [button] } as unknown as ParentNode;
+    await expect(invokePracticeVoiceAction("worth", "target-on", root)).resolves.toMatchObject({ accepted: true, suppressAudio: true });
+    expect(click).toHaveBeenCalledTimes(1);
+    await expect(invokePracticeVoiceAction("worth", "target-off", root)).resolves.toMatchObject({ accepted: false, errorCode: "TECHNIQUE_GATE" });
+    expect(click).toHaveBeenCalledTimes(1);
+  });
+  it("speaks only the current Worth report and rejects a report request before its gate", async () => {
+    let current = false;
+    const button = { disabled: false, offsetParent: {}, innerText: "ASK COUNT, COLOURS AND POSITIONS", click: () => { current = true; }, getAttribute: () => null } as unknown as HTMLButtonElement;
+    const root = {
+      querySelectorAll: () => [button],
+      querySelector: (selector: string) => selector === "[data-voice-report]" && current ? { innerText: "I see four dots: one red, two green, and one mixed or white." } : selector === "[data-voice-status]" ? { innerText: "Near recorded · distance pending" } : null,
+    } as unknown as ParentNode;
+    await expect(invokePracticeVoiceAction("worth", "request-report", root)).resolves.toEqual({
+      accepted: true, spokenText: "I see four dots: one red, two green, and one mixed or white.",
+    });
+    const gated = { querySelectorAll: () => [], querySelector: () => null } as unknown as ParentNode;
+    await expect(invokePracticeVoiceAction("worth", "request-report", gated)).resolves.toMatchObject({ accepted: false, errorCode: "TECHNIQUE_GATE" });
+  });
+  it("speaks the active abnormal motility finding instead of the normal cached reply", async () => {
+    let shown = false;
+    const button = {
+      disabled: false, offsetParent: {}, innerText: "ASK ABOUT SYMPTOMS", click: () => { shown = true; },
+      getAttribute: () => null,
+    } as unknown as HTMLButtonElement;
+    const root = {
+      querySelectorAll: () => [button],
+      querySelector: () => shown ? { innerText: "I see two images when I look to my right. I do not have pain or discomfort." } : null,
+    } as unknown as ParentNode;
+    await expect(invokePracticeVoiceAction("motility", "report-symptoms", root)).resolves.toEqual({
+      accepted: true,
+      spokenText: "I see two images when I look to my right. I do not have pain or discomfort.",
+    });
   });
   it("maps every Test patient instruction to a desktop examination control", () => {
     expect(TEST_VOICE_INSTRUCTIONS).toContain("read-chart");

@@ -53,7 +53,7 @@ type Options = {
   placementSockets?: readonly PlacementSocket[];
   onInterrupt?: (reason: XRClinicInterruption) => void;
   onToolUsed?: (id: ConsultationToolId, action: "pickup" | "activate") => void;
-  onThumbstickStep?: (id: ConsultationToolId, step: -1 | 1, hand: XRClinicHand) => boolean | void;
+  onThumbstickStep?: (id: ConsultationToolId, step: -1 | 1, hand: XRClinicHand, axis: "horizontal" | "vertical") => boolean | void;
   onMenu?: (open: boolean) => void;
   onSelection?: (selection: XRClinicSelection) => void;
 };
@@ -73,6 +73,15 @@ export function useXRClinicRuntime(options: Options) {
   const [, refresh] = useState(0);
   const [tools, setTools] = useState(initialConsultationTools);
   const toolsRef = useRef(tools);
+  const pulseHand = useCallback((hand: Hand, intensity = .25, duration = 35) => {
+    const gamepad = slots.find(slot => slot.hand === hand)?.source?.gamepad as (Gamepad & {
+      hapticActuators?: { pulse: (strength: number, milliseconds: number) => Promise<boolean> }[];
+      vibrationActuator?: { playEffect: (type: "dual-rumble", parameters: { duration: number; strongMagnitude: number; weakMagnitude: number }) => Promise<string> };
+    }) | undefined;
+    if (gamepad?.hapticActuators?.[0]) { void gamepad.hapticActuators[0].pulse(intensity, duration); return true; }
+    if (gamepad?.vibrationActuator) { void gamepad.vibrationActuator.playEffect("dual-rumble", { duration, strongMagnitude: intensity, weakMagnitude: intensity }); return true; }
+    return false;
+  }, [slots]);
   const objects = useRef(new Map<ConsultationToolId, Group>());
   const placementMarkers = useRef(new Map<Hand, Group>());
   const hidePlacementMarkers = useCallback(() => {
@@ -307,20 +316,23 @@ export function useXRClinicRuntime(options: Options) {
       slot.scopeButtonDown = scopePressed;
       const gamepad = slot.source?.gamepad;
       const axes = gamepad?.axes ?? [];
+      const horizontal = axes.length >= 4 ? axes[2] : axes[0] ?? 0;
       const vertical = axes.length >= 4 ? axes[3] : axes[1] ?? 0;
-      const thumbstickY: -1 | 0 | 1 = vertical <= -.65 ? 1 : vertical >= .65 ? -1 : 0;
-      if (Math.abs(vertical) <= .25) slot.thumbstickY = 0;
-      if (thumbstickY && !slot.thumbstickY && slot.hand && slot.tracked && !editorOpen && !slot.panel) {
+      let thumbstickStep: -1 | 0 | 1 = 0;
+      let thumbstickAxis: "horizontal" | "vertical" = "vertical";
+      if (Math.abs(horizontal) >= Math.abs(vertical) && Math.abs(horizontal) >= .65) {
+        thumbstickStep = horizontal < 0 ? -1 : 1;
+        thumbstickAxis = "horizontal";
+      } else if (Math.abs(vertical) >= .65) {
+        thumbstickStep = vertical < 0 ? 1 : -1;
+      }
+      if (Math.abs(horizontal) <= .25 && Math.abs(vertical) <= .25) slot.thumbstickY = 0;
+      if (thumbstickStep && !slot.thumbstickY && slot.hand && slot.tracked && !editorOpen && !slot.panel) {
         const id = toolInHand(toolsRef.current, slot.hand);
-        if (id && optionsRef.current.onThumbstickStep?.(id, thumbstickY, slot.hand)) {
-          const haptics = gamepad as Gamepad & {
-            hapticActuators?: { pulse: (intensity: number, duration: number) => Promise<boolean> }[];
-            vibrationActuator?: { playEffect: (type: "dual-rumble", parameters: { duration: number; strongMagnitude: number; weakMagnitude: number }) => Promise<string> };
-          };
-          if (haptics.hapticActuators?.[0]) void haptics.hapticActuators[0].pulse(.25, 35);
-          else if (haptics.vibrationActuator) void haptics.vibrationActuator.playEffect("dual-rumble", { duration: 35, strongMagnitude: .25, weakMagnitude: .25 });
+        if (id && optionsRef.current.onThumbstickStep?.(id, thumbstickStep, slot.hand, thumbstickAxis)) {
+          pulseHand(slot.hand);
         }
-        slot.thumbstickY = thumbstickY;
+        slot.thumbstickY = thumbstickStep;
       }
       slot.grip.visible = slot.tracked;
       slot.ray.visible = slot.tracked && (utilityOpenRef.current || editorOpen || findingsPanels.current.size > 0 || slot.panel || !slot.hand || !toolInHand(toolsRef.current, slot.hand));
@@ -654,7 +666,10 @@ export function useXRClinicRuntime(options: Options) {
         // A held instrument owns that hand's trigger. Wall/menu controls require
         // the free hand so a board behind the patient cannot steal illumination.
         const hit = rayHitRef.current(slot);
-        const pressed = pressConsultationTrigger(slot, Boolean(id));
+        // A deliberately aimed physical selector is resolved as a control first;
+        // selectEnd then enforces free-hand ownership and proximity.
+        const controlHit = Boolean(ancestorData(hit?.object ?? null).instrumentControl);
+        const pressed = pressConsultationTrigger(slot, Boolean(id) && !controlHit);
         if (pressed === slot) return;
         Object.assign(slot, pressed);
         slot.pendingSelection = slot.triggerRoute === "panel"
@@ -681,10 +696,15 @@ export function useXRClinicRuntime(options: Options) {
           }
           slot.grip.getWorldPosition(workingOrigin);
           if (!pending?.point || workingOrigin.distanceTo(pending.point) > SCOPE_SELECTOR_REACH_M) {
-            setHandlingMessage("Bring your free hand beside the aperture wheel, then point and press/release its trigger."); return;
+            setHandlingMessage(data.instrumentControl === "worth"
+              ? "Bring your free hand beside the target switch, then point and press/release its trigger."
+              : "Bring your free hand beside the instrument control, then point and press/release its trigger."); return;
           }
         }
-        if (data.action) data.action();
+        if (data.action) {
+          data.action();
+          if (data.instrumentControl && slot.hand) pulseHand(slot.hand, .35, 40);
+        }
         else if (data.teleport) { pauseTechnique(); teleport(data.teleport); }
         else optionsRef.current.onSelection?.(data);
       };
@@ -694,12 +714,12 @@ export function useXRClinicRuntime(options: Options) {
       return () => Object.entries(events).forEach(([name, listener]) => ray.removeEventListener(name, listener));
     });
     return () => cleanups.forEach(cleanup => cleanup());
-  }, [closeScopeView, closeUtilityPanel, direction, hidePlacementMarkers, origin, pauseTechnique, quaternion, resolvePlacement, slots, teleport, updateTools, workingOrigin]);
+  }, [closeScopeView, closeUtilityPanel, direction, hidePlacementMarkers, origin, pauseTechnique, pulseHand, quaternion, resolvePlacement, slots, teleport, updateTools, workingOrigin]);
 
   return {
     tools, toolsRef, slots, objects, toolControls, findingsPanels, frameValid, scopeAperture, scopeApertureRef, cycleScopeAperture, scopeViewHand, scopeViewHandRef, closeScopeView, toggleScopeView, utilityOpen, closeUtilityPanel, toggleUtilityPanel, highlighted, pickupHints, returnedAt,
     handlingMessage, setHandlingMessage, hoverMarker, placementMarkers, registerTool, updateTools, stopLights, resetClinic, closePanels,
-    origin, direction, quaternion, workingPose, supportedWorkingPose, handStatus, teleport, recenterClinic, equipment, setToolPower,
+    origin, direction, quaternion, workingPose, supportedWorkingPose, handStatus, pulseHand, teleport, recenterClinic, equipment, setToolPower,
   };
 }
 export type XRClinicRuntime = ReturnType<typeof useXRClinicRuntime>;

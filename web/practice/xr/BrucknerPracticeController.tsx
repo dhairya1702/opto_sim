@@ -3,10 +3,13 @@ import { useFrame } from "@react-three/fiber";
 import { Group, Mesh, MeshBasicMaterial } from "three";
 import { useXRClinicRuntime, type XRClinicInterruption } from "../../interaction/useXRClinicRuntime";
 import { CLINIC_PATIENT_EYES, CLINIC_PUPIL_RADIUS } from "../../interaction/clinicPatient";
-import { brucknerScenarios, type BrucknerScenario } from "../../interaction/brucknerPractice";
+import { BRUCKNER_REFLEX_VISUALS, brucknerReflexVisual, brucknerScenarios, type BrucknerScenario } from "../../interaction/brucknerPractice";
+import { BRUCKNER_GUIDED_STEP_COUNT, brucknerGuidedStep } from "../../interaction/opticGuidance";
 import { xrBrucknerTechnique, xrBrucknerPrompt } from "../../interaction/xrPracticeBatch";
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
+import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
 import type { BrucknerScopeView } from "../../scene/XRScopeOptics";
+import { usePracticeAttempt } from "../PracticeAttemptContext";
 import { PracticeLessonUI, usePracticeLesson, type BatchMirror, type LessonField } from "./PracticeLessonUI";
 
 const fields: LessonField[] = [{ id: "brightness", label: "Both red reflexes", choices: Object.entries(brucknerScenarios).map(([id, item]) => [id, item.label]) }];
@@ -15,6 +18,8 @@ const empty = () => xrBrucknerTechnique({ origin: [0, 0, 0], forward: [0, 0, -1]
 export function BrucknerPracticeController({ active, preview = false, scenario, onComplete, onNext, onExit, onMirror }: {
   active: boolean; preview?: boolean; scenario: BrucknerScenario; onComplete: () => void; onNext: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
 }) {
+  const { settings } = usePracticeAttempt();
+  const guided = settings?.kind === "guided";
   const lesson = usePracticeLesson(onComplete);
   const [fixation, setFixation] = useState(false);
   const setup = useRef({ fixation }); setup.current = { fixation };
@@ -60,7 +65,11 @@ export function BrucknerPracticeController({ active, preview = false, scenario, 
     if (reflexes.current) {
       reflexes.current.visible = next.illuminated;
       reflexes.current.children.forEach(child => {
-        if (child instanceof Mesh && child.material instanceof MeshBasicMaterial) child.material.color.set(scenario === child.userData.eye ? "#ffb55d" : "#b82714");
+        if (child instanceof Mesh && child.material instanceof MeshBasicMaterial) {
+          const reflex = brucknerReflexVisual(scenario, child.userData.eye);
+          child.material.color.set(reflex.color);
+          child.material.opacity = reflex.opacity;
+        }
       });
     }
     clock.current += dt;
@@ -90,6 +99,18 @@ export function BrucknerPracticeController({ active, preview = false, scenario, 
     tracked: runtime.frameValid.current, held: runtime.tools.fundus.placement.kind === "held",
     light: runtime.tools.fundus.powered, fixation, largeSpot: runtime.scopeAperture === "large",
   });
+  const guidance = brucknerGuidedStep({
+    toolHeld: runtime.tools.fundus.placement.kind === "held",
+    fixation,
+    largeSpot: runtime.scopeAperture === "large",
+    light: runtime.tools.fundus.powered,
+    distanceReady: technique.distanceReady,
+    aimReady: technique.aimReady,
+    illuminated: technique.illuminated,
+    captured,
+    observationChosen: Boolean(lesson.entries.brightness),
+    recorded: lesson.recorded,
+  });
   const record = () => {
     const answer = lesson.entriesRef.current.brightness;
     const correct = answer === scenario;
@@ -99,10 +120,15 @@ export function BrucknerPracticeController({ active, preview = false, scenario, 
   useEffect(() => { onMirror?.({ title: "Bruckner", status, ready: active && !preview && captured, entryReady: captured, fields, actions, lesson, reset, record, next }); },
     [onMirror, status, technique.ready, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, scenario, fixation, runtime.scopeAperture, captured]);
   return <>
-    <XRClinicRuntimeView cleanHands runtime={runtime} active={active && !preview} preview={preview} title="BRUCKNER · PRACTICE" brucknerView={visual} />
+    <XRClinicRuntimeView cleanHands runtime={runtime} active={active && !preview} preview={preview}
+      title="BRUCKNER · PRACTICE" brucknerView={visual} showWallInstructions={!guided} />
+    {(active || preview) && guided && <XRGuidedStepBubble stepId={guidance.id} stepNumber={guidance.index + 1}
+      total={BRUCKNER_GUIDED_STEP_COUNT} title={guidance.title} lines={guidance.lines} complete={guidance.complete} />}
     {active && <group ref={reflexes} visible={false} userData={{ xrBrucknerReflexes: true, xrIgnoreRay: true }}>
       {(["OD", "OS"] as const).map(eye => <mesh key={eye} position={[CLINIC_PATIENT_EYES[eye][0], 1.5, -.565]} userData={{ eye: eye.toLowerCase() }}>
-        <circleGeometry args={[CLINIC_PUPIL_RADIUS * .94, 24]} /><meshBasicMaterial args={[{ color: "#b82714" }]} />
+        <circleGeometry args={[CLINIC_PUPIL_RADIUS * .94, 24]} /><meshBasicMaterial args={[{
+          color: BRUCKNER_REFLEX_VISUALS.dim.color, transparent: true, opacity: BRUCKNER_REFLEX_VISUALS.dim.opacity,
+        }]} />
       </mesh>)}
     </group>}
     <PracticeLessonUI runtime={runtime} active={active} title="BRUCKNER" status={status} tools={["fundus"]} actions={actions} fields={fields} lesson={lesson}

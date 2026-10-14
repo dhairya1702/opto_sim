@@ -78,14 +78,17 @@ function StereoBooklet() {
   </group>;
 }
 
-export function SensoryInstrumentModel({ id, powered, point }: { id: ConsultationToolId; powered: boolean; point?: boolean }) {
+export function SensoryInstrumentModel({ id, powered, point, onPowerChange }: { id: ConsultationToolId; powered: boolean; point?: boolean; onPowerChange?: (powered: boolean) => void }) {
   if (id === "worth") return <group>
     <SensoryGrip />
     <Box p={[0, .12, 0]} s={[.135, .135, .024]} c="#24383b" radius={.042} />
     <group position={[0, .12, -.012]}><WorthTargetFace powered={powered} point={point} /></group>
-    <mesh position={[.045, .04, -.017]} rotation={[0, 0, Math.PI / 2]}>
+    <mesh position={[.045, powered ? .047 : .035, -.017]} rotation={[0, 0, Math.PI / 2]}
+      onClick={onPowerChange ? event => { event.stopPropagation(); onPowerChange(!powered); } : undefined}
+      userData={onPowerChange ? { xrInstrumentControl: "worth", xrInteractiveSurface: true, xrButton: true, xrWidth: .035, xrHeight: .045,
+        xrLabel: "TARGET SWITCH", xrAction: () => onPowerChange(!powered) } : undefined}>
       <capsuleGeometry args={[.006, .014, 5, 14]} />
-      <meshStandardMaterial color={powered ? "#d39b42" : "#4c5f5e"} roughness={.42} metalness={.42} />
+      <meshStandardMaterial color={powered ? "#f0bd58" : "#4c5f5e"} emissive={powered ? "#6d4208" : "#000000"} emissiveIntensity={powered ? .28 : 0} roughness={.42} metalness={.42} />
     </mesh>
   </group>;
   if (id === "stereo") return <StereoBooklet />;
@@ -112,7 +115,7 @@ function MirrorDisplay({ runtime, letter }: { runtime: XRClinicRuntime; letter: 
   if (letter) return <Sign text={["E", "ILLUSTRATIVE ISOLATED LETTER"]} p={[.31, 1.5, SENSORY_MIRROR.center[2] - .027]} rotation={[0, Math.PI, 0]} size={[.28, .22]} bg="#f7f7e8" fg="#183335" />;
   return <group ref={image} visible={false} userData={{ xrIgnoreRay: true }}><WorthTargetFace mirror point={runtime.equipment.includes("maddox")} /></group>;
 }
-export function SensoryClinicStation({ runtime, distanceLetter = false, active = false }: { runtime: XRClinicRuntime; distanceLetter?: boolean; active?: boolean }) {
+export function SensoryClinicStation({ runtime, distanceLetter = false, active = false, showFittingGuides = true }: { runtime: XRClinicRuntime; distanceLetter?: boolean; active?: boolean; showFittingGuides?: boolean }) {
   const sensory = runtime.equipment.some(id => ["worth", "red-green", "polarised", "stereo"].includes(id));
   if (!sensory && !distanceLetter) return null;
   const near = runtime.equipment.some(id => id === "worth" || id === "stereo");
@@ -141,7 +144,7 @@ export function SensoryClinicStation({ runtime, distanceLetter = false, active =
       <Sign text={[label]} p={[0, .008, 0]} size={[.32, .07]} rotation={[-Math.PI / 2, 0, 0]} bg="#153b3c" fg="#e8fff9" />
     </group>)}
     {/* Fitting cues retain a small bridge/grip target and never reveal the authored finding. */}
-    {SENSORY_SOCKETS.filter(socket => socket.fittingLayer && runtime.equipment.includes(socket.tool)).map(socket => <group key={socket.id} position={[...socket.position]} userData={{ xrIgnoreRay: true }}>
+    {showFittingGuides && SENSORY_SOCKETS.filter(socket => socket.fittingLayer && runtime.equipment.includes(socket.tool)).map(socket => <group key={socket.id} position={[...socket.position]} userData={{ xrIgnoreRay: true, xrInstructionalHighlight: true }}>
       <mesh><ringGeometry args={[.009, .012, 20]} /><meshBasicMaterial color={socket.fittingLayer === "correction" ? "#f1da96" : "#8bcaba"} transparent opacity={.45} side={DoubleSide} /></mesh>
     </group>)}
   </>;

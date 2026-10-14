@@ -4,13 +4,16 @@ import { Group, MeshBasicMaterial, Quaternion, Vector3 } from "three";
 import { useXRClinicRuntime, type XRClinicInterruption } from "../../interaction/useXRClinicRuntime";
 import { CLINIC_EYE_MIDPOINT, CLINIC_PATIENT_EYES } from "../../interaction/clinicPatient";
 import { emptyHirschbergTechnique, clinicHirschbergReflex, hirschbergSubmission, type HirschbergPracticeFinding } from "../../interaction/xrHirschbergPractice";
+import { HIRSCHBERG_GUIDED_STEP_COUNT, hirschbergGuidedStep } from "../../interaction/opticGuidance";
 import { xrHirschbergPrompt, xrHirschbergTechnique, type XRHirschbergTechnique } from "../../interaction/xrPractice";
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
+import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
 import { XRClinicUtilityPanel, XRHeadPanel, XRPanelButton, XRSign as Sign } from "../../scene/XRClinicPanels";
 import { Box } from "../../scene/Models";
 import { XRPracticeFindingsBoard } from "../../scene/XRPracticeFindingsBoard";
 import { useXRPracticeResult, XRPracticeResultHUD } from "../../scene/XRPracticeResultHUD";
 import type { OpticScenario } from "../ClinicalPracticeStage";
+import { usePracticeAttempt } from "../PracticeAttemptContext";
 
 export const HIRSCHBERG_DIRECTIONS = [
   ["none", "No deviation"], ["exotropia", "Exotropia"], ["esotropia", "Esotropia"],
@@ -58,6 +61,8 @@ export function HirschbergPracticeController({ active, preview = false, scenario
   onComplete: () => void; onNext: () => void; onExit: () => void;
   onMirror?: (mirror: HirschbergPracticeMirror) => void;
 }) {
+  const { settings } = usePracticeAttempt();
+  const guided = settings?.kind === "guided";
   const { gl, camera } = useThree();
   const { result: resultNotice, showResult, clearResult } = useXRPracticeResult();
   const [fixation, setFixation] = useState(false);
@@ -175,6 +180,18 @@ export function HirschbergPracticeController({ active, preview = false, scenario
   const held = runtime.tools.pupils.placement.kind === "held";
   const light = runtime.tools.pupils.powered;
   const prompt = xrHirschbergPrompt(technique, { held, light, fixation });
+  const guidance = hirschbergGuidedStep({
+    toolHeld: held,
+    fixation,
+    light,
+    distanceReady: technique.distanceReady,
+    aimReady: technique.aimReady,
+    viewReady: technique.viewReady,
+    captured: Boolean(captured),
+    directionChosen: Boolean(direction),
+    landmarkChosen: Boolean(amount),
+    recorded: correct && checked,
+  });
   const nextFinding = useCallback(() => { if (!awarded.current) return; clearAttempt(); onNext(); }, [clearAttempt, onNext]);
   useEffect(() => { onMirror?.({ technique, held, light, fixation, direction, amount, checked, correct, help, recording,
     giveFixation, toggleHelp, openRecording, chooseDirection, chooseAmount, record, cancel, reset, next: nextFinding,
@@ -198,7 +215,11 @@ export function HirschbergPracticeController({ active, preview = false, scenario
       </>;
   return <>
     <XRPracticeResultHUD active={active && !preview} result={resultNotice} onTryNewCase={nextFinding} />
-    <XRClinicRuntimeView cleanHands runtime={runtime} active={active && !preview} preview={preview} title="HIRSCHBERG · PRACTICE" instruction="Pick up the penlight · findings on rear wall · trigger to select" />
+    <XRClinicRuntimeView cleanHands runtime={runtime} active={active && !preview} preview={preview}
+      title="HIRSCHBERG · PRACTICE" instruction="Pick up the penlight · findings on rear wall · trigger to select"
+      showWallInstructions={!guided} />
+    {(active || preview) && guided && <XRGuidedStepBubble stepId={guidance.id} stepNumber={guidance.index + 1}
+      total={HIRSCHBERG_GUIDED_STEP_COUNT} title={guidance.title} lines={guidance.lines} complete={guidance.complete} />}
     {active && <>
       <XRClinicUtilityPanel runtime={runtime} onHelp={() => { setHelp(true); setMenu(false); setRecording(false); }} onExit={onExit} />
       <XRPracticeFindingsBoard runtime={runtime} active={active && !preview} tools={["pupils"]} forceVisible={recording} hidden={menu || help}>{findings}</XRPracticeFindingsBoard>

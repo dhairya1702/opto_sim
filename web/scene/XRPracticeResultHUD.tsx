@@ -3,7 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import { Group, Mesh, Quaternion, Vector3 } from "three";
 import { XRPanelButton, XRSign } from "./XRClinicPanels";
 
-type Result = { id: number; kind: "correct" | "retry" | "incomplete"; message: string };
+type Result = { id: number; kind: "correct" | "retry" | "incomplete" | "progress"; message: string };
 export const XR_RESULT_DURATION_MS = 5000;
 
 /** Each submission restarts the notice, including repeated identical responses. */
@@ -59,8 +59,8 @@ export function XRPracticeResultHUD({ result, active, onTryNewCase, nextCaseLabe
   if (!active || !result) return null;
   const lines = resultLines(result.message);
   const height = Math.max(.18, (lines.length + 1) * .055);
-  const heading = result.kind === "correct" ? "CORRECT" : result.kind === "retry" ? "TRY AGAIN" : "NOT READY YET";
-  const background = result.kind === "correct" ? "#125346" : result.kind === "retry" ? "#573323" : "#173a4b";
+  const heading = result.kind === "correct" ? "CORRECT" : result.kind === "progress" ? "PROGRESS SAVED" : result.kind === "retry" ? "TRY AGAIN" : "NOT READY YET";
+  const background = result.kind === "correct" ? "#125346" : result.kind === "progress" ? "#27685d" : result.kind === "retry" ? "#573323" : "#173a4b";
   const canTryNewCase = result.kind === "correct" && Boolean(onTryNewCase);
   return <group ref={root} userData={{ xrPracticeResultHUD: true, xrIgnoreRay: !canTryNewCase, xrPanel: canTryNewCase || undefined }}>
     <mesh position={[0, -.02, -.012]}><planeGeometry args={[.84, height + (canTryNewCase ? .30 : .18)]} /><meshBasicMaterial color={background} /></mesh>

@@ -55,5 +55,8 @@ describe("XR motility guided step bubble", () => {
     const sim = await clinic({ renderAdapter: adapter("test") }); dispose = sim.dispose;
     expect(sim.labels().some(label => label.startsWith("GUIDED · STEP"))).toBe(false);
     expect(sim.labels()).not.toContain("Pick up the penlight");
+    expect(sim.labels()).not.toContain("○ Up");
+    expect(sim.labels()).not.toContain("SHOW GAZE GUIDE");
+    expect(sim.labels()).not.toContain("HIDE GAZE GUIDE");
   });
 });

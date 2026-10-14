@@ -74,4 +74,19 @@ describe("temporary Practice result HUD", () => {
     await sim.dispose(); dispose = undefined;
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it("shows neutral saved progress without exposing a next-case action", async () => {
+    let notice: ReturnType<typeof useXRPracticeResult>;
+    function Feedback({ active }: { active: boolean }) {
+      notice = useXRPracticeResult();
+      return createElement(XRPracticeResultHUD, { active, result: notice.result, onTryNewCase: vi.fn() });
+    }
+    const sim = await clinic({ renderAdapter: ({ active }) => createElement(Feedback, { active }) });
+    dispose = sim.dispose;
+    await act(async () => notice!.showResult("progress", "Near recorded—now test distance."));
+    expect(sim.labels()).toContain("PROGRESS SAVED"); expect(sim.labels()).not.toContain("TRY NEW CASE");
+    let hud: Object3D | undefined;
+    sim.state.scene.traverse(child => { if (child.userData.xrPracticeResultHUD) hud = child; });
+    expect(hud?.userData.xrIgnoreRay).toBe(true); expect(hud?.userData.xrPanel).toBeUndefined();
+  });
 });

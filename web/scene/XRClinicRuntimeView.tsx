@@ -10,7 +10,7 @@ import { consultationToolDefinition, consultationPickupLabel, toolInHand, type C
 import type { XRClinicRuntime, XRClinicHand } from "../interaction/useXRClinicRuntime";
 import type { FundusScopeView, BrucknerScopeView } from "./XRScopeOptics";
 import { XRScopeView } from "./XRScopeView";
-export function XRClinicRuntimeView({ runtime, active, preview = false, title = "VR CONSULTATION", instruction = "Explore freely · A/X · patient menu", showWallInstructions = true, cleanHands = false, helperHand, helperReady = false, fundusView, brucknerView, sensoryStation, instrumentSettings, selectableEquipment }: {
+export function XRClinicRuntimeView({ runtime, active, preview = false, title = "VR CONSULTATION", instruction = "Explore freely · A/X · patient menu", showWallInstructions = true, showInstructionalHighlights = true, cleanHands = false, helperHand, helperReady = false, fundusView, brucknerView, sensoryStation, instrumentSettings, selectableEquipment }: {
   instrumentSettings?: ClinicInstrumentSettings;
   selectableEquipment?: readonly ConsultationToolId[];
   runtime: XRClinicRuntime;
@@ -21,6 +21,7 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
   instruction?: string;
   /** Guided lessons can replace the generic wall placard with their own coach. */
   showWallInstructions?: boolean;
+  showInstructionalHighlights?: boolean;
   cleanHands?: boolean;
   helperHand?: XRClinicHand | null;
   helperReady?: boolean;
@@ -55,7 +56,7 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
       <Sign text={["EXTENDED INSTRUMENT KIT"]} p={[0, .008, 0]} size={[.46, .1]} rotation={[-Math.PI / 2, 0, 0]} bg="#153b3c" fg="#e8fff9" />
     </group>}
     {(active || preview) && <>
-      <SensoryClinicStation active={active} runtime={runtime} distanceLetter={sensoryStation === "four-prism"} />
+      <SensoryClinicStation active={active} runtime={runtime} distanceLetter={sensoryStation === "four-prism"} showFittingGuides={showInstructionalHighlights} />
       <ConsultationInstruments equipment={runtime.equipment} selectable={selectableEquipment} scopeControl={{ aperture: runtime.scopeAperture, cycle: runtime.cycleScopeAperture }} settings={instrumentSettings} fundusView={fundusView} brucknerView={brucknerView} state={tools} highlighted={highlighted} returnedAt={returnedAt} register={registerTool} />
       {active && (["left", "right"] as const).map(hand => <group key={hand} visible={false}
         ref={object => { if (object) runtime.placementMarkers.current.set(hand, object); else runtime.placementMarkers.current.delete(hand); }}

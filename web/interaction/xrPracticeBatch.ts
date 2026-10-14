@@ -1,7 +1,7 @@
 import { opticTechniqueChecks } from "./opticPractice";
 import { scopeBeamAngle } from "./xrScopeEquipment";
 import { CLINIC_EYE_MIDPOINT, CLINIC_PATIENT_EYES } from "./clinicPatient";
-import { advancePracticeCoverStep, practiceCoverProcedures, type PracticeCoverKind, type EyeMovement } from "./practiceCover";
+import { advancePracticeCoverStep, practiceCoverProcedures, type PracticeCoverKind } from "./practiceCover";
 import type { CoverPosition, CoverEye } from "./cover";
 import type { ToolPoint, PlacementSocket } from "./xrConsultationTools";
 
@@ -55,6 +55,30 @@ export function xrPracticeCoverPosition(point: ToolPoint, forward: ToolPoint): C
   if (eye) return eye;
   return Math.min(...Object.values(CLINIC_PATIENT_EYES).map(target => Math.hypot(...point.map((v, i) => v - target[i])))) >= .20 ? "away" : null;
 }
+/**
+ * Visual guide anchors derived from the same tolerances as xrPracticeEyePlacement /
+ * xrPracticeCoverPosition, so a paddle centred on a guide is accepted by the sequence.
+ */
+export const COVER_GUIDE_HALF_SIZE: readonly [number, number] = [.025, .03];
+export function xrCoverGuideAnchors() {
+  const depth = .06; // middle of the accepted 1.8–12 cm in-front band
+  const cover = (eye: CoverEye): ToolPoint => [CLINIC_PATIENT_EYES[eye][0], CLINIC_PATIENT_EYES[eye][1], CLINIC_PATIENT_EYES[eye][2] + depth];
+  // Uncover by moving the paddle temporally (towards the learner's side of that eye), clear of both eyes.
+  const away = (eye: CoverEye): ToolPoint => {
+    const side = Math.sign(CLINIC_PATIENT_EYES[eye][0]) || 1;
+    return [CLINIC_PATIENT_EYES[eye][0] + side * .24, CLINIC_PATIENT_EYES[eye][1], CLINIC_PATIENT_EYES[eye][2] + depth];
+  };
+  return { cover: { OD: cover("OD"), OS: cover("OS") }, away: { OD: away("OD"), OS: away("OS") } } as const;
+}
+/** The eye a guide should point to for each step: the eye being covered, or the eye just uncovered. */
+export function xrCoverGuideTarget(kind: PracticeCoverKind, index: number): { position: CoverPosition; eye: CoverEye } | null {
+  const procedure = practiceCoverProcedures[kind];
+  const step = procedure[index];
+  if (!step) return null;
+  if (step.position !== "away") return { position: step.position, eye: step.position };
+  const previous = procedure[index - 1]?.position;
+  return { position: "away", eye: previous === "OS" ? "OS" : "OD" };
+}
 export function xrPracticeNearFixation(point: ToolPoint) {
   const dx = point[0] - CLINIC_EYE_MIDPOINT[0], dy = point[1] - CLINIC_EYE_MIDPOINT[1], dz = point[2] - CLINIC_EYE_MIDPOINT[2];
   const distanceCm = Math.hypot(dx, dy, dz) * 100;
@@ -70,11 +94,4 @@ export function advanceXRPracticeCover(kind: PracticeCoverKind, state: PracticeC
   // A hand must cross the nose. Sustained binocular exposure loses dissociation.
   if (transit > .35) return emptyPracticeCoverSequence();
   return { ...advancePracticeCoverStep(kind, state.index, state.dwell, position, dt), transit };
-}
-export function coverPracticePulse(kind: PracticeCoverKind, scenario: string, index: number, movement: EyeMovement) {
-  const position = practiceCoverProcedures[kind][index]?.position;
-  if (kind === "alternate-cover" && position !== "away" && position) return { eye: position === "OD" ? "OS" : "OD", direction: movement } as const;
-  if (scenario === "left-esotropia" && (index === 0 || index === 1)) return { eye: "OS", direction: index === 0 ? "out" : "in" } as const;
-  if (scenario === "exophoria" && position === "away") return { eye: index === 1 ? "OD" : "OS", direction: "in" } as const;
-  return null;
 }

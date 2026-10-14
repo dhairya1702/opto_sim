@@ -85,9 +85,12 @@ describe("deterministic voice routing", () => {
     expect(routeDeterministic("What's your favorite sports team?", testContext, "u5")).toMatchObject({ kind: "patient-reply", replyId: "relevance" });
   });
   it("only emits a Practice action from the active lesson allowlist", () => {
-    const practice = { mode: "practice", sessionId: "s1", lessonId: "worth", allowedActions: ["fixate-target", "request-report"] };
+    const practice = { mode: "practice", sessionId: "s1", lessonId: "worth", allowedActions: ["target-on", "target-off", "fixate-target", "request-report"] };
     expect(routeDeterministic("What do you see?", practice, "u1")).toMatchObject({ kind: "practice-action", lessonId: "worth", actionId: "request-report" });
-    expect(routeDeterministic("Follow the light", practice, "u2")).toBeNull();
+    expect(routeDeterministic("How many dots can you see?", practice, "u2")).toMatchObject({ kind: "practice-action", actionId: "request-report" });
+    expect(routeDeterministic("Switch the Worth lights on", practice, "u3")).toMatchObject({ kind: "practice-action", actionId: "target-on" });
+    expect(routeDeterministic("Turn off the target", practice, "u4")).toMatchObject({ kind: "practice-action", actionId: "target-off" });
+    expect(routeDeterministic("Follow the light", practice, "u5")).toBeNull();
   });
   it("routes Krimsky examiner-eye voice controls only from its active allowlist", () => {
     const practice = { mode: "practice", sessionId: "s1", lessonId: "krimsky", allowedActions: ["examiner-close-right-eye", "examiner-close-left-eye", "examiner-open-both-eyes"] };

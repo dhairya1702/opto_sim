@@ -955,7 +955,7 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
             testing environment.
           </p>
           <p className="small muted">
-            One offline scripted case · no AI or voice mode · no records saved after reload. The
+            One fictional scripted case · voice requires network access and microphone permission · no records saved after reload. The
             static answer key is inspectable and unsuitable for secure examinations.
           </p>
         </Panel>

@@ -1,14 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { advancePracticeCoverStep, alternateCoverScenarios, deviationForMovement, prismBaseForDeviation, prismTrialNeutralizes } from "../interaction/practiceCover";
+import { advancePracticeCoverStep, alternateCoverScenarios, deviationForMovement, prismTrialNeutralizes } from "../interaction/practiceCover";
 
 describe("cover practice", () => {
-  it("maps eye movement to deviation and neutralising prism base", () => {
+  it("interprets OD's refixation on uncovering", () => {
     expect(deviationForMovement("in")).toBe("exo");
     expect(deviationForMovement("out")).toBe("eso");
-    expect(deviationForMovement("up")).toBe("hypo");
-    expect(deviationForMovement("down")).toBe("hyper");
-    expect(prismBaseForDeviation("exo")).toBe("base-in");
-    expect(prismBaseForDeviation("hyper")).toBe("base-down");
+    expect(deviationForMovement("up")).toBe("r-hypo");
+    expect(deviationForMovement("down")).toBe("r-hyper");
+    for (const scenario of alternateCoverScenarios) expect(deviationForMovement(scenario.movement)).toBe(scenario.deviation);
   });
 
   it("keeps alternate cover continuous without an away step", () => {
@@ -19,10 +18,25 @@ describe("cover practice", () => {
     expect(state).toEqual({ index: 1, dwell: 0 });
   });
 
-  it("neutralises only with the authored base and prism amount", () => {
+  it("neutralises horizontal deviations with the right base before either eye", () => {
     const scenario = alternateCoverScenarios[0];
-    expect(prismTrialNeutralizes(scenario, "base-in", 12)).toBe(true);
-    expect(prismTrialNeutralizes(scenario, "base-out", 12)).toBe(false);
-    expect(prismTrialNeutralizes(scenario, "base-in", 10)).toBe(false);
+    for (const eye of ["OD", "OS"] as const) {
+      expect(prismTrialNeutralizes(scenario, "base-in", 12, eye)).toBe(true);
+      expect(prismTrialNeutralizes(scenario, "base-out", 12, eye)).toBe(false);
+      expect(prismTrialNeutralizes(scenario, "base-in", 10, eye)).toBe(false);
+    }
+    expect(prismTrialNeutralizes(scenario, "", 12, "OD")).toBe(false);
+  });
+
+  it("neutralises vertical deviations with base up before the hypo eye or base down before the hyper eye", () => {
+    const hypo = alternateCoverScenarios.find(item => item.id === "r-hypo8")!;
+    expect(prismTrialNeutralizes(hypo, "base-up", 8, "OD")).toBe(true);
+    expect(prismTrialNeutralizes(hypo, "base-down", 8, "OS")).toBe(true);
+    expect(prismTrialNeutralizes(hypo, "base-up", 8, "OS")).toBe(false);
+    expect(prismTrialNeutralizes(hypo, "base-down", 8, "OD")).toBe(false);
+    const hyper = alternateCoverScenarios.find(item => item.id === "r-hyper10")!;
+    expect(prismTrialNeutralizes(hyper, "base-down", 10, "OD")).toBe(true);
+    expect(prismTrialNeutralizes(hyper, "base-up", 10, "OS")).toBe(true);
+    expect(prismTrialNeutralizes(hyper, "base-up", 10, "OD")).toBe(false);
   });
 });

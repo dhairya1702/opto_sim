@@ -13,10 +13,12 @@ const encounterActionPatterns = {
 };
 const practicePatterns = {
   "fixate-light": ["look at the light", "fixate the light"],
-  "fixate-target": ["look at the target", "fixate the target"],
+  "target-on": ["turn on the target", "switch the target on", "switch the worth lights on", "switch the worth target on"],
+  "target-off": ["turn off the target", "switch the target off", "switch the worth lights off", "switch the worth target off"],
+  "fixate-target": ["look at the target", "fixate the target", "keep looking at the dots"],
   "follow-target": ["follow the target", "follow the light"],
   "report-symptoms": ["symptom", "double vision", "any pain", "any discomfort"],
-  "request-report": ["what do you see", "tell me what you see", "report now"],
+  "request-report": ["what do you see", "tell me what you see", "how many dots", "what colours do you see", "what colors do you see", "tell me where the dots are", "report now"],
   "report-clear": ["is it clear", "can you clear", "clear now"],
   "examiner-close-right-eye": ["close my right eye", "use my left eye", "left examiner eye"],
   "examiner-close-left-eye": ["close my left eye", "use my right eye", "right examiner eye"],

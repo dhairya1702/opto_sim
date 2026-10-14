@@ -3,8 +3,6 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-ARG VITE_VOICE_ENABLED=false
-ENV VITE_VOICE_ENABLED=$VITE_VOICE_ENABLED
 RUN npm run build
 
 FROM node:22-bookworm-slim AS runtime

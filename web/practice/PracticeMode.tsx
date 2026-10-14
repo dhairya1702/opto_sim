@@ -28,6 +28,7 @@ import { VergencePracticeStage, type VergenceMode } from "./VergencePracticeStag
 import { AccommodationPracticeStage, type AccommodationMode } from "./AccommodationPracticeStage";
 import { KrimskyPracticeStage } from "./KrimskyPracticeStage";
 import { brucknerScenarios, type BrucknerScenario } from "../interaction/brucknerPractice";
+import { motilityScenarios } from "../interaction/motility";
 import { PracticeBatchVRStage } from "./xr/PracticeBatchVRStage";
 import { HirschbergVRStage } from "./HirschbergVRStage";
 import { useVoiceSession } from "../voice/useVoiceSession";
@@ -143,6 +144,9 @@ function MotilityModule({ onComplete }: { onComplete: () => void }) {
   const [running, setRunning] = useState(false);
   const [vrRunning, setVrRunning] = useState(false);
   const [complete, setComplete] = useState(false);
+  const [scenarioIndex, setScenarioIndex] = useState(0);
+  const scenario = motilityScenarios[scenarioIndex];
+  const nextScenario = () => setScenarioIndex(index => (index + 1) % motilityScenarios.length);
   return (
     <>
       <div className="practice-lesson-head">
@@ -174,8 +178,8 @@ function MotilityModule({ onComplete }: { onComplete: () => void }) {
         <PracticeAttemptSetup onDesktop={() => setRunning(true)} onVR={() => setVrRunning(true)} />
       </div>
       {complete && <div className="practice-success"><CheckCircle2 size={22} /><div><b>Technique sequence complete</b><p>You covered primary position and all eight cardinal directions, asked about diplopia, and recorded an observation.</p></div></div>}
-      {vrRunning && <PracticeBatchVRStage kind="motility" onClose={() => setVrRunning(false)} onDesktop={() => { setVrRunning(false); setRunning(true); }} onComplete={() => { setComplete(true); onComplete(); }} />}
-      {running && <MotilityExamination practiceAttempt={settings?.kind} onCancel={() => setRunning(false)} onComplete={() => { setRunning(false); setComplete(true); onComplete(); }} />}
+      {vrRunning && <PracticeBatchVRStage kind="motility" motilityScenario={scenario.id} onNext={nextScenario} onClose={() => setVrRunning(false)} onDesktop={() => { setVrRunning(false); setRunning(true); }} onComplete={() => { setComplete(true); onComplete(); }} />}
+      {running && <MotilityExamination practiceAttempt={settings?.kind} scenarioId={scenario.id} findingPosition={{ current: scenarioIndex + 1, total: motilityScenarios.length }} onNext={nextScenario} onCancel={() => setRunning(false)} onComplete={() => { setComplete(true); onComplete(); }} />}
     </>
   );
 }
@@ -271,7 +275,7 @@ function AlternateCoverModule({ onComplete }: { onComplete: () => void }) {
     <div className="practice-lesson-head"><div><p className="eyebrow">BINOCULAR VISION · 3.7</p><h1>Alternating cover test</h1><p>Break fusion, determine the direction of deviation, and measure its magnitude by prism neutralisation.</p></div><span className="lesson-equipment"><Hand size={18} /> Occluder + prism bar</span></div>
     <div className="lesson-columns"><div>
       <TeachingBlock title="Procedure">{steps(["Use the same fixation setup as the cover test and ask the patient to maintain fixation.", "Cover one eye, then shift the occluder directly to the fellow eye after a few seconds.", "Continue alternating several times without leaving both eyes uncovered, so fusion remains disrupted.", "Observe the direction of refixation movement and infer the direction of deviation.", "Place a prism bar before either eye with the appropriate base direction.", "Increase prism power gradually and repeat alternating cover until no refixation movement is seen.", "Record the neutralising prism as the magnitude of deviation and repeat for near."])}</TeachingBlock>
-      <TeachingBlock title="Movement, deviation, and prism"><div className="direction-grid"><span><b>Eye moves in</b>Exo · base-in prism</span><span><b>Eye moves out</b>Eso · base-out prism</span><span><b>Eye moves up</b>Hypo · base-up prism</span><span><b>Eye moves down</b>Hyper · base-down prism</span></div></TeachingBlock>
+      <TeachingBlock title="Movement, deviation, and prism"><div className="direction-grid"><span><b>Eye moves in</b>Exo · base-in prism</span><span><b>Eye moves out</b>Eso · base-out prism</span><span><b>Eye moves up</b>Hypo · base-up prism</span><span><b>Eye moves down</b>Hyper · base-down prism</span></div><p>Horizontal deviations move both eyes the same way. A vertical deviation moves the eyes in opposite directions: in a right hypo, OD moves up and OS moves down when each is uncovered. Record it by eye (R hypo is the same as L hyper) and neutralise with base up before the hypo eye or base down before the hyper eye. In this trainer, record OD’s movement.</p></TeachingBlock>
     </div><aside className="practice-checklist"><p className="eyebrow">TECHNIQUE POINTS</p>{["Never expose both eyes between shifts", "Alternate several times", "Name movement direction first", "Prism can be placed before either eye", "Increase power gradually", "Endpoint is no movement", "Repeat with a near target"].map(item => <span key={item}><Check size={14} /> {item}</span>)}</aside></div>
     <div className="practice-action-panel immersive"><div><p className="eyebrow">FIRST-PERSON ATTEMPT</p><h2>Alternate, add prism, and neutralise</h2><p>Choose guidance or independent testing, then select controls and voice for this alternating-cover attempt.</p></div><PracticeAttemptSetup onDesktop={() => setRunning(true)} onVR={() => setVrRunning(true)} /></div>
     {vrRunning && <PracticeBatchVRStage kind="alternate-cover" onClose={() => setVrRunning(false)} onDesktop={() => { setVrRunning(false); setRunning(true); }} onComplete={onComplete} />}

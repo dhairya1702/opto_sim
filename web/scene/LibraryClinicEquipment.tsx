@@ -4,7 +4,11 @@ import { XRSign } from "./XRClinicPanels";
 import { LIBRARY_SOCKETS } from "../interaction/xrLibraryEquipment";
 import type { ConsultationToolId } from "../interaction/xrConsultationTools";
 
-export type ClinicInstrumentSetting = { power?: number; base?: string; angle?: number; side?: string; point?: boolean };
+export type ClinicInstrumentSetting = {
+  power?: number; base?: string; angle?: number; side?: string; point?: boolean;
+  anchorPower?: number; aligned?: boolean; reflexOffset?: number; showReflex?: boolean;
+  powered?: boolean; onPowerChange?: (powered: boolean) => void;
+};
 export type ClinicInstrumentSettings = Partial<Record<ConsultationToolId, ClinicInstrumentSetting>>;
 
 const shell = "#24383b";

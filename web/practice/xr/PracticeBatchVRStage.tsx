@@ -4,6 +4,7 @@ import { AccommodationPracticeController } from "./AccommodationPracticeControll
 import { LIBRARY_TITLES, type LibraryKind } from "../../interaction/xrLibraryEquipment";
 import { useState } from "react";
 import type { BrucknerScenario } from "../../interaction/brucknerPractice";
+import type { MotilityScenarioId } from "../../interaction/motility";
 import { PracticeVRClinic } from "./PracticeVRClinic";
 import { BrucknerPracticeController } from "./BrucknerPracticeController";
 import { MotilityPracticeController } from "./MotilityPracticeController";
@@ -16,8 +17,8 @@ import { BatchLessonMirror, type BatchMirror } from "./PracticeLessonUI";
 
 type BatchKind = LibraryKind | "krimsky" | "bruckner" | "motility" | "cover-uncover" | "alternate-cover" | "worth" | "stereopsis" | "four-prism";
 const titles: Record<BatchKind, string> = { ...LIBRARY_TITLES, worth: "Worth four dot", stereopsis: "Stereopsis", "four-prism": "4Δ base-out", krimsky: "Krimsky test", bruckner: "Bruckner test", motility: "Extraocular motilities", "cover-uncover": "Cover–uncover test", "alternate-cover": "Alternating cover + prism neutralisation" };
-export function PracticeBatchVRStage({ kind, scenario = "equal", onClose, onDesktop, onComplete, onNext = () => undefined }: {
-  kind: BatchKind; scenario?: BrucknerScenario; onClose: () => void; onDesktop: () => void; onComplete: () => void; onNext?: () => void;
+export function PracticeBatchVRStage({ kind, scenario = "equal", motilityScenario = "full", onClose, onDesktop, onComplete, onNext = () => undefined }: {
+  kind: BatchKind; scenario?: BrucknerScenario; motilityScenario?: MotilityScenarioId; onClose: () => void; onDesktop: () => void; onComplete: () => void; onNext?: () => void;
 }) {
   const [mirror, setMirror] = useState<BatchMirror | null>(null);
   return <PracticeVRClinic title={titles[kind]} findingPosition={mirror?.findingPosition ?? { current: kind === "bruckner" ? ["equal", "od", "os"].indexOf(scenario) + 1 : 1, total: kind === "bruckner" ? 3 : 1 }}
@@ -32,7 +33,7 @@ export function PracticeBatchVRStage({ kind, scenario = "equal", onClose, onDesk
         : kind === "npc" || kind === "horizontal-distance" || kind === "vertical-distance" || kind === "horizontal-near" || kind === "facility" ? <VergencePracticeController {...common} kind={kind} />
         : kind === "push-up" || kind === "minus-lens" || kind === "relative" || kind === "accommodative-facility" ? <AccommodationPracticeController {...common} kind={kind} />
         : kind === "krimsky" ? <KrimskyPracticeController {...common} />
-        : kind === "motility" ? <MotilityPracticeController {...common} /> : <CoverPracticeController {...common} kind={kind} />;
+        : kind === "motility" ? <MotilityPracticeController {...common} scenarioId={motilityScenario} onNext={onNext} /> : <CoverPracticeController {...common} kind={kind} />;
     }}
   </PracticeVRClinic>;
 }

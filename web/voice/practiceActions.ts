@@ -20,10 +20,12 @@ export type PracticeVoiceAction = {
 const action = (id: string, phrases: string[], controls: string[], acknowledgement: string): PracticeVoiceAction =>
   ({ id, phrases, controls, acknowledgement });
 const fixateLight = action("fixate-light", ["look at the light", "fixate the light"], ["look at the light", "fixation"], "Okay, I am looking at the light.");
-const fixateTarget = action("fixate-target", ["look at the target", "fixate the target"], ["give fixation", "look at this target", "look at the target", "establish fixation", "fixate isolated", "fixation"], "Okay, I am looking at the target.");
+const fixateTarget = action("fixate-target", ["look at the target", "fixate the target", "keep looking at the dots"], ["give fixation", "look at this target", "look at the target", "establish fixation", "fixate isolated", "fixation"], "Okay, I am looking at the target.");
 const followTarget = action("follow-target", ["follow the target", "follow the light"], ["following instruction", "follow this target", "follow light", "start following"], "Okay, I will follow it with my eyes.");
 const reportSymptoms = action("report-symptoms", ["any symptoms", "any double vision", "any pain", "any discomfort"], ["ask diplopia", "ask symptoms", "symptoms"], "I will tell you if I notice double vision, pain, or discomfort.");
-const reportPercept = action("request-report", ["what do you see", "tell me what you see", "report now"], ["ask count", "present page", "ask number", "patient report", "mark patient endpoint", "mark sustained blur", "capture coincidence"], "I can report what I see now that the examination setup is ready.");
+const reportPercept = action("request-report", ["what do you see", "tell me what you see", "how many dots", "what colours do you see", "tell me where the dots are", "report now"], ["ask count", "present page", "ask number", "patient report", "mark patient endpoint", "mark sustained blur", "capture coincidence"], "I can report what I see now that the examination setup is ready.");
+const targetOn = action("target-on", ["turn on the target", "switch the worth lights on", "switch the worth target on"], ["switch target on"], "Worth target switched on.");
+const targetOff = action("target-off", ["turn off the target", "switch the worth lights off", "switch the worth target off"], ["switch target off"], "Worth target switched off.");
 const reportClear = action("report-clear", ["is it clear", "can you clear it"], ["clear / flip", "clear + single", "confirm clear baseline"], "It is clear and single now.");
 const closeRightEye = action("examiner-close-right-eye", ["close my right eye", "use my left eye", "left examiner eye"], ["close right eye · left view"], "Left examiner-eye view active.");
 const closeLeftEye = action("examiner-close-left-eye", ["close my left eye", "use my right eye", "right examiner eye"], ["close left eye · right view"], "Right examiner-eye view active.");
@@ -36,7 +38,7 @@ export const PRACTICE_VOICE_ACTIONS: Record<PracticeLessonId, readonly PracticeV
   krimsky: [fixateLight, closeRightEye, closeLeftEye, openBothEyes],
   "cover-uncover": [fixateTarget],
   "alternate-cover": [fixateTarget],
-  worth: [fixateTarget, reportPercept],
+  worth: [targetOn, targetOff, fixateTarget, reportPercept],
   stereopsis: [fixateTarget, reportPercept],
   "four-prism": [fixateTarget],
   maddox: [fixateTarget, reportPercept],
@@ -69,14 +71,26 @@ export async function invokePracticeVoiceAction(lessonId: PracticeLessonId, acti
   const control = buttons.find((button) => candidate.controls.some((fragment) => normalized(button.innerText || button.getAttribute("aria-label") || "").includes(normalized(fragment))));
   if (!control) return { accepted: false, spokenText: "Please complete the current setup before asking for that response.", errorCode: "TECHNIQUE_GATE" };
   control.click();
-  if (lessonId === "motility" && actionId === "report-symptoms") {
-    return { accepted: true, spokenText: MOTILITY_PATIENT_REPLY, cacheKey: "practice:motility:report-symptoms" };
-  }
+  if (actionId === "target-on" || actionId === "target-off")
+    return { accepted: true, spokenText: candidate.acknowledgement, suppressAudio: true };
   if (actionId === "request-report" || actionId === "report-clear" || actionId === "report-symptoms") {
     await new Promise<void>(resolve => typeof requestAnimationFrame === "function" ? requestAnimationFrame(() => requestAnimationFrame(() => resolve())) : setTimeout(resolve, 0));
     const report = root.querySelector<HTMLElement>("[data-voice-report]")?.innerText.trim()
-      || root.querySelector<HTMLElement>("[data-voice-status]")?.innerText.trim();
-    if (report) return { accepted: true, spokenText: report.slice(0, 1000) };
+      || (actionId === "request-report" ? "" : root.querySelector<HTMLElement>("[data-voice-status]")?.innerText.trim());
+    if (report) return {
+      accepted: true,
+      spokenText: report.slice(0, 1000),
+      ...(lessonId === "motility" && actionId === "report-symptoms" && report === MOTILITY_PATIENT_REPLY
+        ? { cacheKey: "practice:motility:report-symptoms" } : {}),
+    };
+    if (lessonId === "motility" && actionId === "report-symptoms") {
+      return { accepted: true, spokenText: MOTILITY_PATIENT_REPLY, cacheKey: "practice:motility:report-symptoms" };
+    }
+    if (actionId === "request-report")
+      return { accepted: false, spokenText: "Complete the fitting, target, filter checks, and fixation before asking for the report.", errorCode: "TECHNIQUE_GATE" };
+  }
+  if (actionId === "examiner-close-right-eye" || actionId === "examiner-close-left-eye" || actionId === "examiner-open-both-eyes") {
+    return { accepted: true, spokenText: candidate.acknowledgement, suppressAudio: true };
   }
   return { accepted: true, spokenText: candidate.acknowledgement, cacheKey: `practice:ack:${actionId}` };
 }

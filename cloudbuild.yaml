@@ -2,10 +2,9 @@ substitutions:
   _REGION: us-central1
   _REPOSITORY: opto-platform
   _SERVICE: opto-platform
-  _VOICE_ENABLED: "false"
 steps:
   - name: gcr.io/cloud-builders/docker
-    args: ["build", "--build-arg", "VITE_VOICE_ENABLED=${_VOICE_ENABLED}", "-t", "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$BUILD_ID", "."]
+    args: ["build", "-t", "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$BUILD_ID", "."]
   - name: gcr.io/cloud-builders/docker
     args: ["push", "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$BUILD_ID"]
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim

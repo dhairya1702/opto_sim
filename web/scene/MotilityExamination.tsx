@@ -1,7 +1,7 @@
 import { Component, useEffect, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { EyeSurface } from "./EyeSurface";
-import { gazePositions, motilityRecordedObservation, MOTILITY_PATIENT_REPLY, observeTarget, targetFromControls, type MotilityCoverage } from "../interaction/motility";
+import { gazePositions, motilityObservations, motilityRecordedObservation, motilityScenario, motilityScenarios, observeTarget, targetFromControls, type MotilityCoverage, type MotilityScenarioId } from "../interaction/motility";
 import { TestVoiceControl } from "../voice/TestVoiceControl";
 import { PracticeVoiceControl } from "../voice/PracticeVoiceControl";
 import type { PracticeAttemptKind } from "../practice/PracticeAttemptContext";
@@ -38,7 +38,10 @@ function MotilityHands({ x, y, light }: { x: number; y: number; light: boolean }
   </>;
 }
 
-export function MotilityExamination({ onComplete, onCancel, practiceAttempt }: { onComplete: (observation?: string) => void; onCancel: () => void; practiceAttempt?: PracticeAttemptKind }) {
+export function MotilityExamination({ onComplete, onCancel, practiceAttempt, scenarioId = "full", findingPosition, onNext }: {
+  onComplete: (observation?: string) => void; onCancel: () => void; practiceAttempt?: PracticeAttemptKind;
+  scenarioId?: MotilityScenarioId; findingPosition?: { current: number; total: number }; onNext?: () => void;
+}) {
   const dialog = useRef<HTMLDialogElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const pose = useRef(targetFromControls(0, 0, 0.35));
@@ -50,11 +53,13 @@ export function MotilityExamination({ onComplete, onCancel, practiceAttempt }: {
   const [guides, setGuides] = useState(practiceAttempt !== "test");
   const [asked, setAsked] = useState(false);
   const [observation, setObservation] = useState("");
+  const [checked, setChecked] = useState(false);
   const [failed, setFailed] = useState(false);
   const renderedAt = useRef(0);
   const [coverage, setCoverage] = useState<MotilityCoverage>({ seen: [], current: null, dwell: 0 });
   const reduced = useRef(matchMedia("(prefers-reduced-motion: reduce)").matches);
   const done = useRef(false);
+  const scenario = motilityScenario(scenarioId);
   const update = (x: number, y: number, z = control.z) => {
     const next = { x: Math.max(-1, Math.min(1, x)), y: Math.max(-1, Math.min(1, y)), z };
     pose.current = targetFromControls(next.x, next.y, next.z);
@@ -81,7 +86,17 @@ export function MotilityExamination({ onComplete, onCancel, practiceAttempt }: {
     }, 50);
     return () => clearInterval(timer);
   }, [following, light, failed]);
+  const previousScenario = useRef(scenario.id);
+  useEffect(() => {
+    if (previousScenario.current === scenario.id) return;
+    previousScenario.current = scenario.id;
+    pose.current = targetFromControls(0, 0, control.z);
+    setControl(current => ({ ...current, x: 0, y: 0 }));
+    setFollowing(false); setAsked(false); setObservation(""); setChecked(false);
+    setCoverage({ seen: [], current: null, dwell: 0 }); done.current = false;
+  }, [scenario.id, control.z]);
   const ready = light && coverage.seen.length === gazePositions.length && asked && !!observation && !failed;
+  const correct = observation === scenario.id;
   const recordedObservation = motilityRecordedObservation(observation);
   const movePointer = (e: React.PointerEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -89,7 +104,7 @@ export function MotilityExamination({ onComplete, onCancel, practiceAttempt }: {
   };
   return (
     <dialog ref={dialog} className="examination-stage motility-stage" aria-labelledby="motility-title" onCancel={e => { e.preventDefault(); onCancel(); }}>
-      <header><div><p className="eyebrow">MANUAL EXAMINATION · BOTH EYES</p><h1 id="motility-title">Extraocular motilities</h1></div>{practiceAttempt ? <PracticeVoiceControl /> : <TestVoiceControl />}<button className="secondary" onClick={onCancel}>Cancel</button></header>
+      <header><div><p className="eyebrow">MANUAL EXAMINATION · BOTH EYES</p><h1 id="motility-title">Extraocular motilities</h1></div>{findingPosition && <div className="clinical-stage-distance"><span>Finding</span><strong>{findingPosition.current}/{findingPosition.total}</strong></div>}{practiceAttempt ? <PracticeVoiceControl /> : <TestVoiceControl />}<button className="secondary" onClick={onCancel}>Cancel</button></header>
       {practiceAttempt === "guided" && <div className="motility-guided-step" role="status"><b>Next step</b>{!following ? "Ask the patient to follow the target while keeping the head still." : !light ? "Switch the penlight on." : coverage.seen.length < gazePositions.length ? `Move to the highlighted position and hold steady · ${coverage.seen.length} of ${gazePositions.length} observed.` : !asked ? "Ask about double vision, pain, or discomfort." : !observation ? "Choose the observation that matches what you saw." : "Record the finding."}</div>}
       <div className="motility-instructions">
         <p>Hold the target at 30–40 cm. Keep Arun’s head still, establish primary position, then move through all eight cardinal directions. Watch both eyes and hold each marked position.</p>
@@ -111,7 +126,7 @@ export function MotilityExamination({ onComplete, onCancel, practiceAttempt }: {
             <color attach="background" args={["#16262b"]} />
             <ambientLight intensity={1.6} /><directionalLight position={[-1, 2, 3]} intensity={2} />
             <RenderSignal onFrame={() => { renderedAt.current = performance.now(); }} />
-            {[-0.2, 0.2].map(x => <EyeSurface key={x} x={x} pupils={false} motility progress={0} movement={movement} fixation={pose} tracking={following} reducedMotion={reduced.current} />)}
+            {[-0.2, 0.2].map(x => <EyeSurface key={x} x={x} pupils={false} motility progress={0} movement={movement} fixation={pose} tracking={following} reducedMotion={reduced.current} motilityScenarioId={practiceAttempt ? scenario.id : undefined} />)}
             <MotilityHands x={control.x} y={control.y} light={light} />
           </Canvas>
         </ViewBoundary>
@@ -133,12 +148,16 @@ export function MotilityExamination({ onComplete, onCancel, practiceAttempt }: {
         <p role="status">{coverage.seen.length} / {gazePositions.length} positions observed{coverage.current && !coverage.seen.includes(coverage.current) ? " · hold steady…" : ""}</p>
         <div className="motility-review">
           <button className="secondary" disabled={!following || coverage.seen.length < gazePositions.length} onClick={() => setAsked(true)}>Ask about double vision, pain, or discomfort</button>
-          {asked && <p>Arun: “{MOTILITY_PATIENT_REPLY}”</p>}
-          <label>What did you observe?<select value={observation} onChange={e => setObservation(e.target.value)}><option value="">Choose after observing</option><option value="full">FROM — full, smooth, and accurate movements OU</option><option value="limited">Movement looks restricted, jerky, or unequal</option><option value="unsure">I’m not sure yet</option></select></label>
-          {observation && observation !== "full" && <p className="notice">This case models coordinated movements. Recheck with the target; if uncertain, compare both eyes before recording the authored finding.</p>}
+          {asked && <p>Arun: “<span data-voice-report>{scenario.patientReply}</span>”</p>}
+          <label>What did you observe?<select value={observation} disabled={checked && correct} onChange={e => { setObservation(e.target.value); setChecked(false); }}><option value="">Choose after observing</option>{motilityObservations.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          {checked && <div className={correct ? "trainer-feedback correct" : "trainer-feedback incorrect"}><b>{correct ? "Correct" : "Look again"}</b><p>{correct ? scenario.teachingFeedback : "Compare OD and OS through every gaze direction, then use the patient's symptom localization."}</p>{correct && onNext && <button className="secondary" onClick={onNext}>New patient finding</button>}</div>}
         </div>
-        <button className="primary full" disabled={!ready} onClick={() => { if (done.current || !ready) return; done.current = true; onComplete(recordedObservation); }}>Record finding & return to room →</button>
-        <p className="small muted">Simplified normal-movement model. Position coverage is a practice aid, not a clinical technique score. Your selected observation is preserved for debrief comparison.</p>
+        <button className="primary full" disabled={!ready || (checked && correct)} onClick={() => {
+          if (!ready) return;
+          if (!practiceAttempt) { if (done.current) return; done.current = true; onComplete(recordedObservation); return; }
+          setChecked(true); if (correct) onComplete(recordedObservation);
+        }}>{practiceAttempt ? "Submit / check finding" : "Record finding & return to room →"}</button>
+        <p className="small muted">Simplified draft movement examples. Position coverage is a practice aid, not a clinical technique score or diagnosis. {practiceAttempt ? `${motilityScenarios.length} authored findings are shared by Guided Practice and Test.` : "Your selected observation is preserved for debrief comparison."}</p>
       </footer>
     </dialog>
   );

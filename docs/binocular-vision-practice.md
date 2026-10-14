@@ -4,7 +4,7 @@ This packet records the clinical material supplied by the product owner after co
 
 ## Product boundary
 
-Practice mode teaches one procedure at a time with visible guidance and immediate feedback. It is distinct from Test mode, where the learner selects examinations and diagnoses a fictional patient without procedural coaching. Practice completion is not a score, pass mark, or certification of technique.
+Each skill offers Guided Practice and a module-level Test. They use the same authored finding bank, patient behaviour, procedure requirements, and answer validation; Guided Practice alone adds next-step coaching and gaze guides. The broader consultation Test remains distinct: there the learner selects examinations and diagnoses a fictional patient. Practice completion is not a score, pass mark, or certification of technique.
 
 ## Implemented first slice
 
@@ -19,7 +19,7 @@ Practice mode teaches one procedure at a time with visible guidance and immediat
 - Abnormal recording: name the eye, direction of gaze, observed movement deficit, and symptoms.
 - Escalation: diplopia must be localized to gaze direction and followed by diplopia charting.
 
-The interaction requires primary position plus eight cardinal positions, visible penlight power, and a symptom question. The first-person scene shows the instrument hand and a non-contact free-hand cue. It remains an illustrative enlarged-eye view, not a spatially calibrated technique assessment.
+The interaction requires primary position plus eight cardinal positions, visible penlight power, and a symptom question. Guided Practice and the module-level Test share five authored examples: full smooth movement OU; restricted OD abduction in right gaze; restricted OS abduction in left gaze; restricted OD elevation in upgaze; and horizontal jerk-like nystagmus in right gaze. Each abnormal example has a direction-specific fictional symptom report and requires the matching eye/direction/observed-deficit record. The first-person scene shows the instrument hand and a non-contact free-hand cue. Movement restrictions and oscillation are deliberately visible educational approximations, not diagnoses, calibrated physiology, or a spatially calibrated technique assessment. These new examples and their symptom wording require clinician review.
 
 ### 3.2 Bruckner test
 
@@ -72,6 +72,10 @@ The full-screen trainer provides orthophoria, unilateral left esotropia, and exo
 - The neutralising prism is recorded as the magnitude of the phoria or tropia. Repeat for near.
 
 The trainer varies horizontal and vertical deviations. The dominant hand alternates the occluder while the non-dominant hand holds the prism bar. A prism trial must be followed by a repeated alternating-cover sequence; movement disappears only when both base direction and prism power reach the authored endpoint.
+
+In both the XR clinic and the desktop trainer, both cover tests now show sustained eye positions scaled by the deviation size. The left esotropia is visibly turned in before covering, refixation holds while the cover stays on, and a phoric eye drifts behind the cover and recovers on uncovering. In alternating cover, partial prism visibly reduces the movement. Draft magnitudes are 20Δ left esotropia and 10Δ exophoria. See the cover-test deviation update in `clinical-review.md`; review is pending.
+
+Alternating cover now links the two eyes. The covered eye moves together with the refixation (Hering's law); vertical deviations move the eyes in opposite directions; and the eye looking through the prism turns toward its apex. Neutralisation is reached when neither eye moves, with the prism before either eye. The vertical cases are draft right hypo 8Δ and right hyper 10Δ, recorded as OD's movement plus an R/L deviation label. Desktop now restarts after binocular exposure, no longer fills in the deviation, and requires choosing which eye the prism is before. See the alternating-cover update in `clinical-review.md`.
 
 ### 4.1 Worth four dot
 
@@ -136,6 +140,10 @@ Standard/modified Krimsky now launch through the same clinic shell and runtime. 
 Worth, stereopsis and 4Δ base-out retain `worth.ts`, `sensory.ts`, `stereoPractice.ts` and `fourPrism.ts` as authored content sources. Eight Worth scenarios, red OD/green OS mapping, central-OS's fictional distance behavior, six circle-booklet levels/replies, the two-error stopping rule, last-correct recording, 2400 ms prism observations and normal/OS-suppression responses are unchanged. No Test case facts, diagnosis, management or scoring change is introduced.
 
 XR adds handling assumptions: fitted correction and filters use separate orientation-checked assisted layers; Worth's near endpoint uses ±2 cm around 40 cm as handling tolerance; stereo retains 38–42 cm. The room cannot hold a straight 6 m lane, so an illustrative bounded mirror reflection establishes Worth's existing 600 cm endpoint, with the physical target behind the patient's direct sightline. Actual sample and nominal endpoint are retained distinctly. The mirror is not calibrated optics. The same station displays an illustrative isolated letter for 4Δ fixation without assigning an acuity. Stereo models only the fictional patient's reported circle; headset stereo acuity is not measured.
+
+Worth Guided VR now derives a 14-step coach entirely from live fitting, target handling/orientation/endpoint, persistent power, isolated-filter confirmations, endpoint-specific fixation, immutable report capture, and saved near/distance records. It advances only on those events, never on a dwell timer. Near is coached first, but a valid out-of-order distance record remains saved and the coach returns to the missing endpoint. Correction/filter revision restarts the comparison under the existing reset policy; movement, reversed orientation, loss of illumination, or tracking clears current fixation without rewriting an already captured report. Intermediate target positions cannot produce recordable captures.
+
+The Worth target's modeled side switch is a reachable free-hand instrument control and shares one explicit on/off transition with the accessible board and the bounded voice commands. Power persists through release, transfer, panel use, and movement between endpoints, and clears on reset or VR exit. After endpoint-specific fixation, asking for number, colours, and relative positions produces the current fictional natural-language reply and enlarged illustrative report card; historical records remain separate and are not spoken as the current reply. Voice-disabled attempts retain equivalent board controls. The first correct endpoint produces non-awarding progress feedback; only two correct independent endpoint records complete Practice. Module-level Test preserves the same engine and gates while hiding the coach and instructional highlights. These interactions, speech, target optics, tolerances, and findings remain educational drafts pending qualified clinical and physical-device review.
 
 Reviewer decisions remain unresolved for near/fitting tolerances, the mirrored-station representation, filter-cancellation diagrams, readable reported views, examiner viewing geometry, prism working-cell tolerance/scale and exaggerated eye-motion amplitude. Device testing must cover comfortable fitting/reach, physical near distances, both hands/transfers, panel ray selection, hands-free recording, tracking/guardian interruption, cleanup and frame timing. Review status remains draft. All 20 modules now share the XR clinic and keep existing desktop trainers.
 

@@ -1,20 +1,26 @@
 import { createElement } from "react";
 import { act } from "@react-three/fiber";
-import { Vector3 } from "three";
+import { Object3D, Vector3 } from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { clinic } from "./helpers/xrClinicHarness";
 import { KrimskyPracticeController } from "../practice/xr/KrimskyPracticeController";
 import type { BatchMirror } from "../practice/xr/PracticeLessonUI";
 import { consultationToolDefinition } from "../interaction/xrConsultationTools";
 import { krimskyPrismCellY, KRIMSKY_PRISM_POWERS } from "../interaction/xrKrimskyPractice";
+import { PracticeAttemptProvider, type PracticeAttemptKind } from "../practice/PracticeAttemptContext";
 
 let dispose: (() => Promise<void>) | undefined;
 afterEach(async () => { await dispose?.(); dispose = undefined; vi.unstubAllGlobals(); });
-async function lesson() {
+async function lesson(attemptKind?: PracticeAttemptKind) {
   let mirror: BatchMirror;
   const onMirror = (next: BatchMirror) => { mirror = next; };
   const complete = vi.fn(), leave = vi.fn();
-  const sim = await clinic({ renderAdapter: ({ active }) => createElement(KrimskyPracticeController, { active, onComplete: complete, onExit: leave, onMirror }) });
+  const sim = await clinic({ renderAdapter: ({ active }) => {
+    const controller = createElement(KrimskyPracticeController, { active, onComplete: complete, onExit: leave, onMirror });
+    return attemptKind ? createElement(PracticeAttemptProvider, {
+      value: { settings: { kind: attemptKind, interaction: "vr", voice: "disabled" }, setSettings: vi.fn() }, children: controller,
+    }) : controller;
+  } });
   dispose = sim.dispose;
   const action = async (label: string) => {
     const item = mirror!.actions.find(candidate => candidate.label === label);
@@ -34,43 +40,140 @@ async function lesson() {
     await action("CLOSE RIGHT EYE · LEFT VIEW");
     await sim.step(1 / 72, 72);
   };
-  const prismAt = async (eye: "OD" | "OS") => { await sim.at(1, [eye === "OD" ? -.048 : .048, 1.5 - krimskyPrismCellY(Number(mirror!.status.match(/selected prism (\d+)Δ/)?.[1] ?? 0)), -.481]); await sim.step(1 / 72, 12); };
+  const prismAt = async (eye: "OD" | "OS") => {
+    sim.state.scene.updateMatrixWorld(true);
+    let aperture: Object3D | undefined;
+    sim.tool("prism").traverse(object => { if (object.userData.xrPrismWorkingCell) aperture = object; });
+    const localY = aperture ? sim.tool("prism").worldToLocal(aperture.getWorldPosition(new Vector3())).y
+      : krimskyPrismCellY(Number(mirror!.status.match(/selected prism (\d+)Δ/)?.[1] ?? 0));
+    await sim.at(1, [eye === "OD" ? -.048 : .048, 1.5 - localY, -.481]); await sim.step(1 / 72, 12);
+  };
+  const setBase = async (base: "BI" | "BO") => {
+    sim.axes[1][2] = base === "BI" ? -.8 : .8;
+    await sim.step(1 / 72, 6);
+    sim.axes[1][2] = 0;
+    await sim.step();
+  };
   const setPrism = async (base: "BI" | "BO", power: number) => {
-    await action(base === "BI" ? "BASE IN · BI" : "BASE OUT · BO");
+    await setBase(base);
     const target = KRIMSKY_PRISM_POWERS.indexOf(power as typeof KRIMSKY_PRISM_POWERS[number]);
     if (target < 0) throw new Error(`Power ${power} is not a prism-bar cell`);
-    for (let i = 0; i < target; i++) await action("PRISM CELL UP");
+    const currentPower = Number(mirror!.status.match(/selected prism (\d+)Δ/)?.[1] ?? 0);
+    const current = KRIMSKY_PRISM_POWERS.indexOf(currentPower as typeof KRIMSKY_PRISM_POWERS[number]);
+    const direction = target >= current ? 1 : -1;
+    for (let i = 0; i < Math.abs(target - current); i++) await sim.thumbstick(1, direction);
   };
   const compare = async () => { await sim.event(1, "selectstart"); await sim.event(1, "selectend"); await sim.step(1 / 72, 12); };
   const enterPower = async (power: number, controller = 1) => {
     for (let i = 0; i < Math.floor(power / 5); i++) await sim.click(controller, sim.button("ENTRY +5Δ"));
     for (let i = 0; i < power % 5; i++) await sim.click(controller, sim.button("ENTRY +1Δ"));
   };
-  return { ...sim, mirror: () => mirror!, action, reflex, light, prismAt, setPrism, compare, enterPower, complete, leave };
+  return { ...sim, mirror: () => mirror!, action, reflex, light, prismAt, setBase, setPrism, compare, enterPower, complete, leave };
 }
 describe("mounted Krimsky Practice in the shared clinic", () => {
-  it("uses the prism-hand thumbstick to move one physical cell per gesture with haptics", async () => {
+  it("advances the Guided coach through the physical comparison and explicit recording", async () => {
+    const sim = await lesson("guided");
+    expect(sim.labels()).toContain("GUIDED · STEP 1 OF 7");
+    expect(sim.labels()).toContain("Pick up the penlight");
+    await sim.pickup(0, "pupils");
+    expect(sim.labels()).toContain("GUIDED · STEP 2 OF 7");
+    await sim.action("LOOK AT THE LIGHT");
+    expect(sim.labels()).toContain("GUIDED · STEP 3 OF 7");
+    expect(sim.labels()).toContain("Select the examiner-eye view");
+    await sim.action("CLOSE RIGHT EYE · LEFT VIEW");
+    expect(sim.labels()).toContain("GUIDED · STEP 4 OF 7");
+    expect(sim.labels()).toContain("Observe, then pick up the prism bar");
+    sim.viewerCamera.position.set(0, 1.5, .65); sim.rays[0].rotation.set(0, 0, 0);
+    await sim.at(0, [0, 1.5, .064]); await sim.event(0, "selectstart"); await sim.step(1 / 72, 72);
+    expect(sim.labels()).toContain("GUIDED · STEP 4 OF 7");
+    await sim.pickup(1, "prism");
+    expect(sim.labels()).toContain("GUIDED · STEP 5 OF 7");
+    expect(sim.labels()).toContain("Align the selected prism cell");
+    await sim.prismAt("OS");
+    expect(sim.labels()).toContain("Set the prism direction and power");
+    expect(sim.labels()).toContain("Place the prism before the required eye. Thumbstick left/right selects BI/BO.");
+    await sim.setPrism("BI", 20);
+    expect(sim.mirror().status).toContain("Reflexes match");
+    expect(sim.labels()).toContain("GUIDED · STEP 6 OF 7");
+    expect(sim.labels()).toContain("Capture the comparison");
+    await sim.compare();
+    expect(sim.labels()).toContain("GUIDED · STEP 7 OF 7");
+    expect(sim.labels()).toContain("Record the prism power");
+    await sim.event(0, "selectend"); await sim.putDown(1); await sim.putDown(0);
+    await sim.panel(1); await sim.click(1, sim.button("RECORD FINDING"));
+    await sim.enterPower(20); await sim.click(1, sim.button("SUBMIT / CHECK"));
+    expect(sim.complete).toHaveBeenCalledTimes(1);
+    expect(sim.labels()).toContain("GUIDED · COMPLETE");
+  });
+
+  it("does not show the Krimsky coach during independent Test", async () => {
+    const sim = await lesson("test");
+    expect(sim.labels().some(label => label.startsWith("GUIDED · STEP"))).toBe(false);
+  });
+
+  it("changes examiner-eye state without adding a synthetic ocular view", async () => {
     const sim = await lesson(); await sim.light();
     const monocularViews = () => {
       const views: string[] = [];
       sim.state.scene.traverse(object => { if (object.userData.xrKrimskyMonocularView) views.push(object.userData.xrKrimskyMonocularView); });
       return views;
     };
-    expect(monocularViews()).toEqual(["left"]);
-    await sim.action("CLOSE LEFT EYE · RIGHT VIEW"); expect(monocularViews()).toEqual(["right"]);
+    expect(monocularViews()).toEqual([]);
+    await sim.action("CLOSE LEFT EYE · RIGHT VIEW"); expect(monocularViews()).toEqual([]);
     await sim.action("OPEN BOTH EYES"); expect(monocularViews()).toEqual([]);
     await sim.action("CLOSE RIGHT EYE · LEFT VIEW"); await sim.step(1 / 72, 72);
+  });
+  it("uses the prism-hand thumbstick to move one physical cell per gesture with haptics", async () => {
+    const sim = await lesson(); await sim.light();
     await sim.thumbstick(0, 1);
     expect(sim.haptics[0]).not.toHaveBeenCalled();
-    await sim.pickup(1, "prism"); await sim.action("BASE IN · BI");
+    await sim.pickup(1, "prism"); sim.haptics[1].mockClear();
+    sim.axes[1][2] = -.8; await sim.step(1 / 72, 6);
+    expect(sim.mirror().status).toContain("selected prism 0Δ BI");
+    expect(sim.labels()).toContain("← BASE IN · BI");
+    expect(sim.haptics[1]).toHaveBeenCalledTimes(1);
+    await sim.step(1 / 72, 6); expect(sim.haptics[1]).toHaveBeenCalledTimes(1);
+    sim.axes[1][2] = 0; await sim.step();
+    sim.axes[1][2] = .8; await sim.step(1 / 72, 6);
+    expect(sim.mirror().status).toContain("selected prism 0Δ BO");
+    expect(sim.labels()).toContain("BASE OUT · BO →");
+    sim.axes[1][2] = 0; await sim.step(); await sim.setBase("BI");
     sim.axes[1][3] = -.8; await sim.step(1 / 72, 6);
     expect(sim.mirror().status).toContain("selected prism 5Δ BI");
-    expect(sim.haptics[1]).toHaveBeenCalledTimes(1);
+    expect(sim.haptics[1]).toHaveBeenCalledTimes(4);
     sim.axes[1][3] = 0; await sim.step();
     sim.state.scene.updateMatrixWorld(true);
     const selected: number[] = [];
     sim.tool("prism").traverse(object => { if (object.userData.xrPrismCellSelected) selected.push(object.userData.xrPrismCell); });
     expect(selected).toEqual([1]);
+  });
+  it("soft-locks the aperture, slides the bar behind it, and releases when the prism moves away", async () => {
+    const sim = await lesson(); await sim.light(); await sim.pickup(1, "prism");
+    const part = (key: "xrPrismWorkingCell" | "xrPrismSlidingBar" | "xrPrismReflexWindow") => {
+      let found: Object3D | undefined;
+      sim.tool("prism").traverse(object => { if (object.userData[key]) found = object; });
+      return found;
+    };
+    sim.haptics[1].mockClear();
+    await sim.prismAt("OS");
+    const alignedAperture = part("xrPrismWorkingCell");
+    expect(alignedAperture?.userData.xrPrismAligned).toBe(true);
+    expect(sim.haptics[1]).toHaveBeenCalledTimes(1);
+    await sim.step(1 / 72, 12);
+    expect(sim.haptics[1]).toHaveBeenCalledTimes(1);
+
+    const apertureBefore = part("xrPrismWorkingCell")!.getWorldPosition(new Vector3());
+    const barBefore = part("xrPrismSlidingBar")!.position.y;
+    await sim.setPrism("BI", 20);
+    const apertureAfter = part("xrPrismWorkingCell")!.getWorldPosition(new Vector3());
+    expect(apertureAfter.distanceTo(apertureBefore)).toBeLessThan(.0001);
+    expect(part("xrPrismSlidingBar")!.position.y).toBeLessThan(barBefore);
+    expect(part("xrPrismReflexWindow")).toBeDefined();
+
+    await sim.at(1, [.35, 1.2, -.481]); await sim.step(1 / 72, 12);
+    const releasedAperture = part("xrPrismWorkingCell");
+    expect(releasedAperture?.userData.xrPrismAligned).toBe(false);
+    expect(part("xrPrismReflexWindow")).toBeUndefined();
   });
   it("standard Krimsky moves visible reflexes, captures with the prism trigger and permits independent recording after release", async () => {
     const sim = await lesson(); await sim.light();
@@ -115,31 +218,30 @@ describe("mounted Krimsky Practice in the shared clinic", () => {
     }
     expect(sim.complete).toHaveBeenCalledTimes(2); expect(sim.record).not.toHaveBeenCalled();
   });
-  it("cannot skip baseline, substitute a different instrument, or neutralise a tilted/wrong-eye prism", async () => {
+  it("requires the penlight and physically held prism without any timed baseline gate", async () => {
     const sim = await lesson(); await sim.pickup(0, "objective"); await sim.at(0, [0, 1.33, -.041]); await sim.event(0, "selectstart");
     await sim.action("LOOK AT THE LIGHT"); await sim.action("CLOSE RIGHT EYE · LEFT VIEW"); await sim.step(1 / 72, 72);
-    expect(sim.mirror().ready).toBe(false); expect(sim.mirror().actions.some(action => action.label.includes("INSPECT BASELINE"))).toBe(false);
+    expect(sim.mirror().ready).toBe(false); expect(sim.mirror().status).toContain("Pick up the penlight");
     await sim.event(0, "selectend"); await sim.at(0, consultationToolDefinition("objective").home); await sim.putDown(0);
     await sim.pickup(0, "pupils"); sim.viewerCamera.position.set(0, 1.5, .65); await sim.at(0, [0, 1.5, .064]); await sim.event(0, "selectstart"); await sim.step(1 / 72, 72);
-    expect(sim.mirror().status).toContain("Baseline captured");
+    expect(sim.mirror().status).toContain("Observe the initial reflex positions, then pick up the prism bar");
     await sim.pickup(1, "prism"); await sim.setPrism("BI", 20); await sim.prismAt("OS");
     sim.rays[1].rotation.y = Math.PI / 2; await sim.step(1 / 72, 12); await sim.compare(); expect(sim.mirror().ready).toBe(false);
     sim.rays[1].rotation.y = 0; await sim.prismAt("OD"); await sim.compare(); expect(sim.mirror().ready).toBe(false);
     await sim.prismAt("OS"); await sim.compare(); expect(sim.mirror().ready).toBe(true);
   });
-  it("invalidates unfinished viewing on distance, illumination and tracking loss and clears capture on parameter changes", async () => {
+  it("uses live physical readiness without a timed recapture and clears completed comparisons on parameter changes", async () => {
     const sim = await lesson(); await sim.light(); await sim.pickup(1, "prism"); await sim.setPrism("BI", 20); await sim.prismAt("OS");
     await sim.at(0, [0, 1.5, .264]); await sim.step(1 / 72, 12); await sim.compare(); expect(sim.mirror().ready).toBe(false);
-    await sim.at(1, [.35, 1.2, -.481]); await sim.at(0, [0, 1.5, .064]); await sim.step(1 / 72, 72); await sim.prismAt("OS");
-    await sim.event(0, "selectend"); await sim.step(1 / 72, 12); await sim.event(0, "selectstart"); await sim.step(1 / 72, 12);
+    await sim.at(0, [0, 1.5, .064]); await sim.step(1 / 72, 12); await sim.prismAt("OS");
+    await sim.event(0, "selectend"); await sim.step(1 / 72, 12); await sim.compare(); expect(sim.mirror().ready).toBe(false);
+    await sim.event(0, "selectstart"); await sim.step(1 / 72, 12); await sim.compare(); expect(sim.mirror().ready).toBe(true);
+    await sim.action("PRISM CELL UP"); expect(sim.mirror().ready).toBe(false); expect(sim.mirror().lesson.entries).toEqual({});
+    await sim.action("PRISM CELL DOWN"); await sim.prismAt("OS");
+    sim.tracked[0] = false; await sim.step(1 / 72, 12);
     await sim.compare(); expect(sim.mirror().ready).toBe(false);
-    await sim.at(1, [.35, 1.2, -.481]); await sim.step(1 / 72, 72); await sim.prismAt("OS");
-    sim.tracked[0] = false; await sim.step(1 / 72, 12); sim.tracked[0] = true; await sim.step(1 / 72, 12);
-    await sim.event(0, "selectend"); await sim.event(0, "selectstart"); await sim.step(1 / 72, 12);
-    await sim.compare(); expect(sim.mirror().ready).toBe(false);
-    await sim.at(1, [.35, 1.2, -.481]); await sim.step(1 / 72, 72); await sim.prismAt("OS"); await sim.compare();
-    expect(sim.mirror().ready).toBe(true); await sim.action("PRISM CELL UP"); expect(sim.mirror().ready).toBe(false); expect(sim.mirror().lesson.entries).toEqual({});
-    await sim.action("PRISM CELL DOWN"); await sim.prismAt("OS"); await sim.compare(); expect(sim.mirror().ready).toBe(true);
+    sim.tracked[0] = true; await sim.event(0, "selectend"); await sim.at(0, [0, 1.5, .064]); await sim.event(0, "selectstart"); await sim.step(1 / 72, 12);
+    await sim.compare(); expect(sim.mirror().ready).toBe(true);
     await sim.action("MODIFIED · OD"); expect(sim.mirror().ready).toBe(false); expect(sim.mirror().lesson.entries).toEqual({});
     expect(sim.complete).not.toHaveBeenCalled();
   });
