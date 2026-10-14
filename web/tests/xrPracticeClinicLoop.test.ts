@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { clinic } from "./helpers/xrClinicHarness";
 import { HirschbergPracticeController, type HirschbergPracticeMirror } from "../practice/xr/HirschbergPracticeController";
 import type { OpticScenario } from "../practice/ClinicalPracticeStage";
+import { XR_PRACTICE_BOARD_POSITION, XR_PRACTICE_BOARD_SCALE } from "../scene/XRPracticeFindingsBoard";
 
 let dispose: (() => Promise<void>) | undefined;
 afterEach(async () => { await dispose?.(); dispose = undefined; vi.unstubAllGlobals(); });
@@ -96,8 +97,8 @@ describe("Hirschberg in the shared consultation clinic", () => {
     let board: THREE.Object3D | undefined;
     sim.state.scene.traverse(object => { if (object.userData.xrPersistentFindings) board = object; });
     expect(board).toBeDefined();
-    expect(board!.position.toArray()).toEqual([1.2, 1.62, -2.46]);
-    expect(board!.scale.x).toBe(1.75);
+    expect(board!.position.toArray()).toEqual([...XR_PRACTICE_BOARD_POSITION]);
+    expect(board!.scale.x).toBe(XR_PRACTICE_BOARD_SCALE);
     const labelTextures: THREE.CanvasTexture[] = [];
     board!.traverse(object => {
       if (!(object instanceof THREE.Mesh)) return;
@@ -125,7 +126,7 @@ describe("Hirschberg in the shared consultation clinic", () => {
     await sim.event(1, "squeezeend"); await sim.step();
     const restored: THREE.Object3D[] = [];
     sim.state.scene.traverse(object => { if (object.userData.xrPersistentFindings) restored.push(object); });
-    expect(restored).toHaveLength(1); expect(restored[0].position.toArray()).toEqual([1.2, 1.62, -2.46]);
+    expect(restored).toHaveLength(1); expect(restored[0].position.toArray()).toEqual([...XR_PRACTICE_BOARD_POSITION]);
   });
   it("retains an inspected finding for submission after looking at the wall and putting the light down", async () => {
     const sim = await lesson(); await sim.prepare();

@@ -4,6 +4,9 @@ import { Group } from "three";
 import type { XRClinicRuntime } from "../interaction/useXRClinicRuntime";
 import type { ConsultationToolId } from "../interaction/xrConsultationTools";
 
+export const XR_PRACTICE_BOARD_POSITION = [1.25, 1.42, -2.46] as const;
+export const XR_PRACTICE_BOARD_SCALE = 1.5;
+
 /** Practice findings live on the rear wall, to the right of the seated patient. */
 export function XRPracticeFindingsBoard({ runtime, active, tools, hidden = false, forceVisible = false, children }: {
   runtime: XRClinicRuntime; active: boolean; tools: readonly ConsultationToolId[]; hidden?: boolean; forceVisible?: boolean; children: ReactNode;
@@ -29,5 +32,6 @@ export function XRPracticeFindingsBoard({ runtime, active, tools, hidden = false
   }, [active, runtime.tools, key]);
   useFrame(() => { root.current?.updateMatrixWorld(true); }, -1);
   if (!active || (!shown && !forceVisible) || hidden) return null;
-  return <group ref={register} position={[1.2, 1.62, -2.46]} scale={1.75} userData={{ xrPanel: true, xrPersistentFindings: true }}>{children}</group>;
+  return <group ref={register} position={[...XR_PRACTICE_BOARD_POSITION]} scale={XR_PRACTICE_BOARD_SCALE}
+    userData={{ xrPanel: true, xrPersistentFindings: true }}>{children}</group>;
 }

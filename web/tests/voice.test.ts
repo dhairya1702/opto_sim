@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { PRACTICE_LESSON_IDS, PRACTICE_VOICE_ACTIONS } from "../voice/practiceActions";
+import { invokePracticeVoiceAction, PRACTICE_LESSON_IDS, PRACTICE_VOICE_ACTIONS } from "../voice/practiceActions";
 import { VoiceOutputArbiter } from "../voice/outputArbiter";
 import { validVoiceCommand } from "../voice/contracts";
 import { SOCIAL_VOICE_REPLIES, socialVoiceReply } from "../voice/socialReplies";
 import voiceManifest from "../../voice-assets/manifest.json";
+import voiceIndex from "../../public/audio/voice/index.json";
 import { TEST_VOICE_INSTRUCTIONS, TEST_VOICE_INSTRUCTION_CONTROLS } from "../voice/testInstructions";
 import { PATIENT_VOICE_REPLIES, patientVoiceReply } from "../voice/patientReplies";
 
@@ -50,6 +51,25 @@ describe("voice contracts and Practice allowlists", () => {
       for (const action of actions) acknowledgements.set(action.id, action.acknowledgement);
     for (const [actionId, text] of acknowledgements)
       expect(manifest.get(`practice:ack:${actionId}`)).toBe(text);
+    expect(manifest.get("practice:motility:report-symptoms")).toBe("No double vision, pain, or discomfort in any direction.");
+    expect(voiceIndex["practice:motility:report-symptoms"]).toMatchObject({ voice: "Charon" });
+  });
+  it("returns the completed motility symptom report as canonical patient audio", async () => {
+    const click = vi.fn();
+    const button = {
+      disabled: false, offsetParent: {}, innerText: "ASK ABOUT SYMPTOMS", click,
+      getAttribute: () => null,
+    } as unknown as HTMLButtonElement;
+    const root = {
+      querySelectorAll: () => [button],
+      querySelector: () => null,
+    } as unknown as ParentNode;
+    await expect(invokePracticeVoiceAction("motility", "report-symptoms", root)).resolves.toEqual({
+      accepted: true,
+      spokenText: "No double vision, pain, or discomfort in any direction.",
+      cacheKey: "practice:motility:report-symptoms",
+    });
+    expect(click).toHaveBeenCalledTimes(1);
   });
   it("maps every Test patient instruction to a desktop examination control", () => {
     expect(TEST_VOICE_INSTRUCTIONS).toContain("read-chart");

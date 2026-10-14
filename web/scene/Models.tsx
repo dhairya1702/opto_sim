@@ -1,8 +1,11 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useFrame } from "@react-three/fiber";
 import { RoundedBox } from "@react-three/drei";
-import { CanvasTexture, LinearFilter, RepeatWrapping, SRGBColorSpace, Vector3, Quaternion } from "three";
+import { CanvasTexture, LinearFilter, RepeatWrapping, SRGBColorSpace, Vector3, Quaternion, type Mesh } from "three";
 import { CLINIC_IRIS_RADIUS, CLINIC_PUPIL_RADIUS } from "../interaction/clinicPatient";
 import { INSTRUMENT_KIT, INSTRUMENT_KIT_ROTATION_Y } from "../interaction/clinicLayout";
+import { PATIENT_BLINK_DURATION_SECONDS, patientBlinkClosure, patientBlinkDelay, patientMouthTarget } from "../interaction/patientAnimation";
+import { useVoiceStatus } from "../voice/VoiceStatusContext";
 import { RetinoscopeModel } from "./RetinoscopeModel";
 import { ExamPaddleModel, MotilityTargetModel, NearCardModel, OphthalmoscopeModel, PenlightModel, TrialFrameModel } from "./ExamInstrumentModels";
 type V = [number, number, number];
@@ -245,7 +248,91 @@ export function ConsultingRoomShell() {
     {Array.from({ length: 12 }, (_, i) => <Box key={i} p={[-1.96, 1.36 + i * 0.1, -0.25]} s={[0.025, 0.065, 1.52]} c="#edf0e5" r={[0, 0, 0.07]} />)}
     <Box p={[1.42, 1.1, 2.48]} s={[0.85, 2.2, 0.04]} c="#b4c3bc" />
     <Cylinder p={[1.12, 1.02, 2.42]} h={0.16} radius={0.014} c="#788c8a" r={[0, 0, Math.PI / 2]} />
-    <Sign text={["CONSULTATION 01", "OPTOMETRY"]} p={[-1.15, 2.28, -2.485]} size={[0.95, 0.33]} />
+  </>;
+}
+
+function usePatientReducedMotion() {
+  const [reducedMotion, setReducedMotion] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReducedMotion(preference.matches);
+    update();
+    preference.addEventListener("change", update);
+    return () => preference.removeEventListener("change", update);
+  }, []);
+  return reducedMotion;
+}
+
+function PatientFaceAnimation({ skin }: { skin: string }) {
+  const voiceStatus = useVoiceStatus();
+  const reducedMotion = usePatientReducedMotion();
+  const eyelids = useRef<Array<Mesh | null>>([]);
+  const mouthInterior = useRef<Mesh | null>(null);
+  const lowerLip = useRef<Mesh | null>(null);
+  const nextBlinkAt = useRef<number | null>(null);
+  const blinkStartedAt = useRef<number | null>(null);
+  const mouthOpen = useRef(0);
+
+  useFrame(({ clock }, delta) => {
+    const elapsed = clock.elapsedTime;
+    if (nextBlinkAt.current === null) nextBlinkAt.current = elapsed + patientBlinkDelay(Math.random());
+    if (blinkStartedAt.current === null && elapsed >= nextBlinkAt.current) blinkStartedAt.current = elapsed;
+
+    let closure = 0;
+    if (blinkStartedAt.current !== null) {
+      const blinkElapsed = elapsed - blinkStartedAt.current;
+      closure = patientBlinkClosure(blinkElapsed);
+      if (blinkElapsed >= PATIENT_BLINK_DURATION_SECONDS) {
+        blinkStartedAt.current = null;
+        nextBlinkAt.current = elapsed + patientBlinkDelay(Math.random());
+      }
+    }
+    eyelids.current.forEach(lid => {
+      if (!lid) return;
+      lid.visible = closure > 0.015;
+      lid.scale.y = Math.max(0.0001, 0.014 * closure);
+    });
+
+    const target = patientMouthTarget(elapsed, voiceStatus === "speaking", reducedMotion);
+    const blend = 1 - Math.exp(-Math.min(delta, 0.1) * (target > mouthOpen.current ? 18 : 13));
+    mouthOpen.current += (target - mouthOpen.current) * blend;
+    const opening = mouthOpen.current;
+    if (mouthInterior.current) {
+      mouthInterior.current.visible = opening > 0.025;
+      mouthInterior.current.scale.y = Math.max(0.0001, 0.0105 * opening);
+    }
+    if (lowerLip.current) lowerLip.current.position.y = 1.39 - 0.012 * opening;
+  });
+
+  return <>
+    {[-1, 1].map((side, index) => (
+      <mesh
+        key={side}
+        ref={node => { eyelids.current[index] = node; }}
+        position={[side * 0.048, 1.5, 0.135]}
+        scale={[0.03, 0.0001, 0.006]}
+        visible={false}
+        raycast={() => null}
+        userData={{ patientFaceAnimation: "blink" }}
+      >
+        <sphereGeometry args={[1, 24, 12]} />
+        <meshStandardMaterial color={skin} roughness={0.82} />
+      </mesh>
+    ))}
+    <mesh ref={mouthInterior} position={[0, 1.393, 0.124]} scale={[0.027, 0.0001, 0.006]}
+      visible={false} raycast={() => null} userData={{ patientFaceAnimation: "mouth" }}>
+      <sphereGeometry args={[1, 24, 12]} />
+      <meshStandardMaterial color="#35201f" roughness={0.9} />
+    </mesh>
+    <mesh position={[0, 1.397, 0.128]} scale={[0.032, 0.0045, 0.007]} raycast={() => null}>
+      <sphereGeometry args={[1, 24, 12]} />
+      <meshStandardMaterial color="#684638" roughness={0.86} />
+    </mesh>
+    <mesh ref={lowerLip} position={[0, 1.39, 0.128]} scale={[0.031, 0.0045, 0.007]} raycast={() => null}>
+      <sphereGeometry args={[1, 24, 12]} />
+      <meshStandardMaterial color="#684638" roughness={0.86} />
+    </mesh>
   </>;
 }
 
@@ -270,7 +357,6 @@ export function Patient({ xr = false }: { xr?: boolean }) {
       <Orb p={[0, 1.48, 0]} s={[0.13, 0.18, 0.13]} c={skin} />
       <Orb p={[0, 1.57, -0.03]} s={[0.139, 0.11, 0.126]} c="#272627" />
       <Orb p={[0, 1.46, 0.128]} s={[0.024, 0.04, 0.03]} c={skin} />
-      <Orb p={[0, 1.393, 0.111]} s={[0.032, 0.007, 0.012]} c="#684638" />
       {[-1, 1].map((side) => (
         <group key={side}>
           <Orb p={[side * 0.13, 1.48, 0]} s={[0.024, 0.04, 0.025]} c={skin} />
@@ -291,6 +377,7 @@ export function Patient({ xr = false }: { xr?: boolean }) {
           <Orb p={[side * 0.17, 0.085, 0.55]} s={[0.09, 0.06, 0.16]} c="#303334" />
         </group>
       ))}
+      <PatientFaceAnimation skin={skin} />
       <Box p={[0, 0.28, 0.49]} s={[0.55, 0.035, 0.23]} c="#aeb9b9" radius={.015} />
     </group>
   );

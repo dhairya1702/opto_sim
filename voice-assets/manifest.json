@@ -68,6 +68,7 @@
     { "key": "practice:ack:fixate-target", "text": "Okay, I am looking at the target." },
     { "key": "practice:ack:follow-target", "text": "Okay, I will follow it with my eyes." },
     { "key": "practice:ack:report-symptoms", "text": "I will tell you if I notice double vision, pain, or discomfort." },
+    { "key": "practice:motility:report-symptoms", "text": "No double vision, pain, or discomfort in any direction." },
     { "key": "practice:ack:request-report", "text": "I can report what I see now that the examination setup is ready." },
     { "key": "practice:ack:report-clear", "text": "It is clear and single now." },
     { "key": "practice:ack:examiner-close-right-eye", "text": "Left examiner-eye view active." },

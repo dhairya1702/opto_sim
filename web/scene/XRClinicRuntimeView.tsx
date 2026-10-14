@@ -10,7 +10,7 @@ import { consultationToolDefinition, consultationPickupLabel, toolInHand, type C
 import type { XRClinicRuntime, XRClinicHand } from "../interaction/useXRClinicRuntime";
 import type { FundusScopeView, BrucknerScopeView } from "./XRScopeOptics";
 import { XRScopeView } from "./XRScopeView";
-export function XRClinicRuntimeView({ runtime, active, preview = false, title = "VR CONSULTATION", instruction = "Explore freely · A/X · patient menu", cleanHands = false, helperHand, helperReady = false, fundusView, brucknerView, sensoryStation, instrumentSettings, selectableEquipment }: {
+export function XRClinicRuntimeView({ runtime, active, preview = false, title = "VR CONSULTATION", instruction = "Explore freely · A/X · patient menu", showWallInstructions = true, cleanHands = false, helperHand, helperReady = false, fundusView, brucknerView, sensoryStation, instrumentSettings, selectableEquipment }: {
   instrumentSettings?: ClinicInstrumentSettings;
   selectableEquipment?: readonly ConsultationToolId[];
   runtime: XRClinicRuntime;
@@ -19,6 +19,8 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
   preview?: boolean;
   title?: string;
   instruction?: string;
+  /** Guided lessons can replace the generic wall placard with their own coach. */
+  showWallInstructions?: boolean;
   cleanHands?: boolean;
   helperHand?: XRClinicHand | null;
   helperReady?: boolean;
@@ -29,7 +31,7 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
   const showGuides = active || preview;
   return <>
     <XRScopeView active={active && !preview && runtime.scopeViewHand !== null} brucknerView={brucknerView} fundusView={fundusView} />
-    {showGuides && <group userData={{ xrWallWelcome: true }}>
+    {showGuides && showWallInstructions && <group userData={{ xrWallWelcome: true }}>
       <Sign text={active
         ? [title, "Grip once · pick up / transfer · again · place", "Trigger · use · A/X · menu · free-hand B/Y · VR controls", instruction]
         : ["DESKTOP VR PREVIEW", "WASD + mouse · inspect the clinic", "E / click · select tools", "Floor rings · headset destinations"]
@@ -98,7 +100,7 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
           </primitive>
         </group>;
       })}
-      {handlingMessage && <Sign text={[handlingMessage]} p={[-1.15, 1.48, -2.45]} size={[.72, .08]} bg="#173a3e" fg="#e8fff9" />}
+      {showWallInstructions && handlingMessage && <Sign text={[handlingMessage]} p={[-1.15, 1.48, -2.45]} size={[.72, .08]} bg="#173a3e" fg="#e8fff9" />}
     </>}
   </>;
 }

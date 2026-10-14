@@ -4,8 +4,11 @@ import { CLINIC_EYE_MIDPOINT, CLINIC_PATIENT_EYES } from "../../interaction/clin
 import { useXRClinicRuntime } from "../../interaction/useXRClinicRuntime";
 import { gazeForEye, gazePositions, observeTarget, motilityObservations, motilityRecordedObservation, MOTILITY_DWELL_SECONDS, type MotilityCoverage } from "../../interaction/motility";
 import { xrMotilityTarget } from "../../interaction/xrMotility";
+import { MOTILITY_GUIDED_STEP_COUNT, motilityGuidedStep } from "../../interaction/motilityGuidance";
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
+import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
 import { XRSign } from "../../scene/XRClinicPanels";
+import { usePracticeAttempt } from "../PracticeAttemptContext";
 import { useClinicEyeMotion } from "./useClinicEyeMotion";
 import { PracticeLessonUI, usePracticeLesson, type BatchMirror, type LessonField } from "./PracticeLessonUI";
 
@@ -15,6 +18,8 @@ const initialReadout = () => ({ count: 0, current: "", distance: 0, tracking: fa
 export function MotilityPracticeController({ active, preview = false, onComplete, onExit, onMirror }: {
   active: boolean; preview?: boolean; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
 }) {
+  const { settings } = usePracticeAttempt();
+  const guided = settings?.kind === "guided";
   const lesson = usePracticeLesson(onComplete);
   const [guides, setGuides] = useState(true);
   const [following, setFollowing] = useState(false), [asked, setAsked] = useState(false);
@@ -71,6 +76,14 @@ export function MotilityPracticeController({ active, preview = false, onComplete
     : readout.count < gazePositions.length ? `${readout.count}/9 gaze points · ${readout.distance} cm · ${readout.current || "hold the lit penlight at 30–40 cm"}`
     : !asked ? "Nine gaze points observed · ask about symptoms."
       : "9/9 complete · patient reports no diplopia, pain or discomfort · choose the movement observation and submit.";
+  const guidance = motilityGuidedStep({
+    toolHeld: runtime.tools.pupils.placement.kind === "held",
+    following,
+    seen: coverage.current.seen,
+    symptomsAsked: asked,
+    observationChosen: Boolean(lesson.entries.observation),
+    recorded: lesson.recorded,
+  });
   const record = () => {
     const observation = lesson.entriesRef.current.observation;
     const valid = active && followingRef.current && coverage.current.seen.length === gazePositions.length && askedRef.current;
@@ -79,7 +92,10 @@ export function MotilityPracticeController({ active, preview = false, onComplete
   useEffect(() => { onMirror?.({ title: "Motility", status, ready, entryReady: ready, fields, actions, lesson, reset, record }); },
     [onMirror, status, ready, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, following, asked, guides]);
   return <>
-    <XRClinicRuntimeView cleanHands runtime={runtime} active={active && !preview} preview={preview} title="MOTILITY · PRACTICE" />
+    <XRClinicRuntimeView cleanHands runtime={runtime} active={active && !preview} preview={preview}
+      title="MOTILITY · PRACTICE" showWallInstructions={!guided} />
+    {(active || preview) && guided && <XRGuidedStepBubble stepId={guidance.id} stepNumber={guidance.index + 1}
+      total={MOTILITY_GUIDED_STEP_COUNT} title={guidance.title} lines={guidance.lines} complete={guidance.complete} />}
     {active && guides && gazePositions.map(position => {
       const seen = coverage.current.seen.includes(position.id);
       const current = readout.current === position.id && !seen;

@@ -1,3 +1,5 @@
+import { MOTILITY_PATIENT_REPLY } from "../interaction/motility";
+
 export const PRACTICE_LESSON_IDS = [
   "motility", "bruckner", "hirschberg", "krimsky", "cover-uncover", "alternate-cover",
   "worth", "stereopsis", "four-prism", "maddox", "thorington", "npc",
@@ -67,6 +69,9 @@ export async function invokePracticeVoiceAction(lessonId: PracticeLessonId, acti
   const control = buttons.find((button) => candidate.controls.some((fragment) => normalized(button.innerText || button.getAttribute("aria-label") || "").includes(normalized(fragment))));
   if (!control) return { accepted: false, spokenText: "Please complete the current setup before asking for that response.", errorCode: "TECHNIQUE_GATE" };
   control.click();
+  if (lessonId === "motility" && actionId === "report-symptoms") {
+    return { accepted: true, spokenText: MOTILITY_PATIENT_REPLY, cacheKey: "practice:motility:report-symptoms" };
+  }
   if (actionId === "request-report" || actionId === "report-clear" || actionId === "report-symptoms") {
     await new Promise<void>(resolve => typeof requestAnimationFrame === "function" ? requestAnimationFrame(() => requestAnimationFrame(() => resolve())) : setTimeout(resolve, 0));
     const report = root.querySelector<HTMLElement>("[data-voice-report]")?.innerText.trim()

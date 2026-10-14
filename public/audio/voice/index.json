@@ -382,5 +382,29 @@
     "textHash": "47301ffc62270e3b00a0a4521ba53a31cd389c3d2ae50cc3a64da5b2ff1c78bd",
     "voice": "Charon",
     "generatedBy": "Google Gemini TTS"
+  },
+  "practice:motility:report-symptoms": {
+    "file": "cHJhY3RpY2U6bW90aWxpdHk6cmVwb3J0LXN5bXB0b21z.mp3",
+    "textHash": "8334c397439b544d80311a9bbea634400819a7bb3cbb006d3177c96a21e4e94a",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "practice:ack:examiner-close-right-eye": {
+    "file": "cHJhY3RpY2U6YWNrOmV4YW1pbmVyLWNsb3NlLXJpZ2h0LWV5ZQ.mp3",
+    "textHash": "6f13746e811c97110cc0e8140d4ec04ae7170770e43c6ee5aadad1e6d2b09ca8",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "practice:ack:examiner-close-left-eye": {
+    "file": "cHJhY3RpY2U6YWNrOmV4YW1pbmVyLWNsb3NlLWxlZnQtZXll.mp3",
+    "textHash": "4fcf4f236cf287c6641056c1036f1c28c23c3e5be6d0d7cd5b6dae3675a52b4f",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "practice:ack:examiner-open-both-eyes": {
+    "file": "cHJhY3RpY2U6YWNrOmV4YW1pbmVyLW9wZW4tYm90aC1leWVz.mp3",
+    "textHash": "33270e5042988635dc9e6d12a6185575c60c5bd7dfd1004fc7ed3c5d259ea45e",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
   }
 }
