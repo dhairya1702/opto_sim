@@ -140,7 +140,7 @@ export function PracticeLessonUI({ runtime, active, title, status, help, tools, 
       {lesson.recorded && onNext && <XRPanelButton label="NEW PATIENT FINDING" position={[0, recordBottom - .185, .012]} width={.70} onClick={onNext} />}
     </>;
   return <>
-    <XRPracticeResultHUD active={active} result={lesson.result} onTryNewCase={() => {
+    <XRPracticeResultHUD active={active} result={lesson.result} nextCaseLabel={onNext ? "TRY NEW CASE" : "REPEAT SAME CASE"} onTryNewCase={() => {
       lesson.clearResult();
       if (onNext) onNext(); else onReset();
     }} />

@@ -35,7 +35,9 @@ function resultLines(message: string) {
 }
 
 /** Shared feedback; only a correct result exposes the explicit next-case action. */
-export function XRPracticeResultHUD({ result, active, onTryNewCase }: { result: Result | null; active: boolean; onTryNewCase?: () => void }) {
+export function XRPracticeResultHUD({ result, active, onTryNewCase, nextCaseLabel = "TRY NEW CASE" }: {
+  result: Result | null; active: boolean; onTryNewCase?: () => void; nextCaseLabel?: string;
+}) {
   const root = useRef<Group>(null);
   const pose = useRef({ position: new Vector3(), rotation: new Quaternion(), offset: new Vector3() });
   useFrame(({ gl, camera }) => {
@@ -64,6 +66,6 @@ export function XRPracticeResultHUD({ result, active, onTryNewCase }: { result: 
     <mesh position={[0, -.02, -.012]}><planeGeometry args={[.84, height + (canTryNewCase ? .30 : .18)]} /><meshBasicMaterial color={background} /></mesh>
     <XRSign text={[heading]} p={[0, height / 2 + .015, 0]} size={[.78, .075]} bg={background} fg="#ffffff" />
     <XRSign text={lines} p={[0, -.065, .002]} size={[.78, height]} bg={background} fg="#ffffff" />
-    {canTryNewCase && <XRPanelButton label="TRY NEW CASE" position={[0, -height / 2 - .085, .012]} width={.50} onClick={() => onTryNewCase?.()} />}
+    {canTryNewCase && <XRPanelButton label={nextCaseLabel} position={[0, -height / 2 - .085, .012]} width={.50} onClick={() => onTryNewCase?.()} />}
   </group>;
 }
