@@ -50,6 +50,7 @@ export class VoiceSession {
     let command = null;
     if (call.name === "route_history") command = { kind: "history", factIds: call.args?.factIds || [], utteranceId, transcript };
     if (call.name === "patient_instruction") command = { kind: "patient-instruction", instructionId: call.args?.instructionId, utteranceId, transcript };
+    if (call.name === "encounter_action") command = { kind: "encounter-action", actionId: call.args?.actionId, utteranceId, transcript };
     if (call.name === "practice_action") command = { kind: "practice-action", lessonId: context.lessonId, actionId: call.args?.actionId, utteranceId, transcript };
     if (command && commandAllowed(command, context)) this.route(command, "semantic");
   }
@@ -81,7 +82,7 @@ export class VoiceSession {
     this.pendingFallback = null;
   }
   async canonical(body) {
-    if (!this.seenUtterances.has(body.utteranceId) || !body.result.accepted) { send(this.ws, { type: "status", status: "listening" }); return; }
+    if (!this.seenUtterances.has(body.utteranceId) || !body.result.accepted || body.result.suppressAudio) { send(this.ws, { type: "status", status: "listening" }); return; }
     const routedAt = this.routedAt.get(body.utteranceId); this.routedAt.delete(body.utteranceId);
     if (body.clientAudio) { this.log("canonical_audio", null, { source: "preloaded", responseLatencyMs: routedAt ? Date.now() - routedAt : undefined }); return; }
     try {

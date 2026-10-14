@@ -1,11 +1,15 @@
 const normalize = (value) => value.toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 const prohibited = /answer key|rubric|score|diagnos|test result|ignore .*instruction|system prompt|prescription|lens power/;
 const instructionPatterns = {
-  "look-straight": ["look straight", "look ahead", "fixate distance"],
-  "fixate-target": ["look at the target", "fixate the target", "keep looking at"],
-  "follow-target": ["follow the target", "follow the light", "follow this"],
-  "report-symptoms": ["symptom", "double vision", "any pain", "any discomfort", "tell me if"],
-  "read-chart": ["read the chart", "read the letters", "read this line", "read the near card"],
+  "look-straight": ["look straight", "look ahead", "look into the distance", "look in the distance", "look over my shoulder", "fixate distance", "far target"],
+  "fixate-target": ["look at the target", "look at this target", "look at my target", "look at the light", "look at my light", "fixate the target", "fixate this", "keep looking at", "keep your eyes on"],
+  "follow-target": ["follow the target", "follow this target", "follow my target", "follow the light", "follow my light", "follow this light", "follow my finger", "track the target", "track my light", "move your eyes with"],
+  "report-symptoms": ["symptom", "double vision", "see double", "see two", "any pain", "does it hurt", "any discomfort", "tell me if"],
+  "read-chart": ["read the chart", "read the letters", "read this line", "read that line", "smallest line", "read the near card"],
+};
+const encounterActionPatterns = {
+  "dim-room": ["dim the lights", "dim room", "dim the room", "turn the room lights down", "lower the room lights", "make the room darker", "lights off", "turn off the lights", "switch off the lights", "room lights off"],
+  "restore-room": ["restore the lights", "restore room lights", "turn the room lights on", "turn the lights back on", "bring the lights back up", "brighten the room", "lights on", "turn on the lights", "switch on the lights", "room lights on"],
 };
 const practicePatterns = {
   "fixate-light": ["look at the light", "fixate the light"],
@@ -57,6 +61,9 @@ export function routeDeterministic(transcript, context, utteranceId) {
   if (/\bdiagnos|what do i have|whats wrong with my eyes/.test(q)) return { kind: "patient-reply", replyId: "diagnosis", utteranceId, transcript };
   if (prohibited.test(q)) return { kind: "patient-reply", replyId: "results", utteranceId, transcript };
   if (context.mode === "test") {
+    for (const [actionId, patterns] of Object.entries(encounterActionPatterns)) {
+      if (context.allowedActions.includes(actionId) && patterns.some(pattern => q.includes(pattern))) return { kind: "encounter-action", actionId, utteranceId, transcript };
+    }
     for (const [instructionId, patterns] of Object.entries(instructionPatterns)) {
       if (context.allowedActions.includes(instructionId) && patterns.some(pattern => q.includes(pattern))) return { kind: "patient-instruction", instructionId, utteranceId, transcript };
     }

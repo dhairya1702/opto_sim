@@ -24,6 +24,7 @@ describe("voice contracts and Practice allowlists", () => {
     expect(validVoiceCommand({ kind: "history", factIds: ["onset"], utteranceId: "u1", transcript: "When?" })).toBe(true);
     expect(validVoiceCommand({ kind: "history", factIds: "onset", utteranceId: "u1", transcript: "When?" })).toBe(false);
     expect(validVoiceCommand({ kind: "practice-action", lessonId: "worth", actionId: "request-report", utteranceId: "u2", transcript: "x".repeat(501) })).toBe(false);
+    expect(validVoiceCommand({ kind: "encounter-action", actionId: "dim-room", utteranceId: "u3", transcript: "Dim the lights" })).toBe(true);
   });
   it("accepts only well-formed social commands and maps each fixed reply to a cache key", () => {
     expect(validVoiceCommand({ kind: "social", socialId: "greeting", utteranceId: "u3", transcript: "Hi" })).toBe(true);

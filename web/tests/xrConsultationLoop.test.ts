@@ -194,6 +194,27 @@ describe("mounted consultation two-controller walkthrough", () => {
 
 
 describe("free consultation responses", () => {
+  it("routes spoken room-light commands to the physical clinic lighting state", async () => {
+    const sim = await clinic(); dispose = sim.dispose;
+    const roomLights: THREE.Light[] = [];
+    sim.state.scene.traverse(object => {
+      if (object instanceof THREE.Light && !object.userData.instrumentLight) roomLights.push(object);
+    });
+    expect(roomLights.length).toBeGreaterThan(0);
+    const baseline = roomLights.map(light => light.intensity);
+
+    const dimmed = await sim.environment("dim-room", "Please dim the lights");
+    expect(dimmed.spokenText).toContain("dim now");
+    roomLights.forEach((light, index) => expect(light.intensity).toBeCloseTo(baseline[index] * .38));
+    const repeated = await sim.environment("dim-room", "Make the room darker");
+    expect(repeated.spokenText).toContain("already dim");
+
+    const restored = await sim.environment("restore-room", "Turn the lights back on");
+    expect(restored.spokenText).toContain("back to normal");
+    roomLights.forEach((light, index) => expect(light.intensity).toBeCloseTo(baseline[index]));
+    expect(sim.record).not.toHaveBeenCalled();
+  });
+
   it("aligns penlight aim independently of grip tilt and responds without exam start or setup", async () => {
     const sim = await clinic(); dispose = sim.dispose;
     await sim.pickup(0, "pupils");
@@ -232,9 +253,8 @@ describe("free consultation responses", () => {
     await sim.event(0, "selectstart");
     await sim.step(1 / 72, 3);
     expect(sim.eyes("consultationGaze").every(eye => eye.position.x === 0)).toBe(true);
-    await sim.panel(1);
-    await sim.click(1, sim.button("FOLLOW THIS TARGET"));
-    await sim.panel(1);
+    const response = await sim.instruct("follow-target", "Please follow my light with your eyes and keep your head still");
+    expect(response.spokenText).toContain("follow the light");
     await sim.step(1 / 72, 3);
     expect(sim.eyes("consultationGaze").every(eye => eye.position.x > 0)).toBe(true);
     await sim.pickup(1, "pupils");
@@ -248,6 +268,35 @@ describe("free consultation responses", () => {
     await sim.step(1 / 72, 3);
     expect(sim.eyes("consultationGaze").every(eye => eye.position.x === 0)).toBe(true);
     expect(sim.record).not.toHaveBeenCalled();
+  });
+
+  it("grounds natural following and chart-reading instructions in the held physical tools", async () => {
+    const sim = await clinic(); dispose = sim.dispose;
+    await sim.pickup(0, "pupils");
+    await sim.at(0, [.12, 1.5, -.086]);
+    await sim.event(0, "selectstart");
+    const following = await sim.instruct("follow-target", "Keep your head still and follow my light with your eyes");
+    expect(following.spokenText).toContain("follow the light");
+    await sim.step(1 / 72, 3);
+    expect(sim.eyes("consultationGaze").every(eye => eye.position.x > 0)).toBe(true);
+    await sim.event(0, "selectend");
+    await sim.at(0, consultationToolDefinition("pupils").home);
+    await sim.putDown(0);
+
+    const ambiguous = await sim.instruct("read-chart", "Please read the smallest line you can see");
+    expect(ambiguous.spokenText).toContain("Which eye");
+    await sim.pickup(0, "distance");
+    await sim.at(0, [-.048, 1.379, -.523]);
+    const monocular = await sim.instruct("read-chart", "Cover that eye and read the smallest line");
+    expect(monocular.spokenText).toContain("left eye");
+    expect(monocular.spokenText).toContain("6/18");
+    await sim.click(1, sim.directRecord("distance"));
+    for (const current of ["CHOOSE", "6/60", "6/36", "6/24"]) {
+      await sim.click(1, sim.button(`SMALLEST LINE · ${current}`));
+    }
+    await sim.click(1, sim.button("SAVE TO NOTEBOOK"));
+    expect(sim.record).toHaveBeenCalledExactlyOnceWith("distance", "default", "6/18", "OS");
+    expect(sim.encounter().results[0]).toMatchObject({ examId: "distance", eye: "OS", value: "6/18", expectedValue: "6/18" });
   });
 
   it("records a complete cover sequence without starting an examination", async () => {
@@ -310,12 +359,14 @@ describe("free-roam consultation presentation", () => {
     expect(sim.record).not.toHaveBeenCalled();
   });
 
-  it("offers patient instructions and case panels only when the learner requests the menu", async () => {
+  it("keeps patient instructions voice-first while offering recording and case panels on request", async () => {
     const sim = await clinic(); dispose = sim.dispose;
     await sim.pickup(0, "pupils");
     await sim.panel(1);
     expect(sim.labels()).toContain("ARUN");
-    expect(sim.labels()).toContain("Patient instructions");
+    expect(sim.labels()).toContain("Speak to instruct the patient");
+    expect(sim.labels()).not.toContain("FOLLOW THIS TARGET");
+    expect(sim.labels()).not.toContain("LOOK STRAIGHT AHEAD");
     expect(sim.labels()).not.toContain("PUPILS");
     await sim.click(1, sim.button("HISTORY"));
     await sim.click(1, sim.button("NOTEBOOK"));
@@ -326,7 +377,7 @@ describe("free-roam consultation presentation", () => {
     expect(sim.record).not.toHaveBeenCalled();
     await sim.panel(1);
     await sim.panel(1);
-    expect(sim.labels()).toContain("FOLLOW THIS TARGET");
+    expect(sim.labels()).toContain("Speak to instruct the patient");
     await sim.panel(1);
     expect(sim.controls().filter(control => !control.userData.xrRecordTool && !control.userData.xrInstrumentControl)).toHaveLength(0);
   });
@@ -340,7 +391,7 @@ describe("free-roam consultation presentation", () => {
 
     await sim.scope(1);
     expect(["HELP", "RECENTER CLINIC", "EXIT VR"].every(label => sim.controls().some(control => control.userData.xrLabel === label))).toBe(true);
-    expect(sim.labels()).not.toContain("Patient instructions");
+    expect(sim.labels()).not.toContain("Speak to instruct the patient");
     await sim.click(1, sim.button("HELP"));
     expect(sim.labels()).toContain("TEST · HELP");
     expect(sim.controls().some(control => control.userData.xrLabel === "RECENTER CLINIC")).toBe(false);
@@ -370,7 +421,7 @@ describe("on-request finding recording and exit", () => {
     expect(sim.controls().some(button => button.userData.xrLabel === "SAVE TO NOTEBOOK")).toBe(false);
     expect(sim.encounter().results).toHaveLength(0);
     await sim.click(1, sim.button("CANCEL"));
-    await sim.click(1, sim.button("LOOK STRAIGHT AHEAD"));
+    await sim.instruct("look-straight", "Please keep looking straight ahead into the distance");
     await sim.click(1, sim.button("DIM ROOM LIGHTS"));
     await sim.panel(1);
     await sim.at(0, [-.048, 1.5, -.1]);
@@ -401,9 +452,7 @@ describe("on-request finding recording and exit", () => {
     const sim = await clinic(); dispose = sim.dispose;
     await sim.pickup(0, "cover");
     await sim.at(1, [0, 1.5, -.073]);
-    await sim.panel(1);
-    await sim.click(1, sim.button("LOOK AT THIS TARGET"));
-    await sim.panel(1);
+    await sim.instruct("fixate-target", "Keep looking at this target");
     for (const step of coverProcedure) {
       await sim.at(0, step.position === "away" ? [.35, 1.379, -.523] : [step.position === "OD" ? -.048 : .048, 1.379, -.523]);
       await sim.step(1 / 72, Math.ceil(step.dwell * 72) + 2);
@@ -436,9 +485,7 @@ describe("on-request finding recording and exit", () => {
 it("records instructed target observations through the free-roam drawer and retains rejected entries", async () => {
   const sim = await clinic(); dispose = sim.dispose;
   await sim.pickup(0, "motility");
-  await sim.panel(1);
-  await sim.click(1, sim.button("FOLLOW THIS TARGET"));
-  await sim.panel(1);
+  await sim.instruct("follow-target", "Follow my light with your eyes");
   await sim.event(0, "selectstart");
   for (const gaze of gazePositions) {
     await sim.at(0, [gaze.x * .35 * .65, 1.5 + gaze.y * .35 * .45, -.086]);
@@ -462,10 +509,10 @@ it("records instructed target observations through the free-roam drawer and reta
 it("opens recording directly beside a held tool and keeps the editor in front of the headset", async () => {
   const sim = await clinic(); dispose = sim.dispose;
   await sim.pickup(0, "pupils");
-  expect(sim.labels()).not.toContain("Patient instructions");
+  expect(sim.labels()).not.toContain("Speak to instruct the patient");
   await sim.click(1, sim.directRecord("pupils"));
   expect(sim.labels()).toContain("MY OBSERVATIONS");
-  expect(sim.labels()).not.toContain("Patient instructions");
+  expect(sim.labels()).not.toContain("Speak to instruct the patient");
   sim.viewerCamera.position.set(.4, 1.7, .8);
   sim.viewerCamera.rotation.y = .35;
   await sim.step(1 / 72, 3);
@@ -487,9 +534,7 @@ it("aims the retinoscope correctly, reverses its visible reflex with lenses, and
   const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(sim.tool("objective").quaternion);
   expect(forward.distanceTo(new THREE.Vector3(0, 0, -1))).toBeLessThan(1e-8);
   expect(sim.tool("objective").position.distanceTo(sim.grips[0].position)).toBeLessThan(1e-8);
-  await sim.panel(1);
-  await sim.click(1, sim.button("LOOK STRAIGHT AHEAD"));
-  await sim.panel(1);
+  await sim.instruct("look-straight", "Look straight ahead into the distance");
   await sim.event(0, "selectstart");
   const visual = () => {
     let found: THREE.Group | undefined;

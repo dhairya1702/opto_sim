@@ -16,8 +16,14 @@ import {
 } from "./xrPupils";
 import { coverProcedure, type CoverPosition } from "./cover";
 import { advanceXRCoverState, initialXRCoverState, xrCoverComplete, xrCoverFixationMode, xrCoverPositionAt } from "./xrCover";
-import { gazePositions, observeTarget, type FixationTarget, type MotilityCoverage } from "./motility";
+import { gazePositions, MOTILITY_PATIENT_REPLY, observeTarget, type FixationTarget, type MotilityCoverage } from "./motility";
 import { xrMotilityTarget } from "./xrMotility";
+import {
+  testVoiceEncounterActionTarget,
+  testVoiceInstructionTarget,
+  type TestVoiceEncounterActionDetail,
+  type TestVoiceInstructionDetail,
+} from "../voice/testInstructions";
 
 import { formatSignedDioptres, reflexMotion } from "./retinoscopy";
 import { advanceScopeInspection, advanceScopeSweep, initialScopeInspection, initialScopeSweep, pauseScopeSweep, scopeCaseSphere, scopeReflex, scopeSweepComplete, xrScopeAim, scopeCaseFundus, type ScopeAim } from "./xrScopes";
@@ -25,9 +31,9 @@ import { XRRetinoscopyReflex, type RetinoReflexVisual } from "../scene/XRRetinos
 import type { FundusScopeView } from "../scene/XRScopeOptics";
 import { CLINIC_PATIENT_EYES as PUPIL_EYES, CLINIC_EYE_MIDPOINT as EYE_MIDPOINT } from "./clinicPatient";
 
-export type ConsultationExam = "pupils" | "cover" | "motility" | "objective" | "fundus";
+export type ConsultationExam = "distance" | "pupils" | "cover" | "motility" | "objective" | "fundus";
 export type ConsultationPanel = "interview" | "notes" | "submission";
-const isConsultationExam = (id?: string): id is ConsultationExam => id === "pupils" || id === "cover" || id === "motility" || id === "objective" || id === "fundus";
+const isConsultationExam = (id?: string): id is ConsultationExam => id === "distance" || id === "pupils" || id === "cover" || id === "motility" || id === "objective" || id === "fundus";
 
 
 function cycle(current: string, values: string[], update: (value: string) => void) {
@@ -97,6 +103,7 @@ function XRPupilPanel({ recordingOnly = false, fixation, dimmed, light, seen, ac
 }
 
 const COVER_MOVEMENTS = ["", "none", "inward", "outward", "vertical", "uncertain"];
+const DISTANCE_ACUITY_OPTIONS = ["", "6/60", "6/36", "6/24", "6/18", "6/12", "6/9", "6/6", "6/5"];
 
 function XRCoverPanel({ recordingOnly = false, mode, targetDistanceCm, setupValid, asked, step, position, odMovement, osMovement, alternateMovement, interpretation, onAsked, onOdMovement, onOsMovement, onAlternateMovement, onInterpretation, onRecord, onCancel }: {
   recordingOnly?: boolean;
@@ -250,6 +257,9 @@ export function XRConsultationController({ active, preview = false, guided = fal
   const [motilityDistanceReady, setMotilityDistanceReady] = useState(false);
   const [motilitySymptomsAsked, setMotilitySymptomsAsked] = useState(false);
   const [motilityObservation, setMotilityObservation] = useState("");
+  const [acuityEye, setAcuityEye] = useState<"OD" | "OS" | null>(null);
+  const [acuityResponse, setAcuityResponse] = useState("");
+  const [acuityObservation, setAcuityObservation] = useState("");
 
   const [recordEye, setRecordEye] = useState<XRPupilEye>("OD");
   const [, setScopeRevision] = useState(0);
@@ -278,6 +288,12 @@ export function XRConsultationController({ active, preview = false, guided = fal
     setGrossEntry(""); setCorrectionEntry(""); setNetEntry(""); setCylinderEntry(""); setAxisEntry("");
     setDiscEntry(""); setMaculaEntry(""); setPoleEntry(""); setExtentEntry("");
   };
+  const resetScopes = useCallback(() => {
+    retinoSweeps.current = { OD: initialScopeSweep(), OS: initialScopeSweep() };
+    fundusInspections.current = { OD: initialScopeInspection(), OS: initialScopeInspection() };
+    setGrossEntry(""); setCorrectionEntry(""); setNetEntry(""); setCylinderEntry(""); setAxisEntry("");
+    setDiscEntry(""); setMaculaEntry(""); setPoleEntry(""); setExtentEntry("");
+  }, []);
   const requestRecording = (exam: ConsultationExam) => {
     setRecordingExam(exam); scopeFieldsReset();
     if (exam === "objective" || exam === "fundus") setRecordEye(lastScopeEye.current[exam]);
@@ -329,7 +345,9 @@ export function XRConsultationController({ active, preview = false, guided = fal
   });
   const { tools, toolsRef, slots, objects, frameValid, setHandlingMessage, origin, direction, quaternion, workingPose, handStatus } = runtime;
   const pupilLight = tools.pupils.powered;
-  const motilityLight = tools.motility.powered;
+  const motilitySource = tools.motility.placement.kind === "held" ? "motility"
+    : tools.pupils.placement.kind === "held" ? "pupils" : null;
+  const motilityLight = motilitySource ? tools[motilitySource].powered : false;
   const selectedPlacement = tools.cover.placement;
   const heldHand = selectedPlacement.kind === "held" ? selectedPlacement.hand : null;
   const resetPupil = useCallback(() => {
@@ -355,44 +373,102 @@ export function XRConsultationController({ active, preview = false, guided = fal
     setMotilitySymptomsAsked(false); setMotilityObservation("");
   }, []);
 
+  const resetAcuity = useCallback(() => {
+    setAcuityEye(null); setAcuityResponse(""); setAcuityObservation("");
+  }, []);
+
   useEffect(() => {
-    if (typeof window === "undefined") return;
     const voiceInstruction = (event: Event) => {
       if (!active) return;
-      const instructionId = (event as CustomEvent<{ instructionId?: string }>).detail?.instructionId;
-      if (!["look-straight", "fixate-target", "follow-target", "report-symptoms"].includes(instructionId || "")) return;
+      const detail = (event as CustomEvent<TestVoiceInstructionDetail>).detail;
+      const instructionId = detail?.instructionId;
+      if (!["look-straight", "fixate-target", "follow-target", "report-symptoms", "read-chart"].includes(instructionId || "")) return;
       event.preventDefault();
       if (instructionId === "look-straight") {
-        setMotilityFollowing(false); setFixation(true); resetMotility(); resetPupil(); resetCover();
+        setMotilityFollowing(false); setFixation(true); resetMotility(); resetPupil(); resetCover(); resetAcuity(); resetScopes();
         setHandlingMessage("Arun is looking straight ahead.");
+        detail.result = { accepted: true, spokenText: "Okay, I will keep looking straight ahead." };
       } else if (instructionId === "fixate-target") {
-        setMotilityFollowing(false); setFixation(false); resetPupil(); resetMotility(); resetCover(); setCoverAsked(true);
-        setHandlingMessage("Arun is looking at the target.");
+        setMotilityFollowing(false); setFixation(false); resetPupil(); resetMotility(); resetCover(); resetAcuity(); resetScopes(); setCoverAsked(true);
+        const targetAvailable = coverSetupValid || toolsRef.current.motility.placement.kind === "held" || toolsRef.current.fixation.placement.kind === "held";
+        setHandlingMessage(targetAvailable ? "Arun is looking at the target you presented." : "Arun is ready; present the target you want him to fixate.");
+        detail.result = targetAvailable
+          ? { accepted: true, spokenText: "Okay, I will keep looking at that target." }
+          : { accepted: true, spokenText: "Okay. Show me the target you want me to look at." };
       } else if (instructionId === "follow-target") {
-        setMotilityFollowing(true); setFixation(false); resetMotility(); resetPupil(); resetCover();
-        setHandlingMessage("Arun is following the illuminated target.");
+        setMotilityFollowing(true); setFixation(false); resetMotility(); resetPupil(); resetCover(); resetAcuity(); resetScopes();
+        lastUsedExam.current = "motility";
+        const lightAvailable = toolsRef.current.motility.placement.kind === "held" || toolsRef.current.pupils.placement.kind === "held";
+        setHandlingMessage(lightAvailable ? "Arun is following your illuminated target with his eyes." : "Arun is ready; show him the light or motility target.");
+        detail.result = lightAvailable
+          ? { accepted: true, spokenText: "Okay, I will follow the light with my eyes and keep my head still." }
+          : { accepted: true, spokenText: "Okay. Show me the light, and I will follow it with my eyes." };
       } else if (instructionId === "report-symptoms") {
         if (motilityCoverageRef.current.seen.length !== gazePositions.length) {
-          setHandlingMessage("Complete the H-pattern before asking for the procedure symptom report.");
+          setHandlingMessage("Arun has not yet followed the target through a complete movement assessment.");
+          detail.result = { accepted: true, spokenText: "I have not followed it through the whole movement yet." };
           return;
         }
         setMotilitySymptomsAsked(true);
-        setHandlingMessage("Arun reports no diplopia or pain during the completed H-pattern.");
+        setHandlingMessage(`Arun: ${MOTILITY_PATIENT_REPLY}`);
+        detail.result = { accepted: true, spokenText: MOTILITY_PATIENT_REPLY };
+      } else if (instructionId === "read-chart") {
+        const distanceOccluderHeld = toolsRef.current.distance.placement.kind === "held";
+        const distanceOccluderReady = distanceOccluderHeld && workingPose("distance");
+        const distanceCoverPosition = distanceOccluderReady
+          ? xrCoverPositionAt(origin.toArray() as [number, number, number], PUPIL_EYES)
+          : null;
+        const coveredEye = distanceCoverPosition === "OD" || distanceCoverPosition === "OS" ? distanceCoverPosition : null;
+        if (!coveredEye) {
+          setHandlingMessage("Arun needs one eye selected before giving a monocular chart response.");
+          detail.result = { accepted: true, spokenText: "Which eye would you like me to read with?" };
+          return;
+        }
+        const viewingEye: Eye = coveredEye === "OD" ? "OS" : "OD";
+        const finding = caseData.exams.find(exam => exam.id === "distance")?.findings[`${viewingEye}:default`];
+        if (!finding) {
+          detail.result = { accepted: true, spokenText: "I am ready, but I cannot make out a result on this chart." };
+          return;
+        }
+        setAcuityEye(viewingEye); setAcuityResponse(finding.value); setAcuityObservation("");
+        lastUsedExam.current = "distance";
+        setHandlingMessage(`${viewingEye} chart response: ${finding.value}. Record it explicitly after completing the examination.`);
+        detail.result = { accepted: true, spokenText: `With my ${viewingEye === "OD" ? "right" : "left"} eye, the smallest line I can read is ${finding.value}.` };
       }
     };
-    window.addEventListener("opto:voice-instruction", voiceInstruction);
-    return () => window.removeEventListener("opto:voice-instruction", voiceInstruction);
-  }, [active, resetCover, resetMotility, resetPupil, setHandlingMessage]);
+    testVoiceInstructionTarget.addEventListener("opto:voice-instruction", voiceInstruction);
+    return () => testVoiceInstructionTarget.removeEventListener("opto:voice-instruction", voiceInstruction);
+  }, [active, caseData.exams, coverSetupValid, origin, resetAcuity, resetCover, resetMotility, resetPupil, resetScopes, setHandlingMessage, toolsRef, workingPose]);
+
+  useEffect(() => {
+    const encounterAction = (event: Event) => {
+      if (!active) return;
+      const detail = (event as CustomEvent<TestVoiceEncounterActionDetail>).detail;
+      if (!detail || !["dim-room", "restore-room"].includes(detail.actionId)) return;
+      event.preventDefault();
+      if (detail.actionId === "dim-room") {
+        if (!dimmed) { setDimmed(true); resetPupil(); }
+        setHandlingMessage(dimmed ? "Room lights are already dimmed." : "Room lights dimmed.");
+        detail.result = { accepted: true, spokenText: dimmed ? "The room lights are already dim." : "The room lights are dim now.", suppressAudio: true };
+      } else {
+        if (dimmed) { setDimmed(false); resetPupil(); }
+        setHandlingMessage(dimmed ? "Room lighting restored." : "Room lights are already at normal illumination.");
+        detail.result = { accepted: true, spokenText: dimmed ? "The room lighting is back to normal." : "The room lights are already on.", suppressAudio: true };
+      }
+    };
+    testVoiceEncounterActionTarget.addEventListener("opto:voice-encounter-action", encounterAction);
+    return () => testVoiceEncounterActionTarget.removeEventListener("opto:voice-encounter-action", encounterAction);
+  }, [active, dimmed, resetPupil, setHandlingMessage]);
 
   useEffect(() => {
     if (active) return;
-    resetPupil(); resetCover(); resetMotility();
+    resetPupil(); resetCover(); resetMotility(); resetAcuity();
     setFixation(false); setDimmed(false); setMotilityFollowing(false); setPanelExam(null); setMenuOpen(false); setUtilityHelpOpen(false); setRecordingExam(null); lastUsedExam.current = null;
     retinoSweeps.current = { OD: initialScopeSweep(), OS: initialScopeSweep() };
     fundusInspections.current = { OD: initialScopeInspection(), OS: initialScopeInspection() };
     fundusView.visible = false; reflexVisual.eye = null;
     trialLensRef.current = -.5; setTrialLens(-.5); setStreakAxis(90); streakAxisRef.current = 90;
-  }, [active, resetPupil, resetCover, resetMotility]);
+  }, [active, resetAcuity, resetPupil, resetCover, resetMotility]);
 
   useEffect(() => {
     if (!active || !dimmed) return;
@@ -431,7 +507,9 @@ export function XRConsultationController({ active, preview = false, guided = fal
 
   useFrame((_, dt) => {
     if (!active) return;
-    if (!workingPose("motility") || !motilityFollowing || !toolsRef.current.motility.powered) {
+    const source = toolsRef.current.motility.placement.kind === "held" ? "motility"
+      : toolsRef.current.pupils.placement.kind === "held" ? "pupils" : null;
+    if (!source || !workingPose(source) || !motilityFollowing || !toolsRef.current[source].powered) {
       setMotilityTarget(current => current.x || current.y || current.z !== .35 ? { x: 0, y: 0, z: .35 } : current);
       const previous = motilityCoverageRef.current;
       if (previous.dwell || previous.current) {
@@ -446,7 +524,7 @@ export function XRConsultationController({ active, preview = false, guided = fal
     setMotilityDistance(current => Math.abs(current - spatial.distanceCm) < 1 ? current : spatial.distanceCm);
     setMotilityDistanceReady(current => current === spatial.distanceReady ? current : spatial.distanceReady);
     setMotilityTarget(current => Math.hypot(current.x - spatial.target.x, current.y - spatial.target.y, current.z - spatial.target.z) < .006 ? current : spatial.target);
-    const next = observeTarget(motilityCoverageRef.current, spatial.target, dt, motilityFollowing && toolsRef.current.motility.powered && spatial.distanceReady);
+    const next = observeTarget(motilityCoverageRef.current, spatial.target, dt, motilityFollowing && toolsRef.current[source].powered && spatial.distanceReady);
     const previous = motilityCoverageRef.current;
     motilityCoverageRef.current = next;
     if (next.current !== previous.current || next.seen.length !== previous.seen.length || Math.abs(next.dwell - previous.dwell) > .04) setMotilityCoverage(next);
@@ -550,6 +628,12 @@ export function XRConsultationController({ active, preview = false, guided = fal
     resetPupil(); setRecordingExam(null); setHandlingMessage("Saved to your notebook.");
   }, [consensual, equality, pupilLight, odDirect, odSize, onProcedureComplete, osDirect, osSize, resetPupil, seen.length]);
 
+  const recordAcuity = useCallback(() => {
+    if (!acuityEye || !acuityResponse || !acuityObservation) return;
+    if (!onProcedureComplete || onProcedureComplete("distance", "default", acuityObservation, acuityEye) === false) return;
+    resetAcuity(); setRecordingExam(null); setHandlingMessage("Saved to your notebook.");
+  }, [acuityEye, acuityObservation, acuityResponse, onProcedureComplete, resetAcuity, setHandlingMessage]);
+
   const recordCover = useCallback(() => {
     if (!xrCoverComplete(coverState) || !coverOdMovement || !coverOsMovement || !coverAlternateMovement || !coverInterpretation) return;
     const site = coverMode === "near" ? "near" : "distance";
@@ -580,11 +664,6 @@ export function XRConsultationController({ active, preview = false, guided = fal
   const retinoEntriesComplete = Boolean(grossEntry && correctionEntry && netEntry && cylinderEntry && axisEntry);
   const fundusReady = fundusInspections.current[recordEye].seen;
   const fundusEntriesComplete = Boolean(discEntry && maculaEntry && poleEntry && extentEntry);
-  const resetScopes = () => {
-    retinoSweeps.current = { OD: initialScopeSweep(), OS: initialScopeSweep() };
-    fundusInspections.current = { OD: initialScopeInspection(), OS: initialScopeInspection() };
-    scopeFieldsReset();
-  };
   const recordRetinoscopy = () => {
     if (!active || !scopeReady || !lensNeutral || !retinoEntriesComplete || toolsRef.current.objective.powered || !onProcedureComplete) return;
     const cylinder = cylinderEntry === "uncertain" ? "uncertain" : formatSignedDioptres(Number(cylinderEntry));
@@ -615,7 +694,9 @@ export function XRConsultationController({ active, preview = false, guided = fal
     };
   }, [active, patientEyes, scene]);
   useFrame(() => {
-    const follow = active && motilityFollowing && toolsRef.current.motility.powered && consultationToolReady(toolsRef.current, "motility", handStatus()) && motilityTarget.z > .05;
+    const source = toolsRef.current.motility.placement.kind === "held" ? "motility"
+      : toolsRef.current.pupils.placement.kind === "held" ? "pupils" : null;
+    const follow = Boolean(active && motilityFollowing && source && toolsRef.current[source].powered && consultationToolReady(toolsRef.current, source, handStatus()) && motilityTarget.z > .05);
     const x = follow ? Math.max(-1, Math.min(1, motilityTarget.x / (motilityTarget.z * .65))) * .009 : 0;
     const y = follow ? Math.max(-1, Math.min(1, motilityTarget.y / (motilityTarget.z * .45))) * .006 : 0;
     patientEyes.gaze.forEach(object => object.position.set(x, y, 0));
@@ -643,13 +724,26 @@ export function XRConsultationController({ active, preview = false, guided = fal
   }
   return <>
     {active && <XRRetinoscopyReflex visual={reflexVisual} />}
-    <XRClinicRuntimeView runtime={runtime} active={active} preview={preview} helperHand={heldHand} helperReady={coverSetupValid} fundusView={fundusView} selectableEquipment={CASE_INDEPENDENT_CONSULTATION_EQUIPMENT} />
+    <XRClinicRuntimeView runtime={runtime} active={active} preview={preview} instruction="Speak naturally · instruct Arun / control room lights" helperHand={heldHand} helperReady={coverSetupValid} fundusView={fundusView} selectableEquipment={CASE_INDEPENDENT_CONSULTATION_EQUIPMENT} />
     {active && onExitVR && <XRClinicUtilityPanel runtime={runtime} onHelp={() => setUtilityHelpOpen(true)} onExit={onExitVR} />}
     {active && utilityHelpOpen && <XRHeadPanel>
       <Box s={[.72, .62, .018]} c="#102329" radius={.012} />
-      <Sign text={["TEST · HELP", "Grip once to pick up, transfer, or place a tool.", "Trigger uses a held tool; a free-hand trigger selects.", "A/X opens patient instructions and recording.", "B/Y on the ophthalmoscope hand opens scope view.", "B/Y on a free hand opens VR controls."]} p={[0, .055, .012]} size={[.66, .42]} bg="#102329" fg="#eefbf7" />
+      <Sign text={["TEST · HELP", "Speak naturally to instruct Arun or control room lights.", "Enable voice before entering VR.", "Grip once to pick up, transfer, or place a tool.", "Trigger uses a held tool; a free-hand trigger selects.", "A/X opens recording, lighting and case panels.", "B/Y on the ophthalmoscope hand opens scope view.", "B/Y on a free hand opens VR controls."]} p={[0, .055, .012]} size={[.66, .42]} bg="#102329" fg="#eefbf7" />
       <XRPanelButton label="CLOSE HELP" position={[0, -.235, .025]} width={.56} onClick={() => setUtilityHelpOpen(false)} />
     </XRHeadPanel>}
+    {active && recordingExam === "distance" && <XRObservationPanel
+      tool={`Distance chart · ${acuityEye ?? "eye not selected"}`}
+      status={!acuityResponse ? "Occlude one eye and ask Arun to read the chart." : "Enter the smallest line you heard Arun read correctly."}
+      fields={[{
+        label: "SMALLEST LINE",
+        value: acuityObservation,
+        enabled: Boolean(acuityEye && acuityResponse),
+        onChange: () => cycle(acuityObservation, DISTANCE_ACUITY_OPTIONS, setAcuityObservation),
+      }]}
+      ready={Boolean(acuityEye && acuityResponse && acuityObservation)}
+      onRecord={recordAcuity}
+      onCancel={() => { resetAcuity(); setRecordingExam(null); }}
+    />}
     {(procedureActive || recordingExam === "pupils") && <>
       <XRPupilPanel recordingOnly={!guided} fixation={fixation} dimmed={dimmed} light={pupilLight} seen={seen} activeEye={activeEye} odSize={odSize} osSize={osSize} equality={equality} odDirect={odDirect} osDirect={osDirect} consensual={consensual}
         onFixation={() => { setFixation(true); setMotilityFollowing(false); resetMotility(); resetCover(); }}
@@ -722,33 +816,27 @@ export function XRConsultationController({ active, preview = false, guided = fal
         <Sign text={["Panels · instructions and recording", "A/X · panel ray · trigger to select"]} p={[0, -.145, .025]} size={[.56, .10]} bg="#102329" fg="#eefbf7" />
       </group>}
       {!guided && menuOpen && !recordingExam && <group position={[-.62, 1.46, .35]} rotation={[0, .4, 0]} userData={{ xrPanel: true }}>
-        <Box s={[.62, .86, .018]} c="#102329" radius={.012} />
-        <Sign text={[patientName.toUpperCase(), "Patient instructions"]} p={[-.09, .335, .013]} size={[.38, .10]} bg="#102329" fg="#eefbf7" />
-        {onExitVR && <XRPanelButton label="EXIT VR" position={[.22, .34, .025]} width={.15} onClick={onExitVR} />}
-        <XRPanelButton label="LOOK STRAIGHT AHEAD" position={[0, .235, .025]} width={.56} active={fixation} onClick={() => {
-          setMotilityFollowing(false); setFixation(true); resetMotility(); resetPupil(); resetCover(); resetScopes();
-        }} />
-        <XRPanelButton label="LOOK AT THIS TARGET" position={[0, .15, .025]} width={.56} active={coverAsked} onClick={() => {
-          setMotilityFollowing(false); setFixation(false); resetPupil(); resetMotility(); resetCover(); resetScopes(); setCoverAsked(true);
-        }} />
-        <XRPanelButton label="FOLLOW THIS TARGET" position={[0, .065, .025]} width={.56} active={motilityFollowing} onClick={() => {
-          setMotilityFollowing(true); setFixation(false); resetMotility(); resetPupil(); resetCover(); resetScopes();
-        }} />
-        <XRPanelButton label={dimmed ? "RESTORE ROOM LIGHTS" : "DIM ROOM LIGHTS"} position={[0, -.02, .025]} width={.56} onClick={() => { setDimmed(value => !value); resetPupil(); }} />
-        <XRPanelButton label="RECORD OBSERVATION" position={[0, -.105, .025]} width={.56} onClick={() => {
+        <Box s={[.62, .60, .018]} c="#102329" radius={.012} />
+        <Sign text={[patientName.toUpperCase(), "Speak to instruct the patient"]} p={[-.075, .205, .013]} size={[.41, .10]} bg="#102329" fg="#eefbf7" />
+        {onExitVR && <XRPanelButton label="EXIT VR" position={[.22, .21, .025]} width={.15} onClick={onExitVR} />}
+        <XRPanelButton label={dimmed ? "RESTORE ROOM LIGHTS" : "DIM ROOM LIGHTS"} position={[0, .105, .025]} width={.56} onClick={() => { setDimmed(value => !value); resetPupil(); }} />
+        <XRPanelButton label="RECORD OBSERVATION" position={[0, .02, .025]} width={.56} onClick={() => {
           if (lastUsedExam.current) requestRecording(lastUsedExam.current);
           else setHandlingMessage("Use an instrument first, then record what you observed.");
         }} />
         {onOpenPanel && <>
-          <XRPanelButton label="HISTORY" position={[-.145, -.19, .025]} width={.27} onClick={() => onOpenPanel("interview")} />
-          <XRPanelButton label="NOTEBOOK" position={[.145, -.19, .025]} width={.27} onClick={() => onOpenPanel("notes")} />
-          <XRPanelButton label="MY ASSESSMENT" position={[0, -.275, .025]} width={.56} onClick={() => onOpenPanel("submission")} />
+          <XRPanelButton label="HISTORY" position={[-.145, -.065, .025]} width={.27} onClick={() => onOpenPanel("interview")} />
+          <XRPanelButton label="NOTEBOOK" position={[.145, -.065, .025]} width={.27} onClick={() => onOpenPanel("notes")} />
+          <XRPanelButton label="MY ASSESSMENT" position={[0, -.15, .025]} width={.56} onClick={() => onOpenPanel("submission")} />
         </>}
-        <XRPanelButton label="CLOSE MENU" position={[0, -.365, .025]} width={.56} onClick={() => setMenuOpen(false)} />
+        <XRPanelButton label="CLOSE MENU" position={[0, -.235, .025]} width={.56} onClick={() => setMenuOpen(false)} />
       </group>}
       {!guided && recordingExam && onExitVR && <XRHeadPanel><XRPanelButton label="EXIT VR" position={[.26, .37, .02]} width={.15} onClick={onExitVR} /></XRHeadPanel>}
       {!guided && CASE_INDEPENDENT_CONSULTATION_EQUIPMENT.filter(tool => isConsultationExam(tool)).map(tool => <XRToolControls key={`controls-${tool}`} runtime={runtime} id={tool}>
-        <XRPanelButton label="RECORD FINDING" position={[0, 0, 0]} width={.30} recordTool={tool} onClick={() => { if (isConsultationExam(tool)) requestRecording(tool); }} />
+        <XRPanelButton label="RECORD FINDING" position={[0, 0, 0]} width={.30} recordTool={tool} onClick={() => {
+          if (tool === "pupils" && motilityFollowing) requestRecording("motility");
+          else if (isConsultationExam(tool)) requestRecording(tool);
+        }} />
         {tool === "objective" && <>
           <Sign text={[`LENS ${formatSignedDioptres(trialLens)}`, retinoAim.current ? `${Math.round(retinoAim.current.distanceCm)} CM · ${retinoAim.current.eye}` : "Aim the light at a pupil"]} p={[0, .075, 0]} size={[.30, .07]} bg="#173a3e" fg="#e8fff9" />
           <XRPanelButton label="−0.25 D" position={[-.08, -.085, 0]} width={.14} onClick={() => changeTrialLens(-.25)} />

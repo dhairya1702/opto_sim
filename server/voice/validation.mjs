@@ -15,7 +15,7 @@ export function validClientMessage(message) {
   if (!message || typeof message !== "object" || !text(message.type, 40)) return false;
   if (message.type === "hello") return validContext(message.context) && Number.isFinite(message.sampleRate) && message.sampleRate >= 8000 && message.sampleRate <= 96000;
   if (message.type === "context") return validContext(message.context);
-  if (message.type === "command-result") return id(message.utteranceId) && message.result && typeof message.result.accepted === "boolean" && text(message.result.spokenText, 1000) && (!message.result.cacheKey || id(message.result.cacheKey)) && (!message.result.cacheKeys || Array.isArray(message.result.cacheKeys) && message.result.cacheKeys.length <= 10 && message.result.cacheKeys.every(id)) && (message.clientAudio === undefined || typeof message.clientAudio === "boolean");
+  if (message.type === "command-result") return id(message.utteranceId) && message.result && typeof message.result.accepted === "boolean" && text(message.result.spokenText, 1000) && (message.result.suppressAudio === undefined || typeof message.result.suppressAudio === "boolean") && (!message.result.cacheKey || id(message.result.cacheKey)) && (!message.result.cacheKeys || Array.isArray(message.result.cacheKeys) && message.result.cacheKeys.length <= 10 && message.result.cacheKeys.every(id)) && (message.clientAudio === undefined || typeof message.clientAudio === "boolean");
   return false;
 }
 
@@ -23,6 +23,7 @@ export function commandAllowed(command, context) {
   if (!command || !id(command.utteranceId) || !text(command.transcript)) return false;
   if (command.kind === "history") return context.mode === "test" && Array.isArray(command.factIds) && command.factIds.length <= 10 && command.factIds.every(factId => context.allowedFacts.some(fact => fact.id === factId));
   if (command.kind === "patient-instruction") return context.mode === "test" && context.allowedActions.includes(command.instructionId);
+  if (command.kind === "encounter-action") return context.mode === "test" && context.allowedActions.includes(command.actionId);
   if (command.kind === "practice-action") return context.mode === "practice" && command.lessonId === context.lessonId && context.allowedActions.includes(command.actionId);
   if (command.kind === "social") return ["greeting", "thanks", "introduction", "ready", "goodbye"].includes(command.socialId);
   if (command.kind === "patient-reply") return patientReplyIds.has(command.replyId);

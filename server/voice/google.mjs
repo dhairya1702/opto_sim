@@ -32,9 +32,12 @@ export class GeminiLiveBridge {
     try {
       const { GoogleGenAI, Modality } = await import("@google/genai");
       this.ai = new GoogleGenAI({ vertexai: true, project: this.config.projectId, location: this.config.location });
+      const encounterActions = context.allowedActions.filter(action => ["dim-room", "restore-room"].includes(action));
+      const patientInstructions = context.allowedActions.filter(action => !encounterActions.includes(action));
       const functions = context.mode === "test" ? [
         { name: "route_history", description: "Route an authored history question", parameters: { type: "OBJECT", properties: { factIds: { type: "ARRAY", items: { type: "STRING", enum: context.allowedFacts.map(f => f.id) } } }, required: ["factIds"] } },
-        { name: "patient_instruction", description: "Apply a permitted patient instruction", parameters: { type: "OBJECT", properties: { instructionId: { type: "STRING", enum: context.allowedActions } }, required: ["instructionId"] } },
+        { name: "patient_instruction", description: "Apply the learner's natural spoken instruction to the simulated patient. Use follow-target for requests to follow a light, finger, or target; fixate-target for sustained fixation; look-straight for distant straight-ahead gaze; report-symptoms for questions asked during a procedure; and read-chart for acuity reading requests.", parameters: { type: "OBJECT", properties: { instructionId: { type: "STRING", enum: patientInstructions } }, required: ["instructionId"] } },
+        { name: "encounter_action", description: "Apply a permitted physical room action requested by the learner. Use dim-room to lower the room illumination and restore-room to return it to normal.", parameters: { type: "OBJECT", properties: { actionId: { type: "STRING", enum: encounterActions } }, required: ["actionId"] } },
       ] : [{ name: "practice_action", description: "Invoke a permitted lesson action. Never infer or reveal a finding.", parameters: { type: "OBJECT", properties: { actionId: { type: "STRING", enum: context.allowedActions } }, required: ["actionId"] } }];
       this.session = await this.ai.live.connect({ model: this.config.liveModel, callbacks: {
         onmessage: message => this.handle(message, context),

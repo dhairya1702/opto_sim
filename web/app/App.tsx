@@ -34,7 +34,7 @@ import { scriptedPatient } from "../patient/scripted";
 import { VoiceControl } from "../voice/VoiceControl";
 import { useVoiceSession } from "../voice/useVoiceSession";
 import { VoiceStatusContext } from "../voice/VoiceStatusContext";
-import { TEST_VOICE_INSTRUCTIONS, invokeTestVoiceInstruction } from "../voice/testInstructions";
+import { TEST_VOICE_ENCOUNTER_ACTIONS, TEST_VOICE_INSTRUCTIONS, invokeTestVoiceEncounterAction, invokeTestVoiceInstruction } from "../voice/testInstructions";
 import type { VoiceCommand } from "../voice/contracts";
 import { socialVoiceReply } from "../voice/socialReplies";
 import { TestVoiceControlProvider } from "../voice/TestVoiceControl";
@@ -101,7 +101,7 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
     caseId: c.id,
     caseVersion: c.version,
     allowedFacts: voiceHistoryFacts(c),
-    allowedActions: [...TEST_VOICE_INSTRUCTIONS],
+    allowedActions: [...TEST_VOICE_INSTRUCTIONS, ...TEST_VOICE_ENCOUNTER_ACTIONS],
   }), [session.id]);
   const handleVoiceCommand = useCallback((command: VoiceCommand) => {
     if (command.kind === "history") {
@@ -122,8 +122,9 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
           };
         }
       }
-      return invokeTestVoiceInstruction(command.instructionId);
+      return invokeTestVoiceInstruction(command.instructionId, command.transcript);
     }
+    if (command.kind === "encounter-action") return invokeTestVoiceEncounterAction(command.actionId, command.transcript);
     if (command.kind === "social") return socialVoiceReply(command.socialId);
     if (command.kind === "patient-reply") {
       const reply = patientVoiceReply(command.replyId);

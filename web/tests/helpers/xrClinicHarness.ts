@@ -12,6 +12,12 @@ import { clinicalCase } from "../../cases/adultDistanceBlur";
 import { newSession, reduceSession } from "../../domain/engine";
 import type { ConsultationExam } from "../../interaction/XRConsultationController";
 import { gazePositions } from "../../interaction/motility";
+import {
+  invokeTestVoiceEncounterAction,
+  invokeTestVoiceInstruction,
+  type TestVoiceEncounterAction,
+  type TestVoiceInstruction,
+} from "../../voice/testInstructions";
 
 extend({
   Color: THREE.Color,
@@ -207,9 +213,23 @@ export async function clinic({ guided = false, selectedExamId, renderAdapter }: 
     grips[index].position.copy(point); rays[index].position.copy(point); rays[index].quaternion.copy(rotation);
     await step(); await event(index, "selectstart"); await event(index, "selectend"); await step();
   };
+  const instruct = async (instructionId: TestVoiceInstruction, transcript?: string) => {
+    let result: ReturnType<typeof invokeTestVoiceInstruction> | undefined;
+    await act(async () => { result = invokeTestVoiceInstruction(instructionId, transcript); });
+    await step();
+    if (!result) throw new Error(`Voice instruction was not resolved: ${instructionId}`);
+    return result;
+  };
+  const environment = async (actionId: TestVoiceEncounterAction, transcript?: string) => {
+    let result: ReturnType<typeof invokeTestVoiceEncounterAction> | undefined;
+    await act(async () => { result = invokeTestVoiceEncounterAction(actionId, transcript); });
+    await step();
+    if (!result) throw new Error(`Encounter action was not resolved: ${actionId}`);
+    return result;
+  };
   await step();
   return {
-    state: state!, rerender: render, viewerCamera, physicalViewer, viewerTracked, referenceOffsets, referenceRotations, grips, rays, tool, at, pickup, grip, putDown, event, step, panel, scope, thumbstick, axes, haptics, buttons, controls, click, labels, apertureWheel, cycleAperture, tracked, rayTracked, session,
+    state: state!, rerender: render, viewerCamera, physicalViewer, viewerTracked, referenceOffsets, referenceRotations, grips, rays, tool, at, pickup, grip, putDown, event, step, panel, scope, thumbstick, axes, haptics, buttons, controls, click, labels, apertureWheel, cycleAperture, instruct, environment, tracked, rayTracked, session,
     interact, record, openPanel, exitVR, encounter: () => encounter,
     directRecord: (id: ConsultationToolId) => {
       const button = controls().find(object => object.userData.xrRecordTool === id);

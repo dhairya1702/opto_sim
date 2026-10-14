@@ -9,7 +9,7 @@ const testContext = {
     { id: "onset", patterns: ["when", "start", "sudden"] },
     { id: "laterality", patterns: ["both", "which eye"] },
   ],
-  allowedActions: ["look-straight", "fixate-target", "follow-target", "report-symptoms"],
+  allowedActions: ["look-straight", "fixate-target", "follow-target", "report-symptoms", "dim-room", "restore-room"],
 };
 
 describe("voice gateway security", () => {
@@ -25,6 +25,8 @@ describe("voice gateway security", () => {
     expect(commandAllowed({ kind: "history", factIds: ["onset"], utteranceId: "u1", transcript: "When?" }, testContext)).toBe(true);
     expect(commandAllowed({ kind: "history", factIds: ["secret"], utteranceId: "u1", transcript: "When?" }, testContext)).toBe(false);
     expect(commandAllowed({ kind: "patient-reply", replyId: "age", utteranceId: "u2", transcript: "Age?" }, testContext)).toBe(true);
+    expect(commandAllowed({ kind: "encounter-action", actionId: "dim-room", utteranceId: "u4", transcript: "Dim the lights" }, testContext)).toBe(true);
+    expect(commandAllowed({ kind: "encounter-action", actionId: "invented", utteranceId: "u5", transcript: "Change the room" }, testContext)).toBe(false);
     expect(commandAllowed({ kind: "patient-reply", replyId: "invented", utteranceId: "u3", transcript: "Anything?" }, testContext)).toBe(false);
   });
 });
@@ -33,12 +35,24 @@ describe("deterministic voice routing", () => {
   it("normalizes paraphrases, compound questions, and patient instructions", () => {
     expect(routeDeterministic("WHEN did it start — and is it in both eyes?", testContext, "u1")).toMatchObject({ kind: "history", factIds: ["onset", "laterality"] });
     expect(routeDeterministic("Please follow the light with your eyes", testContext, "u2")).toMatchObject({ kind: "patient-instruction", instructionId: "follow-target" });
+    expect(routeDeterministic("Keep your head still and follow my finger", testContext, "u3")).toMatchObject({ kind: "patient-instruction", instructionId: "follow-target" });
+    expect(routeDeterministic("Look over my shoulder into the distance", testContext, "u4")).toMatchObject({ kind: "patient-instruction", instructionId: "look-straight" });
+    expect(routeDeterministic("Keep your eyes on my light", testContext, "u5")).toMatchObject({ kind: "patient-instruction", instructionId: "fixate-target" });
   });
   it("routes natural symptom questions through the active examination action", () => {
     expect(routeDeterministic("Do you have any symptoms?", testContext, "u1")).toMatchObject({ kind: "patient-instruction", instructionId: "report-symptoms" });
     expect(routeDeterministic("Did you notice any symptoms while following the light?", testContext, "u2")).toMatchObject({ kind: "patient-instruction", instructionId: "report-symptoms" });
     const practice = { mode: "practice", sessionId: "s1", lessonId: "motility", allowedActions: ["follow-target", "report-symptoms"] };
     expect(routeDeterministic("Are you experiencing any symptoms?", practice, "u3")).toMatchObject({ kind: "practice-action", lessonId: "motility", actionId: "report-symptoms" });
+  });
+  it("routes room-light requests separately from patient instructions", () => {
+    expect(routeDeterministic("Could you dim the lights please?", testContext, "u1")).toMatchObject({ kind: "encounter-action", actionId: "dim-room" });
+    expect(routeDeterministic("Turn the room lights down", testContext, "u2")).toMatchObject({ kind: "encounter-action", actionId: "dim-room" });
+    expect(routeDeterministic("Please turn the lights back on", testContext, "u3")).toMatchObject({ kind: "encounter-action", actionId: "restore-room" });
+    expect(routeDeterministic("Lights off please", testContext, "u4")).toMatchObject({ kind: "encounter-action", actionId: "dim-room" });
+    expect(routeDeterministic("Switch off the lights", testContext, "u5")).toMatchObject({ kind: "encounter-action", actionId: "dim-room" });
+    expect(routeDeterministic("Lights on please", testContext, "u6")).toMatchObject({ kind: "encounter-action", actionId: "restore-room" });
+    expect(routeDeterministic("Turn on the lights", testContext, "u7")).toMatchObject({ kind: "encounter-action", actionId: "restore-room" });
   });
   it("keeps focused history details separate for the client resolver", () => {
     const context = {
