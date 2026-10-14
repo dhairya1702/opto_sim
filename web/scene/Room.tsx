@@ -1,14 +1,14 @@
-import { Component, Suspense, useEffect, useState, type ReactNode } from "react";
+import { Component, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Canvas } from "@react-three/fiber";
 import type { WebGLRenderer } from "three";
 import { Edges } from "@react-three/drei";
-import { Box, ConsultingRoomShell, Patient, Refraction, Retinoscope, Sign, SlitLamp, Trolley } from "./Models";
+import { Box, ConsultingRoomShell, Patient, Refraction, Sign, SlitLamp, Trolley } from "./Models";
 import { Controller } from "../interaction/Controller";
 import { XRConsultationController, type ConsultationExam, type ConsultationPanel } from "../interaction/XRConsultationController";
 import type { ClinicalCase, Eye, StationId } from "../domain/types";
-import { HeldInstrument } from "./ExaminationView";
-import { INSTRUMENT_KIT } from "../interaction/clinicLayout";
-import { consultationToolDefinition } from "../interaction/xrConsultationTools";
+import { AUXILIARY_INSTRUMENT_KIT, AUXILIARY_INSTRUMENT_KIT_ROTATION_Y, INSTRUMENT_KIT } from "../interaction/clinicLayout";
+import { CASE_INDEPENDENT_CONSULTATION_EQUIPMENT, consultationToolDefinition, initialConsultationTools, type ConsultationToolId } from "../interaction/xrConsultationTools";
+import { ConsultationInstruments, DesktopHeldInstrument } from "./ConsultationInstruments";
 import { XRVoiceIndicator } from "./XRVoiceIndicator";
 import { useVoiceStatus } from "../voice/VoiceStatusContext";
 type Props = {
@@ -20,7 +20,7 @@ type Props = {
   target: StationId | null;
   onTarget: (id: StationId | null, examId?: string) => void;
   onInteract: (id: StationId, examId?: string) => void;
-  held?: string;
+  held?: ConsultationToolId;
   visit: { id: StationId; seq: number } | null;
   onCanvas: (c: HTMLCanvasElement) => void;
   onRenderer?: (renderer: WebGLRenderer) => void;
@@ -69,7 +69,13 @@ function Highlight({ id }: { id: StationId }) {
     </mesh>
   );
 }
-export function ConsultationInterior({ held, xr = false }: { held?: string; xr?: boolean }) {
+const registerStaticTool = () => undefined;
+export function ConsultationInterior({ held, xr = false }: { held?: ConsultationToolId; xr?: boolean; caseData?: ClinicalCase }) {
+  const desktopTools = useMemo(initialConsultationTools, []);
+  const desktopEquipment = useMemo(
+    () => CASE_INDEPENDENT_CONSULTATION_EQUIPMENT.filter(id => id !== held),
+    [held],
+  );
   return (
     <>
       <ConsultingRoomShell />
@@ -77,13 +83,15 @@ export function ConsultationInterior({ held, xr = false }: { held?: string; xr?:
         <Patient xr={xr} />
       </group>
       <group userData={{ station: "trolley" }}>
-        <Trolley held={held} portable={!xr} />
+        <Trolley held={held} portable={false} />
       </group>
-      <group userData={{ station: "fundus", examId: "fundus" }}>
-        {!xr && held !== "fundus" && <Retinoscope p={[consultationToolDefinition("fundus").home[0], .91, consultationToolDefinition("fundus").home[2]]} ophthalmo />}
+      <group userData={{ station: "trolley" }}>
+        <Trolley portable={false} kit={AUXILIARY_INSTRUMENT_KIT} rotationY={AUXILIARY_INSTRUMENT_KIT_ROTATION_Y} label="RIGHT-SIDE EXTENDED INSTRUMENT KIT" />
       </group>
+      {!xr && <ConsultationInstruments state={desktopTools} equipment={desktopEquipment} selectable={CASE_INDEPENDENT_CONSULTATION_EQUIPMENT}
+        castsShadow={false} highlighted={[]} returnedAt={{}} register={registerStaticTool} />}
       <group userData={{ station: "refraction", examId: "subjective" }}>
-        <Refraction portable={!xr} />
+        <Refraction portable={false} />
       </group>
       <group userData={{ station: "slit", examId: "anterior" }}>
         <SlitLamp />
@@ -139,7 +147,7 @@ export function Room(props: Props) {
             </div>
           }
         >
-          <ConsultationInterior held={props.held} xr={Boolean(props.xrActive)} />
+          <ConsultationInterior held={props.held} xr={Boolean(props.xrActive)} caseData={props.caseData} />
           {(props.xrActive || props.xrPreview) && <XRVoiceIndicator status={voiceStatus} />}
           <Controller
             active={props.active && !props.xrActive}
@@ -158,9 +166,9 @@ export function Room(props: Props) {
             onProcedureComplete={props.onXRProcedureComplete}
           />
           {props.target && <Highlight id={props.target} />}
-          {props.held && !props.xrActive && props.held !== "anterior" && (
+          {props.held && !props.xrActive && (
             <group userData={{ held: true }}>
-              <HeldInstrument key={props.held} id={props.held} />
+              <DesktopHeldInstrument key={props.held} id={props.held} />
             </group>
           )}
         </Canvas>

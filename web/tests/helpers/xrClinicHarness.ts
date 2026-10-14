@@ -49,7 +49,9 @@ export async function clinic({ guided = false, selectedExamId, renderAdapter }: 
   const tracked = [true, true];
   const rayTracked = [true, true];
   const buttons = [Array.from({ length: 6 }, () => ({ pressed: false })), Array.from({ length: 6 }, () => ({ pressed: false }))];
-  const sources = (["left", "right"] as const).map((hand, index) => ({ handedness: hand, gripSpace: { index }, targetRaySpace: { index, ray: true }, gamepad: { buttons: buttons[index] } }));
+  const axes = [Array.from({ length: 4 }, () => 0), Array.from({ length: 4 }, () => 0)];
+  const haptics = [vi.fn(async () => true), vi.fn(async () => true)];
+  const sources = (["left", "right"] as const).map((hand, index) => ({ handedness: hand, gripSpace: { index }, targetRaySpace: { index, ray: true }, gamepad: { buttons: buttons[index], axes: axes[index], hapticActuators: [{ pulse: haptics[index] }] } }));
   const session = new EventTarget() as EventTarget & { visibilityState: string };
   session.visibilityState = "visible";
   const physicalViewer = { x: 0, y: 1.6, z: 0, yaw: 0 };
@@ -154,6 +156,12 @@ export async function clinic({ guided = false, selectedExamId, renderAdapter }: 
     buttons[index][5].pressed = true; await step();
     buttons[index][5].pressed = false; await step();
   };
+  const thumbstick = async (index: number, stepDirection: -1 | 1) => {
+    axes[index][3] = stepDirection > 0 ? -.8 : .8;
+    await step();
+    axes[index][3] = 0;
+    await step();
+  };
   const controls = () => {
     const controls: THREE.Object3D[] = [];
     state.scene.traverse(object => {
@@ -201,7 +209,7 @@ export async function clinic({ guided = false, selectedExamId, renderAdapter }: 
   };
   await step();
   return {
-    state: state!, rerender: render, viewerCamera, physicalViewer, viewerTracked, referenceOffsets, referenceRotations, grips, rays, tool, at, pickup, grip, putDown, event, step, panel, scope, buttons, controls, click, labels, apertureWheel, cycleAperture, tracked, rayTracked, session,
+    state: state!, rerender: render, viewerCamera, physicalViewer, viewerTracked, referenceOffsets, referenceRotations, grips, rays, tool, at, pickup, grip, putDown, event, step, panel, scope, thumbstick, axes, haptics, buttons, controls, click, labels, apertureWheel, cycleAperture, tracked, rayTracked, session,
     interact, record, openPanel, exitVR, encounter: () => encounter,
     directRecord: (id: ConsultationToolId) => {
       const button = controls().find(object => object.userData.xrRecordTool === id);

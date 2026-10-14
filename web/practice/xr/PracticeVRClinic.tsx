@@ -10,6 +10,7 @@ import { usePracticeXRSessionLifetime } from "../../interaction/usePracticeXRSes
 import { XRVoiceIndicator } from "../../scene/XRVoiceIndicator";
 import { useVoiceStatus } from "../../voice/VoiceStatusContext";
 import { PracticeVoiceControl } from "../../voice/PracticeVoiceControl";
+import { usePracticeAttempt } from "../PracticeAttemptContext";
 
 class PracticeSceneBoundary extends Component<{ children: ReactNode; onFailure: () => void }, { failed: boolean }> {
   state = { failed: false };
@@ -26,6 +27,8 @@ export function PracticeVRClinic({ title, findingPosition, onClose, onDesktop, c
   children: (session: PracticeClinicSession) => ReactNode;
   mirror?: ReactNode;
 }) {
+  const { settings } = usePracticeAttempt();
+  const guided = settings?.kind !== "test";
   const voiceStatus = useVoiceStatus();
   const dialog = useRef<HTMLDialogElement>(null);
   const renderer = useRef<WebGLRenderer | null>(null);
@@ -94,7 +97,7 @@ export function PracticeVRClinic({ title, findingPosition, onClose, onDesktop, c
   return <dialog ref={dialog} className="clinical-practice-dialog xr-practice-dialog" aria-labelledby="practice-vr-title"
     onCancel={event => { event.preventDefault(); void end(); }}>
     <header className="clinical-stage-header">
-      <div><p className="eyebrow">SHARED VR CLINIC · PRACTICE</p><h1 id="practice-vr-title">{title} · VR</h1></div>
+      <div><p className="eyebrow">SHARED VR CLINIC · {guided ? "GUIDED PRACTICE" : "TEST"}</p><h1 id="practice-vr-title">{title} · VR</h1></div>
       <div className="clinical-stage-distance"><span>Finding</span><strong>{findingPosition.current}/{findingPosition.total}</strong></div>
       <PracticeVoiceControl />
       <button className="secondary" onClick={() => void end()}><X size={16} /> Close</button>
@@ -116,7 +119,7 @@ export function PracticeVRClinic({ title, findingPosition, onClose, onDesktop, c
         {!active && !preview && <div className="xr-preflight">
           <Glasses size={34} />
           <div><p className="eyebrow">THE SAME CLINIC AS CONSULTATION</p><h2>{title} in the shared VR clinic</h2>
-            <p>Squeeze the side grip once beside an instrument to pick it up, then relax your grip. Squeeze again to put it down at the placement guide. Use the trigger to operate it. Lesson help and recording are available inside the clinic.</p></div>
+            <p>Squeeze the side grip once beside an instrument to pick it up, then relax your grip. Squeeze again to put it down at the placement guide. Use the trigger to operate it. {guided ? "Next-step help and recording are available inside the clinic." : "This is an independent attempt; recording remains available inside the clinic."}</p></div>
           <div className="xr-preflight-actions">
             <button className="primary" disabled={support !== "supported" || starting || failed} onClick={() => void enter()}>{starting ? "Starting VR…" : support === "checking" ? "Checking headset…" : support === "supported" ? "Enter VR" : "VR headset unavailable"} <Glasses size={17} /></button>
             <button className="secondary" disabled={failed} onClick={() => setPreview(true)}>Preview clinic layout</button>

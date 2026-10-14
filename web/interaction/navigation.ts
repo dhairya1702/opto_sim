@@ -1,5 +1,5 @@
 import type { StationId } from "../domain/types";
-import { INSTRUMENT_KIT } from "./clinicLayout";
+import { AUXILIARY_INSTRUMENT_KIT, INSTRUMENT_KIT } from "./clinicLayout";
 export const stations: {
   id: StationId;
   name: string;
@@ -61,6 +61,7 @@ export const stations: {
 export const obstacles = [
   { x: 0, z: -0.57, w: 0.86, d: 1.24 },
   { x: INSTRUMENT_KIT.x, z: INSTRUMENT_KIT.z, w: INSTRUMENT_KIT.depth + .08, d: INSTRUMENT_KIT.width + .04 },
+  { x: AUXILIARY_INSTRUMENT_KIT.x, z: AUXILIARY_INSTRUMENT_KIT.z, w: AUXILIARY_INSTRUMENT_KIT.depth + .08, d: AUXILIARY_INSTRUMENT_KIT.width + .04 },
   { x: -1.45, z: -1.4, w: 0.85, d: 1.25 },
   { x: 1.35, z: -0.95, w: 1.02, d: 0.72 },
   { x: 1.4, z: -1.65, w: 0.55, d: 0.55 },

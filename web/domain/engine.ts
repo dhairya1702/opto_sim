@@ -9,6 +9,7 @@ import type {
   SessionEvent,
 } from "./types";
 import { scriptedPatient } from "../patient/scripted";
+import { authoredHistoryResponseIds, disclosedHistory, historyFactProgress } from "../patient/history";
 export const resultKey = (c: ClinicalCase, examId: string, config: ExamConfig) =>
   `${c.version}|${examId}|${config.eye}|${config.mode}`;
 export const requiredKeys = (c: ClinicalCase, e: ExamDefinition) =>
@@ -73,7 +74,7 @@ export function reduceSession(c: ClinicalCase, s: Session, a: Action): Session {
     const question = a.question.trim().slice(0, 500);
     if (!question) return s;
     const resolvedFactIds = a.resolvedFactIds
-      ? [...new Set(a.resolvedFactIds)].filter((factId) => c.historyFacts.some((fact) => fact.id === factId))
+      ? [...new Set(a.resolvedFactIds)].filter((factId) => authoredHistoryResponseIds(c).includes(factId))
       : undefined;
     const scripted = scriptedPatient.answer(question, c, a.factId, resolvedFactIds);
     const reply = a.replyText
@@ -175,7 +176,7 @@ export function reduceSession(c: ClinicalCase, s: Session, a: Action): Session {
   if (a.type === "submitAssessment") {
     const valid = new Set([
       ...s.results.map((r) => r.id),
-      ...s.revealedFactIds.map((id) => `history:${id}`),
+      ...disclosedHistory(c, s.revealedFactIds).map(({ fact }) => `history:${fact.id}`),
     ]);
     const submission: AssessmentSubmission = {
       ...a.submission,
@@ -221,8 +222,10 @@ export function assess(c: ClinicalCase, s: Session): Feedback {
       events: SessionEvent[] = [];
     const [kind, key] = cr.id.split(":");
     if (kind === "history") {
-      ratio = answeredFacts.has(key) ? 1 : 0;
-      events = s.events.filter((e) => e.type === "question" && e.factIds?.includes(key));
+      const fact = c.historyFacts.find((candidate) => candidate.id === key);
+      ratio = fact ? historyFactProgress(fact, answeredFacts).ratio : 0;
+      const responseIds = new Set([key, ...(fact?.details?.map((detail) => `${key}:${detail.id}`) ?? [])]);
+      events = s.events.filter((e) => e.type === "question" && e.factIds?.some((id) => responseIds.has(id)));
     }
     if (kind === "exam") {
       ratio = fraction(key);
@@ -293,7 +296,10 @@ export function assess(c: ClinicalCase, s: Session): Feedback {
   const critical = c.rubric.criticalOmissions
     .filter((o) =>
       o.kind === "history"
-        ? o.requiredIds.some((id) => !answeredFacts.has(id))
+        ? o.requiredIds.some((id) => {
+            const fact = c.historyFacts.find((candidate) => candidate.id === id);
+            return !fact || historyFactProgress(fact, answeredFacts).ratio < 1;
+          })
         : o.requiredIds.some((id) => fraction(id) < 1),
     )
     .map((o) => o.label);

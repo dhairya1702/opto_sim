@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowUp, ChevronDown, MessageCircle } from "lucide-react";
 import type { ClinicalCase, Session } from "../domain/types";
+import { historyFactProgress } from "../patient/history";
 export function Interview({
   c,
   session,
@@ -89,7 +90,7 @@ export function Interview({
           {c.historyFacts.map((f) => (
             <button key={f.id} onClick={() => ask(f.question, f.id)}>
               <span>{f.question}</span>
-              <small>{session.revealedFactIds.includes(f.id) ? "Asked" : "Ask"}</small>
+              <small>{historyFactProgress(f, session.revealedFactIds).ratio === 1 ? "Asked" : historyFactProgress(f, session.revealedFactIds).ratio > 0 ? "Partly asked" : "Ask"}</small>
             </button>
           ))}
         </div>

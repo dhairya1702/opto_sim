@@ -5,12 +5,14 @@ import { ConsultationInstruments } from "./ConsultationInstruments";
 import { XRSign as Sign } from "./XRClinicPanels";
 import { stations } from "../interaction/navigation";
 import { consultationXRArrival } from "../interaction/xrConsultationNavigation";
-import { consultationToolDefinition, consultationPickupLabel, toolInHand } from "../interaction/xrConsultationTools";
+import { AUXILIARY_INSTRUMENT_KIT } from "../interaction/clinicLayout";
+import { consultationToolDefinition, consultationPickupLabel, toolInHand, type ConsultationToolId } from "../interaction/xrConsultationTools";
 import type { XRClinicRuntime, XRClinicHand } from "../interaction/useXRClinicRuntime";
 import type { FundusScopeView, BrucknerScopeView } from "./XRScopeOptics";
 import { XRScopeView } from "./XRScopeView";
-export function XRClinicRuntimeView({ runtime, active, preview = false, title = "VR CONSULTATION", instruction = "Explore freely · A/X · patient menu", cleanHands = false, helperHand, helperReady = false, fundusView, brucknerView, sensoryStation, instrumentSettings }: {
+export function XRClinicRuntimeView({ runtime, active, preview = false, title = "VR CONSULTATION", instruction = "Explore freely · A/X · patient menu", cleanHands = false, helperHand, helperReady = false, fundusView, brucknerView, sensoryStation, instrumentSettings, selectableEquipment }: {
   instrumentSettings?: ClinicInstrumentSettings;
+  selectableEquipment?: readonly ConsultationToolId[];
   runtime: XRClinicRuntime;
   sensoryStation?: "worth" | "stereo" | "four-prism";
   active: boolean;
@@ -43,9 +45,16 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
       <Sign text={[station.name.toUpperCase()]} p={[0, .008, 0]} size={[.42, .1]} rotation={[-Math.PI / 2, 0, 0]} bg="#153b3c" fg="#e8fff9" />
     </group>;
     })}
+    {showGuides && <group position={[...AUXILIARY_INSTRUMENT_KIT.xrArrival]} userData={active ? { xrTeleport: [...AUXILIARY_INSTRUMENT_KIT.xrArrival] } : { xrPreviewPad: true }}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[.22, .3, 32]} />
+        <meshBasicMaterial color="#4fae9d" transparent opacity={.72} />
+      </mesh>
+      <Sign text={["EXTENDED INSTRUMENT KIT"]} p={[0, .008, 0]} size={[.46, .1]} rotation={[-Math.PI / 2, 0, 0]} bg="#153b3c" fg="#e8fff9" />
+    </group>}
     {(active || preview) && <>
       <SensoryClinicStation active={active} runtime={runtime} distanceLetter={sensoryStation === "four-prism"} />
-      <ConsultationInstruments equipment={runtime.equipment} scopeControl={{ aperture: runtime.scopeAperture, cycle: runtime.cycleScopeAperture }} settings={instrumentSettings} fundusView={fundusView} brucknerView={brucknerView} state={tools} highlighted={highlighted} returnedAt={returnedAt} register={registerTool} />
+      <ConsultationInstruments equipment={runtime.equipment} selectable={selectableEquipment} scopeControl={{ aperture: runtime.scopeAperture, cycle: runtime.cycleScopeAperture }} settings={instrumentSettings} fundusView={fundusView} brucknerView={brucknerView} state={tools} highlighted={highlighted} returnedAt={returnedAt} register={registerTool} />
       {active && (["left", "right"] as const).map(hand => <group key={hand} visible={false}
         ref={object => { if (object) runtime.placementMarkers.current.set(hand, object); else runtime.placementMarkers.current.delete(hand); }}
         userData={{ xrIgnoreRay: true, xrPlacementPreview: hand }}>

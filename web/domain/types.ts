@@ -7,7 +7,14 @@ export type HistoryFact = {
   question: string;
   answer: string;
   patterns: string[];
+  broadPatterns?: string[];
+  details?: HistoryDetail[];
   weight: number;
+};
+export type HistoryDetail = {
+  id: string;
+  answer: string;
+  patterns: string[];
 };
 export type Refraction = {
   eye: "OD" | "OS";

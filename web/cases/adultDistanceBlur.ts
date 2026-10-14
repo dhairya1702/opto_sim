@@ -12,7 +12,8 @@ const fact = (
   answer: string,
   patterns: string[],
   weight: number,
-): HistoryFact => ({ id, domain, question, answer, patterns, weight });
+  specificity?: Pick<HistoryFact, "broadPatterns" | "details">,
+): HistoryFact => ({ id, domain, question, answer, patterns, weight, ...specificity });
 const historyFacts = [
   fact(
     "onset",
@@ -21,6 +22,13 @@ const historyFacts = [
     "It started gradually about six months ago. It hasn't suddenly got worse.",
     ["how long", "when", "start", "onset", "gradual", "months", "sudden deterioration"],
     3,
+    {
+      broadPatterns: ["onset and course", "start and change"],
+      details: [
+        { id: "start", answer: "It started gradually about six months ago.", patterns: ["how long", "when", "start", "onset", "gradual", "months"] },
+        { id: "change", answer: "It hasn't suddenly got worse.", patterns: ["changed", "change", "worse", "worsening", "sudden deterioration", "suddenly"] },
+      ],
+    },
   ),
   fact(
     "visual-pattern",
@@ -29,6 +37,13 @@ const historyFacts = [
     "Faraway things are blurry. Reading up close seems okay.",
     ["near", "close", "distance", "far", "reading"],
     3,
+    {
+      broadPatterns: ["tell me about the blur", "what is your vision like", "distance and near"],
+      details: [
+        { id: "distance", answer: "Faraway things are blurry.", patterns: ["distance", "far", "faraway", "across the room"] },
+        { id: "near", answer: "Reading up close seems okay.", patterns: ["near", "close", "reading"] },
+      ],
+    },
   ),
   fact(
     "laterality",
@@ -53,14 +68,30 @@ const historyFacts = [
     "No, I've never worn glasses or contact lenses.",
     ["glasses", "spectacles", "contact", "correction"],
     2,
+    {
+      broadPatterns: ["previous correction", "vision correction", "wear any correction"],
+      details: [
+        { id: "glasses", answer: "No, I've never worn glasses.", patterns: ["glasses", "spectacles"] },
+        { id: "contacts", answer: "No, I've never worn contact lenses.", patterns: ["contact lens", "contacts"] },
+      ],
+    },
   ),
   fact(
     "symptoms",
     "Associated symptoms",
     "Any pain, redness, double vision or light sensitivity?",
     "No pain, redness, double vision or strong sensitivity to light.",
-    ["pain", "red", "double", "diplopia", "photophobia", "light sensitivity"],
+    ["pain", "redness", "double", "diplopia", "photophobia", "light sensitivity"],
     3,
+    {
+      broadPatterns: ["any symptoms", "have symptoms", "experiencing symptoms", "other symptoms", "associated symptoms"],
+      details: [
+        { id: "pain", answer: "No, I haven't had any eye pain.", patterns: ["pain", "hurt", "ache"] },
+        { id: "redness", answer: "No, I haven't noticed any eye redness.", patterns: ["redness", "red eye", "eyes red", "look red"] },
+        { id: "diplopia", answer: "No, I haven't noticed any double vision.", patterns: ["double vision", "seeing double", "diplopia"] },
+        { id: "photophobia", answer: "No, I haven't had strong sensitivity to light.", patterns: ["light sensitivity", "sensitive to light", "photophobia"] },
+      ],
+    },
   ),
   fact(
     "safety",
@@ -69,6 +100,16 @@ const historyFacts = [
     "No recent injury or sudden loss of vision. I haven't noticed new flashes, floaters or a curtain over my sight.",
     ["injur", "trauma", "sudden vision", "sudden loss", "flashes", "floaters", "curtain"],
     4,
+    {
+      broadPatterns: ["warning symptoms", "safety symptoms", "red flag symptoms"],
+      details: [
+        { id: "injury", answer: "No, I haven't had a recent eye injury.", patterns: ["injury", "injured", "trauma", "hit your eye"] },
+        { id: "sudden-loss", answer: "No, I haven't had any sudden loss of vision.", patterns: ["sudden vision loss", "sudden loss", "lost vision suddenly"] },
+        { id: "flashes", answer: "No, I haven't noticed any new flashes.", patterns: ["flashes", "flashing lights"] },
+        { id: "floaters", answer: "No, I haven't noticed any new floaters.", patterns: ["floaters", "spots floating"] },
+        { id: "curtain", answer: "No, I haven't noticed a curtain or shadow over my sight.", patterns: ["curtain", "shadow over", "veil over"] },
+      ],
+    },
   ),
   fact(
     "general",
@@ -86,6 +127,15 @@ const historyFacts = [
       "drugs",
     ],
     3,
+    {
+      broadPatterns: ["medical history", "health history", "general health"],
+      details: [
+        { id: "diabetes", answer: "I don't have known diabetes.", patterns: ["diabetes", "diabetic"] },
+        { id: "surgery", answer: "I've never had eye surgery.", patterns: ["eye surgery", "ocular surgery", "operation on your eyes"] },
+        { id: "medication", answer: "I don't take any regular medicines.", patterns: ["take medication", "taking medication", "on medication", "on any medication", "regular medication", "regular medicines", "take medicine", "taking medicines", "what medicines", "drugs"] },
+        { id: "allergies", answer: "I haven't had a medication allergy.", patterns: ["allergy", "allergies", "allergic"] },
+      ],
+    },
   ),
   fact(
     "family",
@@ -395,7 +445,7 @@ const criteria: Criterion[] = [
     dimension: "History" as const,
     weight: h.weight,
     label: h.domain,
-    rule: `Unique disclosure of fact ${h.id}`,
+    rule: h.details ? `Proportional disclosure of ${h.details.length} authored ${h.id} details; a broad question discloses the complete domain.` : `Unique disclosure of fact ${h.id}`,
     alternatives: ["Authored suggested question", "Supported free-text paraphrase"],
     feedback: `Ask about ${h.domain.toLowerCase()}.`,
   })),

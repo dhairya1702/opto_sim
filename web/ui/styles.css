@@ -524,6 +524,34 @@ kbd {
   border-bottom: 1px solid var(--line);
   flex-shrink: 0;
 }
+.panel-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+}
+.panel-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 34px;
+  margin-top: 2px;
+  padding: 0 9px 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f4f7f1;
+  color: var(--ink);
+  font: inherit;
+  font-size: .78rem;
+  font-weight: 650;
+}
+.panel-back-button:hover {
+  border-color: var(--teal);
+  background: #e9f2ed;
+}
+.panel-back-button:focus-visible {
+  outline: 3px solid #75b8ac;
+  outline-offset: 2px;
+}
 .panel-header .eyebrow {
   color: #5a8076;
   margin-bottom: 7px;
@@ -2068,6 +2096,18 @@ kbd {
 .practice-action-panel { margin-top: 6px; padding: 20px 22px; border: 1px solid #a9cbbd; border-radius: 10px; background: linear-gradient(135deg, #e0eee7, #f7f9f5); display: flex; align-items: center; justify-content: space-between; gap: 25px; }
 .practice-action-panel h2 { margin: 3px 0 4px; font-size: 1.12rem; }
 .practice-action-panel p { margin: 0; max-width: 680px; color: #587069; font-size: .82rem; }
+.practice-attempt-launcher { min-width: min(430px, 100%); display: grid; gap: 12px; }
+.attempt-kind-buttons { justify-content: flex-end; }
+.attempt-kind-buttons .selected { box-shadow: 0 0 0 2px #75bca4; }
+.attempt-setup { padding: 14px; border: 1px solid #9fc6b7; border-radius: 9px; display: grid; gap: 13px; background: #f8fbf7; box-shadow: 0 10px 24px #24483e16; }
+.attempt-setup .eyebrow { margin: 0 0 7px; color: #527a6f; font-size: .62rem; }
+.attempt-option-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.attempt-option-row button { min-height: 42px; padding: 9px 10px; border: 1px solid #b8cec5; border-radius: 7px; display: flex; align-items: center; justify-content: center; gap: 7px; color: #395b53; background: #edf3ef; font-size: .74rem; font-weight: 750; }
+.attempt-option-row button.selected { border-color: #26745f; color: #174c3e; background: #dcece4; box-shadow: inset 0 0 0 1px #26745f33; }
+.attempt-start { width: 100%; min-height: 44px; justify-content: center; }
+.practice-test-attempt .clinical-coach { display: none; }
+.motility-guided-step { padding: 10px 18px; border-bottom: 1px solid #5f947f55; color: #d9eee7; background: #173b35; font-size: .82rem; line-height: 1.4; }
+.motility-guided-step b { margin-right: 9px; color: #8fe0bd; font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; }
 .practice-action-panel.immersive { margin-top: 8px; border-color: #79a99b; background: linear-gradient(135deg, #d7ebe2, #edf5ef); box-shadow: 0 15px 36px #244a3b1c; }
 .practice-action-panel.immersive .primary { flex-shrink: 0; min-height: 44px; }
 .practice-success { margin-top: 13px; padding: 13px 16px; border-radius: 8px; display: flex; gap: 11px; background: #d8eee1; color: #1f654c; }
@@ -2315,6 +2355,8 @@ dialog.examination-stage {
   .practice-lesson-head { display: grid; }
   .lesson-equipment { justify-self: start; }
   .practice-action-panel { align-items: stretch; flex-direction: column; }
+  .practice-attempt-launcher { min-width: 0; }
+  .attempt-option-row { grid-template-columns: 1fr; }
   .practice-module-complete { position: static; grid-template-columns: auto 1fr; }
   .practice-module-complete .primary { grid-column: 1 / -1; justify-content: center; }
   .trainer-toolbar, .trainer-answer, .hirschberg-answer { grid-template-columns: 1fr; }

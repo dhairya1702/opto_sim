@@ -83,14 +83,56 @@ describe("history disclosure", () => {
     for (const fact of c.historyFacts) {
       const cached = voiceManifest.items.find(item => item.key === `${c.id}:${c.version}:history:${fact.id}`);
       expect(cached?.text).toBe(fact.answer);
+      for (const detail of fact.details ?? []) {
+        const detailCached = voiceManifest.items.find(item => item.key === `${c.id}:${c.version}:history:${fact.id}:${detail.id}`);
+        expect(detailCached?.text).toBe(detail.answer);
+      }
     }
   });
-  it("gives consistent facts for paraphrases and no duplicate scoring", () => {
+  it("gives focused answers and only proportional credit for focused questions", () => {
     let s = start();
     for (const q of ["When did it start?", "How long has this been happening?"])
       s = reduceSession(c, s, { type: "askQuestion", question: q, at: 200 });
-    expect(s.revealedFactIds).toEqual(["onset"]);
+    expect(s.revealedFactIds).toEqual(["onset:start"]);
     expect(s.transcript[2].text).toBe(s.transcript[4].text);
+    expect(s.transcript[2].text).toBe("It started gradually about six months ago.");
+    expect(assess(c, submit(s)).dimensions[0].earned).toBe(1.5);
+  });
+  it("answers focused, compound, and broad history questions at matching specificity", () => {
+    expect(scriptedPatient.answer("Have you noticed any redness?", c)).toMatchObject({
+      reply: "No, I haven't noticed any eye redness.",
+      factIds: ["symptoms:redness"],
+    });
+    expect(scriptedPatient.answer("Do you have pain or redness?", c)).toMatchObject({
+      reply: "No, I haven't had any eye pain. No, I haven't noticed any eye redness.",
+      factIds: ["symptoms:pain", "symptoms:redness"],
+    });
+    expect(scriptedPatient.answer("Do you have any associated symptoms?", c)).toMatchObject({
+      reply: "No pain, redness, double vision or strong sensitivity to light.",
+      factIds: ["symptoms"],
+    });
+    expect(scriptedPatient.answer("Do you have any medication allergies?", c)).toMatchObject({
+      reply: "I haven't had a medication allergy.",
+      factIds: ["general:allergies"],
+    });
+  });
+  it("keeps every authored focused detail isolated from sibling answers", () => {
+    for (const fact of c.historyFacts) {
+      for (const detail of fact.details ?? []) {
+        const response = scriptedPatient.answer(detail.patterns[0], c);
+        expect(response, `${fact.id}:${detail.id}`).toMatchObject({
+          reply: detail.answer,
+          factIds: [`${fact.id}:${detail.id}`],
+          status: "answered",
+        });
+      }
+    }
+  });
+  it("combines focused disclosures into complete domain credit without duplicate credit", () => {
+    let s = start();
+    for (const question of ["Any eye pain?", "Any redness?", "Any double vision?", "Any light sensitivity?"])
+      s = reduceSession(c, s, { type: "askQuestion", question, at: 200 });
+    expect(s.revealedFactIds).toEqual(["symptoms:pain", "symptoms:redness", "symptoms:diplopia", "symptoms:photophobia"]);
     expect(assess(c, submit(s)).dimensions[0].earned).toBe(3);
   });
   it("admits unsupported and ambiguous questions without adding facts", () => {

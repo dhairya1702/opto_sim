@@ -1,5 +1,8 @@
 import type { XRClinicHand, XRClinicQuaternion, XRClinicVector3 } from "./xrClinic";
-import { INSTRUMENT_KIT, instrumentKitPoint } from "./clinicLayout";
+import {
+  AUXILIARY_INSTRUMENT_KIT, AUXILIARY_INSTRUMENT_KIT_ROTATION_Y, INSTRUMENT_KIT,
+  auxiliaryInstrumentKitPoint, instrumentKitPoint,
+} from "./clinicLayout";
 
 export type ConsultationHand = XRClinicHand;
 export type ToolPoint = XRClinicVector3;
@@ -17,9 +20,12 @@ export type ConsultationToolDefinition = {
   id: ConsultationToolId;
   label: string;
   home: ToolPoint;
+  homeYaw?: number;
   /** Canonical model origin is the handle/grip, not the supporting stand. */
   workingPoint: ToolPoint;
   forward: ToolPoint;
+  /** Selects the WebXR pose used while held. Optical faces can follow the aiming ray while their handle remains at the grip position. */
+  heldPose?: "grip" | "ray";
   gripRotation: ToolRotation;
   restRotation: ToolRotation;
   restHeight: number;
@@ -31,12 +37,17 @@ const upright: ToolRotation = [0, 0, 0, 1];
 const flatCard: ToolRotation = [-Math.SQRT1_2, 0, 0, Math.SQRT1_2];
 const forwardGrip: ToolRotation = [-Math.SQRT1_2, 0, 0, Math.SQRT1_2];
 const reverseGrip: ToolRotation = [0, 1, 0, 0];
-const kitRest = ([x, y, z, w]: ToolRotation): ToolRotation => [
-  Math.SQRT1_2 * (x + z), Math.SQRT1_2 * (y + w),
-  Math.SQRT1_2 * (z - x), Math.SQRT1_2 * (w - y),
-];
+const restAtYaw = ([x, y, z, w]: ToolRotation, yaw: number): ToolRotation => {
+  const sine = Math.sin(yaw / 2), cosine = Math.cos(yaw / 2);
+  return [cosine * x + sine * z, cosine * y + sine * w, cosine * z - sine * x, cosine * w - sine * y];
+};
+const kitRest = (rotation: ToolRotation): ToolRotation => restAtYaw(rotation, Math.PI / 2);
+const auxiliaryRest = (rotation: ToolRotation): ToolRotation => restAtYaw(rotation, AUXILIARY_INSTRUMENT_KIT_ROTATION_Y);
 const paddle = { workingPoint: [0, .121, 0] as ToolPoint, forward: [0, 0, -1] as ToolPoint, gripRotation: upright, restRotation: upright, restHeight: .10, footprint: [.13, .065] as const, illuminates: false };
 // Every mode uses the same stocked cart beside the patient's learner-left side.
+// Core consultation instruments stay on the learner-left cart. The larger
+// future-case inventory uses a separate learner-right cart so neither kit is
+// visually doubled or crowded.
 export const CONSULTATION_TOOLS: readonly ConsultationToolDefinition[] = [
   { ...paddle, restRotation: kitRest(upright), id: "distance", label: "Acuity occluder", home: instrumentKitPoint(-.78, .9775, .08) },
   { ...paddle, restRotation: kitRest(upright), id: "pinhole", label: "Pinhole", home: instrumentKitPoint(-.61, .9775, .08) },
@@ -44,28 +55,32 @@ export const CONSULTATION_TOOLS: readonly ConsultationToolDefinition[] = [
   { id: "pupils", label: "Penlight", home: instrumentKitPoint(-.29, .9925, .08), workingPoint: [0, .137, 0], forward: [0, 1, 0], gripRotation: forwardGrip, restRotation: kitRest(upright), restHeight: .115, footprint: [.06, .06], illuminates: true },
   { id: "motility", label: "Motility target", home: instrumentKitPoint(-.17, .9975, .08), workingPoint: [0, .137, 0], forward: [0, 1, 0], gripRotation: forwardGrip, restRotation: kitRest(upright), restHeight: .12, footprint: [.055, .055], illuminates: true },
   { id: "objective", label: "Retinoscope", home: instrumentKitPoint(.10, .99, .08), workingPoint: [0, .17, .032], forward: [0, 0, 1], gripRotation: reverseGrip, restRotation: kitRest(upright), restHeight: .1125, footprint: [.125, .085], illuminates: true },
-  { id: "near", label: "Near card", home: instrumentKitPoint(.33, .8945, .08), workingPoint: [0, 0, .005], forward: [0, 0, 1], gripRotation: reverseGrip, restRotation: kitRest(flatCard), restHeight: .017, footprint: [.25, .18], illuminates: false },
-  { id: "subjective", label: "Trial frame", home: instrumentKitPoint(.70, .96, .08), workingPoint: [0, 0, 0], forward: [0, 0, -1], gripRotation: upright, restRotation: kitRest(upright), restHeight: .0825, footprint: [.34, .20], illuminates: false },
-  { id: "prism", label: "Prism bar", home: instrumentKitPoint(-.93, 1.03, .08), workingPoint: [0, .143, .012], forward: [0, 0, -1], gripRotation: upright, restRotation: kitRest(upright), restHeight: .1525, footprint: [.10, .065], illuminates: false },
+  { id: "near", label: "Near card", home: instrumentKitPoint(.31, .8945, .08), workingPoint: [0, 0, .005], forward: [0, 0, 1], gripRotation: reverseGrip, restRotation: kitRest(flatCard), restHeight: .017, footprint: [.25, .18], illuminates: false },
+  { id: "prism", label: "Prism bar", home: instrumentKitPoint(.49, 1.03, .245), workingPoint: [0, .143, .012], forward: [0, 0, -1], heldPose: "ray", gripRotation: upright, restRotation: kitRest(upright), restHeight: .1525, footprint: [.10, .065], illuminates: false },
+  { id: "subjective", label: "Trial frame", home: instrumentKitPoint(.72, .96, .08), workingPoint: [0, 0, 0], forward: [0, 0, -1], gripRotation: upright, restRotation: kitRest(upright), restHeight: .0825, footprint: [.34, .20], illuminates: false },
   { id: "fundus", label: "Ophthalmoscope", home: instrumentKitPoint(-.05, .99, .08), workingPoint: [0, .17, .032], forward: [0, 0, 1], gripRotation: reverseGrip, restRotation: kitRest(upright), restHeight: .1125, footprint: [.11, .065], illuminates: true },
 ];
 export const SENSORY_TOOLS: readonly ConsultationToolDefinition[] = [
-  { id: "worth", label: "Worth four-dot target", home: instrumentKitPoint(-.78, .9325, .08), workingPoint: [0, .12, -.012], forward: [0, 0, -1], gripRotation: upright, restRotation: kitRest(upright), restHeight: .055, footprint: [.15, .09], illuminates: true, powerMode: "persistent" },
-  { id: "red-green", label: "Red OD / green OS glasses", home: instrumentKitPoint(-.44, .9275, .08), workingPoint: [0, 0, 0], forward: [0, 0, -1], gripRotation: upright, restRotation: kitRest(upright), restHeight: .05, footprint: [.25, .18], illuminates: false },
-  { id: "polarised", label: "Polarised glasses", home: instrumentKitPoint(-.44, .9275, .08), workingPoint: [0, 0, 0], forward: [0, 0, -1], gripRotation: upright, restRotation: kitRest(upright), restHeight: .05, footprint: [.25, .18], illuminates: false },
-  { id: "stereo", label: "Circle stereo booklet", home: instrumentKitPoint(-.78, .9075, .08), workingPoint: [0, .08, -.006], forward: [0, 0, -1], gripRotation: upright, restRotation: kitRest(upright), restHeight: .03, footprint: [.24, .09], illuminates: false },
+  { id: "worth", label: "Worth four-dot target", home: auxiliaryInstrumentKitPoint(-.80, AUXILIARY_INSTRUMENT_KIT.surfaceY + .055, -.13), homeYaw: AUXILIARY_INSTRUMENT_KIT_ROTATION_Y, workingPoint: [0, .12, -.012], forward: [0, 0, -1], gripRotation: upright, restRotation: auxiliaryRest(upright), restHeight: .055, footprint: [.15, .09], illuminates: true, powerMode: "persistent" },
+  { id: "red-green", label: "Red OD / green OS glasses", home: auxiliaryInstrumentKitPoint(-.56, AUXILIARY_INSTRUMENT_KIT.surfaceY + .05, -.13), homeYaw: AUXILIARY_INSTRUMENT_KIT_ROTATION_Y, workingPoint: [0, 0, 0], forward: [0, 0, -1], gripRotation: upright, restRotation: auxiliaryRest(upright), restHeight: .05, footprint: [.25, .18], illuminates: false },
+  { id: "polarised", label: "Polarised glasses", home: auxiliaryInstrumentKitPoint(-.25, AUXILIARY_INSTRUMENT_KIT.surfaceY + .05, -.13), homeYaw: AUXILIARY_INSTRUMENT_KIT_ROTATION_Y, workingPoint: [0, 0, 0], forward: [0, 0, -1], gripRotation: upright, restRotation: auxiliaryRest(upright), restHeight: .05, footprint: [.25, .18], illuminates: false },
+  { id: "stereo", label: "Circle stereo booklet", home: auxiliaryInstrumentKitPoint(.06, AUXILIARY_INSTRUMENT_KIT.surfaceY + .075, -.13), homeYaw: AUXILIARY_INSTRUMENT_KIT_ROTATION_Y, workingPoint: [0, .08, -.006], forward: [0, 0, -1], gripRotation: upright, restRotation: auxiliaryRest(upright), restHeight: .075, footprint: [.24, .09], illuminates: false },
 ];
 const exerciseTool = { workingPoint: [0, .10, 0] as ToolPoint, forward: [0, 0, -1] as ToolPoint, gripRotation: upright, restRotation: upright, restHeight: .07, footprint: [.16, .10] as const, illuminates: false };
 export const EXERCISE_TOOLS: readonly ConsultationToolDefinition[] = [
-  { ...exerciseTool, restRotation: kitRest(upright), id: "maddox", label: "Maddox rod", home: instrumentKitPoint(-.61, .9475, .08) },
-  { ...exerciseTool, restRotation: kitRest(upright), id: "thorington", label: "Thorington card", home: instrumentKitPoint(.33, .9475, .08), footprint: [.25, .10] },
-  { ...exerciseTool, restRotation: kitRest(upright), id: "trial-lens", label: "Trial lens pair", home: instrumentKitPoint(-.78, .9475, .08), footprint: [.24, .10] },
-  { ...exerciseTool, restRotation: kitRest(upright), id: "lens-flipper", label: "±2 D lens flipper", home: instrumentKitPoint(-.78, .9475, .08), footprint: [.24, .10] },
-  { ...exerciseTool, restRotation: kitRest(upright), id: "prism-flipper", label: "12 BO / 3 BI flipper", home: instrumentKitPoint(-.78, .9475, .08), footprint: [.24, .10] },
-  { ...exerciseTool, restRotation: kitRest(upright), id: "fixation", label: "Accommodative fixation target", home: instrumentKitPoint(.33, .9475, .08), footprint: [.12, .10] },
+  { ...exerciseTool, restRotation: auxiliaryRest(upright), id: "maddox", label: "Maddox rod", home: auxiliaryInstrumentKitPoint(.34, AUXILIARY_INSTRUMENT_KIT.surfaceY + .07, -.13), homeYaw: AUXILIARY_INSTRUMENT_KIT_ROTATION_Y },
+  { ...exerciseTool, restRotation: auxiliaryRest(upright), id: "fixation", label: "Accommodative fixation target", home: auxiliaryInstrumentKitPoint(.60, AUXILIARY_INSTRUMENT_KIT.surfaceY + .07, -.13), homeYaw: AUXILIARY_INSTRUMENT_KIT_ROTATION_Y, footprint: [.12, .10] },
+  { ...exerciseTool, restRotation: auxiliaryRest(upright), id: "thorington", label: "Thorington card", home: auxiliaryInstrumentKitPoint(-.70, AUXILIARY_INSTRUMENT_KIT.surfaceY + .07, .14), homeYaw: AUXILIARY_INSTRUMENT_KIT_ROTATION_Y, footprint: [.25, .10] },
+  { ...exerciseTool, restRotation: auxiliaryRest(upright), id: "trial-lens", label: "Trial lens pair", home: auxiliaryInstrumentKitPoint(-.36, AUXILIARY_INSTRUMENT_KIT.surfaceY + .07, .14), homeYaw: AUXILIARY_INSTRUMENT_KIT_ROTATION_Y, footprint: [.24, .10] },
+  { ...exerciseTool, restRotation: auxiliaryRest(upright), id: "lens-flipper", label: "±2 D lens flipper", home: auxiliaryInstrumentKitPoint(-.02, AUXILIARY_INSTRUMENT_KIT.surfaceY + .07, .14), homeYaw: AUXILIARY_INSTRUMENT_KIT_ROTATION_Y, footprint: [.24, .10] },
+  { ...exerciseTool, restRotation: auxiliaryRest(upright), id: "prism-flipper", label: "12 BO / 3 BI flipper", home: auxiliaryInstrumentKitPoint(.32, AUXILIARY_INSTRUMENT_KIT.surfaceY + .07, .14), homeYaw: AUXILIARY_INSTRUMENT_KIT_ROTATION_Y, footprint: [.24, .10] },
 ];
 export const ALL_CLINIC_TOOLS = [...CONSULTATION_TOOLS, ...SENSORY_TOOLS, ...EXERCISE_TOOLS];
 export const CONSULTATION_EQUIPMENT: readonly ConsultationToolId[] = CONSULTATION_TOOLS.map(tool => tool.id);
+/** Physical Test-room stock is deliberately independent of the active case. */
+export const CASE_INDEPENDENT_CONSULTATION_EQUIPMENT: readonly ConsultationToolId[] = ALL_CLINIC_TOOLS.map(tool => tool.id);
+export const isConsultationToolId = (id?: string): id is ConsultationToolId =>
+  Boolean(id && CASE_INDEPENDENT_CONSULTATION_EQUIPMENT.includes(id as ConsultationToolId));
 export const consultationToolDefinition = (id: ConsultationToolId) => {
   const definition = ALL_CLINIC_TOOLS.find(tool => tool.id === id);
   if (!definition) throw new Error(`Unknown clinic instrument: ${id}`);
@@ -98,9 +113,11 @@ export type PlacementSocket = { id: string; tool: ConsultationToolId; position: 
   fittingLayer?: "correction" | "filters" | "occlusion";
 };
 export type PlacementSurface = { id: string; x: number; z: number; y: number; width: number; depth: number };
-export const EXERCISE_SURFACE: PlacementSurface = { id: "library-tray", x: INSTRUMENT_KIT.x, z: INSTRUMENT_KIT.z, y: INSTRUMENT_KIT.surfaceY, width: INSTRUMENT_KIT.depth, depth: INSTRUMENT_KIT.width };
+export const EXERCISE_SURFACE: PlacementSurface = { id: "library-tray", x: AUXILIARY_INSTRUMENT_KIT.x, z: AUXILIARY_INSTRUMENT_KIT.z, y: AUXILIARY_INSTRUMENT_KIT.surfaceY, width: AUXILIARY_INSTRUMENT_KIT.depth, depth: AUXILIARY_INSTRUMENT_KIT.width };
 export const CONSULTATION_SURFACES: readonly PlacementSurface[] = [
   { id: "trolley", x: INSTRUMENT_KIT.x, z: INSTRUMENT_KIT.z, y: INSTRUMENT_KIT.surfaceY, width: INSTRUMENT_KIT.depth, depth: INSTRUMENT_KIT.width },
+  { id: "trolley-lower", x: INSTRUMENT_KIT.x, z: INSTRUMENT_KIT.z, y: INSTRUMENT_KIT.lowerShelfY, width: INSTRUMENT_KIT.depth, depth: INSTRUMENT_KIT.width },
+  { id: "extended-trolley", x: AUXILIARY_INSTRUMENT_KIT.x, z: AUXILIARY_INSTRUMENT_KIT.z, y: AUXILIARY_INSTRUMENT_KIT.surfaceY, width: AUXILIARY_INSTRUMENT_KIT.depth, depth: AUXILIARY_INSTRUMENT_KIT.width },
   // The front of the refraction desk is clear of the lens kit and drawers.
   { id: "refraction", x: -1.45, z: -.96, y: .88, width: .85, depth: .28 },
 ];

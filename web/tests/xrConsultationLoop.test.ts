@@ -3,7 +3,7 @@ import { act } from "@react-three/fiber";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { consultationXRArrival } from "../interaction/xrConsultationNavigation";
 import { stations, walkable } from "../interaction/navigation";
-import { CONSULTATION_TOOLS, consultationToolDefinition } from "../interaction/xrConsultationTools";
+import { ALL_CLINIC_TOOLS, CASE_INDEPENDENT_CONSULTATION_EQUIPMENT, CONSULTATION_TOOLS, consultationToolDefinition } from "../interaction/xrConsultationTools";
 import { INSTRUMENT_KIT } from "../interaction/clinicLayout";
 import { coverProcedure } from "../interaction/cover";
 import { gazePositions } from "../interaction/motility";
@@ -43,10 +43,11 @@ describe("mounted consultation two-controller walkthrough", () => {
     expect(stations.find(station => station.id === "trolley")?.position).toEqual([...INSTRUMENT_KIT.desktopPosition]);
   });
 
-  it("keeps the actual resting models inside their registered placement footprints", async () => {
+  it("renders the complete case-independent inventory once without overlapping resting models", async () => {
     const sim = await clinic(); dispose = sim.dispose;
     const allBounds: THREE.Box3[] = [];
-    for (const definition of CONSULTATION_TOOLS) {
+    expect(CASE_INDEPENDENT_CONSULTATION_EQUIPMENT).toEqual(ALL_CLINIC_TOOLS.map(tool => tool.id));
+    for (const definition of ALL_CLINIC_TOOLS) {
       const bounds = new THREE.Box3().setFromObject(sim.tool(definition.id).children[0]);
       for (const other of allBounds) expect(bounds.intersectsBox(other), `${definition.label} overlaps another model`).toBe(false);
       allBounds.push(bounds);
@@ -99,6 +100,19 @@ describe("mounted consultation two-controller walkthrough", () => {
     await sim.at(0, [-.1, 1.4, 0]);
     expect(sim.tool("pupils").position.distanceTo(sim.grips[0].position)).toBeLessThan(1e-8);
     expect(sim.record).not.toHaveBeenCalled();
+  });
+
+  it("holds the prism bar upright from the aiming pose instead of laying it along the grip", async () => {
+    const sim = await clinic(); dispose = sim.dispose;
+    await sim.pickup(0, "prism");
+    sim.grips[0].rotation.set(Math.PI / 2, 0, 0);
+    sim.rays[0].rotation.set(0, 0, 0);
+    await sim.step();
+    const prism = sim.tool("prism");
+    const longAxis = new THREE.Vector3(0, 1, 0).applyQuaternion(prism.quaternion);
+    const opticalForward = new THREE.Vector3(...consultationToolDefinition("prism").forward).applyQuaternion(prism.quaternion);
+    expect(longAxis.distanceTo(new THREE.Vector3(0, 1, 0))).toBeLessThan(1e-8);
+    expect(opticalForward.distanceTo(new THREE.Vector3(0, 0, -1))).toBeLessThan(1e-8);
   });
 
   it("pauses pupil observation during tracking loss and permits explicit recording through a held-tool panel", async () => {
@@ -169,7 +183,8 @@ describe("mounted consultation two-controller walkthrough", () => {
     await sim.exit();
     const remaining: THREE.Object3D[] = [];
     sim.state.scene.traverse(object => { if (object.userData.consultationToolId) remaining.push(object); });
-    expect(remaining).toHaveLength(0);
+    // Leaving XR restores the same full case-independent inventory to the desktop room.
+    expect(remaining).toHaveLength(20);
     await sim.event(1, "selectstart");
     await sim.event(1, "selectend");
     expect(sim.interact).not.toHaveBeenCalled();

@@ -3,6 +3,8 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { EyeSurface } from "./EyeSurface";
 import { gazePositions, motilityRecordedObservation, MOTILITY_PATIENT_REPLY, observeTarget, targetFromControls, type MotilityCoverage } from "../interaction/motility";
 import { TestVoiceControl } from "../voice/TestVoiceControl";
+import { PracticeVoiceControl } from "../voice/PracticeVoiceControl";
+import type { PracticeAttemptKind } from "../practice/PracticeAttemptContext";
 
 class ViewBoundary extends Component<{ children: ReactNode; onFailure: () => void }, { failed: boolean }> {
   state = { failed: false };
@@ -36,7 +38,7 @@ function MotilityHands({ x, y, light }: { x: number; y: number; light: boolean }
   </>;
 }
 
-export function MotilityExamination({ onComplete, onCancel }: { onComplete: (observation?: string) => void; onCancel: () => void }) {
+export function MotilityExamination({ onComplete, onCancel, practiceAttempt }: { onComplete: (observation?: string) => void; onCancel: () => void; practiceAttempt?: PracticeAttemptKind }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const pose = useRef(targetFromControls(0, 0, 0.35));
@@ -45,7 +47,7 @@ export function MotilityExamination({ onComplete, onCancel }: { onComplete: (obs
   const [following, setFollowing] = useState(false);
   const [light, setLight] = useState(false);
   const [grabbed, setGrabbed] = useState(false);
-  const [guides, setGuides] = useState(true);
+  const [guides, setGuides] = useState(practiceAttempt !== "test");
   const [asked, setAsked] = useState(false);
   const [observation, setObservation] = useState("");
   const [failed, setFailed] = useState(false);
@@ -87,7 +89,8 @@ export function MotilityExamination({ onComplete, onCancel }: { onComplete: (obs
   };
   return (
     <dialog ref={dialog} className="examination-stage motility-stage" aria-labelledby="motility-title" onCancel={e => { e.preventDefault(); onCancel(); }}>
-      <header><div><p className="eyebrow">MANUAL EXAMINATION · BOTH EYES</p><h1 id="motility-title">Extraocular motilities</h1></div><TestVoiceControl /><button className="secondary" onClick={onCancel}>Cancel</button></header>
+      <header><div><p className="eyebrow">MANUAL EXAMINATION · BOTH EYES</p><h1 id="motility-title">Extraocular motilities</h1></div>{practiceAttempt ? <PracticeVoiceControl /> : <TestVoiceControl />}<button className="secondary" onClick={onCancel}>Cancel</button></header>
+      {practiceAttempt === "guided" && <div className="motility-guided-step" role="status"><b>Next step</b>{!following ? "Ask the patient to follow the target while keeping the head still." : !light ? "Switch the penlight on." : coverage.seen.length < gazePositions.length ? `Move to the highlighted position and hold steady · ${coverage.seen.length} of ${gazePositions.length} observed.` : !asked ? "Ask about double vision, pain, or discomfort." : !observation ? "Choose the observation that matches what you saw." : "Record the finding."}</div>}
       <div className="motility-instructions">
         <p>Hold the target at 30–40 cm. Keep Arun’s head still, establish primary position, then move through all eight cardinal directions. Watch both eyes and hold each marked position.</p>
         <button className="primary" disabled={following} onClick={() => setFollowing(true)}>{following ? "Arun is following the target" : "Ask Arun to follow the target, head still"}</button>
@@ -123,7 +126,7 @@ export function MotilityExamination({ onComplete, onCancel }: { onComplete: (obs
         <div className="motility-controls">
           <label>Target distance: {Math.round(control.z * 100)} cm<input aria-label="Target distance" type="range" min="30" max="40" step="5" value={Math.round(control.z * 100)} onChange={e => update(control.x, control.y, Number(e.target.value) / 100)} /></label>
           <button className={light ? "primary" : "secondary"} onClick={() => setLight(value => !value)}>{light ? "Penlight on" : "Switch penlight on"}</button>
-          <label className="check-row"><input type="checkbox" checked={guides} onChange={e => setGuides(e.target.checked)} />Show H-pattern guides</label>
+          {practiceAttempt !== "test" && <label className="check-row"><input type="checkbox" checked={guides} onChange={e => setGuides(e.target.checked)} />Show H-pattern guides</label>}
           <button className="secondary" onClick={() => update(0, 0)}>Centre target</button>
         </div>
         <ul className="gaze-checklist" aria-label="Observed gaze positions">{gazePositions.map(p => <li key={p.id} className={coverage.seen.includes(p.id) ? "seen" : ""}>{coverage.seen.includes(p.id) ? "✓" : "○"} {p.label}</li>)}</ul>

@@ -2,14 +2,14 @@ import { describe, expect, it } from "vitest";
 import { Quaternion, Vector3 } from "three";
 import {
   ALL_CLINIC_TOOLS, CONSULTATION_SURFACES, EXERCISE_SURFACE, SENSORY_TOOLS,
-  CONSULTATION_TOOLS, EXERCISE_TOOLS, consultationToolDefinition, consultationToolReady,
+  CASE_INDEPENDENT_CONSULTATION_EQUIPMENT, CONSULTATION_TOOLS, EXERCISE_TOOLS, consultationToolDefinition, consultationToolReady,
   consultationPickupHint, consultationPickupLabel,
   grabConsultationTool, initialConsultationTools, powerConsultationTool,
-  releaseConsultationTool, resetConsultationHands, toolInHand,
+  isConsultationToolId, releaseConsultationTool, resetConsultationHands, toolInHand,
   type ConsultationTools,
 } from "../interaction/xrConsultationTools";
 import { SENSORY_SURFACES } from "../interaction/xrSensoryEquipment";
-import { INSTRUMENT_KIT } from "../interaction/clinicLayout";
+import { AUXILIARY_INSTRUMENT_KIT, INSTRUMENT_KIT } from "../interaction/clinicLayout";
 
 const identity = [0, 0, 0, 1] as const;
 const surface = [{ id: "clear", x: 0, z: 0, y: .8, width: 1, depth: 1 }];
@@ -135,17 +135,21 @@ describe("consultation assisted placement", () => {
     }
   });
 
-  it("stocks every lesson kit on the shared low cart against the learner-left wall", () => {
+  it("stocks core tools on the left kit and extended tools on the right kit", () => {
     const trays = [CONSULTATION_SURFACES[0], SENSORY_SURFACES[0], EXERCISE_SURFACE];
-    for (const tray of trays) expect(tray).toMatchObject({ x: INSTRUMENT_KIT.x, z: INSTRUMENT_KIT.z, width: INSTRUMENT_KIT.depth, depth: INSTRUMENT_KIT.width });
-    for (const [tools, tray] of [[CONSULTATION_TOOLS, trays[0]], [SENSORY_TOOLS, trays[1]], [EXERCISE_TOOLS, trays[2]]] as const) {
-      expect(Math.max(...tools.map(tool => tool.home[0])) - Math.min(...tools.map(tool => tool.home[0])), "all handles share one shallow reach row").toBeLessThan(.001);
+    expect(trays[0]).toMatchObject({ x: INSTRUMENT_KIT.x, z: INSTRUMENT_KIT.z, width: INSTRUMENT_KIT.depth, depth: INSTRUMENT_KIT.width });
+    for (const tray of trays.slice(1)) expect(tray).toMatchObject({ x: AUXILIARY_INSTRUMENT_KIT.x, z: AUXILIARY_INSTRUMENT_KIT.z, width: AUXILIARY_INSTRUMENT_KIT.depth, depth: AUXILIARY_INSTRUMENT_KIT.width });
+    for (const [tools, tray, kit] of [[CONSULTATION_TOOLS, trays[0], INSTRUMENT_KIT], [SENSORY_TOOLS, trays[1], AUXILIARY_INSTRUMENT_KIT], [EXERCISE_TOOLS, trays[2], AUXILIARY_INSTRUMENT_KIT]] as const) {
       for (const tool of tools) {
-        expect(tool.home[0], `${tool.label} must remain left of the patient`).toBeLessThan(-.35);
         expect(Math.abs(tool.home[0] - tray.x) + tool.footprint[0] / 2, `${tool.label} x footprint`).toBeLessThanOrEqual(tray.width / 2);
         expect(Math.abs(tool.home[2] - tray.z) + tool.footprint[1] / 2, `${tool.label} z footprint`).toBeLessThanOrEqual(tray.depth / 2);
+        expect(Math.min(
+          Math.abs(tool.home[1] - tool.restHeight - kit.surfaceY),
+          Math.abs(tool.home[1] - tool.restHeight - kit.lowerShelfY),
+        )).toBeLessThan(1e-9);
       }
     }
+    expect(CONSULTATION_SURFACES.some(surface => surface.id === "trolley-lower")).toBe(true);
   });
 
   it("returns both hands and clears power on session exit", () => {
@@ -158,6 +162,12 @@ describe("consultation assisted placement", () => {
 });
 
 describe("consultation technique availability", () => {
+  it("recognises every case-independent stocked tool as an interaction target", () => {
+    expect(CASE_INDEPENDENT_CONSULTATION_EQUIPMENT).toHaveLength(ALL_CLINIC_TOOLS.length);
+    for (const tool of ALL_CLINIC_TOOLS) expect(isConsultationToolId(tool.id), tool.label).toBe(true);
+    expect(isConsultationToolId("not-a-tool")).toBe(false);
+  });
+
   it("names the closest visible handle and only offers grip within the actual pickup radius", () => {
     const handles = [
       { id: "pupils" as const, position: [0, 1, 0] as const, visible: true },

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import type { AssessmentSubmission, ClinicalCase, Session } from "../domain/types";
+import { disclosedHistory } from "../patient/history";
 import { eyeLabel } from "./Examinations";
 export const diagnosisLabels: Record<string, string> = {
   myopia: "Bilateral myopia / refractive error",
@@ -106,18 +107,17 @@ export function Submission({
               </span>
             </label>
           ))}
-          {c.historyFacts
-            .filter((f) => session.revealedFactIds.includes(f.id))
-            .map((f) => (
-              <label className="check-row" key={f.id}>
+          {disclosedHistory(c, session.revealedFactIds)
+            .map(({ fact, answer, answered, total }) => (
+              <label className="check-row" key={fact.id}>
                 <input
                   type="checkbox"
-                  checked={form.evidenceIds.includes(`history:${f.id}`)}
-                  onChange={() => toggle("evidenceIds", `history:${f.id}`)}
+                  checked={form.evidenceIds.includes(`history:${fact.id}`)}
+                  onChange={() => toggle("evidenceIds", `history:${fact.id}`)}
                 />
                 <span>
-                  History · {f.domain}
-                  <small>{f.answer}</small>
+                  History · {fact.domain}{answered < total ? ` · ${answered}/${total} elicited` : ""}
+                  <small>{answer}</small>
                 </span>
               </label>
             ))}

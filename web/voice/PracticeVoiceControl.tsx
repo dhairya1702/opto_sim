@@ -4,6 +4,7 @@ import { VoiceControl } from "./VoiceControl";
 
 type PracticeVoiceControls = {
   enabled: boolean;
+  visible?: boolean;
   status: VoiceStatus;
   message: string;
   partial: string;
@@ -23,6 +24,6 @@ export function PracticeVoiceControl() {
 
   useEffect(() => () => mute?.(), [mute]);
 
-  if (!controls) return null;
+  if (!controls || controls.visible === false) return null;
   return <VoiceControl enabled={controls.enabled} status={controls.status} message={controls.message} partial={controls.partial} onEnable={controls.enable} onMute={controls.mute} />;
 }

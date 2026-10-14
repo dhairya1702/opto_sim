@@ -3,6 +3,7 @@ import { assess, requiredKeys } from "../domain/engine";
 import type { ClinicalCase, Session } from "../domain/types";
 import { diagnosisLabels, managementOptions } from "./Submission";
 import { Notebook } from "./Notebook";
+import { historyFactProgress } from "../patient/history";
 export function Debrief({
   c,
   session,
@@ -168,12 +169,13 @@ export function Debrief({
       </details>
       <details className="review-section">
         <summary>History disclosure review</summary>
-        {c.historyFacts.map((h) => (
-          <p key={h.id}>
+        {c.historyFacts.map((h) => {
+          const progress = historyFactProgress(h, session.revealedFactIds);
+          return <p key={h.id}>
             <strong>{h.domain}</strong> ·{" "}
-            {session.revealedFactIds.includes(h.id) ? "Asked and answered" : "Not elicited"}
-          </p>
-        ))}
+            {progress.ratio === 1 ? "Asked and answered" : progress.ratio > 0 ? `Partly elicited (${progress.answered}/${progress.total})` : "Not elicited"}
+          </p>;
+        })}
         <h3>Asked but not answered</h3>
         {session.events
           .filter((e) => e.type === "question" && e.status !== "answered")

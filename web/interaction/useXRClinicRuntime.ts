@@ -19,6 +19,7 @@ type Hand = XRClinicHand;
 export type XRClinicControllerSlot = ConsultationInputState & {
   hand: Hand | null; source: XRInputSource | null; ray: Group; grip: Group;
   tracked: boolean; buttonDown: boolean; scopeButtonDown: boolean; candidate: ConsultationToolId | null;
+  thumbstickY: -1 | 0 | 1;
   pendingSelection: { data: XRClinicSelection; point: Vector3 | null } | null;
 };
 type ControllerSlot = XRClinicControllerSlot;
@@ -52,6 +53,7 @@ type Options = {
   placementSockets?: readonly PlacementSocket[];
   onInterrupt?: (reason: XRClinicInterruption) => void;
   onToolUsed?: (id: ConsultationToolId, action: "pickup" | "activate") => void;
+  onThumbstickStep?: (id: ConsultationToolId, step: -1 | 1, hand: XRClinicHand) => boolean | void;
   onMenu?: (open: boolean) => void;
   onSelection?: (selection: XRClinicSelection) => void;
 };
@@ -66,7 +68,7 @@ export function useXRClinicRuntime(options: Options) {
     ...initialConsultationInput(), hand: null, source: null, tracked: false,
     ray: gl.xr.getController(index),
     grip: gl.xr.getControllerGrip(index),
-    buttonDown: false, scopeButtonDown: false, candidate: null, pendingSelection: null,
+    buttonDown: false, scopeButtonDown: false, thumbstickY: 0, candidate: null, pendingSelection: null,
   })), [gl]);
   const [, refresh] = useState(0);
   const [tools, setTools] = useState(initialConsultationTools);
@@ -172,7 +174,7 @@ export function useXRClinicRuntime(options: Options) {
     hidePlacementMarkers();
     scopeApertureRef.current = "small"; setScopeAperture("small");
     // Keep button edges latched: reset must not turn a held grip/trigger into a new action.
-    slots.forEach(slot => { slot.triggerRoute = null; slot.panel = false; slot.candidate = null; slot.pendingSelection = null; });
+    slots.forEach(slot => { slot.triggerRoute = null; slot.panel = false; slot.thumbstickY = 0; slot.candidate = null; slot.pendingSelection = null; });
     updateTools(initialConsultationTools());
     setHighlighted([]); setHandlingMessage("");
     pauseTechnique("reset");
@@ -275,7 +277,7 @@ export function useXRClinicRuntime(options: Options) {
         closeScopeView();
         if (slot.hand) updateTools(powerConsultationTool(toolsRef.current, slot.hand, false));
         Object.assign(slot, interruptConsultationInput(slot));
-        slot.candidate = null; slot.pendingSelection = null;
+        slot.candidate = null; slot.pendingSelection = null; slot.thumbstickY = 0;
         pauseTechnique("tracking");
       }
       const buttonPressed = Boolean(slot.source?.gamepad?.buttons[4]?.pressed);
@@ -303,6 +305,23 @@ export function useXRClinicRuntime(options: Options) {
       }
       // Latch even while unavailable: recovery must not synthesize a fresh press.
       slot.scopeButtonDown = scopePressed;
+      const gamepad = slot.source?.gamepad;
+      const axes = gamepad?.axes ?? [];
+      const vertical = axes.length >= 4 ? axes[3] : axes[1] ?? 0;
+      const thumbstickY: -1 | 0 | 1 = vertical <= -.65 ? 1 : vertical >= .65 ? -1 : 0;
+      if (Math.abs(vertical) <= .25) slot.thumbstickY = 0;
+      if (thumbstickY && !slot.thumbstickY && slot.hand && slot.tracked && !editorOpen && !slot.panel) {
+        const id = toolInHand(toolsRef.current, slot.hand);
+        if (id && optionsRef.current.onThumbstickStep?.(id, thumbstickY, slot.hand)) {
+          const haptics = gamepad as Gamepad & {
+            hapticActuators?: { pulse: (intensity: number, duration: number) => Promise<boolean> }[];
+            vibrationActuator?: { playEffect: (type: "dual-rumble", parameters: { duration: number; strongMagnitude: number; weakMagnitude: number }) => Promise<string> };
+          };
+          if (haptics.hapticActuators?.[0]) void haptics.hapticActuators[0].pulse(.25, 35);
+          else if (haptics.vibrationActuator) void haptics.vibrationActuator.playEffect("dual-rumble", { duration: 35, strongMagnitude: .25, weakMagnitude: .25 });
+        }
+        slot.thumbstickY = thumbstickY;
+      }
       slot.grip.visible = slot.tracked;
       slot.ray.visible = slot.tracked && (utilityOpenRef.current || editorOpen || findingsPanels.current.size > 0 || slot.panel || !slot.hand || !toolInHand(toolsRef.current, slot.hand));
     }
@@ -323,7 +342,8 @@ export function useXRClinicRuntime(options: Options) {
         slot.grip.getWorldPosition(object.position);
         // WebXR grip pose describes the hand; target-ray pose describes where it points.
         // Axial light tools must follow the aim pose, not the Quest grip-axis tilt.
-        (definition.illuminates && definition.powerMode !== "persistent" ? slot.ray : slot.grip).getWorldQuaternion(object.quaternion);
+        const heldPose = definition.heldPose ?? (definition.illuminates && definition.powerMode !== "persistent" ? "ray" : "grip");
+        (heldPose === "ray" ? slot.ray : slot.grip).getWorldQuaternion(object.quaternion);
         object.quaternion.multiply(quaternion.set(...definition.gripRotation));
       } else {
         object.visible = true;
@@ -507,7 +527,7 @@ export function useXRClinicRuntime(options: Options) {
       extinguishAll();
       slots.forEach(slot => {
         slot.panel = false; slot.triggerRoute = null; slot.triggerDown = false;
-        slot.gripDown = false; slot.scopeButtonDown = false; slot.candidate = null; slot.tracked = false;
+        slot.gripDown = false; slot.scopeButtonDown = false; slot.thumbstickY = 0; slot.candidate = null; slot.tracked = false;
         slot.pendingSelection = null;
       });
       setHighlighted([]);
@@ -535,6 +555,7 @@ export function useXRClinicRuntime(options: Options) {
       pauseTechnique("visibility");
       slots.forEach(slot => {
         Object.assign(slot, interruptConsultationInput(slot));
+        slot.thumbstickY = 0;
         slot.pendingSelection = null;
         slot.tracked = false;
         slot.grip.visible = false;
@@ -551,7 +572,7 @@ export function useXRClinicRuntime(options: Options) {
       interrupt();
       updateTools(resetConsultationHands(toolsRef.current));
       extinguishAll();
-      slots.forEach(slot => { Object.assign(slot, initialConsultationInput()); slot.pendingSelection = null; });
+      slots.forEach(slot => { Object.assign(slot, initialConsultationInput()); slot.pendingSelection = null; slot.thumbstickY = 0; });
     };
     session.addEventListener("visibilitychange", visibility);
     session.addEventListener("end", end);
@@ -567,7 +588,7 @@ export function useXRClinicRuntime(options: Options) {
         const source = (event as { data: XRInputSource }).data;
         slot.source = source;
         slot.hand = source.handedness === "left" || source.handedness === "right" ? source.handedness : null;
-        slot.triggerRoute = null; slot.triggerDown = false; slot.gripDown = false; slot.panel = false; slot.pendingSelection = null;
+        slot.triggerRoute = null; slot.triggerDown = false; slot.gripDown = false; slot.panel = false; slot.pendingSelection = null; slot.thumbstickY = 0;
         slot.scopeButtonDown = Boolean(source.gamepad?.buttons[5]?.pressed);
         refresh(value => value + 1);
       };
@@ -582,7 +603,7 @@ export function useXRClinicRuntime(options: Options) {
           if (returnedId) setReturnedAt(previous => ({ ...previous, [returnedId]: performance.now() }));
         }
         slot.source = null; slot.hand = null; slot.tracked = false;
-        slot.triggerRoute = null; slot.triggerDown = false; slot.gripDown = false; slot.panel = false; slot.pendingSelection = null;
+        slot.triggerRoute = null; slot.triggerDown = false; slot.gripDown = false; slot.panel = false; slot.pendingSelection = null; slot.thumbstickY = 0;
         pauseTechnique("tracking");
         refresh(value => value + 1);
       };

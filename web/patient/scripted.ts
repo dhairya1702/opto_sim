@@ -1,4 +1,5 @@
 import type { ClinicalCase } from "../domain/types";
+import { historyReplyForIds, resolveHistoryQuestion } from "./history";
 export type PatientReply = {
   reply: string;
   factIds: string[];
@@ -13,12 +14,10 @@ export const scriptedPatient: PatientProvider = {
   mode: "scripted",
   answer(question, caseData, factId, resolvedFactIds) {
     if (resolvedFactIds) {
-      const requested = new Set(resolvedFactIds);
-      const facts = caseData.historyFacts.filter((candidate) => requested.has(candidate.id));
-      if (facts.length)
+      const response = historyReplyForIds(caseData, resolvedFactIds);
+      if (response.factIds.length)
         return {
-          reply: facts.map((candidate) => candidate.answer).join(" "),
-          factIds: facts.map((candidate) => candidate.id),
+          ...response,
           needsClarification: false,
           status: "answered",
         };
@@ -30,11 +29,10 @@ export const scriptedPatient: PatientProvider = {
       };
     }
     if (factId) {
-      const fact = caseData.historyFacts.find((f) => f.id === factId);
-      if (fact)
+      const response = historyReplyForIds(caseData, [factId]);
+      if (response.factIds.length)
         return {
-          reply: fact.answer,
-          factIds: [fact.id],
+          ...response,
           needsClarification: false,
           status: "answered",
         };
@@ -52,16 +50,12 @@ export const scriptedPatient: PatientProvider = {
         needsClarification: false,
         status: "unsupported",
       };
-    if (/family|mother|parent/.test(q)) {
-      const f = caseData.historyFacts.find((f) => f.id === "family")!;
-      return { reply: f.answer, factIds: [f.id], needsClarification: false, status: "answered" };
-    }
-    const matched = caseData.historyFacts.filter((f) => f.patterns.some((p) => q.includes(p)));
-    // Only disclose complete authored domains when the question clearly asks about them.
-    if (matched.length > 0 && matched.length <= 4)
+    const matched = resolveHistoryQuestion(q, caseData);
+    const response = historyReplyForIds(caseData, matched);
+    // Only disclose authored details when the question clearly asks about them.
+    if (response.factIds.length > 0 && response.factIds.length <= 10)
       return {
-        reply: matched.map((f) => f.answer).join(" "),
-        factIds: matched.map((f) => f.id),
+        ...response,
         needsClarification: false,
         status: "answered",
       };

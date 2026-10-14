@@ -110,7 +110,7 @@ export function MotilityTargetModel({ powered = false, p = [0, 0, 0], r = [0, 0,
 }
 
 /** Approved stepped prism cells around the existing selected-cell coordinate. */
-export function PrismBarModel() {
+export function PrismBarModel({ selectedIndex = 0 }: { selectedIndex?: number } = {}) {
   return <group userData={{ instrumentModel: "prism-bar-shaped" }}>
     <MoldedHandle height={.16} width={.017} p={[0, .03, 0]} />
     <RoundedPlate width={.096} height={.281} depth={.008} radius={.018} p={[0, .225, 0]} color={colors.darkMetal} />
@@ -121,7 +121,7 @@ export function PrismBarModel() {
           <cylinderGeometry args={[radius * .82, radius, .014, 3]} />
           <meshPhysicalMaterial color="#9fded7" roughness={.12} transmission={.38} thickness={.01} transparent opacity={.68} />
         </mesh>
-        <mesh position={[.04, .118 + index * .032, .023]} castShadow><boxGeometry args={[.012, .005, .004]} /><StandardMaterial color={index === 4 ? colors.accent : colors.metal} metalness={.6} roughness={.34} /></mesh>
+        <mesh position={[.04, .118 + index * .032, .023]} castShadow userData={{ xrPrismCell: index, xrPrismCellSelected: index === selectedIndex }}><boxGeometry args={[.012, .005, .004]} /><StandardMaterial color={index === selectedIndex ? colors.accent : colors.metal} metalness={.6} roughness={.34} /></mesh>
       </group>;
     })}
   </group>;

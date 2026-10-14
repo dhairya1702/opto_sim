@@ -268,5 +268,119 @@
     "textHash": "76c16ad01eb12a24cede9226b2debd1ca53dbc631da007eed10cb128132ca192",
     "voice": "Charon",
     "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:onset:start": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpvbnNldDpzdGFydA.mp3",
+    "textHash": "9c84aae0878a61863cdd32c0703a373af11eb17d71b1b1546f2ce57645f896b7",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:onset:change": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpvbnNldDpjaGFuZ2U.mp3",
+    "textHash": "c91a7449c90e2b356d66579974698276c45fdea5c16454308021e673270eae8e",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:visual-pattern:distance": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTp2aXN1YWwtcGF0dGVybjpkaXN0YW5jZQ.mp3",
+    "textHash": "28f2a0fabfb452152081047cf18323182e69ec17b65af9d725d12f06f06bc618",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:visual-pattern:near": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTp2aXN1YWwtcGF0dGVybjpuZWFy.mp3",
+    "textHash": "3eb7cf7ec265433cdae23630dd3ded4b527b6946dbb609c67638a4efed8342ca",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:correction:glasses": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpjb3JyZWN0aW9uOmdsYXNzZXM.mp3",
+    "textHash": "db0679c83c62208096e5e4ce8b920565fc3b21a76c5dadb514b6bb9cbec6d301",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:correction:contacts": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpjb3JyZWN0aW9uOmNvbnRhY3Rz.mp3",
+    "textHash": "652234c3bf748602dbba1d8ad8aef8e28eb8ee1d9b1fa79336ae34dd8ab29ca5",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:symptoms:pain": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpzeW1wdG9tczpwYWlu.mp3",
+    "textHash": "8ad09a2f2345f60adb0b7ffcf72e3541952b54a66361c826543e78827c870eaa",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:symptoms:redness": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpzeW1wdG9tczpyZWRuZXNz.mp3",
+    "textHash": "2634d5116d0b88bbd05b718791b1407132a7c050a5b36688f06a6a862438d477",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:symptoms:diplopia": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpzeW1wdG9tczpkaXBsb3BpYQ.mp3",
+    "textHash": "696d4fb24729f9ba7837e603f228ec68a76a36097e09858e743373b21bad4e00",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:symptoms:photophobia": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpzeW1wdG9tczpwaG90b3Bob2JpYQ.mp3",
+    "textHash": "6168445f5e5a28a064ddc277fffc3520f4c7098d5c3b5be81cb4d7a8c86ecbd5",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:safety:injury": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpzYWZldHk6aW5qdXJ5.mp3",
+    "textHash": "3d39e41ca2d4b2d44509fc28d6ff992b510fc123f759eca310219fe84724dbfb",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:safety:sudden-loss": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpzYWZldHk6c3VkZGVuLWxvc3M.mp3",
+    "textHash": "237f78cb27e158d6ea3a9002e8fc808d7f5ab1998294adbef38e723f0da6bc3f",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:safety:flashes": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpzYWZldHk6Zmxhc2hlcw.mp3",
+    "textHash": "bb6fe15df3d5936f11e66e5528077397a0a8a964a21e89bd203b8672b9c4c10d",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:safety:floaters": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpzYWZldHk6ZmxvYXRlcnM.mp3",
+    "textHash": "0dd8cc2f29b9ac646ace4b92b88ee0193140d9dab99e7b233cfb24417c07163a",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:safety:curtain": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpzYWZldHk6Y3VydGFpbg.mp3",
+    "textHash": "2c7ad8c32c7b4ae48084c881163c0e03e40e3716c78d6a37d0e03c9bd67d1d15",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:general:diabetes": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpnZW5lcmFsOmRpYWJldGVz.mp3",
+    "textHash": "823100a1e71d8135c78ac0f294752d2990d5524937f46a93bc1916d43d715baf",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:general:surgery": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpnZW5lcmFsOnN1cmdlcnk.mp3",
+    "textHash": "286252960d9432faedd9f66736f3e5db2bc42b51d199e08b7e5ff84074819b38",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:general:medication": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpnZW5lcmFsOm1lZGljYXRpb24.mp3",
+    "textHash": "1f6ba9e3eddc301868f70f8be0833f7a98e72ebb727cb16619808c08d2cf549c",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
+  },
+  "adult_distance_blur_01:0.1-draft:history:general:allergies": {
+    "file": "YWR1bHRfZGlzdGFuY2VfYmx1cl8wMTowLjEtZHJhZnQ6aGlzdG9yeTpnZW5lcmFsOmFsbGVyZ2llcw.mp3",
+    "textHash": "47301ffc62270e3b00a0a4521ba53a31cd389c3d2ae50cc3a64da5b2ff1c78bd",
+    "voice": "Charon",
+    "generatedBy": "Google Gemini TTS"
   }
 }

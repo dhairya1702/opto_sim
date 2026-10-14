@@ -1,5 +1,6 @@
 import { Camera, Quaternion, Vector3 } from "three";
 import type { ScopeViewerPose } from "./xrScopes";
+import type { ExaminerEye } from "./xrKrimskyPractice";
 
 export const createXRViewerScratch = () => ({ position: new Vector3(), forward: new Vector3(), rotation: new Quaternion(), poses: [] as ScopeViewerPose[] });
 /** The ArrayCamera is a rendering/culling camera, not either of the learner's eyes. */
@@ -12,4 +13,9 @@ export function xrViewerPoses(viewer: Camera, scratch: ReturnType<typeof createX
   });
   scratch.poses.length = cameras.length;
   return scratch.poses;
+}
+
+/** WebXR ArrayCamera order is left then right; desktop/single-camera falls back safely. */
+export function xrExaminerPose(poses: readonly ScopeViewerPose[], eye: ExaminerEye) {
+  return poses[eye === "left" ? 0 : 1] ?? poses[0] ?? null;
 }

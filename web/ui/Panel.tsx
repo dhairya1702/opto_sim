@@ -4,6 +4,7 @@ export function Panel({
   title,
   eyebrow,
   children,
+  onBack,
   onReturn,
   onDismiss,
   wide = false,
@@ -12,6 +13,7 @@ export function Panel({
   title: string;
   eyebrow: string;
   children: ReactNode;
+  onBack?: () => void;
   onReturn?: () => void;
   onDismiss?: () => void;
   wide?: boolean;
@@ -38,9 +40,16 @@ export function Panel({
       aria-labelledby="panel-title"
     >
       <header className="panel-header">
-        <div>
+        <div className="panel-heading">
+          {onBack && (
+            <button className="panel-back-button" aria-label="Back to mode selection" onClick={onBack}>
+              <ArrowLeft size={17} /> Back
+            </button>
+          )}
+          <div>
           <p className="eyebrow">{eyebrow}</p>
           <h1 id="panel-title">{title}</h1>
+          </div>
         </div>
         {onDismiss && (
           <button className="icon-button" aria-label="Close panel" onClick={onDismiss}>

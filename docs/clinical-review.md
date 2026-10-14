@@ -12,7 +12,7 @@ This is a fictional demonstration of clinical reasoning and examination selectio
 - `web/patient/scripted.ts`: supported question matching and uncertainty responses.
 - Debrief → Export review: attempt, questions, disclosure status, acquired result IDs, submitted evidence, individual criteria and cited event IDs.
 
-Opening complaint appears at the start but does not award a whole history domain automatically. Suggested questions reveal one authored domain. Free text can reveal more than one matched domain; partial sub-domain credit is not implemented. Unknown detail is not filled with extra negative history. Please review this disclosure granularity for the teaching audience.
+Opening complaint appears at the start but does not award a whole history domain automatically. Suggested questions intentionally ask and reveal one complete authored domain. Free-text and voice questions use the same specificity model: a focused question reveals only the requested authored detail, a compound question reveals only its matched details, and a broad domain question reveals the complete authored domain. Partially elicited compound domains receive proportional credit and remain visibly partial in the notebook and debrief. Unknown detail is not filled with extra negative history. Please review this disclosure granularity and proportional scoring for the teaching audience.
 
 ## Fixed case facts
 
@@ -61,7 +61,7 @@ XR direct ophthalmoscopy now uses the same explicit B/Y scope mode. The front op
 
 | Dimension | Weight | Draft scoring |
 | --- | ---: | --- |
-| History | 25 | Unique disclosed domains: onset 3, distance/near 3, laterality 2, impact 2, correction 2, symptoms 3, safety 4, general history 3, family 2, consent 1 |
+| History | 25 | Authored domain weights remain onset 3, distance/near 3, laterality 2, impact 2, correction 2, symptoms 3, safety 4, general history 3, family 2, consent 1. Compound domains award proportional detail credit; a broad question earns the full domain. |
 | Examination selection | 30 | Distance 4, pinhole 3, near 2, pupils 2, cover 2, motility 2, objective 4, subjective 5, anterior 3, fundus 3 |
 | Interpretation | 25 | Diagnosis 10, selected acquired baseline evidence 4, pinhole evidence 4, subjective endpoint evidence 7 |
 | Management / communication | 20 | Optical correction supported by refraction 8; health review and follow-up supported by anterior/fundus results 6; structured explanation and safety choices 3 each |

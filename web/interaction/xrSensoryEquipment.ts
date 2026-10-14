@@ -1,5 +1,5 @@
 import { CLINIC_EYE_MIDPOINT } from "./clinicPatient";
-import { INSTRUMENT_KIT } from "./clinicLayout";
+import { AUXILIARY_INSTRUMENT_KIT } from "./clinicLayout";
 import {
   consultationToolDefinition, socketOrientationMatches,
   type ConsultationToolId, type ConsultationTools, type PlacementSocket, type PlacementSurface, type ToolPoint,
@@ -21,7 +21,7 @@ const rootAtWorkingPoint = (id: ConsultationToolId, position: ToolPoint, reverse
   const [x, y, z] = consultationToolDefinition(id).workingPoint;
   return [position[0] - (reversed ? -x : x), position[1] - y, position[2] - (reversed ? -z : z)];
 };
-export const SENSORY_SURFACES: readonly PlacementSurface[] = [{ id: "sensory-tray", x: INSTRUMENT_KIT.x, z: INSTRUMENT_KIT.z, y: INSTRUMENT_KIT.surfaceY, width: INSTRUMENT_KIT.depth, depth: INSTRUMENT_KIT.width }];
+export const SENSORY_SURFACES: readonly PlacementSurface[] = [{ id: "sensory-tray", x: AUXILIARY_INSTRUMENT_KIT.x, z: AUXILIARY_INSTRUMENT_KIT.z, y: AUXILIARY_INSTRUMENT_KIT.surfaceY, width: AUXILIARY_INSTRUMENT_KIT.depth, depth: AUXILIARY_INSTRUMENT_KIT.width }];
 export const SENSORY_SOCKETS: readonly PlacementSocket[] = [
   { id: "sensory-correction", tool: "subjective", position: [0, 1.5, -.511], rotation: identity, radius: .085, orientationToleranceRad: Math.PI / 6, fittingLayer: "correction" },
   { id: "sensory-red-green", tool: "red-green", position: [0, 1.5, -.482], rotation: identity, radius: .085, orientationToleranceRad: Math.PI / 6, fittingLayer: "filters" },

@@ -315,13 +315,20 @@ export function NearVisionCard({ p = [0, 0, 0], r = [0, 0, 0] }: { p?: V; r?: V 
   );
 }
 
-export function Trolley({ held, portable = true }: { held?: string; portable?: boolean }) {
+type TrolleyKit = Pick<typeof INSTRUMENT_KIT, "x" | "z" | "width" | "depth" | "surfaceY" | "lowerShelfY">;
+export function Trolley({ held, portable = true, kit = INSTRUMENT_KIT, rotationY = INSTRUMENT_KIT_ROTATION_Y, label = "LEFT-SIDE INSTRUMENT KIT" }: {
+  held?: string;
+  portable?: boolean;
+  kit?: TrolleyKit;
+  rotationY?: number;
+  label?: string;
+}) {
   return (
-    <group position={[INSTRUMENT_KIT.x, 0, INSTRUMENT_KIT.z]} rotation={[0, INSTRUMENT_KIT_ROTATION_Y, 0]}>
-      <Box p={[0, INSTRUMENT_KIT.surfaceY - .0175, 0]} s={[INSTRUMENT_KIT.width, .035, INSTRUMENT_KIT.depth]} c="#d9e1de" radius={.015} />
-      <Box p={[0, INSTRUMENT_KIT.lowerShelfY - .0175, 0]} s={[INSTRUMENT_KIT.width, .035, INSTRUMENT_KIT.depth]} c="#b9c9c6" radius={.015} />
-      {[-INSTRUMENT_KIT.width / 2 + .05, INSTRUMENT_KIT.width / 2 - .05].flatMap((x) =>
-        [-INSTRUMENT_KIT.depth / 2 + .05, INSTRUMENT_KIT.depth / 2 - .05].map((z) => (
+    <group position={[kit.x, 0, kit.z]} rotation={[0, rotationY, 0]}>
+      <Box p={[0, kit.surfaceY - .0175, 0]} s={[kit.width, .035, kit.depth]} c="#d9e1de" radius={.015} />
+      <Box p={[0, kit.lowerShelfY - .0175, 0]} s={[kit.width, .035, kit.depth]} c="#b9c9c6" radius={.015} />
+      {[-kit.width / 2 + .05, kit.width / 2 - .05].flatMap((x) =>
+        [-kit.depth / 2 + .05, kit.depth / 2 - .05].map((z) => (
           <group key={`${x}${z}`}>
             <Cylinder p={[x, .47, z]} h={.82} radius={0.018} />
             <Cylinder
@@ -369,7 +376,7 @@ export function Trolley({ held, portable = true }: { held?: string; portable?: b
           <NearVisionCard p={[.33, .899, .08]} />
         </group>
       )}
-      <Sign text={["LEFT-SIDE INSTRUMENT KIT"]} p={[0, .78, INSTRUMENT_KIT.depth / 2 + .004]} size={[.62, .07]} />
+      <Sign text={[label]} p={[0, .78, kit.depth / 2 + .004]} size={[.62, .07]} />
     </group>
   );
 }

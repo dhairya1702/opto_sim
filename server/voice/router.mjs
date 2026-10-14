@@ -4,16 +4,19 @@ const instructionPatterns = {
   "look-straight": ["look straight", "look ahead", "fixate distance"],
   "fixate-target": ["look at the target", "fixate the target", "keep looking at"],
   "follow-target": ["follow the target", "follow the light", "follow this"],
-  "report-symptoms": ["double vision", "any pain", "any discomfort", "tell me if"],
+  "report-symptoms": ["symptom", "double vision", "any pain", "any discomfort", "tell me if"],
   "read-chart": ["read the chart", "read the letters", "read this line", "read the near card"],
 };
 const practicePatterns = {
   "fixate-light": ["look at the light", "fixate the light"],
   "fixate-target": ["look at the target", "fixate the target"],
   "follow-target": ["follow the target", "follow the light"],
-  "report-symptoms": ["double vision", "any pain", "any discomfort"],
+  "report-symptoms": ["symptom", "double vision", "any pain", "any discomfort"],
   "request-report": ["what do you see", "tell me what you see", "report now"],
   "report-clear": ["is it clear", "can you clear", "clear now"],
+  "examiner-close-right-eye": ["close my right eye", "use my left eye", "left examiner eye"],
+  "examiner-close-left-eye": ["close my left eye", "use my right eye", "right examiner eye"],
+  "examiner-open-both-eyes": ["open both eyes", "opening both eyes", "use both eyes", "binocular view"],
 };
 const socialPatterns = [
   ["introduction", /\b(?:what is|whats|tell me) your name\b|\bwho are you\b/],

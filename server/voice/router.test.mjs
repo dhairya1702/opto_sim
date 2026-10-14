@@ -34,6 +34,26 @@ describe("deterministic voice routing", () => {
     expect(routeDeterministic("WHEN did it start — and is it in both eyes?", testContext, "u1")).toMatchObject({ kind: "history", factIds: ["onset", "laterality"] });
     expect(routeDeterministic("Please follow the light with your eyes", testContext, "u2")).toMatchObject({ kind: "patient-instruction", instructionId: "follow-target" });
   });
+  it("routes natural symptom questions through the active examination action", () => {
+    expect(routeDeterministic("Do you have any symptoms?", testContext, "u1")).toMatchObject({ kind: "patient-instruction", instructionId: "report-symptoms" });
+    expect(routeDeterministic("Did you notice any symptoms while following the light?", testContext, "u2")).toMatchObject({ kind: "patient-instruction", instructionId: "report-symptoms" });
+    const practice = { mode: "practice", sessionId: "s1", lessonId: "motility", allowedActions: ["follow-target", "report-symptoms"] };
+    expect(routeDeterministic("Are you experiencing any symptoms?", practice, "u3")).toMatchObject({ kind: "practice-action", lessonId: "motility", actionId: "report-symptoms" });
+  });
+  it("keeps focused history details separate for the client resolver", () => {
+    const context = {
+      ...testContext,
+      allowedFacts: [
+        ...testContext.allowedFacts,
+        { id: "symptoms:redness", patterns: ["redness", "red eye", "eyes red", "look red"] },
+        { id: "symptoms:pain", patterns: ["pain", "hurt", "ache"] },
+      ],
+    };
+    expect(routeDeterministic("Have you noticed any redness?", context, "u1")).toMatchObject({ kind: "history", factIds: ["symptoms:redness"] });
+    const compound = routeDeterministic("Do your eyes hurt or look red?", context, "u2");
+    expect(compound).toMatchObject({ kind: "history" });
+    expect(compound.factIds).toEqual(expect.arrayContaining(["symptoms:pain", "symptoms:redness"]));
+  });
   it("routes chart-reading when the active Test experience allows it", () => {
     const context = { ...testContext, allowedActions: [...testContext.allowedActions, "read-chart"] };
     expect(routeDeterministic("Please read the letters on the chart", context, "u3")).toMatchObject({ kind: "patient-instruction", instructionId: "read-chart" });
@@ -54,6 +74,13 @@ describe("deterministic voice routing", () => {
     const practice = { mode: "practice", sessionId: "s1", lessonId: "worth", allowedActions: ["fixate-target", "request-report"] };
     expect(routeDeterministic("What do you see?", practice, "u1")).toMatchObject({ kind: "practice-action", lessonId: "worth", actionId: "request-report" });
     expect(routeDeterministic("Follow the light", practice, "u2")).toBeNull();
+  });
+  it("routes Krimsky examiner-eye voice controls only from its active allowlist", () => {
+    const practice = { mode: "practice", sessionId: "s1", lessonId: "krimsky", allowedActions: ["examiner-close-right-eye", "examiner-close-left-eye", "examiner-open-both-eyes"] };
+    expect(routeDeterministic("I'm going to close my right eye", practice, "u1")).toMatchObject({ kind: "practice-action", actionId: "examiner-close-right-eye" });
+    expect(routeDeterministic("I'll close my left eye", practice, "u2")).toMatchObject({ kind: "practice-action", actionId: "examiner-close-left-eye" });
+    expect(routeDeterministic("I'm opening both eyes", practice, "u3")).toMatchObject({ kind: "practice-action", actionId: "examiner-open-both-eyes" });
+    expect(routeDeterministic("I'm going to close my right eye", { ...practice, allowedActions: [] }, "u4")).toBeNull();
   });
   it("routes common formalities without sending them to live conversation", () => {
     expect(routeDeterministic("Hi, how is it going?", testContext, "u1")).toMatchObject({ kind: "social", socialId: "greeting" });

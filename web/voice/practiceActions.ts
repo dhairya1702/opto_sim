@@ -20,15 +20,18 @@ const action = (id: string, phrases: string[], controls: string[], acknowledgeme
 const fixateLight = action("fixate-light", ["look at the light", "fixate the light"], ["look at the light", "fixation"], "Okay, I am looking at the light.");
 const fixateTarget = action("fixate-target", ["look at the target", "fixate the target"], ["give fixation", "look at this target", "look at the target", "establish fixation", "fixate isolated", "fixation"], "Okay, I am looking at the target.");
 const followTarget = action("follow-target", ["follow the target", "follow the light"], ["following instruction", "follow this target", "follow light", "start following"], "Okay, I will follow it with my eyes.");
-const reportSymptoms = action("report-symptoms", ["any double vision", "any pain", "any discomfort"], ["ask diplopia", "ask symptoms", "symptoms"], "I will tell you if I notice double vision, pain, or discomfort.");
+const reportSymptoms = action("report-symptoms", ["any symptoms", "any double vision", "any pain", "any discomfort"], ["ask diplopia", "ask symptoms", "symptoms"], "I will tell you if I notice double vision, pain, or discomfort.");
 const reportPercept = action("request-report", ["what do you see", "tell me what you see", "report now"], ["ask count", "present page", "ask number", "patient report", "mark patient endpoint", "mark sustained blur", "capture coincidence"], "I can report what I see now that the examination setup is ready.");
 const reportClear = action("report-clear", ["is it clear", "can you clear it"], ["clear / flip", "clear + single", "confirm clear baseline"], "It is clear and single now.");
+const closeRightEye = action("examiner-close-right-eye", ["close my right eye", "use my left eye", "left examiner eye"], ["close right eye · left view"], "Left examiner-eye view active.");
+const closeLeftEye = action("examiner-close-left-eye", ["close my left eye", "use my right eye", "right examiner eye"], ["close left eye · right view"], "Right examiner-eye view active.");
+const openBothEyes = action("examiner-open-both-eyes", ["open both eyes", "opening both eyes", "use both eyes", "binocular view"], ["open both eyes"], "Binocular examiner view restored.");
 
 export const PRACTICE_VOICE_ACTIONS: Record<PracticeLessonId, readonly PracticeVoiceAction[]> = {
   motility: [followTarget, reportSymptoms],
   bruckner: [fixateLight],
   hirschberg: [fixateLight],
-  krimsky: [fixateLight],
+  krimsky: [fixateLight, closeRightEye, closeLeftEye, openBothEyes],
   "cover-uncover": [fixateTarget],
   "alternate-cover": [fixateTarget],
   worth: [fixateTarget, reportPercept],

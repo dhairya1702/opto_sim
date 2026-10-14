@@ -39,6 +39,8 @@ import type { VoiceCommand } from "../voice/contracts";
 import { socialVoiceReply } from "../voice/socialReplies";
 import { TestVoiceControlProvider } from "../voice/TestVoiceControl";
 import { patientVoiceReply } from "../voice/patientReplies";
+import { voiceHistoryFacts } from "../patient/history";
+import { consultationToolDefinition, isConsultationToolId, type ConsultationToolId } from "../interaction/xrConsultationTools";
 type PanelName =
   | "briefing"
   | "interview"
@@ -66,6 +68,7 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
   const [targetExam, setTargetExam] = useState<string | undefined>();
   const [toast, setToast] = useState<{ title: string; detail: string; key: number } | null>(null);
   const [held, setHeld] = useState<ExaminationAnimation | null>(null);
+  const [heldTool, setHeldTool] = useState<ConsultationToolId | null>(null);
   const [animation, setAnimation] = useState<ExaminationAnimation | null>(null);
   const [initialExam, setInitialExam] = useState<string | undefined>();
   const [initialConfig, setInitialConfig] = useState<ExamConfig | undefined>();
@@ -97,7 +100,7 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
     sessionId: session.id,
     caseId: c.id,
     caseVersion: c.version,
-    allowedFacts: c.historyFacts.map(({ id, patterns }) => ({ id, patterns })),
+    allowedFacts: voiceHistoryFacts(c),
     allowedActions: [...TEST_VOICE_INSTRUCTIONS],
   }), [session.id]);
   const handleVoiceCommand = useCallback((command: VoiceCommand) => {
@@ -107,7 +110,20 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
       const cacheKeys = reply.factIds.map(factId => `${c.id}:${c.version}:history:${factId}`);
       return { accepted: true, spokenText: reply.reply, cacheKey: `${c.id}:${c.version}:history:${reply.factIds.join("+") || "clarification"}`, cacheKeys };
     }
-    if (command.kind === "patient-instruction") return invokeTestVoiceInstruction(command.instructionId);
+    if (command.kind === "patient-instruction") {
+      if (command.instructionId === "report-symptoms" && panel === "interview") {
+        const reply = scriptedPatient.answer(command.transcript, c);
+        if (reply.factIds.length) {
+          dispatch({ type: "askQuestion", question: command.transcript, resolvedFactIds: reply.factIds, utteranceId: command.utteranceId, source: "voice", at: Date.now() });
+          return {
+            accepted: true,
+            spokenText: reply.reply,
+            cacheKeys: reply.factIds.map(factId => `${c.id}:${c.version}:history:${factId}`),
+          };
+        }
+      }
+      return invokeTestVoiceInstruction(command.instructionId);
+    }
     if (command.kind === "social") return socialVoiceReply(command.socialId);
     if (command.kind === "patient-reply") {
       const reply = patientVoiceReply(command.replyId);
@@ -129,7 +145,7 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
       return { accepted: true, spokenText: reply.reply, cacheKey: `${c.id}:${c.version}:clarification` };
     }
     return { accepted: false, spokenText: "That voice action is not available in Test mode.", errorCode: "MODE_MISMATCH" };
-  }, [dispatch]);
+  }, [dispatch, panel]);
   const voice = useVoiceSession(voiceContext, handleVoiceCommand);
   useNotebookTool(session, c);
   const unlock = () => {
@@ -199,7 +215,15 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
   const interact = useCallback(
     (id: StationId, examId?: string) => {
       if (examId) {
-        const exam = c.exams.find((e) => e.id === examId)!;
+        const exam = c.exams.find((e) => e.id === examId);
+        if (!exam && isConsultationToolId(examId)) {
+          setStation(id);
+          setHeld(null);
+          setHeldTool(examId);
+          setPanel(null);
+          return;
+        }
+        if (!exam) return;
         const config = { eye: exam.eyes[0], mode: exam.modes[0].id };
         const selected = { examId, config, equipment: exam.equipment, name: exam.name };
         setStation(id);
@@ -207,12 +231,17 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
         setInitialConfig(config);
         if (examId === "anterior") {
           setHeld(null);
+          setHeldTool(null);
           setAnimation(selected);
           open(null);
           return;
         }
         setHeld(selected);
+        if (isConsultationToolId(examId)) setHeldTool(examId);
         setPanel(null);
+        return;
+      }
+      if (id === "patient" && heldTool && !held) {
         return;
       }
       if (id === "patient" && held) {
@@ -238,7 +267,7 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
       setStation(id);
       open(id === "patient" ? "interview" : "exams");
     },
-    [open, held, session, xrActive],
+    [open, held, heldTool, session, xrActive],
   );
   const fail = useCallback(() => {
     setSceneFailed(true);
@@ -306,6 +335,7 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
     setVisit({ id: "patient", seq: Date.now() });
     setTarget(null);
     setHeld(null);
+    setHeldTool(null);
     setToast(null);
     setAnimation(null);
     notifiedEvent.current = undefined;
@@ -389,7 +419,7 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
             onXRPanel={open}
             onXRExit={() => { void endXR(); }}
             suspended={!!animation}
-            held={held?.examId}
+            held={heldTool ?? undefined}
             target={target}
             onTarget={targetChange}
             onInteract={interact}
@@ -496,8 +526,8 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
             <div className="target-label">
               <kbd>E</kbd>
               {targetExam
-                ? `${targetExam === "anterior" ? "Use" : "Pick up"} ${c.exams.find((e) => e.id === targetExam)?.equipment}`
-                : target === "patient" && held
+                ? `${targetExam === "anterior" ? "Use" : "Pick up"} ${c.exams.find((e) => e.id === targetExam)?.equipment ?? (isConsultationToolId(targetExam) ? consultationToolDefinition(targetExam).label : "instrument")}`
+                : target === "patient" && heldTool
                   ? "Examine Arun"
                   : stations.find((s) => s.id === target)?.action}
             </div>
@@ -585,7 +615,7 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
         </button>
       </footer>
       {panel === "briefing" && session.phase === "briefing" && (
-        <Panel title="Your patient" eyebrow="CASE 01 / ADULT CONSULTATION" briefing>
+        <Panel title="Your patient" eyebrow="CASE 01 / ADULT CONSULTATION" briefing onBack={onExit}>
           <div className="briefing-patient">
             <span className="avatar large">A</span>
             <div>
@@ -689,10 +719,13 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
               setPanel(null);
               unlock();
               if (examId === "anterior") {
+                setHeld(null);
+                setHeldTool(null);
                 setAnimation(selected);
                 return;
               }
               setHeld(selected);
+              if (isConsultationToolId(examId)) setHeldTool(examId);
               setVisit({ id: "patient", seq: Date.now() });
             }}
           />
@@ -755,6 +788,7 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
               className="secondary"
               onClick={() => {
                 flushSync(() => setHeld(null));
+                setHeldTool(null);
                 resume();
               }}
             >
@@ -773,6 +807,26 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
               }}
             >
               Examine Arun →
+            </button>
+          </div>
+        </section>
+      )}
+      {heldTool && !held && !xrActive && !panel && !animation && inEncounter && (
+        <section className="held-prompt" aria-label="Selected instrument">
+          <p className="eyebrow">INSTRUMENT READY</p>
+          <h2>{consultationToolDefinition(heldTool).label}</h2>
+          <p>Instrument in hand. Aim at Arun and press E to use it, or continue exploring the room.</p>
+          <div className="button-row">
+            {!locked && !sceneFailed && (
+              <button className="primary full" onClick={() => resume(true)}>
+                Return to room · enable mouse-look
+              </button>
+            )}
+            <button className="secondary" onClick={() => {
+              setHeldTool(null);
+              resume();
+            }}>
+              Put down & return to room
             </button>
           </div>
         </section>
@@ -812,7 +866,7 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
       {toast && (
         <aside key={toast.key} className="finding-toast" role="status">
           <span className="eyebrow">
-            {toast.title === "Before this examination"
+            {toast.title.startsWith("Before")
               ? "PROCEDURE NOTE"
               : "✓ FINDING RECORDED · SAVED TO NOTEBOOK"}
           </span>

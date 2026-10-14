@@ -1,16 +1,24 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, CircleDot, Eye, Power, RotateCw } from "lucide-react";
+import { useThree } from "@react-three/fiber";
+import { Check, Eye, Power, RotateCw } from "lucide-react";
 import { Canvas } from "./PracticeWebGLFallback";
 import { EyeSurface } from "../scene/EyeSurface";
 import { krimskyCases, krimskyDistanceReady, krimskyEye, krimskyReady, krimskyResidual, type KrimskyMethod } from "../interaction/krimsky";
 import { PracticeVoiceControl } from "../voice/PracticeVoiceControl";
+import type { ExaminerEye } from "../interaction/xrKrimskyPractice";
 
-function Scene({ reflex, light, fixation, monocular, distance, eye, power, base }: { reflex: number; light: boolean; fixation: boolean; monocular: boolean; distance: number; eye: string; power: number; base: string }) {
+function Scene({ reflex, light, fixation, examinerEye, distance, eye, power, base }: { reflex: number; light: boolean; fixation: boolean; examinerEye: ExaminerEye | null; distance: number; eye: string; power: number; base: string }) {
   const movement = useRef({ x: 0, y: 0, used: true });
+  const { camera } = useThree();
+  useEffect(() => {
+    camera.position.x = examinerEye === "left" ? -.032 : examinerEye === "right" ? .032 : 0;
+    camera.updateProjectionMatrix();
+    return () => { camera.position.x = 0; camera.updateProjectionMatrix(); };
+  }, [camera, examinerEye]);
   const distanceProgress = (distance - 30) / 40;
   const instrumentScale = 1.08 - distanceProgress * 0.22;
   const instrumentZ = 0.8 + distanceProgress * 0.42;
-  const viewQuality = Math.max(0.28, 1 - Math.abs(distance - 50) / 32) * (fixation ? 1 : 0.68) * (monocular ? 1 : 0.8);
+  const viewQuality = Math.max(0.28, 1 - Math.abs(distance - 50) / 32) * (fixation ? 1 : 0.68) * (examinerEye ? 1 : 0.8);
   return <>
     <color attach="background" args={["#09161b"]} /><ambientLight intensity={1.3} /><directionalLight position={[-2, 3, 4]} intensity={2} />
     <mesh scale={[0.64, 0.85, 0.48]}><sphereGeometry args={[1, 40, 28]} /><meshStandardMaterial color="#a97453" /></mesh>
@@ -35,7 +43,7 @@ export function KrimskyPracticeStage({ onClose, onComplete }: { onClose: () => v
   const [index, setIndex] = useState(0);
   const [light, setLight] = useState(false);
   const [fixation, setFixation] = useState(false);
-  const [monocular, setMonocular] = useState(false);
+  const [examinerEye, setExaminerEye] = useState<ExaminerEye | null>(null);
   const [distance, setDistance] = useState(40);
   const [baseline, setBaseline] = useState(false);
   const [eye, setEye] = useState("");
@@ -45,13 +53,19 @@ export function KrimskyPracticeStage({ onClose, onComplete }: { onClose: () => v
   const [feedback, setFeedback] = useState("");
   const [done, setDone] = useState(false);
   const scenario = krimskyCases[index];
-  const viewing = light && fixation && krimskyDistanceReady(distance) && monocular;
-  const ready = baseline && !!base && krimskyReady(method, eye, light, fixation, distance, monocular);
+  const viewing = light && fixation && krimskyDistanceReady(distance) && Boolean(examinerEye);
+  const ready = baseline && !!base && krimskyReady(method, eye, light, fixation, distance, Boolean(examinerEye));
   const residual = krimskyResidual(scenario.power, ready ? power : 0, base === scenario.base);
   const reflex = Math.max(-0.09, Math.min(0.09, residual * scenario.sign * 0.003));
   useEffect(() => { const node = dialog.current; node?.showModal(); return () => { clearDrag(); node?.close(); }; }, []);
+  useEffect(() => {
+    if (!viewing || baseline || eye || done) return;
+    const timer = window.setTimeout(() => setBaseline(true), 800);
+    return () => window.clearTimeout(timer);
+  }, [baseline, done, eye, viewing]);
   function invalidate() { clearDrag(); completed.current = false; setAnswer(""); setFeedback(""); setDone(false); }
   function reset() { setEye(""); setBase(""); setPower(0); setBaseline(false); invalidate(); }
+  function chooseExaminerEye(next: ExaminerEye | null) { if (next === examinerEye || done) return; setExaminerEye(next); reset(); }
   function placePrism(nextEye: string) {
     if (!baseline || done || nextEye === eye) return;
     setEye(nextEye); setPower(0); invalidate();
@@ -69,14 +83,16 @@ export function KrimskyPracticeStage({ onClose, onComplete }: { onClose: () => v
   return <dialog ref={dialog} className="clinical-practice-dialog" aria-labelledby="krimsky-title" onCancel={event => { event.preventDefault(); onClose(); }}>
     <header className="clinical-stage-header"><div><p className="eyebrow">LIVE PRACTICE · MOTOR ALIGNMENT</p><h1 id="krimsky-title">{method === "modified" ? "Modified Krimsky" : "Krimsky"}</h1></div><div className="clinical-stage-distance"><span>Penlight</span><strong>{distance} cm</strong></div><PracticeVoiceControl /><button className="secondary" onClick={onClose}>Close</button></header>
     <div className="clinical-stage-body"><div className="clinical-viewport-wrap"><div className="clinical-viewport" tabIndex={0} aria-label="Krimsky prism bar. Click or use left and right arrows to place the prism before an eye. Drag upward or downward, or use up and down arrows, to adjust power. Press B to rotate the prism base." onPointerDown={event => { if (event.button !== 0 || !baseline || done) return; event.currentTarget.focus(); const bounds = event.currentTarget.getBoundingClientRect(); const nextEye = event.clientX < bounds.left + bounds.width / 2 ? "OD" : "OS"; if (nextEye !== eye) { placePrism(nextEye); return; } if (!ready) return; event.currentTarget.setPointerCapture(event.pointerId); drag.current = { y: event.clientY, power, pointerId: event.pointerId, element: event.currentTarget }; }} onPointerMove={event => { if (drag.current) changePower(drag.current.power - (event.clientY - drag.current.y) / 10); }} onPointerUp={event => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); drag.current = null; }} onPointerCancel={() => { drag.current = null; }} onLostPointerCapture={() => { drag.current = null; }} onKeyDown={event => { if (event.key.toLowerCase() === "b") { event.preventDefault(); rotateBase(); return; } if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return; event.preventDefault(); if (event.key === "ArrowLeft" || event.key === "ArrowRight") placePrism(event.key === "ArrowLeft" ? "OD" : "OS"); else changePower(power + (event.key === "ArrowUp" ? 1 : -1)); }}>
-      <Canvas dpr={[1, 1.5]} camera={{ position: [0, 0, 2.5], fov: 40 }}><Scene reflex={reflex} light={light} fixation={fixation} monocular={monocular} distance={distance} eye={eye} power={power} base={base} /></Canvas><div className="facility-hud"><span>OD FIXATING · OS DEVIATING</span><strong>{power}Δ {base}</strong><small>{eye ? `Prism before ${eye}` : baseline ? "Place the prism before an eye" : "Observe baseline first"}</small></div><div className="viewport-controls">Distance moves the penlight and changes reflex clarity</div><div className="hand-readout"><span><b>R</b>Place + move prism bar · B rotates base</span><span><b>L</b>Hold fixation light steady</span></div>
-    </div><div className="clinical-coach" role="status"><p><b>Corneal reflex observation</b>{!light ? "Switch on the penlight to illuminate the eyes." : !fixation ? "The reflex is visible; instruct fixation to steady the comparison." : !krimskyDistanceReady(distance) ? `The reflex is visible but soft at ${distance} cm. Move into the 46–54 cm teaching range.` : !monocular ? "The reflex is visible; use one examiner eye to reduce parallax." : !baseline ? "Compare both corneal reflex positions before adding prism." : !ready ? `Place prism before ${krimskyEye(method)} and select its base.` : residual === 0 ? "The reflexes occupy matching relative positions." : "The reflexes remain asymmetric. Adjust prism and compare again."}</p></div></div>
+      <Canvas dpr={[1, 1.5]} camera={{ position: [0, 0, 2.5], fov: 40 }}><Scene reflex={reflex} light={light} fixation={fixation} examinerEye={examinerEye} distance={distance} eye={eye} power={power} base={base} /></Canvas><div className="facility-hud"><span>OD FIXATING · OS DEVIATING</span><strong>{power}Δ {base}</strong><small>{eye ? `Prism before ${eye}` : baseline ? "Place the prism before an eye" : examinerEye ? `Using ${examinerEye} examiner eye` : "Choose an examiner eye"}</small></div><div className="viewport-controls">Distance moves the penlight and changes reflex clarity</div><div className="hand-readout"><span><b>R</b>Place + move prism bar · B rotates base</span><span><b>L</b>Hold fixation light steady</span></div>
+    </div><div className="clinical-coach" role="status"><p><b>Corneal reflex observation</b>{!light ? "Switch on the penlight to illuminate the eyes." : !fixation ? "The reflex is visible; instruct fixation to steady the comparison." : !krimskyDistanceReady(distance) ? `The reflex is visible but soft at ${distance} cm. Move into the 46–54 cm teaching range.` : !examinerEye ? "Say which eye you are closing, or choose an examiner-eye view." : !baseline ? "Hold the view steady with the prism clear; baseline capture is automatic." : !ready ? `Place prism before ${krimskyEye(method)} and select its base.` : residual === 0 ? "The reflexes occupy matching relative positions." : "The reflexes remain asymmetric. Adjust prism and compare again."}</p></div></div>
     <aside className="clinical-control-rail krimsky-control-rail"><section><p className="eyebrow">1 · SET UP VIEW</p><label>Method<select value={method} onChange={event => { setMethod(event.target.value as KrimskyMethod); reset(); }}><option value="standard">Krimsky · deviating eye</option><option value="modified">Modified · fixating eye</option></select></label><p className="krimsky-step-help">{method === "modified" ? "Prism before fixating OD. This teaching example retains visible reflexes; it does not simulate a scarred cornea." : "Prism before deviating OS. Observe baseline displacement first."}</p>
       <button className={`task-button ${light ? "active" : ""}`} onClick={() => { setLight(value => !value); reset(); }}><Power size={18} /><span><b>{light ? "Penlight on" : "Switch on penlight"}</b><small>{light ? "Click to switch the light off" : "Illuminate both corneal reflexes"}</small></span>{light && <Check size={16} />}</button>
       <button className={`task-button ${fixation ? "done" : ""}`} onClick={() => setFixation(true)}><Eye size={18} /><span><b>{fixation ? "Fixation instructed" : "Give fixation instruction"}</b><small>Ask the patient to look directly at the penlight</small></span>{fixation && <Check size={16} />}</button>
-      <button className={`task-button ${monocular ? "done" : ""}`} onClick={() => setMonocular(true)}><Eye size={18} /><span><b>{monocular ? "Monocular view established" : "Use one examiner eye"}</b><small>View monocularly to reduce parallax</small></span>{monocular && <Check size={16} />}</button>
+      <button className={`task-button ${examinerEye === "left" ? "done" : ""}`} onClick={() => chooseExaminerEye("left")}><Eye size={18} /><span><b>Close right eye · left view</b><small>Use the left examiner eye</small></span>{examinerEye === "left" && <Check size={16} />}</button>
+      <button className={`task-button ${examinerEye === "right" ? "done" : ""}`} onClick={() => chooseExaminerEye("right")}><Eye size={18} /><span><b>Close left eye · right view</b><small>Use the right examiner eye</small></span>{examinerEye === "right" && <Check size={16} />}</button>
+      <button className={`task-button ${examinerEye === null ? "done" : ""}`} onClick={() => chooseExaminerEye(null)}><Eye size={18} /><span><b>Open both eyes</b><small>Return to the binocular examiner view</small></span>{examinerEye === null && <Check size={16} />}</button>
       <label className="distance-control">Working distance · {distance} cm<input type="range" min="30" max="70" value={distance} onChange={event => { setDistance(+event.target.value); reset(); }} /></label>
-      <button className={`task-button ${baseline ? "done" : ""}`} disabled={!viewing || baseline} onClick={() => setBaseline(true)}><CircleDot size={18} /><span><b>{baseline ? "Baseline inspected" : "Inspect baseline reflexes"}</b><small>{baseline ? "Initial asymmetry recorded for comparison" : "Compare both reflex positions before adding prism"}</small></span>{baseline && <Check size={16} />}</button>
+      <p className="krimsky-step-help" role="status">{baseline ? "Baseline captured automatically." : viewing ? "Hold steady with the prism clear…" : "Baseline capture starts when the light, distance, fixation, and examiner-eye view are ready."}</p>
     </section>
       <section className="krimsky-prism-step"><p className="eyebrow">2 · PLACE + NEUTRALISE</p><p className="krimsky-step-help">Choose the prism eye and base, then increase power while watching the reflexes.</p><div className="site-switch">{["OD", "OS"].map(value => <button key={value} disabled={!baseline || done} className={eye === value ? "selected" : ""} onClick={() => placePrism(value)}>Prism before {value}</button>)}</div><label>Prism base<select value={base} disabled={!baseline || done} onChange={event => { setBase(event.target.value); setPower(0); invalidate(); }}><option value="">Choose base</option><option value="BI">Base in</option><option value="BO">Base out</option></select></label><button className="krimsky-flip-base" disabled={!baseline || done} onClick={rotateBase}><RotateCw size={16} /> Flip base {base ? `· currently ${base}` : "· BI / BO"}</button><label className="distance-control">Prism power · <b>{power}Δ</b><input type="range" min="0" max="40" disabled={!ready || done} value={power} onChange={event => changePower(+event.target.value)} /></label></section>
       <section className="clinical-observation krimsky-record-step"><p className="eyebrow">3 · RECORD</p><label>Neutralising power (Δ)<input className="krimsky-number-input" type="number" min="0" max="40" value={answer} disabled={!ready || done} onChange={event => setAnswer(event.target.value)} /></label><button className={`primary full ${done ? "done" : ""}`} disabled={!ready || residual !== 0 || !answer || done} onClick={record}>{done ? "Neutralisation recorded" : "Record neutralisation"}</button>{feedback && <p className={done ? "neutral-message success" : "neutral-message"} role="status">{feedback}</p>}{done && <button className="secondary full" onClick={() => { setIndex(value => (value + 1) % krimskyCases.length); reset(); }}>New deviation</button>}<button className="reset-technique" onClick={reset}>Reset current attempt</button><p className="small">Illustrative neutralisation model; the optics are not calibrated and require clinician review.</p></section>

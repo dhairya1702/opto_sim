@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { Session, ClinicalCase } from "../domain/types";
+import { disclosedHistory } from "../patient/history";
 type Registry = {
   registerTool: (
     tool: {
@@ -36,9 +37,8 @@ export function useNotebookTool(session: Session, c: ClinicalCase) {
               const s = current.current;
               return {
                 phase: s.phase,
-                history: c.historyFacts
-                  .filter((f) => s.revealedFactIds.includes(f.id))
-                  .map((f) => ({ id: f.id, domain: f.domain, answer: f.answer })),
+                history: disclosedHistory(c, s.revealedFactIds)
+                  .map(({ fact, answer, answered, total }) => ({ id: fact.id, domain: fact.domain, answer, answeredDetails: answered, totalDetails: total })),
                 findings: s.results.map((result) => {
                   const {
                     expectedValue: _expectedValue,

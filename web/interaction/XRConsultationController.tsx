@@ -7,7 +7,7 @@ import { XRClinicUtilityPanel, XRSign as Sign, XRPanelButton, XRHeadPanel, XRObs
 import { useXRClinicRuntime, type XRClinicInterruption } from "./useXRClinicRuntime";
 import { XRClinicRuntimeView } from "../scene/XRClinicRuntimeView";
 import { pauseConsultationTechnique } from "./xrConsultationProcedure";
-import { CONSULTATION_TOOLS, consultationToolDefinition, consultationToolReady, toolInHand } from "./xrConsultationTools";
+import { CASE_INDEPENDENT_CONSULTATION_EQUIPMENT, consultationToolDefinition, consultationToolReady, isConsultationToolId, toolInHand } from "./xrConsultationTools";
 import {
   advanceXRPupilObservation,
   initialXRPupilObservation,
@@ -313,7 +313,7 @@ export function XRConsultationController({ active, preview = false, guided = fal
     motilityCoverageRef.current = paused.motility;
     setMotilityCoverage(paused.motility);
   }, [fundusView, fundusEyepiece, reflexVisual]);
-  const runtime = useXRClinicRuntime({ active, editorOpen: Boolean(recordingExam || menuOpen || utilityHelpOpen), scopeViewEnabled: true, onInterrupt: pauseTechnique,
+  const runtime = useXRClinicRuntime({ active, equipment: CASE_INDEPENDENT_CONSULTATION_EQUIPMENT, editorOpen: Boolean(recordingExam || menuOpen || utilityHelpOpen), scopeViewEnabled: true, onInterrupt: pauseTechnique,
     onMenu: open => { setMenuOpen(open); if (!open) { setRecordingExam(null); setUtilityHelpOpen(false); } },
     onToolUsed: (id, action) => {
       if (isConsultationExam(id)) lastUsedExam.current = id;
@@ -321,7 +321,7 @@ export function XRConsultationController({ active, preview = false, guided = fal
     },
     onSelection: data => {
       if (guided && isConsultationExam(data.examId)) setPanelExam(data.examId);
-      else if (!guided && data.examId && CONSULTATION_TOOLS.some(tool => tool.id === data.examId)) runtime.setHandlingMessage("Bring your hand beside the handle and squeeze the side grip once to pick it up.");
+      else if (!guided && isConsultationToolId(data.examId)) runtime.setHandlingMessage("Bring your hand beside the handle and squeeze the side grip once to pick it up.");
       else if (!guided && data.station === "patient") setMenuOpen(true);
       else if (!guided && (data.station === "trolley" || data.station === "refraction" || data.station === "fundus")) return;
       else if (data.station) onInteract(data.station, data.examId);
@@ -643,7 +643,7 @@ export function XRConsultationController({ active, preview = false, guided = fal
   }
   return <>
     {active && <XRRetinoscopyReflex visual={reflexVisual} />}
-    <XRClinicRuntimeView runtime={runtime} active={active} preview={preview} helperHand={heldHand} helperReady={coverSetupValid} fundusView={fundusView} />
+    <XRClinicRuntimeView runtime={runtime} active={active} preview={preview} helperHand={heldHand} helperReady={coverSetupValid} fundusView={fundusView} selectableEquipment={CASE_INDEPENDENT_CONSULTATION_EQUIPMENT} />
     {active && onExitVR && <XRClinicUtilityPanel runtime={runtime} onHelp={() => setUtilityHelpOpen(true)} onExit={onExitVR} />}
     {active && utilityHelpOpen && <XRHeadPanel>
       <Box s={[.72, .62, .018]} c="#102329" radius={.012} />
@@ -747,9 +747,9 @@ export function XRConsultationController({ active, preview = false, guided = fal
         <XRPanelButton label="CLOSE MENU" position={[0, -.365, .025]} width={.56} onClick={() => setMenuOpen(false)} />
       </group>}
       {!guided && recordingExam && onExitVR && <XRHeadPanel><XRPanelButton label="EXIT VR" position={[.26, .37, .02]} width={.15} onClick={onExitVR} /></XRHeadPanel>}
-      {!guided && CONSULTATION_TOOLS.filter(tool => isConsultationExam(tool.id)).map(tool => <XRToolControls key={`controls-${tool.id}`} runtime={runtime} id={tool.id}>
-        <XRPanelButton label="RECORD FINDING" position={[0, 0, 0]} width={.30} recordTool={tool.id} onClick={() => { if (isConsultationExam(tool.id)) requestRecording(tool.id); }} />
-        {tool.id === "objective" && <>
+      {!guided && CASE_INDEPENDENT_CONSULTATION_EQUIPMENT.filter(tool => isConsultationExam(tool)).map(tool => <XRToolControls key={`controls-${tool}`} runtime={runtime} id={tool}>
+        <XRPanelButton label="RECORD FINDING" position={[0, 0, 0]} width={.30} recordTool={tool} onClick={() => { if (isConsultationExam(tool)) requestRecording(tool); }} />
+        {tool === "objective" && <>
           <Sign text={[`LENS ${formatSignedDioptres(trialLens)}`, retinoAim.current ? `${Math.round(retinoAim.current.distanceCm)} CM · ${retinoAim.current.eye}` : "Aim the light at a pupil"]} p={[0, .075, 0]} size={[.30, .07]} bg="#173a3e" fg="#e8fff9" />
           <XRPanelButton label="−0.25 D" position={[-.08, -.085, 0]} width={.14} onClick={() => changeTrialLens(-.25)} />
           <XRPanelButton label="+0.25 D" position={[.08, -.085, 0]} width={.14} onClick={() => changeTrialLens(.25)} />

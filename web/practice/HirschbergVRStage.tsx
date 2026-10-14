@@ -4,12 +4,15 @@ import { HirschbergPracticeController, HIRSCHBERG_DIRECTIONS, HIRSCHBERG_LANDMAR
 import type { HirschbergPracticeFinding } from "../interaction/xrHirschbergPractice";
 import type { OpticScenario } from "./ClinicalPracticeStage";
 import { xrHirschbergPrompt } from "../interaction/xrPractice";
+import { usePracticeAttempt } from "./PracticeAttemptContext";
 
 export function HirschbergVRStage({ scenario, finding, findingPosition, onClose, onDesktop, onComplete, onNext }: {
   scenario: OpticScenario; finding: HirschbergPracticeFinding;
   findingPosition: { current: number; total: number };
   onClose: () => void; onDesktop: () => void; onComplete: () => void; onNext: () => void;
 }) {
+  const { settings } = usePracticeAttempt();
+  const guided = settings?.kind !== "test";
   const [mirror, setMirror] = useState<HirschbergPracticeMirror | null>(null);
   return <PracticeVRClinic title="Hirschberg test" findingPosition={findingPosition} onClose={onClose} onDesktop={onDesktop}
     mirror={mirror && <>
@@ -19,8 +22,8 @@ export function HirschbergVRStage({ scenario, finding, findingPosition, onClose,
         <span className={mirror.technique.distanceReady ? "ready" : ""}>{Math.round(mirror.technique.distanceCm)} cm</span>
         <span className={mirror.technique.ready ? "ready" : ""}>{mirror.technique.ready ? "View ready" : "Adjust technique"}</span></div>
       <button className="secondary full" onClick={mirror.giveFixation}>Ask the patient to look at the light</button>
-      <button className="secondary full" onClick={mirror.toggleHelp}>{mirror.help ? "Close help" : "Help"}</button>
-      {mirror.help && <p role="status">{xrHirschbergPrompt(mirror.technique, mirror)}</p>}
+      {guided && <button className="secondary full" onClick={mirror.toggleHelp}>{mirror.help ? "Close help" : "Help"}</button>}
+      {guided && mirror.help && <p role="status">{xrHirschbergPrompt(mirror.technique, mirror)}</p>}
       <button className="primary full" onClick={mirror.openRecording}>Record finding</button>
       {mirror.recording && <>
         <label>Interpretation<select value={mirror.direction} disabled={!mirror.technique.ready || (mirror.checked && mirror.correct)} onChange={event => mirror.chooseDirection(event.target.value)}>
