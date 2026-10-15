@@ -1,9 +1,7 @@
 /** Existing desktop Practice findings; fictional teaching examples, not clinical norms. */
 export type VergenceEndpoint = { blur: number | null; break: number; recovery: number };
 export const vergenceFindings: Record<string, Record<string, VergenceEndpoint>> = {
-  "horizontal-distance": { BI: { blur: null, break: 7, recovery: 4 }, BO: { blur: 9, break: 19, recovery: 12 } },
   "horizontal-near": { BI: { blur: 13, break: 21, recovery: 13 }, BO: { blur: 17, break: 21, recovery: 11 } },
-  "vertical-distance": { BU: { blur: null, break: 4, recovery: 2 }, BD: { blur: null, break: 4, recovery: 2 } },
 };
 export const vergenceFacilityDelay = { BO: 850, BI: 650 } as const;
 

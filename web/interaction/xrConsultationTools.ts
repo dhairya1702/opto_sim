@@ -7,7 +7,7 @@ import {
 export type ConsultationHand = XRClinicHand;
 export type ToolPoint = XRClinicVector3;
 export type ToolRotation = XRClinicQuaternion;
-export type ConsultationToolId = "distance" | "pinhole" | "cover" | "pupils" | "motility" | "objective" | "near" | "subjective" | "fundus" | "prism" | "four-prism" | "worth" | "red-green" | "polarised" | "stereo" | "maddox" | "thorington" | "trial-lens" | "lens-flipper" | "prism-flipper" | "fixation" | "npc-rule";
+export type ConsultationToolId = "distance" | "pinhole" | "cover" | "pupils" | "motility" | "objective" | "near" | "subjective" | "fundus" | "prism" | "vergence-prism" | "four-prism" | "worth" | "red-green" | "polarised" | "stereo" | "maddox" | "thorington" | "trial-lens" | "lens-flipper" | "prism-flipper" | "fixation" | "npc-rule";
 export type RestingTool = { kind: "socket" | "surface"; position: ToolPoint; rotation: ToolRotation; socketId?: string; fittingLayer?: "correction" | "filters" | "occlusion" | "measurement" };
 export type ConsultationTool = {
   placement: RestingTool | { kind: "held"; hand: ConsultationHand };
@@ -79,6 +79,8 @@ export const EXERCISE_TOOLS: readonly ConsultationToolDefinition[] = [
   { ...exerciseTool, restRotation: auxiliaryRest(upright), id: "trial-lens", label: "Trial lens pair", home: auxiliaryInstrumentKitPoint(-.36, AUXILIARY_INSTRUMENT_KIT.surfaceY + .07, .14), homeYaw: AUXILIARY_INSTRUMENT_KIT_ROTATION_Y, footprint: [.24, .10] },
   { ...exerciseTool, restRotation: auxiliaryRest(upright), id: "lens-flipper", label: "±2 D lens flipper", home: auxiliaryInstrumentKitPoint(-.02, AUXILIARY_INSTRUMENT_KIT.surfaceY + .07, .14), homeYaw: AUXILIARY_INSTRUMENT_KIT_ROTATION_Y, footprint: [.24, .10] },
   { ...exerciseTool, restRotation: auxiliaryRest(upright), id: "prism-flipper", label: "12 BO / 3 BI flipper", home: auxiliaryInstrumentKitPoint(.32, AUXILIARY_INSTRUMENT_KIT.surfaceY + .07, .14), homeYaw: AUXILIARY_INSTRUMENT_KIT_ROTATION_Y, footprint: [.24, .10] },
+  { id: "vergence-prism", label: "Rotary vergence prism", home: auxiliaryInstrumentKitPoint(.58, AUXILIARY_INSTRUMENT_KIT.lowerShelfY + .08, .14), homeYaw: AUXILIARY_INSTRUMENT_KIT_ROTATION_Y,
+    workingPoint: [0, .10, .012], forward: [0, 0, -1], heldPose: "ray", gripRotation: upright, restRotation: auxiliaryRest(upright), restHeight: .08, footprint: [.22, .12], illuminates: false },
 ];
 export const ALL_CLINIC_TOOLS = [...CONSULTATION_TOOLS, ...SENSORY_TOOLS, ...EXERCISE_TOOLS];
 export const CONSULTATION_EQUIPMENT: readonly ConsultationToolId[] = CONSULTATION_TOOLS.map(tool => tool.id);

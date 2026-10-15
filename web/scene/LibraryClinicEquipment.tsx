@@ -9,6 +9,8 @@ export type ClinicInstrumentSetting = {
   power?: number; base?: string; angle?: number; side?: string; point?: boolean;
   distanceCm?: number;
   highlightCarriage?: boolean;
+  highlightAperture?: boolean;
+  highlightDial?: boolean;
   profile?: "standard" | "maddox";
   anchorPower?: number; aligned?: boolean; reflexOffset?: number; showReflex?: boolean;
   powered?: boolean; onPowerChange?: (powered: boolean) => void;
@@ -184,11 +186,40 @@ function NPCRuleModel({ distanceCm = 40, highlightCarriage = false }: { distance
   </group>;
 }
 
+function RotaryVergencePrismModel({ power = 0, base = "BI", highlightAperture = false, highlightDial = false }: { power?: number; base?: string; highlightAperture?: boolean; highlightDial?: boolean }) {
+  const dialAngle = Math.max(0, Math.min(30, power)) / 30 * Math.PI * 1.5;
+  return <group>
+    <MoldedHandle />
+    <group position={[0, .10, 0]}>
+      <mesh castShadow><torusGeometry args={[.042, .008, 12, 40]} /><meshStandardMaterial color={shell} roughness={.48} metalness={.16} /></mesh>
+      <mesh position={[0, 0, .004]} castShadow><circleGeometry args={[.033, 40]} /><meshPhysicalMaterial color="#a7e3dc" transparent opacity={.48} transmission={.32} roughness={.12} /></mesh>
+      <mesh position={[0, 0, .010]} rotation={[Math.PI / 2, 0, Math.PI / 2]}><cylinderGeometry args={[.030, .025, .006, 3]} /><meshPhysicalMaterial color="#c5f0e7" transparent opacity={.58} /></mesh>
+      {highlightAperture && <mesh position={[0, 0, .014]}><ringGeometry args={[.045, .051, 32]} /><meshBasicMaterial color="#8df5d3" side={DoubleSide} depthTest={false} /></mesh>}
+      <XRSign text={[base && ["BI", "BU", "BO", "BD"].includes(base) ? base : "BI"]} p={[0, .052, .012]} size={[.040, .018]} bg="#173a3e" fg="#f1c45f" />
+      <XRSign text={["BI"]} p={[-.052, 0, .012]} size={[.030, .014]} bg="#173a3e" fg="#e8fff9" />
+      <XRSign text={["BU"]} p={[0, .071, .012]} size={[.030, .014]} bg="#173a3e" fg="#e8fff9" />
+      <XRSign text={["BO"]} p={[-.052, .10, .012]} size={[.030, .014]} bg="#173a3e" fg="#e8fff9" />
+      <XRSign text={["BD"]} p={[0, .029, .012]} size={[.030, .014]} bg="#173a3e" fg="#e8fff9" />
+    </group>
+    <group position={[.065, .055, .006]} userData={{ xrVergenceDial: true }}>
+      <mesh castShadow rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[.035, .035, .014, 40]} /><meshStandardMaterial color={darkMetal} roughness={.38} metalness={.48} /></mesh>
+      {Array.from({ length: 31 }, (_, value) => <group key={value} rotation={[0, 0, -value / 30 * Math.PI * 1.5]}>
+        <Box p={[0, .029, .010]} s={[value % 5 === 0 ? .003 : .0015, value % 5 === 0 ? .010 : .006, .002]} c={value % 5 === 0 ? accent : paper} />
+        <XRSign text={[String(value)]} p={[0, value % 5 === 0 ? .043 : .039, .011]} size={value % 5 === 0 ? [.014, .008] : [.010, .006]} bg="#173a3e" fg={value % 5 === 0 ? "#f1c45f" : "#e8fff9"} />
+      </group>)}
+      <group rotation={[0, 0, -dialAngle]}><Box p={[0, .020, .018]} s={[.004, .037, .004]} c="#f1c45f" /></group>
+      {highlightDial && <mesh position={[0, 0, .018]}><ringGeometry args={[.040, .047, 32]} /><meshBasicMaterial color="#8df5d3" side={DoubleSide} depthTest={false} /></mesh>}
+    </group>
+    <XRSign text={[`${power.toFixed(1)}Δ`, "0–30 ROTARY", "BI · BU · BO · BD"]} p={[-.055, .025, .012]} size={[.082, .044]} bg="#173a3e" fg="#e8fff9" />
+  </group>;
+}
+
 export function LibraryInstrumentModel({ id, setting = {} }: { id: ConsultationToolId; setting?: ClinicInstrumentSetting }) {
   if (id === "maddox") return <MaddoxModel angle={setting.angle} />;
   if (id === "thorington") return <ThoringtonModel />;
   if (id === "fixation") return <FixationModel />;
   if (id === "npc-rule") return <NPCRuleModel distanceCm={setting.distanceCm} highlightCarriage={setting.highlightCarriage} />;
+  if (id === "vergence-prism") return <RotaryVergencePrismModel power={setting.power} base={setting.base} highlightAperture={setting.highlightAperture} highlightDial={setting.highlightDial} />;
   if (id === "trial-lens" || id === "lens-flipper" || id === "prism-flipper") return <FlipperModel id={id} setting={setting} />;
   return null;
 }

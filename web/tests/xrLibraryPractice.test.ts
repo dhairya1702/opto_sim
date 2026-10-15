@@ -8,7 +8,7 @@ import { initialConsultationTools, grabConsultationTool, releaseConsultationTool
 import { SENSORY_NEAR_TARGET } from "../interaction/xrSensoryEquipment";
 describe("remaining XR library sequences and geometry", () => {
   it("orders blur, break and recovery for every prism condition", () => {
-    for (const kind of ["horizontal-distance", "vertical-distance", "horizontal-near"] as const) for (const base of vergenceBases(kind)) {
+    for (const kind of ["horizontal-near"] as const) for (const base of vergenceBases(kind)) {
       let run = newVergenceRun(); const endpoints = vergenceFindings[kind][base];
       expect(markVergenceEndpoint(kind, base, endpoints.break, run, true)).toBe(run);
       run.initialized = true;
@@ -41,6 +41,11 @@ describe("remaining XR library sequences and geometry", () => {
     for (const id of ["subjective", "cover"] as const) { const socket = sockets.find(s => s.tool === id && (id !== "cover" || s.id.endsWith("OS")))!; tools = releaseConsultationTool(grabConsultationTool(tools, id, "left"), "left", { position: socket.position, rotation: socket.rotation }, undefined, sockets, libraryEquipment("push-up")).state; }
     expect(libraryOcclusion(tools, "OD")).toBe(true); expect(libraryOcclusion(tools, "OS")).toBe(false); expect(libraryOcclusion(tools, "OU")).toBe(false);
     for (const kind of Object.keys(LIBRARY_TITLES) as (keyof typeof LIBRARY_TITLES)[]) expect(librarySockets(kind).every(socket => libraryEquipment(kind).includes(socket.tool))).toBe(true);
+  });
+  it("stocks the rotary prism only for 6.3 while preserving 6.4 and 6.5 kits", () => {
+    expect(libraryEquipment("vertical-distance")).toEqual(["subjective", "vergence-prism"]);
+    expect(libraryEquipment("horizontal-near")).toEqual(["subjective", "near", "prism"]);
+    expect(libraryEquipment("facility")).toEqual(["subjective", "near", "prism-flipper"]);
   });
   it("keeps both Maddox socket rotations on the same OD lens centre and rejects an intermediate roll", () => {
     const sockets = librarySockets("maddox").filter(socket => socket.tool === "maddox");

@@ -10,12 +10,12 @@ export type LibraryEye = "OD" | "OS" | "OU";
 export const LIBRARY_TITLES: Record<LibraryKind, string> = {
   maddox: "Maddox rod", thorington: "Modified Thorington", npc: "Near point of convergence", "horizontal-distance": "Horizontal distance vergence", "vertical-distance": "Vertical distance vergence", "horizontal-near": "Horizontal near vergence", facility: "Near vergence facility", "push-up": "Push-up amplitude", "minus-lens": "Minus-lens amplitude", relative: "NRA / PRA", "accommodative-facility": "Accommodative facility",
 };
-export const libraryTool = (kind: LibraryKind): ConsultationToolId => kind === "maddox" ? "prism" : kind === "thorington" ? "thorington" : kind === "npc" ? "npc-rule" : kind === "push-up" ? "fixation" : kind === "facility" ? "prism-flipper" : kind === "accommodative-facility" ? "lens-flipper" : kind === "minus-lens" || kind === "relative" ? "trial-lens" : "prism";
+export const libraryTool = (kind: LibraryKind): ConsultationToolId => kind === "maddox" ? "prism" : kind === "thorington" ? "thorington" : kind === "npc" ? "npc-rule" : kind === "horizontal-distance" || kind === "vertical-distance" ? "vergence-prism" : kind === "push-up" ? "fixation" : kind === "facility" ? "prism-flipper" : kind === "accommodative-facility" ? "lens-flipper" : kind === "minus-lens" || kind === "relative" ? "trial-lens" : "prism";
 export function libraryEquipment(kind: LibraryKind): readonly ConsultationToolId[] {
   if (kind === "maddox") return ["subjective", "maddox", "prism", "worth", "pupils"];
   if (kind === "thorington") return ["subjective", "maddox", "thorington", "pupils"];
   if (kind === "npc" || kind === "push-up") return kind === "npc" ? ["subjective", "npc-rule"] : ["subjective", "fixation", "cover"];
-  if (kind === "horizontal-distance" || kind === "vertical-distance") return ["subjective", "prism"];
+  if (kind === "horizontal-distance" || kind === "vertical-distance") return ["subjective", "vergence-prism"];
   if (kind === "horizontal-near" || kind === "facility") return ["subjective", "near", libraryTool(kind)];
   return ["subjective", "near", libraryTool(kind), ...(kind === "relative" ? [] : ["cover" as const])];
 }

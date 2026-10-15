@@ -16,7 +16,7 @@ export function VergencePracticeController({ kind, active, preview = false, onCo
   kind: Kind; active: boolean; preview?: boolean; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
 }) {
   const live = active && !preview, lesson = usePracticeLesson(onComplete), eyes = useClinicEyeMotion(live);
-  const isPrism = kind !== "facility", near = kind !== "horizontal-distance" && kind !== "vertical-distance";
+  const isPrism = kind !== "facility", near = true;
   const setup = useRef({ fixation: false, base: "", power: 0 }), baseIndex = useRef(0), generation = useRef(0);
   const run = useRef<VergenceRun>(newVergenceRun()), timed = useRef<TimedFacility | null>(null);
   const capture = useRef<VergenceCapture | null>(null), history = useRef<string[]>([]), key = useRef("");
@@ -59,7 +59,7 @@ export function VergencePracticeController({ kind, active, preview = false, onCo
       if (!spatial.ready || capture.current) { eye.position.set(0, 0, 0); return; }
       const finding = isPrism ? vergenceFindings[kind][setup.current.base] : undefined;
       const broken = finding && (run.current.phase === "recovery" ? setup.current.power > finding.recovery : setup.current.power >= finding.break);
-      const gaze = kind === "facility" ? facilityVergenceGaze(timed.current?.side ?? "BO") : prismVergenceGaze(setup.current.power, setup.current.base, near, kind === "vertical-distance", Boolean(broken));
+      const gaze = kind === "facility" ? facilityVergenceGaze(timed.current?.side ?? "BO") : prismVergenceGaze(setup.current.power, setup.current.base, near, false, Boolean(broken));
       eye.position.set(gaze[id].x * .012 / .035, gaze[id].y * .012 / .035, 0);
     });
     clock.current += dt;

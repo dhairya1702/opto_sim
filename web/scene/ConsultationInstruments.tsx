@@ -20,7 +20,7 @@ export function ConsultationInstrumentModel({ id, powered, fundusView, brucknerV
     target.position.set(0, .7, 0);
     return target;
   }, []);
-  if (["maddox", "thorington", "trial-lens", "lens-flipper", "prism-flipper", "fixation", "npc-rule"].includes(id)) return <LibraryInstrumentModel id={id} setting={settings?.[id]} />;
+  if (["maddox", "thorington", "trial-lens", "lens-flipper", "prism-flipper", "vergence-prism", "fixation", "npc-rule"].includes(id)) return <LibraryInstrumentModel id={id} setting={settings?.[id]} />;
   if (["worth", "red-green", "polarised", "stereo", "four-prism"].includes(id)) return <SensoryInstrumentModel id={id} powered={powered} point={settings?.[id]?.point}
     onPowerChange={settings?.[id]?.onPowerChange} />;
   if (id === "prism") {

@@ -6,7 +6,7 @@ import { EyeSurface } from "../scene/EyeSurface";
 import { PracticeVoiceControl } from "../voice/PracticeVoiceControl";
 
 export type VergenceMode = "npc" | "horizontal-distance" | "vertical-distance" | "horizontal-near" | "facility";
-type GenericVergenceMode = Exclude<VergenceMode, "npc">;
+type GenericVergenceMode = Exclude<VergenceMode, "npc" | "horizontal-distance" | "vertical-distance">;
 import { vergenceFindings as data, vergenceFacilityDelay, prismVergenceGaze, facilityVergenceGaze } from "../interaction/vergencePractice";
 type PrismPhase = "blur" | "break" | "recovery";
 
@@ -118,7 +118,7 @@ function FacilityScene({ side, clear, running, onFlip }: { side: "BO" | "BI"; cl
 export function VergencePracticeStage({ mode, onClose, onComplete }: { mode: GenericVergenceMode; onClose: () => void; onComplete: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null); const lastFlipAt = useRef(0);
   const [correction, setCorrection] = useState(false); const [fixation, setFixation] = useState(false);
-  const [base, setBase] = useState(mode === "vertical-distance" ? "BU" : "BI"); const [power, setPower] = useState(0);
+  const [base, setBase] = useState("BI"); const [power, setPower] = useState(0);
   const [prismPhase, setPrismPhase] = useState<PrismPhase>("blur"); const [completed, setCompleted] = useState<Record<string, string>>({});
   const [seconds, setSeconds] = useState(60); const [running, setRunning] = useState(false); const [cycles, setCycles] = useState(0); const [side, setSide] = useState<"BO" | "BI">("BO");
   const [facilityClear, setFacilityClear] = useState(false);
@@ -133,7 +133,7 @@ export function VergencePracticeStage({ mode, onClose, onComplete }: { mode: Gen
     return () => window.clearTimeout(timer);
   }, [running, side]);
 
-  const directPrism = mode !== "facility", facility = mode === "facility", near = mode === "horizontal-near" || facility, vertical = mode === "vertical-distance";
+  const directPrism = mode !== "facility", facility = mode === "facility", near = true, vertical = false;
   const order = facility ? [] : Object.keys(data[mode]); const expected = facility ? null : data[mode][base];
   const effectivePrismPhase: PrismPhase = expected?.blur === null && prismPhase === "blur" ? "break" : prismPhase; const ready = correction && fixation && !done;
   const reached = expected ? effectivePrismPhase === "blur" ? power >= (expected.blur ?? expected.break) : effectivePrismPhase === "break" ? power >= expected.break : power <= expected.recovery : false;

@@ -136,6 +136,37 @@ describe("voice contracts and Practice allowlists", () => {
       expect(click).toHaveBeenCalledTimes(1);
     } finally { vi.useRealTimers(); }
   });
+  it("arms the full horizontal-vergence instruction and replays the current engine report without endpoint clicks", async () => {
+    const instructionClick = vi.fn();
+    const instruction = { disabled: false, offsetParent: {}, innerText: "GIVE BLUR / DOUBLE / RECOVERY INSTRUCTION", click: instructionClick, getAttribute: () => null } as unknown as HTMLButtonElement;
+    const instructionRoot = { querySelectorAll: () => [instruction], querySelector: () => null } as unknown as ParentNode;
+    await expect(invokePracticeVoiceAction("horizontal-distance", "fixate-target", instructionRoot)).resolves.toMatchObject({ accepted: true });
+    expect(instructionClick).toHaveBeenCalledTimes(1);
+
+    const reportClick = vi.fn();
+    const report = { disabled: false, offsetParent: {}, innerText: "PATIENT REPORT · WHAT DO YOU SEE?", click: reportClick, getAttribute: () => null } as unknown as HTMLButtonElement;
+    const reportRoot = {
+      querySelectorAll: () => [report],
+      querySelector: (selector: string) => selector === "[data-voice-report]" ? { innerText: "The target is double and stays double." } : null,
+    } as unknown as ParentNode;
+    await expect(invokePracticeVoiceAction("horizontal-distance", "request-report", reportRoot)).resolves.toEqual({ accepted: true, spokenText: "The target is double and stays double." });
+    expect(reportClick).not.toHaveBeenCalled();
+  });
+  it("arms vertical diplopia/recovery only and replays the engine report without creating evidence", async () => {
+    const instructionClick = vi.fn();
+    const instruction = { disabled: false, offsetParent: {}, innerText: "GIVE DOUBLE / RECOVERY INSTRUCTION", click: instructionClick, getAttribute: () => null } as unknown as HTMLButtonElement;
+    const instructionRoot = { querySelectorAll: () => [instruction], querySelector: () => null } as unknown as ParentNode;
+    await expect(invokePracticeVoiceAction("vertical-distance", "fixate-target", instructionRoot)).resolves.toMatchObject({ accepted: true });
+    expect(instructionClick).toHaveBeenCalledTimes(1);
+    expect(PRACTICE_VOICE_ACTIONS["vertical-distance"][0].phrases.join(" ")).not.toContain("blur");
+
+    const reportClick = vi.fn();
+    const report = { disabled: false, offsetParent: {}, innerText: "PATIENT REPORT · WHAT DO YOU SEE?", click: reportClick, getAttribute: () => null } as unknown as HTMLButtonElement;
+    const reportRoot = { querySelectorAll: () => [report],
+      querySelector: (selector: string) => selector === "[data-voice-report]" ? { innerText: "It is single again." } : null } as unknown as ParentNode;
+    await expect(invokePracticeVoiceAction("vertical-distance", "request-report", reportRoot)).resolves.toEqual({ accepted: true, spokenText: "It is single again." });
+    expect(reportClick).not.toHaveBeenCalled();
+  });
   it("routes stereopsis fixation and speaks only the synchronous current-page reply", async () => {
     const fixationClick = vi.fn();
     const fixation = { disabled: false, offsetParent: {}, innerText: "LOOK AT THE CIRCLES", click: fixationClick, getAttribute: () => null } as unknown as HTMLButtonElement;

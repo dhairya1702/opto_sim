@@ -1,6 +1,6 @@
 import { vergenceFindings, vergenceFacilityDelay } from "./vergencePractice";
 import { facilityDuration } from "./accommodativeFacility";
-export type PrismVergenceKind = "horizontal-distance" | "vertical-distance" | "horizontal-near";
+export type PrismVergenceKind = "horizontal-near";
 export type VergencePhase = "blur" | "break" | "recovery";
 export const vergenceBases = (kind: PrismVergenceKind) => Object.keys(vergenceFindings[kind]);
 export type VergenceRun = { phase: VergencePhase; initialized: boolean; values: Partial<Record<VergencePhase, number>>; complete: boolean };
