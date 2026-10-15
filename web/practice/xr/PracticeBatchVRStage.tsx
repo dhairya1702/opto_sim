@@ -14,6 +14,7 @@ import { WorthPracticeController } from "./WorthPracticeController";
 import { StereoPracticeController } from "./StereoPracticeController";
 import { FourPrismPracticeController } from "./FourPrismPracticeController";
 import { BatchLessonMirror, type BatchMirror } from "./PracticeLessonUI";
+import { NPCPracticeController } from "./NPCPracticeController";
 
 type BatchKind = LibraryKind | "krimsky" | "bruckner" | "motility" | "cover-uncover" | "alternate-cover" | "worth" | "stereopsis" | "four-prism";
 const titles: Record<BatchKind, string> = { ...LIBRARY_TITLES, worth: "Worth four dot", stereopsis: "Stereopsis", "four-prism": "4Δ base-out", krimsky: "Krimsky test", bruckner: "Bruckner test", motility: "Extraocular motilities", "cover-uncover": "Cover–uncover test", "alternate-cover": "Alternating cover + prism neutralisation" };
@@ -30,7 +31,8 @@ export function PracticeBatchVRStage({ kind, scenario = "equal", motilityScenari
         : kind === "stereopsis" ? <StereoPracticeController {...common} />
         : kind === "four-prism" ? <FourPrismPracticeController {...common} />
         : kind === "maddox" || kind === "thorington" ? <PhoriaPracticeController {...common} kind={kind} />
-        : kind === "npc" || kind === "horizontal-distance" || kind === "vertical-distance" || kind === "horizontal-near" || kind === "facility" ? <VergencePracticeController {...common} kind={kind} />
+        : kind === "npc" ? <NPCPracticeController {...common} />
+        : kind === "horizontal-distance" || kind === "vertical-distance" || kind === "horizontal-near" || kind === "facility" ? <VergencePracticeController {...common} kind={kind} />
         : kind === "push-up" || kind === "minus-lens" || kind === "relative" || kind === "accommodative-facility" ? <AccommodationPracticeController {...common} kind={kind} />
         : kind === "krimsky" ? <KrimskyPracticeController {...common} />
         : kind === "motility" ? <MotilityPracticeController {...common} scenarioId={motilityScenario} onNext={onNext} /> : <CoverPracticeController {...common} kind={kind} />;

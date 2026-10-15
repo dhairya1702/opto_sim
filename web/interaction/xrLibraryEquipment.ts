@@ -10,11 +10,11 @@ export type LibraryEye = "OD" | "OS" | "OU";
 export const LIBRARY_TITLES: Record<LibraryKind, string> = {
   maddox: "Maddox rod", thorington: "Modified Thorington", npc: "Near point of convergence", "horizontal-distance": "Horizontal distance vergence", "vertical-distance": "Vertical distance vergence", "horizontal-near": "Horizontal near vergence", facility: "Near vergence facility", "push-up": "Push-up amplitude", "minus-lens": "Minus-lens amplitude", relative: "NRA / PRA", "accommodative-facility": "Accommodative facility",
 };
-export const libraryTool = (kind: LibraryKind): ConsultationToolId => kind === "maddox" ? "prism" : kind === "thorington" ? "thorington" : kind === "npc" || kind === "push-up" ? "fixation" : kind === "facility" ? "prism-flipper" : kind === "accommodative-facility" ? "lens-flipper" : kind === "minus-lens" || kind === "relative" ? "trial-lens" : "prism";
+export const libraryTool = (kind: LibraryKind): ConsultationToolId => kind === "maddox" ? "prism" : kind === "thorington" ? "thorington" : kind === "npc" ? "npc-rule" : kind === "push-up" ? "fixation" : kind === "facility" ? "prism-flipper" : kind === "accommodative-facility" ? "lens-flipper" : kind === "minus-lens" || kind === "relative" ? "trial-lens" : "prism";
 export function libraryEquipment(kind: LibraryKind): readonly ConsultationToolId[] {
   if (kind === "maddox") return ["subjective", "maddox", "prism", "worth", "pupils"];
   if (kind === "thorington") return ["subjective", "maddox", "thorington", "pupils"];
-  if (kind === "npc" || kind === "push-up") return kind === "npc" ? ["subjective", "fixation"] : ["subjective", "fixation", "cover"];
+  if (kind === "npc" || kind === "push-up") return kind === "npc" ? ["subjective", "npc-rule"] : ["subjective", "fixation", "cover"];
   if (kind === "horizontal-distance" || kind === "vertical-distance") return ["subjective", "prism"];
   if (kind === "horizontal-near" || kind === "facility") return ["subjective", "near", libraryTool(kind)];
   return ["subjective", "near", libraryTool(kind), ...(kind === "relative" ? [] : ["cover" as const])];
@@ -27,6 +27,7 @@ export const LIBRARY_SOCKETS: readonly PlacementSocket[] = [
   { id: "sensory-maddox-vertical", tool: "maddox", position: [.052, 1.5, -.475], rotation: [0, 0, Math.SQRT1_2, Math.SQRT1_2], radius: .045, orientationToleranceRad: Math.PI / 6, fittingLayer: "filters" },
   ...(["OD", "OS"] as const).map(eye => ({ id: `sensory-occlude-${eye}`, tool: "cover" as const, position: rootPoint("cover", [CLINIC_PATIENT_EYES[eye][0], 1.5, -.46]), rotation: [0, 0, 0, 1] as const, radius: .025, orientationToleranceRad: Math.PI / 6, fittingLayer: "occlusion" as const })),
   { id: "library-thorington-near", tool: "thorington", position: rootPoint("thorington", SENSORY_NEAR_TARGET), rotation: [0, 0, 0, 1], radius: .10, orientationToleranceRad: Math.PI / 6 },
+  { id: "library-npc-spectacle", tool: "npc-rule", position: [0, 1.5, -.511], rotation: [0, 0, 0, 1], radius: .055, orientationToleranceRad: Math.PI / 10, fittingLayer: "measurement" },
 ];
 export const librarySockets = (kind: LibraryKind) => LIBRARY_SOCKETS.filter(socket => libraryEquipment(kind).includes(socket.tool));
 export function libraryOcclusion(tools: ConsultationTools, eye: LibraryEye) {

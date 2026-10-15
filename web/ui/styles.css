@@ -2259,6 +2259,43 @@ kbd {
 .npc-distance-hud strong { margin: 6px 0; color: #f4d18d; font-size: 1rem; }
 .npc-distance-hud::before { content: ""; width: 3px; flex: 1; border-radius: 3px; background: #ffffff1c; }
 .npc-distance-hud i { position: absolute; left: 50%; bottom: 10px; width: 3px; max-height: 135px; transform: translateX(-50%); border-radius: 3px; background: linear-gradient(#7fe1b4, #e9bd6c); box-shadow: 0 0 10px #78dcb28c; }
+.npc-stage-body { grid-template-columns: minmax(0, 1fr) minmax(320px, 390px); }
+.npc-rule-viewport { cursor: ew-resize; min-height: 560px; background: radial-gradient(circle at 50% 24%, #24404a 0, #10242b 44%, #071217 100%); overflow: hidden; }
+.npc-rule-viewport.is-grabbed { cursor: grabbing; }
+.npc-room { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 74px; color: #d6e7e3; user-select: none; }
+.npc-patient { display: grid; justify-items: center; gap: 14px; font-size: .66rem; letter-spacing: .12em; color: #9fb5b0; }
+.npc-eye-row { display: flex; gap: 22px; padding: 20px 30px; border-radius: 50% 50% 44% 44%; background: #a97453; box-shadow: 0 12px 42px #0006; }
+.npc-eye { width: 52px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: #f6f1df; overflow: hidden; }
+.npc-eye i { width: 14px; height: 14px; border: 5px solid #557d72; border-radius: 50%; background: #101a1c; transform: translateX(calc(var(--npc-convergence) * 7px)); transition: transform .18s ease-out; }
+.npc-eye.os i { transform: translateX(calc(var(--npc-convergence) * -7px)); }
+.npc-eye.os.drifted i { transform: translateX(-14px); }
+.npc-rule-visual { position: relative; width: min(82%, 720px); height: 125px; }
+.npc-rail { position: absolute; left: 0; right: 0; top: 52px; height: 18px; border: 1px solid #b9c8c2; border-radius: 4px; background: linear-gradient(#9baaa7, #5d706e); box-shadow: 0 12px 26px #0008; }
+.npc-rail > i { position: absolute; top: 0; width: 1px; height: 7px; background: #1e3434; }
+.npc-rail > i.major { height: 13px; background: #d5a64e; }
+.npc-rail > i b { position: absolute; top: 19px; left: 50%; transform: translateX(-50%); font-size: .62rem; font-style: normal; color: #d8e3df; }
+.npc-carriage { position: absolute; top: -36px; width: 58px; height: 76px; transform: translateX(-50%); border: 2px solid #d5a64e; border-radius: 9px; display: grid; place-items: center; background: #18383a; box-shadow: 0 5px 18px #0008; transition: left .05s linear; }
+.npc-carriage.highlighted, .npc-rule-visual.highlight-dock .npc-spectacle-stop, .npc-step-highlight { box-shadow: 0 0 0 3px #83d6b4, 0 0 22px #83d6b477; }
+.npc-carriage span { font-size: 2rem; color: #f3f0df; }
+.npc-carriage small { position: absolute; top: -30px; width: 130px; text-align: center; font-size: .52rem; color: #cbd8d4; }
+.npc-spectacle-stop, .npc-examiner-end { position: absolute; top: 78px; font-size: .55rem; letter-spacing: .08em; color: #9fb5b0; }
+.npc-spectacle-stop { left: 0; transform: translateX(-8%); }
+.npc-examiner-end { right: 0; transform: translateX(8%); }
+.npc-control-rail { overflow-y: auto; }
+.npc-coach { border: 1px solid #68c3a04a; border-radius: 8px; padding: 12px; background: #102a2a; }
+.npc-coach h3 { margin: 2px 0 5px; color: #eefbf7; }
+.npc-coach p { margin: 3px 0; }
+.npc-entry { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.npc-entry .eyebrow, .npc-entry button { grid-column: 1 / -1; }
+.npc-entry label { font-size: .7rem; }
+.npc-entry input, .npc-entry select { width: 100%; margin-top: 4px; }
+@media (prefers-reduced-motion: reduce) {
+  .npc-eye i, .npc-carriage { transition: none; }
+}
+@media (max-width: 900px) {
+  .npc-stage-body { grid-template-columns: 1fr; }
+  .npc-rule-viewport { min-height: 420px; }
+}
 .prism-practice-viewport { cursor: ns-resize; }
 .prism-practice-viewport:focus-visible { outline: 2px solid #83d6b4; outline-offset: -3px; }
 .prism-power-hud { position: absolute; right: 15px; top: 16px; width: 74px; height: 210px; padding: 10px 9px; border: 1px solid #ffffff24; border-radius: 7px; display: flex; flex-direction: column; align-items: center; background: #061014c9; color: #b8cbc7; backdrop-filter: blur(7px); pointer-events: none; }

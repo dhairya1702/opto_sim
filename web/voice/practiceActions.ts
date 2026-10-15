@@ -26,6 +26,7 @@ const fixateFourPrism = action("fixate-target", ["look at the isolated letter", 
 const followTarget = action("follow-target", ["follow the target", "follow the light"], ["following instruction", "follow this target", "follow light", "start following"], "Okay, I will follow it with my eyes.");
 const reportSymptoms = action("report-symptoms", ["any symptoms", "any double vision", "any pain", "any discomfort"], ["ask diplopia", "ask symptoms", "symptoms"], "I will tell you if I notice double vision, pain, or discomfort.");
 const reportPercept = action("request-report", ["what do you see", "tell me what you see", "how many dots", "what colours do you see", "tell me where the dots are", "report now"], ["ask count", "present page", "ask number", "patient report", "mark patient endpoint", "mark sustained blur", "capture coincidence"], "I can report what I see now that the examination setup is ready.");
+const npcInstruction = action("fixate-target", ["look at the target", "fixate the target", "keep this clear and single tell me when it becomes double", "tell me when it becomes double", "keep the target clear and single"], ["keep this clear and single"], "Okay, I am looking at the target.");
 const reportStereo = action("request-report", ["which circle appears raised", "which circle is raised", "which circle is closer", "does one circle stand out", "what do you see", "tell me what you see"], ["ask which circle is raised"], "I can report what I see now that the examination setup is ready.");
 const targetOn = action("target-on", ["turn on the target", "switch the worth lights on", "switch the worth target on"], ["switch target on"], "Worth target switched on.");
 const targetOff = action("target-off", ["turn off the target", "switch the worth lights off", "switch the worth target off"], ["switch target off"], "Worth target switched off.");
@@ -46,7 +47,7 @@ export const PRACTICE_VOICE_ACTIONS: Record<PracticeLessonId, readonly PracticeV
   "four-prism": [fixateFourPrism],
   maddox: [fixateTarget, reportPercept],
   thorington: [fixateTarget, reportPercept],
-  npc: [fixateTarget, reportPercept],
+  npc: [npcInstruction, reportPercept],
   "horizontal-distance": [fixateTarget, reportPercept],
   "vertical-distance": [fixateTarget, reportPercept],
   "horizontal-near": [fixateTarget, reportPercept],
@@ -73,7 +74,7 @@ export async function invokePracticeVoiceAction(lessonId: PracticeLessonId, acti
   const existingReport = root.querySelector?.<HTMLElement>("[data-voice-report]")?.innerText.trim();
   // A repeat question reads the immutable engine-owned capture. It must not
   // click the reporting control and start another procedure.
-  if (lessonId === "thorington" && actionId === "request-report" && existingReport)
+  if ((lessonId === "thorington" || lessonId === "npc") && actionId === "request-report" && existingReport)
     return { accepted: true, spokenText: existingReport.slice(0, 1000) };
   const buttons = [...root.querySelectorAll<HTMLButtonElement>("button")].filter(usableButton);
   const control = buttons.find((button) => candidate.controls.some((fragment) => normalized(button.innerText || button.getAttribute("aria-label") || "").includes(normalized(fragment))));

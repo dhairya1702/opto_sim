@@ -7,8 +7,8 @@ import {
 export type ConsultationHand = XRClinicHand;
 export type ToolPoint = XRClinicVector3;
 export type ToolRotation = XRClinicQuaternion;
-export type ConsultationToolId = "distance" | "pinhole" | "cover" | "pupils" | "motility" | "objective" | "near" | "subjective" | "fundus" | "prism" | "four-prism" | "worth" | "red-green" | "polarised" | "stereo" | "maddox" | "thorington" | "trial-lens" | "lens-flipper" | "prism-flipper" | "fixation";
-export type RestingTool = { kind: "socket" | "surface"; position: ToolPoint; rotation: ToolRotation; socketId?: string; fittingLayer?: "correction" | "filters" | "occlusion" };
+export type ConsultationToolId = "distance" | "pinhole" | "cover" | "pupils" | "motility" | "objective" | "near" | "subjective" | "fundus" | "prism" | "four-prism" | "worth" | "red-green" | "polarised" | "stereo" | "maddox" | "thorington" | "trial-lens" | "lens-flipper" | "prism-flipper" | "fixation" | "npc-rule";
+export type RestingTool = { kind: "socket" | "surface"; position: ToolPoint; rotation: ToolRotation; socketId?: string; fittingLayer?: "correction" | "filters" | "occlusion" | "measurement" };
 export type ConsultationTool = {
   placement: RestingTool | { kind: "held"; hand: ConsultationHand };
   lastRest: RestingTool;
@@ -73,6 +73,8 @@ const exerciseTool = { workingPoint: [0, .10, 0] as ToolPoint, forward: [0, 0, -
 export const EXERCISE_TOOLS: readonly ConsultationToolDefinition[] = [
   { ...exerciseTool, restRotation: auxiliaryRest(upright), id: "maddox", label: "Maddox rod", home: auxiliaryInstrumentKitPoint(.34, AUXILIARY_INSTRUMENT_KIT.surfaceY + .07, -.13), homeYaw: AUXILIARY_INSTRUMENT_KIT_ROTATION_Y },
   { ...exerciseTool, restRotation: auxiliaryRest(upright), id: "fixation", label: "Accommodative fixation target", home: auxiliaryInstrumentKitPoint(.60, AUXILIARY_INSTRUMENT_KIT.surfaceY + .07, -.13), homeYaw: AUXILIARY_INSTRUMENT_KIT_ROTATION_Y, footprint: [.12, .10] },
+  { id: "npc-rule", label: "RAF-style NPC rule", home: auxiliaryInstrumentKitPoint(.66, AUXILIARY_INSTRUMENT_KIT.surfaceY + .035, .14), homeYaw: AUXILIARY_INSTRUMENT_KIT_ROTATION_Y,
+    workingPoint: [0, 0, .20], forward: [0, 0, -1], gripRotation: upright, restRotation: auxiliaryRest(upright), restHeight: .035, footprint: [.12, .47], illuminates: false },
   { ...exerciseTool, restRotation: auxiliaryRest(upright), id: "thorington", label: "Thorington card", home: auxiliaryInstrumentKitPoint(-.70, AUXILIARY_INSTRUMENT_KIT.surfaceY + .07, .14), homeYaw: AUXILIARY_INSTRUMENT_KIT_ROTATION_Y, footprint: [.25, .10] },
   { ...exerciseTool, restRotation: auxiliaryRest(upright), id: "trial-lens", label: "Trial lens pair", home: auxiliaryInstrumentKitPoint(-.36, AUXILIARY_INSTRUMENT_KIT.surfaceY + .07, .14), homeYaw: AUXILIARY_INSTRUMENT_KIT_ROTATION_Y, footprint: [.24, .10] },
   { ...exerciseTool, restRotation: auxiliaryRest(upright), id: "lens-flipper", label: "±2 D lens flipper", home: auxiliaryInstrumentKitPoint(-.02, AUXILIARY_INSTRUMENT_KIT.surfaceY + .07, .14), homeYaw: AUXILIARY_INSTRUMENT_KIT_ROTATION_Y, footprint: [.24, .10] },
@@ -113,7 +115,7 @@ export function consultationPickupLabel(hint: ConsultationPickupHint | null) {
 export type PlacementSocket = { id: string; tool: ConsultationToolId; position: ToolPoint; rotation: ToolRotation; radius: number;
   /** Optional full-pose tolerance; authored generic sockets retain their existing positional snap. */
   orientationToleranceRad?: number;
-  fittingLayer?: "correction" | "filters" | "occlusion";
+  fittingLayer?: "correction" | "filters" | "occlusion" | "measurement";
 };
 export type PlacementSurface = { id: string; x: number; z: number; y: number; width: number; depth: number };
 export const EXERCISE_SURFACE: PlacementSurface = { id: "library-tray", x: AUXILIARY_INSTRUMENT_KIT.x, z: AUXILIARY_INSTRUMENT_KIT.z, y: AUXILIARY_INSTRUMENT_KIT.surfaceY, width: AUXILIARY_INSTRUMENT_KIT.depth, depth: AUXILIARY_INSTRUMENT_KIT.width };

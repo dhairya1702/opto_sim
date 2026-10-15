@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { clinic } from "./helpers/xrClinicHarness";
 import { PhoriaPracticeController } from "../practice/xr/PhoriaPracticeController";
 import { VergencePracticeController } from "../practice/xr/VergencePracticeController";
+import { NPCPracticeController } from "../practice/xr/NPCPracticeController";
 import { AccommodationPracticeController } from "../practice/xr/AccommodationPracticeController";
 import type { BatchMirror } from "../practice/xr/PracticeLessonUI";
 import { librarySockets, type LibraryKind } from "../interaction/xrLibraryEquipment";
@@ -12,7 +13,6 @@ import { consultationToolDefinition, type ConsultationToolId } from "../interact
 import { maddoxTrials } from "../interaction/maddoxPractice";
 import { MADDOX_PRISM_CELLS, MADDOX_PRISM_CELL_Y } from "../interaction/maddoxProcedure";
 import { vergenceFindings } from "../interaction/vergencePractice";
-import { npcPhases } from "../interaction/xrVergencePractice";
 import { PracticeAttemptProvider, type PracticeAttemptKind } from "../practice/PracticeAttemptContext";
 let dispose: (() => Promise<void>) | undefined;
 afterEach(async () => { await dispose?.(); dispose = undefined; vi.restoreAllMocks(); vi.unstubAllGlobals(); });
@@ -21,7 +21,7 @@ async function lesson(kind: LibraryKind, preview = false, attemptKind?: Practice
   const complete = vi.fn(), leave = vi.fn();
   const sim = await clinic({ renderAdapter: ({ active }) => {
     const common = { active, preview, onComplete: complete, onExit: leave, onMirror: (next: BatchMirror) => { mirror = next; } };
-    const controller = kind === "maddox" || kind === "thorington" ? createElement(PhoriaPracticeController, { ...common, kind }) : kind === "push-up" || kind === "minus-lens" || kind === "relative" || kind === "accommodative-facility" ? createElement(AccommodationPracticeController, { ...common, kind }) : createElement(VergencePracticeController, { ...common, kind });
+    const controller = kind === "maddox" || kind === "thorington" ? createElement(PhoriaPracticeController, { ...common, kind }) : kind === "npc" ? createElement(NPCPracticeController, common) : kind === "push-up" || kind === "minus-lens" || kind === "relative" || kind === "accommodative-facility" ? createElement(AccommodationPracticeController, { ...common, kind }) : createElement(VergencePracticeController, { ...common, kind });
     return attemptKind ? createElement(PracticeAttemptProvider, { value: { settings: { kind: attemptKind, interaction: "vr", voice: "enabled" }, setSettings: vi.fn() }, children: controller }) : controller;
   } }); dispose = sim.dispose;
   const action = async (label: string) => { const item = mirror!.actions.find(a => a.label === label); if (!item) throw new Error(`Missing ${label}: ${mirror!.actions.map(a => a.label).join(", ")}`); await act(async () => item.run()); await sim.step(1 / 72, 12); };
@@ -156,14 +156,52 @@ describe("mounted remaining shared-clinic XR modules", () => {
     }
     expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
   });
-  it("records actual NPC samples in order with a physical target and decimal headset entries", async () => {
-    const sim = await lesson("npc"); await sim.prepare(); await sim.pickup(1, "fixation");
-    await sim.at(1, [0, 1.4, -.511 + .06]); await sim.action("MARK PATIENT ENDPOINT"); expect(sim.mirror().ready).toBe(false);
-    await sim.at(1, [0, 1.4, -.111]); await sim.step(1 / 72, 12);
-    for (const cm of [5.8, 4.9, 8.3, 9.2]) { await sim.at(1, [0, 1.4, -.511 + cm / 100]); await sim.action("MARK PATIENT ENDPOINT"); }
-    expect(sim.mirror().ready).toBe(true); await sim.putDown(1); await sim.panel(1); await sim.click(1, sim.button("RECORD FINDING"));
-    expect(sim.controls().some(b => b.userData.xrLabel === "ENTRY +0.1 cm")).toBe(true); expect(sim.controls().some(b => b.userData.xrLabel === "NEXT ENTRIES")).toBe(true);
-    await sim.enter(Object.fromEntries(npcPhases.map((id, i) => [id, String([5.8, 4.9, 8.3, 9.2][i])]))); expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
+  it("stocks, docks and exposes the dedicated NPC rule with guided carriage controls", async () => {
+    const sim = await lesson("npc", false, "guided"); await sim.fit("subjective");
+    expect(sim.tool("npc-rule")).toBeDefined(); await sim.fit("npc-rule", "library-npc-spectacle");
+    expect(sim.mirror().actions.map(action => action.label)).toContain("GIVE CLEAR / SINGLE INSTRUCTION");
+    await sim.action("GIVE CLEAR / SINGLE INSTRUCTION"); expect(sim.mirror().status).toContain("40.0 cm");
+    expect(sim.labels().join(" ")).toContain("GUIDED STEP"); sim.noTest();
+  });
+  it("keeps NPC Test free of coaching and fitting highlights", async () => {
+    const sim = await lesson("npc", true, "test");
+    expect(sim.labels().join(" ")).not.toContain("GUIDED STEP");
+    let highlights = 0; sim.state.scene.traverse(object => { if (object.userData.xrInstructionalHighlight) highlights++; });
+    expect(highlights).toBe(0); expect(sim.mirror().status).not.toContain("objective"); sim.noTest();
+  });
+  it("completes three subjective NPC trials by moving the docked carriage and records after physical release", async () => {
+    const sim = await lesson("npc", false, "guided"); await sim.fit("subjective"); await sim.fit("npc-rule", "library-npc-spectacle"); await sim.action("GIVE CLEAR / SINGLE INSTRUCTION");
+    const carriage = async (cm: number) => { await sim.at(1, [0, 1.545, -.511 + cm / 100]); await sim.tick(250); };
+    await sim.at(1, [0, 1.545, -.111]); await sim.event(1, "selectstart"); await sim.tick(260);
+    for (let trial = 0; trial < 3; trial++) {
+      for (let cm = 39.5; cm >= 6; cm -= .5) await carriage(cm);
+      await sim.tick(260);
+      for (let cm = 6.5; cm <= 8; cm += .5) await carriage(cm);
+      await sim.tick(260);
+      if (trial < 2) { await sim.at(1, [0, 1.545, -.111]); await sim.tick(260); }
+    }
+    expect(sim.mirror().reportLines, sim.mirror().status).toHaveLength(3); await sim.event(1, "selectend");
+    await sim.pickup(0, "npc-rule"); const home = consultationToolDefinition("npc-rule").home; await sim.at(0, home); await sim.putDown(0); await sim.step(1 / 72, 12);
+    if (!sim.mirror().ready) await sim.action("REMOVE / RELEASE RULE");
+    expect(sim.mirror().ready, sim.mirror().status).toBe(true);
+    await sim.enter({ "trial-1-break": "6", "trial-1-recovery": "8", "trial-2-break": "6", "trial-2-recovery": "8", "trial-3-break": "6", "trial-3-recovery": "8", "detection-method": "patient-report", "breaking-eye": "OS" });
+    expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
+  });
+  it("completes the concealed objective-first NPC Test with explicit OS endpoint marks", async () => {
+    const sim = await lesson("npc", false, "test"); await sim.fit("subjective"); await sim.fit("npc-rule", "library-npc-spectacle"); await sim.action("GIVE CLEAR / SINGLE INSTRUCTION");
+    const carriage = async (cm: number) => { await sim.at(1, [0, 1.545, -.511 + cm / 100]); await sim.tick(250); };
+    await sim.at(1, [0, 1.545, -.111]); await sim.event(1, "selectstart"); await sim.tick(260);
+    for (let trial = 0; trial < 3; trial++) {
+      for (let cm = 39.5; cm >= 5; cm -= .5) await carriage(cm);
+      await sim.tick(260); expect(sim.mirror().voiceReport).toContain("single"); await sim.action("MARK OBSERVED ENDPOINT");
+      for (let cm = 5.5; cm <= 9; cm += .5) await carriage(cm);
+      await sim.tick(260); await sim.action("MARK OBSERVED ENDPOINT");
+      if (trial < 2) { await sim.at(1, [0, 1.545, -.111]); await sim.tick(260); }
+    }
+    expect(sim.mirror().reportLines, sim.mirror().status).toHaveLength(3); expect(sim.mirror().status).not.toContain("objective");
+    await sim.event(1, "selectend"); await sim.action("REMOVE / RELEASE RULE");
+    await sim.enter({ "trial-1-break": "5", "trial-1-recovery": "9", "trial-2-break": "5", "trial-2-recovery": "9", "trial-3-break": "5", "trial-3-recovery": "9", "detection-method": "objective-observation", "breaking-eye": "OS" });
+    expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
   });
   it.each(["facility", "accommodative-facility"] as const)("times %s with full pairs, invalidation, release recording and all required eyes", async kind => {
     const sim = await lesson(kind); await sim.prepare(kind === "accommodative-facility" ? "OS" : undefined);
@@ -205,13 +243,13 @@ describe("mounted remaining shared-clinic XR modules", () => {
     await sim.enter({ nra: "2", pra: "-2.25" }); expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
   });
 
-  it.each(["thorington", "npc", "push-up"] as const)("discards cancelled %s captures, invalidates refitting and ignores stale exit submission", async kind => {
+  it.each(["thorington", "push-up"] as const)("discards cancelled %s captures, invalidates refitting and ignores stale exit submission", async kind => {
     const sim = await lesson(kind);
     if (kind === "thorington") { await sim.fit("subjective"); await sim.fit("maddox", "sensory-maddox-horizontal"); await sim.fit("thorington"); await sim.pickup(1, "pupils"); await sim.at(1, [0, 1.425, .137]); await sim.event(1, "selectstart"); }
     else { await sim.prepare(kind === "push-up" ? "OS" : undefined); await sim.pickup(1, "fixation"); }
     const observe = async () => {
       if (kind === "thorington") { await sim.action("ASK NUMBER AND SIDE"); await sim.tick(1); await sim.tick(260); await sim.event(1, "selectend"); await sim.putDown(1); await sim.step(1 / 72, 12); }
-      else { await sim.at(1, [0, 1.4, -.111]); await sim.step(1 / 72, 12); for (const cm of kind === "npc" ? [6, 5, 8, 9] : [10]) { await sim.at(1, [0, 1.4, -.511 + cm / 100]); await sim.action(kind === "npc" ? "MARK PATIENT ENDPOINT" : "MARK SUSTAINED BLUR"); } }
+      else { await sim.at(1, [0, 1.4, -.111]); await sim.step(1 / 72, 12); await sim.at(1, [0, 1.4, -.411]); await sim.action("MARK SUSTAINED BLUR"); }
     };
     await observe(); expect(sim.mirror().ready, sim.mirror().status).toBe(true);
     await act(async () => sim.mirror().cancel?.()); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(false); expect(sim.complete).not.toHaveBeenCalled();

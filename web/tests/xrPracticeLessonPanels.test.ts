@@ -4,6 +4,7 @@ import { Mesh, type Object3D, Vector3 } from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { clinic } from "./helpers/xrClinicHarness";
 import { VergencePracticeController } from "../practice/xr/VergencePracticeController";
+import { NPCPracticeController } from "../practice/xr/NPCPracticeController";
 import { AccommodationPracticeController } from "../practice/xr/AccommodationPracticeController";
 import { WorthPracticeController } from "../practice/xr/WorthPracticeController";
 import type { BatchMirror } from "../practice/xr/PracticeLessonUI";
@@ -72,7 +73,7 @@ describe("headset panel layout", () => {
     let mirror: BatchMirror;
     const sim = await clinic({ renderAdapter: ({ active }) => {
       const common = { active, onComplete: vi.fn(), onExit: vi.fn(), onMirror: (next: BatchMirror) => { mirror = next; } };
-      return kind === "npc" ? createElement(VergencePracticeController, { ...common, kind }) : createElement(AccommodationPracticeController, { ...common, kind });
+      return kind === "npc" ? createElement(NPCPracticeController, common) : createElement(AccommodationPracticeController, { ...common, kind });
     } }); dispose = sim.dispose;
     await act(async () => mirror!.lesson.setMode("record")); await sim.step(1 / 72, 12);
     const labels = panelBounds(sim.state.scene).map(button => button.label); expect(labels).toContain("NEXT ENTRIES"); expect(labels).toContain("SUBMIT / CHECK");

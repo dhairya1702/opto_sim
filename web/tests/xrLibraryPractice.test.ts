@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Quaternion, Vector3 } from "three";
-import { newNPCRun, markNPCEndpoint, npcPhases, newVergenceRun, markVergenceEndpoint, vergenceBases, newVergenceFacility, flipVergenceFacility, freezeVergenceCapture, numericCaptureSubmission } from "../interaction/xrVergencePractice";
+import { newVergenceRun, markVergenceEndpoint, vergenceBases, newVergenceFacility, flipVergenceFacility, freezeVergenceCapture, numericCaptureSubmission } from "../interaction/xrVergencePractice";
 import { vergenceFindings } from "../interaction/vergencePractice";
 import { accommodationEyes, pushUpEndpoint, minusLensEndpoint, newAccommodationFacility, flipAccommodationFacility } from "../interaction/xrAccommodationPractice";
 import { libraryDistance, libraryOpticPlacement, libraryNear, libraryOcclusion, libraryLightThroughCard, libraryEquipment, librarySockets, LIBRARY_TITLES } from "../interaction/xrLibraryEquipment";
@@ -20,13 +20,6 @@ describe("remaining XR library sequences and geometry", () => {
       }
       expect(run.complete).toBe(true); expect(run.values).toMatchObject({ break: endpoints.break, recovery: endpoints.recovery });
     }
-  });
-  it("retains actual ordered NPC endpoint samples and freezes capture values", () => {
-    let run = newNPCRun(); expect(markNPCEndpoint(run, 6, true)).toBe(run); run.initialized = true;
-    for (const distance of [5.8, 4.9, 8.3, 9.2]) { expect(markNPCEndpoint(run, distance, false)).toBe(run); run = markNPCEndpoint(run, distance, true); }
-    expect(run.index).toBe(4); expect(run.values).toEqual([5.8, 4.9, 8.3, 9.2]);
-    const values = Object.fromEntries(npcPhases.map((id, i) => [id, run.values[i]])); const capture = freezeVergenceCapture(1, "fit", "NPC", values, 9.2, ["report"]); values[npcPhases[0]] = 99;
-    expect(capture.values[npcPhases[0]]).toBe(5.8); expect(Object.isFrozen(capture.values)).toBe(true); expect(numericCaptureSubmission(capture.values, {})).toBeNull();
   });
   it("counts full timed pairs only after authored responses and before 60 seconds", () => {
     let vergence = newVergenceFacility(0); expect(flipVergenceFacility(vergence, 849, true)).toBe(vergence); expect(flipVergenceFacility(vergence, 850, false)).toBe(vergence);

@@ -1,4 +1,4 @@
-import { vergenceFindings, npcFindings, vergenceFacilityDelay } from "./vergencePractice";
+import { vergenceFindings, vergenceFacilityDelay } from "./vergencePractice";
 import { facilityDuration } from "./accommodativeFacility";
 export type PrismVergenceKind = "horizontal-distance" | "vertical-distance" | "horizontal-near";
 export type VergencePhase = "blur" | "break" | "recovery";
@@ -19,21 +19,6 @@ export function markVergenceEndpoint(kind: PrismVergenceKind, base: string, powe
   if (!finding || !ready || !run.initialized || run.complete || power !== finding[phase]) return run;
   const values = { ...run.values, [phase]: power };
   return { initialized: true, values, phase: phase === "blur" ? "break" : "recovery", complete: phase === "recovery" };
-}
-export const npcPhases = Object.keys(npcFindings) as (keyof typeof npcFindings)[];
-export type NPCRun = { initialized: boolean; index: number; values: readonly number[] };
-export const newNPCRun = (): NPCRun => ({ initialized: false, index: 0, values: [] });
-/** Half a centimetre is assisted handling tolerance around authored endpoints, not a clinical cutoff. */
-export function markNPCEndpoint(run: NPCRun, distanceCm: number, ready: boolean): NPCRun {
-  const phase = npcPhases[run.index];
-  if (!ready || !run.initialized || !phase || Math.abs(distanceCm - npcFindings[phase]) > .5) return run;
-  const threshold = npcFindings[phase];
-  if (phase.includes("break") ? distanceCm > threshold + 1e-8 : distanceCm < threshold - 1e-8) return run;
-  return { ...run, index: run.index + 1, values: [...run.values, distanceCm] };
-}
-export function npcPatientReport(run: NPCRun, distanceCm: number) {
-  if (run.index < 2) return distanceCm <= npcFindings["subjective-break"] ? "The target is double; inspect the eye drifting outward." : "Single; both eyes hold fixation.";
-  return distanceCm >= npcFindings["subjective-recovery"] ? "Single again; inspect binocular realignment." : "The target remains double.";
 }
 export type TimedFacility = { start: number; presented: number; side: string; cycles: number };
 export const newVergenceFacility = (now: number): TimedFacility => ({ start: now, presented: now, side: "BO", cycles: 0 });

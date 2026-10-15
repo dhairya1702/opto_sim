@@ -7,6 +7,8 @@ import type { ConsultationToolId } from "../interaction/xrConsultationTools";
 
 export type ClinicInstrumentSetting = {
   power?: number; base?: string; angle?: number; side?: string; point?: boolean;
+  distanceCm?: number;
+  highlightCarriage?: boolean;
   profile?: "standard" | "maddox";
   anchorPower?: number; aligned?: boolean; reflexOffset?: number; showReflex?: boolean;
   powered?: boolean; onPowerChange?: (powered: boolean) => void;
@@ -163,10 +165,30 @@ function FixationModel() {
   </group>;
 }
 
+function NPCRuleModel({ distanceCm = 40, highlightCarriage = false }: { distanceCm?: number; highlightCarriage?: boolean }) {
+  const carriageZ = Math.max(.02, Math.min(.42, distanceCm / 100));
+  return <group>
+    <Box p={[0, 0, .22]} s={[.024, .018, .44]} c={metal} radius={.003} />
+    <Box p={[0, -.012, 0]} s={[.09, .035, .045]} c={shell} radius={.006} />
+    <XRSign text={["SPECTACLE PLANE"]} p={[0, .027, .015]} size={[.10, .022]} rotation={[-Math.PI / 2, 0, 0]} bg="#173a3e" fg="#e8fff9" />
+    {Array.from({ length: 41 }, (_, index) => index + 2).map(cm => <group key={cm} position={[0, .012, cm / 100]}>
+      <Box p={[cm % 5 === 0 ? .016 : .009, 0, 0]} s={[cm % 5 === 0 ? .025 : .012, .003, .0015]} c={cm % 5 === 0 ? accent : darkMetal} />
+      {cm % 5 === 0 && <XRSign text={[String(cm)]} p={[-.025, .005, 0]} size={[.022, .012]} rotation={[-Math.PI / 2, 0, 0]} bg={paper} fg="#244b47" />}
+    </group>)}
+    <group position={[0, .045, carriageZ]} userData={{ xrNpcCarriage: true }}>
+      <Box s={[.07, .075, .028]} c={shell} radius={.008} />
+      {highlightCarriage && <mesh position={[0, 0, .017]}><ringGeometry args={[.043, .050, 28]} /><meshBasicMaterial color="#8df5d3" side={DoubleSide} depthTest={false} /></mesh>}
+      <Box p={[0, .045, 0]} s={[.055, .055, .010]} c={paper} radius={.006} />
+      {[.009, .018].map(radius => <mesh key={radius} position={[0, .045, .006]} rotation={[0, 0, 0]}><torusGeometry args={[radius, .0025, 8, 28]} /><meshStandardMaterial color={radius === .018 ? accent : teal} /></mesh>)}
+    </group>
+  </group>;
+}
+
 export function LibraryInstrumentModel({ id, setting = {} }: { id: ConsultationToolId; setting?: ClinicInstrumentSetting }) {
   if (id === "maddox") return <MaddoxModel angle={setting.angle} />;
   if (id === "thorington") return <ThoringtonModel />;
   if (id === "fixation") return <FixationModel />;
+  if (id === "npc-rule") return <NPCRuleModel distanceCm={setting.distanceCm} highlightCarriage={setting.highlightCarriage} />;
   if (id === "trial-lens" || id === "lens-flipper" || id === "prism-flipper") return <FlipperModel id={id} setting={setting} />;
   return null;
 }
