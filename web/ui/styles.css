@@ -2181,6 +2181,20 @@ kbd {
 .clinical-coach b { display: block; margin-bottom: 2px; color: white; font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; }
 .clinical-coach.ready { border-color: #4b9e7a; background: #11342d; }
 .clinical-coach.ready > span { background: #1c644b; color: #a8edc9; }
+.thorington-workspace { display: grid; place-items: center; gap: 12px; padding: 24px; }
+.thorington-physical-card { width: min(100%, 62vh); max-height: 62vh; touch-action: none; }
+.thorington-report-illustration { width: min(520px, 92%); padding: 14px 18px; border: 1px solid #4c7775; border-radius: 10px; background: #07151b; color: #eefbf7; text-align: center; }
+.thorington-report-illustration p, .thorington-report-illustration span { display: block; margin: 0; color: #9fc1bd; font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; }
+.thorington-report-illustration strong { display: block; margin: 8px 0; font-size: 1.35rem; }
+.stereo-page-key { padding: 8px 10px; border: 1px solid #56736f; border-radius: 7px; background: #e8e3d5; color: #203f3d; text-transform: uppercase; }
+.stereo-patient-view { margin-top: 10px; padding: 10px; border: 1px solid #45656b; border-radius: 8px; background: #122a30; color: #d9e7e3; }
+.stereo-patient-view svg { display: block; width: 100%; max-height: 150px; margin-top: 8px; border-radius: 8px; background: #eee9da; }
+.stereo-patient-view p:last-child { margin-bottom: 0; }
+.maddox-patient-view { padding: 10px; border: 1px solid #45656b; border-radius: 8px; background: #07151b; }
+.maddox-patient-view svg { display: block; width: 100%; max-height: 180px; margin: 8px 0; border-radius: 8px; background: #020609; }
+.maddox-patient-view p:last-child { margin-bottom: 0; }
+.maddox-guided .eyebrow { margin-bottom: 4px; color: #d5a95b; }
+.maddox-guided p b { display: block; margin-bottom: 3px; }
 .clinical-control-rail { min-height: 0; padding: 17px; overflow-y: auto; border-left: 1px solid #ffffff16; background: #13282d; }
 .clinical-control-rail section { padding: 0 0 14px; margin: 0 0 14px; border-bottom: 1px solid #ffffff12; }
 .clinical-control-rail .eyebrow { margin-bottom: 8px; color: #79a69b; font-size: .62rem; }

@@ -21,9 +21,12 @@ const action = (id: string, phrases: string[], controls: string[], acknowledgeme
   ({ id, phrases, controls, acknowledgement });
 const fixateLight = action("fixate-light", ["look at the light", "fixate the light"], ["look at the light", "fixation"], "Okay, I am looking at the light.");
 const fixateTarget = action("fixate-target", ["look at the target", "fixate the target", "keep looking at the dots"], ["give fixation", "look at this target", "look at the target", "establish fixation", "fixate isolated", "fixation"], "Okay, I am looking at the target.");
+const fixateStereo = action("fixate-target", ["look at the circles", "keep looking at the booklet", "fixate the circles", "keep looking at the circles"], ["look at the circles", "looking at the circles"], "Okay, I’m looking at the circles.");
+const fixateFourPrism = action("fixate-target", ["look at the isolated letter", "keep looking at the letter", "keep the letter single", "look at the letter", "fixate the letter"], ["look at the isolated letter"], "Okay, I’m looking at the letter and keeping it single.");
 const followTarget = action("follow-target", ["follow the target", "follow the light"], ["following instruction", "follow this target", "follow light", "start following"], "Okay, I will follow it with my eyes.");
 const reportSymptoms = action("report-symptoms", ["any symptoms", "any double vision", "any pain", "any discomfort"], ["ask diplopia", "ask symptoms", "symptoms"], "I will tell you if I notice double vision, pain, or discomfort.");
 const reportPercept = action("request-report", ["what do you see", "tell me what you see", "how many dots", "what colours do you see", "tell me where the dots are", "report now"], ["ask count", "present page", "ask number", "patient report", "mark patient endpoint", "mark sustained blur", "capture coincidence"], "I can report what I see now that the examination setup is ready.");
+const reportStereo = action("request-report", ["which circle appears raised", "which circle is raised", "which circle is closer", "does one circle stand out", "what do you see", "tell me what you see"], ["ask which circle is raised"], "I can report what I see now that the examination setup is ready.");
 const targetOn = action("target-on", ["turn on the target", "switch the worth lights on", "switch the worth target on"], ["switch target on"], "Worth target switched on.");
 const targetOff = action("target-off", ["turn off the target", "switch the worth lights off", "switch the worth target off"], ["switch target off"], "Worth target switched off.");
 const reportClear = action("report-clear", ["is it clear", "can you clear it"], ["clear / flip", "clear + single", "confirm clear baseline"], "It is clear and single now.");
@@ -39,8 +42,8 @@ export const PRACTICE_VOICE_ACTIONS: Record<PracticeLessonId, readonly PracticeV
   "cover-uncover": [fixateTarget],
   "alternate-cover": [fixateTarget],
   worth: [targetOn, targetOff, fixateTarget, reportPercept],
-  stereopsis: [fixateTarget, reportPercept],
-  "four-prism": [fixateTarget],
+  stereopsis: [fixateStereo, reportStereo],
+  "four-prism": [fixateFourPrism],
   maddox: [fixateTarget, reportPercept],
   thorington: [fixateTarget, reportPercept],
   npc: [fixateTarget, reportPercept],
@@ -67,14 +70,34 @@ export function enabledPracticeVoiceActions(lessonId: PracticeLessonId, root: Pa
 export async function invokePracticeVoiceAction(lessonId: PracticeLessonId, actionId: string, root: ParentNode = document) {
   const candidate = PRACTICE_VOICE_ACTIONS[lessonId].find((item) => item.id === actionId);
   if (!candidate) return { accepted: false, spokenText: "That instruction is not available in this lesson.", errorCode: "ACTION_NOT_ALLOWED" };
+  const existingReport = root.querySelector?.<HTMLElement>("[data-voice-report]")?.innerText.trim();
+  // A repeat question reads the immutable engine-owned capture. It must not
+  // click the reporting control and start another procedure.
+  if (lessonId === "thorington" && actionId === "request-report" && existingReport)
+    return { accepted: true, spokenText: existingReport.slice(0, 1000) };
   const buttons = [...root.querySelectorAll<HTMLButtonElement>("button")].filter(usableButton);
   const control = buttons.find((button) => candidate.controls.some((fragment) => normalized(button.innerText || button.getAttribute("aria-label") || "").includes(normalized(fragment))));
-  if (!control) return { accepted: false, spokenText: "Please complete the current setup before asking for that response.", errorCode: "TECHNIQUE_GATE" };
+  if (!control) {
+    const status = root.querySelector?.<HTMLElement>("[data-voice-status]")?.innerText.trim();
+    return { accepted: false, spokenText: lessonId === "four-prism" && actionId === "fixate-target" && status
+      ? `Before fixation: ${status}`
+      : lessonId === "stereopsis" && actionId === "request-report" && status
+      ? `Before asking: ${status}`
+      : "Please complete the current setup before asking for that response.", errorCode: "TECHNIQUE_GATE" };
+  }
   control.click();
   if (actionId === "target-on" || actionId === "target-off")
     return { accepted: true, spokenText: candidate.acknowledgement, suppressAudio: true };
   if (actionId === "request-report" || actionId === "report-clear" || actionId === "report-symptoms") {
-    await new Promise<void>(resolve => typeof requestAnimationFrame === "function" ? requestAnimationFrame(() => requestAnimationFrame(() => resolve())) : setTimeout(resolve, 0));
+    if (lessonId === "thorington" && actionId === "request-report") {
+      // The 400 ms bound only waits for the procedure engine's 250 ms stable
+      // capture. This router never manufactures or mutates report evidence.
+      const deadline = Date.now() + 400;
+      while (!root.querySelector?.<HTMLElement>("[data-voice-report]")?.innerText.trim() && Date.now() < deadline)
+        await new Promise<void>(resolve => setTimeout(resolve, 20));
+    } else {
+      await new Promise<void>(resolve => typeof requestAnimationFrame === "function" ? requestAnimationFrame(() => requestAnimationFrame(() => resolve())) : setTimeout(resolve, 0));
+    }
     const report = root.querySelector<HTMLElement>("[data-voice-report]")?.innerText.trim()
       || (actionId === "request-report" ? "" : root.querySelector<HTMLElement>("[data-voice-status]")?.innerText.trim());
     if (report) return {
@@ -86,11 +109,17 @@ export async function invokePracticeVoiceAction(lessonId: PracticeLessonId, acti
     if (lessonId === "motility" && actionId === "report-symptoms") {
       return { accepted: true, spokenText: MOTILITY_PATIENT_REPLY, cacheKey: "practice:motility:report-symptoms" };
     }
-    if (actionId === "request-report")
-      return { accepted: false, spokenText: "Complete the fitting, target, filter checks, and fixation before asking for the report.", errorCode: "TECHNIQUE_GATE" };
+    if (actionId === "request-report") {
+      const status = root.querySelector<HTMLElement>("[data-voice-status]")?.innerText.trim();
+      return { accepted: false, spokenText: lessonId === "stereopsis" && status
+        ? `Before asking: ${status}`
+        : "Complete the fitting, target, filter checks, and fixation before asking for the report.", errorCode: "TECHNIQUE_GATE" };
+    }
   }
   if (actionId === "examiner-close-right-eye" || actionId === "examiner-close-left-eye" || actionId === "examiner-open-both-eyes") {
     return { accepted: true, spokenText: candidate.acknowledgement, suppressAudio: true };
   }
-  return { accepted: true, spokenText: candidate.acknowledgement, cacheKey: `practice:ack:${actionId}` };
+  return lessonId === "stereopsis" || lessonId === "four-prism"
+    ? { accepted: true, spokenText: candidate.acknowledgement }
+    : { accepted: true, spokenText: candidate.acknowledgement, cacheKey: `practice:ack:${actionId}` };
 }

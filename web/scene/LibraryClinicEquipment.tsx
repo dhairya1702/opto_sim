@@ -2,10 +2,12 @@ import { CatmullRomCurve3, DoubleSide, Path, Shape, Vector2, Vector3 } from "thr
 import { Box, Cylinder } from "./Models";
 import { XRSign } from "./XRClinicPanels";
 import { LIBRARY_SOCKETS } from "../interaction/xrLibraryEquipment";
+import { THORINGTON_CARD_APERTURE_RADIUS_M, THORINGTON_SCALE, thoringtonCardCoordinate } from "../interaction/thoringtonProcedure";
 import type { ConsultationToolId } from "../interaction/xrConsultationTools";
 
 export type ClinicInstrumentSetting = {
   power?: number; base?: string; angle?: number; side?: string; point?: boolean;
+  profile?: "standard" | "maddox";
   anchorPower?: number; aligned?: boolean; reflexOffset?: number; showReflex?: boolean;
   powered?: boolean; onPowerChange?: (powered: boolean) => void;
 };
@@ -27,7 +29,7 @@ const leftBridge = new CatmullRomCurve3([
 ]);
 const rightBridge = new CatmullRomCurve3(leftBridge.points.map(point => new Vector3(-point.x, point.y, point.z)));
 const thoringtonShape = (() => {
-  const width = .235, height = .17, radius = .012, x = width / 2, y = height / 2;
+  const width = .11, height = .11, radius = .008, x = width / 2, y = height / 2;
   const shape = new Shape();
   shape.moveTo(-x + radius, -y);
   shape.lineTo(x - radius, -y);
@@ -39,7 +41,7 @@ const thoringtonShape = (() => {
   shape.lineTo(-x, -y + radius);
   shape.quadraticCurveTo(-x, -y, -x + radius, -y);
   const aperture = new Path();
-  aperture.absarc(0, 0, .010, 0, Math.PI * 2, true);
+  aperture.absarc(0, 0, THORINGTON_CARD_APERTURE_RADIUS_M, 0, Math.PI * 2, true);
   shape.holes.push(aperture);
   return shape;
 })();
@@ -128,19 +130,20 @@ function ThoringtonModel() {
       <extrudeGeometry args={[thoringtonShape, { depth: .008, bevelEnabled: true, bevelSegments: 2, bevelSize: .0015, bevelThickness: .0015, curveSegments: 16 }]} />
       <meshStandardMaterial color={paper} roughness={.84} />
     </mesh>
-    <Box p={[0, .050, 0]} s={[.025, .074, .010]} c={paper} radius={.003} />
-    <Box p={[0, .150, 0]} s={[.025, .074, .010]} c={paper} radius={.003} />
-    <mesh position={[0, .10, .007]}>
-      <ringGeometry args={[.010, .013, 28]} />
+    <Box p={[0, .025, 0]} s={[.022, .050, .010]} c={paper} radius={.003} />
+    <mesh position={[0, .10, -.006]} rotation={[0, Math.PI, 0]}>
+      <ringGeometry args={[THORINGTON_CARD_APERTURE_RADIUS_M, .013, 28]} />
       <meshStandardMaterial color={darkMetal} roughness={.36} metalness={.54} side={DoubleSide} />
     </mesh>
-    {Array.from({ length: 11 }, (_, i) => i - 5).filter(i => i !== 0).map(i => <group key={i}>
-      <Box p={[i * .018, .10, .007]} s={[.002, .012, .002]} c={teal} />
-      <Box p={[0, .10 + i * .014, .007]} s={[.012, .002, .002]} c={teal} />
-      <XRSign text={[String(Math.abs(i))]} p={[i * .018, .116, .008]} size={[.011, .009]} bg={paper} fg="#244b47" />
-      <XRSign text={[String(Math.abs(i))]} p={[.016, .10 + i * .014, .008]} size={[.011, .008]} bg={paper} fg="#244b47" />
+    {THORINGTON_SCALE.filter(i => i !== 0).map(i => <group key={i}>
+      {Math.abs(thoringtonCardCoordinate(i)) > THORINGTON_CARD_APERTURE_RADIUS_M + .003 && <>
+        <Box p={[thoringtonCardCoordinate(i), .10, -.006]} s={[.001, .007, .002]} c={teal} />
+        <Box p={[0, .10 + thoringtonCardCoordinate(i), -.006]} s={[.007, .001, .002]} c={teal} />
+      </>}
+      <XRSign text={[String(Math.abs(i))]} p={[thoringtonCardCoordinate(i), .118, -.007]} size={[.007, .005]} rotation={[0, Math.PI, 0]} bg={paper} fg="#244b47" />
+      <XRSign text={[String(Math.abs(i))]} p={[.018, .10 + thoringtonCardCoordinate(i), -.007]} size={[.007, .005]} rotation={[0, Math.PI, 0]} bg={paper} fg="#244b47" />
     </group>)}
-    <XRSign text={["THORINGTON · 40 CM"]} p={[0, .158, .008]} size={[.16, .018]} bg={paper} fg="#244b47" />
+    <XRSign text={["PATIENT-FACING · 4 MM/Δ"]} p={[0, .150, -.007]} size={[.09, .010]} rotation={[0, Math.PI, 0]} bg={paper} fg="#244b47" />
   </group>;
 }
 
@@ -168,13 +171,13 @@ export function LibraryInstrumentModel({ id, setting = {} }: { id: ConsultationT
   return null;
 }
 
-export function LibraryEquipmentTray({ active = false, equipment = [] }: { active?: boolean; equipment?: readonly ConsultationToolId[] }) {
+export function LibraryEquipmentTray({ active = false, equipment = [], showFittingGuides = true }: { active?: boolean; equipment?: readonly ConsultationToolId[]; showFittingGuides?: boolean }) {
   return <>
     {([[0, .25, "PATIENT FITTING"]] as const).map(([x, z, label]) => <group key={label} position={[x, .012, z]} userData={active ? { xrTeleport: [x, 0, z] } : { xrPreviewPad: true }}>
       <mesh rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[.19, .26, 32]} /><meshBasicMaterial color="#4fae9d" transparent opacity={.65}/></mesh>
       <XRSign text={[label]} p={[0, .008, 0]} size={[.33, .08]} rotation={[-Math.PI / 2, 0, 0]} bg="#153b3c" fg="#e8fff9"/>
     </group>)}
-    {LIBRARY_SOCKETS.filter(socket => socket.fittingLayer && equipment.includes(socket.tool)).map(socket => <group key={socket.id} position={[...socket.position]} userData={{ xrIgnoreRay: true }}><mesh><ringGeometry args={[.009, .012, 20]}/><meshBasicMaterial color="#f1da96" transparent opacity={.5} side={DoubleSide}/></mesh></group>)}
+    {showFittingGuides && LIBRARY_SOCKETS.filter(socket => socket.fittingLayer && equipment.includes(socket.tool)).map(socket => <group key={socket.id} position={[...socket.position]} userData={{ xrIgnoreRay: true, xrInstructionalHighlight: true }}><mesh><ringGeometry args={[.009, .012, 20]}/><meshBasicMaterial color="#f1da96" transparent opacity={.5} side={DoubleSide}/></mesh></group>)}
   </>;
 }
 

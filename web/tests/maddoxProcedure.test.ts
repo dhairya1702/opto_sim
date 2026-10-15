@@ -1,0 +1,117 @@
+import { describe, expect, it } from "vitest";
+import {
+  MADDOX_PRISM_CELLS, MADDOX_PRISM_CELL_Y, MADDOX_TRIALS, armMaddoxReport, cancelMaddoxEntry,
+  captureMaddox, enterMaddox, interruptMaddox, maddoxBaseFromRoll, maddoxGuidedStep, maddoxGrooveCorrect,
+  maddoxNearestCell, maddoxPatientReport, newMaddoxRun, sampleMaddox, submitMaddox, type MaddoxSpatialSample,
+} from "../interaction/maddoxProcedure";
+
+const sample = (overrides: Partial<MaddoxSpatialSample> = {}): MaddoxSpatialSample => ({
+  correctionFitted: true, rodFitted: true, grooveDegrees: 0, targetReady: true, targetPowered: true,
+  targetSite: "distance", distanceCm: 600, fixationInstruction: true, prismHeld: true, prismForward: true,
+  prismAligned: true, cell: 20, base: "BI", tracking: true, ...overrides,
+});
+
+function captureTrial(run = newMaddoxRun(), overrides: Partial<MaddoxSpatialSample> = {}) {
+  const trial = MADDOX_TRIALS[run.trialIndex];
+  const ready = sample({ targetSite: trial.site, distanceCm: trial.site === "near" ? 40 : 600, grooveDegrees: trial.grooveDegrees, base: trial.base, ...overrides });
+  let next = armMaddoxReport(run, ready);
+  next = sampleMaddox(next, { ...ready, cell: 20 }, 0);
+  next = sampleMaddox(next, { ...ready, cell: 20 }, 250);
+  next = sampleMaddox(next, { ...ready, cell: trial.neutral }, 300);
+  next = sampleMaddox(next, { ...ready, cell: trial.neutral }, 550);
+  return captureMaddox(next, { ...ready, cell: trial.neutral });
+}
+
+describe("shared Maddox procedure", () => {
+  it("preserves the four authored findings in order", () => {
+    expect(MADDOX_TRIALS.map(({ site, axis, neutral, base }) => [site, axis, neutral, base])).toEqual([
+      ["distance", "horizontal", 6, "BI"], ["distance", "vertical", 4, "BU"],
+      ["near", "horizontal", 6, "BI"], ["near", "vertical", 4, "BU"],
+    ]);
+  });
+
+  it("shares all rendered cell coordinates with physical selection", () => {
+    expect(MADDOX_PRISM_CELLS).toEqual([2, 4, 6, 8, 10, 12, 15, 20]);
+    MADDOX_PRISM_CELL_Y.forEach((y, index) => expect(maddoxNearestCell(y)).toBe(MADDOX_PRISM_CELLS[index]));
+    expect(maddoxNearestCell(-1)).toBeNull();
+  });
+
+  it("accepts only the two rod orientations within 30 degrees and classifies all bases", () => {
+    expect(maddoxGrooveCorrect("horizontal", 30)).toBe(true);
+    expect(maddoxGrooveCorrect("horizontal", 31)).toBe(false);
+    expect(maddoxGrooveCorrect("vertical", 120)).toBe(true);
+    expect(maddoxGrooveCorrect("vertical", 45)).toBe(false);
+    expect([0, 90, 180, 270].map(maddoxBaseFromRoll)).toEqual(["BI", "BU", "BO", "BD"]);
+    expect(maddoxBaseFromRoll(45)).toBeNull();
+  });
+
+  it("models correct reduction, opposite-base worsening and wrong-axis response", () => {
+    const trial = MADDOX_TRIALS[0];
+    expect(maddoxPatientReport(trial, 6, "BI")).toContain("passes through");
+    expect(maddoxPatientReport(trial, 6, "BO")).toContain("farther away");
+    expect(maddoxPatientReport(trial, 6, "BU")).toContain("does not move");
+    let run = armMaddoxReport(newMaddoxRun(), sample());
+    run = sampleMaddox(run, sample(), 0); run = sampleMaddox(run, sample(), 250);
+    run = sampleMaddox(run, sample({ cell: 6, base: "BO" }), 300);
+    run = sampleMaddox(run, sample({ cell: 6, base: "BO" }), 550);
+    expect(run.report).toContain("farther away");
+    expect(captureMaddox(run, sample({ cell: 6, base: "BO" })).capture).toBeNull();
+  });
+
+  it("requires reporting, a stable 20Δ introduction and stable coincidence", () => {
+    const ready = sample();
+    let run = newMaddoxRun();
+    run = sampleMaddox(run, { ...ready, cell: 6 }, 300);
+    expect(run.phase).toBe("instruction");
+    run = armMaddoxReport(run, ready);
+    run = sampleMaddox(run, { ...ready, cell: 6 }, 400);
+    expect(run.introduced20).toBe(false);
+    run = sampleMaddox(run, ready, 500);
+    run = sampleMaddox(run, ready, 750);
+    run = sampleMaddox(run, { ...ready, cell: 6 }, 800);
+    expect(captureMaddox(run, { ...ready, cell: 6 }).capture).toBeNull();
+    run = sampleMaddox(run, { ...ready, cell: 6 }, 1050);
+    expect(captureMaddox(run, { ...ready, cell: 6 }).capture).not.toBeNull();
+  });
+
+  it("keeps capture immutable, grades power and base independently, and completes once", () => {
+    let run = newMaddoxRun();
+    let attemptedWrongBase = false;
+    while (run.records.length < 4) {
+      run = captureTrial(run);
+      expect(Object.isFrozen(run.capture)).toBe(true);
+      const wrong = run.trialIndex === 1 && !attemptedWrongBase;
+      run = enterMaddox(run, String(run.capture?.cell), wrong ? "BI" : run.capture?.base ?? "");
+      run = submitMaddox(run);
+      if (wrong) {
+        attemptedWrongBase = true;
+        expect(run.records).toHaveLength(1);
+        run = enterMaddox(run, String(run.capture?.cell), run.capture?.base ?? "");
+        run = submitMaddox(run);
+      }
+    }
+    expect(run.records).toHaveLength(4);
+    expect(run.phase).toBe("complete");
+    expect(submitMaddox(run)).toBe(run);
+  });
+
+  it("preserves records while cancellation and interruption reset unfinished work", () => {
+    let run = captureTrial();
+    run = enterMaddox(run, "6", "BI");
+    run = cancelMaddoxEntry(run);
+    expect(run.capture).toBeNull(); expect(run.reportInstruction).toBe(false);
+    run = captureTrial(run); run = enterMaddox(run, "6", "BI"); run = submitMaddox(run);
+    const interrupted = interruptMaddox(armMaddoxReport(run, sample({ grooveDegrees: 90 })), "Tracking was interrupted.");
+    expect(interrupted.records).toHaveLength(1); expect(interrupted.introduced20).toBe(false);
+  });
+
+  it("derives all ten guided steps and completion from the same state", () => {
+    let run = newMaddoxRun();
+    expect(maddoxGuidedStep(run, sample({ correctionFitted: false })).index).toBe(0);
+    expect(maddoxGuidedStep(run, sample({ rodFitted: false })).index).toBe(1);
+    run = armMaddoxReport(run, sample());
+    expect(maddoxGuidedStep(run, sample()).index).toBe(6);
+    for (let i = 0; i < 4; i++) { run = captureTrial(run); run = enterMaddox(run, String(run.capture?.cell), run.capture?.base ?? ""); run = submitMaddox(run); }
+    expect(maddoxGuidedStep(run, sample()).complete).toBe(true);
+  });
+});

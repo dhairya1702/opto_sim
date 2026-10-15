@@ -111,6 +111,82 @@ describe("voice contracts and Practice allowlists", () => {
     const gated = { querySelectorAll: () => [], querySelector: () => null } as unknown as ParentNode;
     await expect(invokePracticeVoiceAction("worth", "request-report", gated)).resolves.toMatchObject({ accepted: false, errorCode: "TECHNIQUE_GATE" });
   });
+  it("waits only for the engine-owned Thorington capture and repeats an existing report without clicking", async () => {
+    let report = "";
+    const click = vi.fn(() => { setTimeout(() => { report = "Arun reports 6, right."; }, 260); });
+    const button = { disabled: false, offsetParent: {}, innerText: "ASK NUMBER AND SIDE", click, getAttribute: () => null } as unknown as HTMLButtonElement;
+    const root = {
+      querySelectorAll: () => [button],
+      querySelector: (selector: string) => selector === "[data-voice-report]" && report ? { innerText: report } : null,
+    } as unknown as ParentNode;
+    await expect(invokePracticeVoiceAction("thorington", "request-report", root)).resolves.toEqual({ accepted: true, spokenText: "Arun reports 6, right." });
+    expect(click).toHaveBeenCalledTimes(1);
+    await expect(invokePracticeVoiceAction("thorington", "request-report", root)).resolves.toEqual({ accepted: true, spokenText: "Arun reports 6, right." });
+    expect(click).toHaveBeenCalledTimes(1);
+  });
+  it("bounds a Thorington report wait without inventing evidence", async () => {
+    vi.useFakeTimers();
+    try {
+      const click = vi.fn();
+      const button = { disabled: false, offsetParent: {}, innerText: "ASK NUMBER AND SIDE", click, getAttribute: () => null } as unknown as HTMLButtonElement;
+      const root = { querySelectorAll: () => [button], querySelector: () => null } as unknown as ParentNode;
+      const result = invokePracticeVoiceAction("thorington", "request-report", root);
+      await vi.advanceTimersByTimeAsync(420);
+      await expect(result).resolves.toMatchObject({ accepted: false, errorCode: "TECHNIQUE_GATE" });
+      expect(click).toHaveBeenCalledTimes(1);
+    } finally { vi.useRealTimers(); }
+  });
+  it("routes stereopsis fixation and speaks only the synchronous current-page reply", async () => {
+    const fixationClick = vi.fn();
+    const fixation = { disabled: false, offsetParent: {}, innerText: "LOOK AT THE CIRCLES", click: fixationClick, getAttribute: () => null } as unknown as HTMLButtonElement;
+    const fixationRoot = { querySelectorAll: () => [fixation], querySelector: () => null } as unknown as ParentNode;
+    await expect(invokePracticeVoiceAction("stereopsis", "fixate-target", fixationRoot)).resolves.toEqual({
+      accepted: true, spokenText: "Okay, I’m looking at the circles.",
+    });
+    expect(fixationClick).toHaveBeenCalledTimes(1);
+
+    let current = false;
+    const ask = { disabled: false, offsetParent: {}, innerText: "ASK WHICH CIRCLE IS RAISED", click: () => { current = true; }, getAttribute: () => null } as unknown as HTMLButtonElement;
+    const root = {
+      querySelectorAll: () => [ask],
+      querySelector: (selector: string) => selector === "[data-voice-report]" && current
+        ? { innerText: "The middle circle looks raised." }
+        : selector === "[data-voice-status]" ? { innerText: "800 arcsec · patient middle · classified correct" } : null,
+    } as unknown as ParentNode;
+    await expect(invokePracticeVoiceAction("stereopsis", "request-report", root)).resolves.toEqual({
+      accepted: true, spokenText: "The middle circle looks raised.",
+    });
+    expect(PRACTICE_VOICE_ACTIONS.stereopsis.find(action => action.id === "request-report")?.phrases).toEqual(expect.arrayContaining([
+      "which circle appears raised", "which circle is closer", "does one circle stand out", "what do you see",
+    ]));
+  });
+  it("routes the Four-prism letter instruction through the setup gate without inventing observations", async () => {
+    const click = vi.fn();
+    const button = { disabled: false, offsetParent: {}, innerText: "LOOK AT THE ISOLATED LETTER", click, getAttribute: () => null } as unknown as HTMLButtonElement;
+    const root = { querySelectorAll: () => [button], querySelector: () => null } as unknown as ParentNode;
+    await expect(invokePracticeVoiceAction("four-prism", "fixate-target", root)).resolves.toEqual({
+      accepted: true, spokenText: "Okay, I’m looking at the letter and keeping it single.",
+    });
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(PRACTICE_VOICE_ACTIONS["four-prism"][0].phrases).toEqual(expect.arrayContaining([
+      "look at the isolated letter", "keep looking at the letter", "keep the letter single",
+    ]));
+    const gated = { querySelectorAll: () => [], querySelector: () => ({ innerText: "Fit best distance correction." }) } as unknown as ParentNode;
+    await expect(invokePracticeVoiceAction("four-prism", "fixate-target", gated)).resolves.toEqual({
+      accepted: false, spokenText: "Before fixation: Fit best distance correction.", errorCode: "TECHNIQUE_GATE",
+    });
+  });
+  it("gives a stereopsis-specific gate without speaking historical page records", async () => {
+    const gated = {
+      querySelectorAll: () => [],
+      querySelector: (selector: string) => selector === "[data-voice-status]" ? { innerText: "Polarised glasses are not fitted over the correction." } : null,
+    } as unknown as ParentNode;
+    await expect(invokePracticeVoiceAction("stereopsis", "request-report", gated)).resolves.toEqual({
+      accepted: false,
+      spokenText: "Before asking: Polarised glasses are not fitted over the correction.",
+      errorCode: "TECHNIQUE_GATE",
+    });
+  });
   it("speaks the active abnormal motility finding instead of the normal cached reply", async () => {
     let shown = false;
     const button = {

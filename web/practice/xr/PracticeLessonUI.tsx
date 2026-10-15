@@ -51,7 +51,7 @@ export function BatchLessonMirror({ mirror }: { mirror: BatchMirror }) {
   return <>
     <p className="eyebrow">{mirror.title} · LIVE MIRROR</p><p role="status" data-voice-status>{mirror.status}</p>
     {mirror.voiceReport && <p aria-label="Current patient reply" data-voice-report>{mirror.voiceReport}</p>}
-    {mirror.reportLines && mirror.reportLines.length > 0 && <div aria-label="Acquired observations" data-voice-report>{mirror.reportLines.map((line, index) => <p key={index}>{line}</p>)}</div>}
+    {mirror.reportLines && mirror.reportLines.length > 0 && <div aria-label="Acquired observations">{mirror.reportLines.map((line, index) => <p key={index}>{line}</p>)}</div>}
     {mirror.actions.map(action => <button key={action.label} className="secondary full" disabled={action.disabled} onClick={action.run}>{action.label}</button>)}
     <button className="primary full" onClick={() => mirror.lesson.setMode("record")}>Record finding</button>
     {mirror.lesson.mode === "record" && <>

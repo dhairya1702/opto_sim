@@ -33,7 +33,7 @@ export const SENSORY_SOCKETS: readonly PlacementSocket[] = [
 export function sensoryEquipment(kind: SensoryKind): readonly ConsultationToolId[] {
   if (kind === "worth") return ["subjective", "red-green", "worth"];
   if (kind === "stereo") return ["subjective", "polarised", "stereo"];
-  return ["subjective", "prism"];
+  return ["subjective", "four-prism"];
 }
 export function sensorySockets(kind: SensoryKind) {
   const equipment = sensoryEquipment(kind);

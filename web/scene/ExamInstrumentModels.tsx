@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { RoundedBox } from "@react-three/drei";
 import { CatmullRomCurve3, Shape, Vector2, Vector3, type ExtrudeGeometryOptions } from "three";
+import { MADDOX_PRISM_CELLS, MADDOX_PRISM_CELL_Y } from "../interaction/maddoxProcedure";
 
 type V = [number, number, number];
 
@@ -110,27 +111,32 @@ export function MotilityTargetModel({ powered = false, p = [0, 0, 0], r = [0, 0,
 }
 
 /** Approved stepped prism cells around the existing selected-cell coordinate. */
-export function PrismBarModel({ selectedIndex = 0 }: { selectedIndex?: number } = {}) {
+export function PrismBarModel({ selectedIndex = 0, profile = "standard" }: { selectedIndex?: number; profile?: "standard" | "maddox" } = {}) {
+  const cells = profile === "maddox" ? MADDOX_PRISM_CELLS : Array.from({ length: 8 }, (_, index) => index);
   return <group userData={{ instrumentModel: "prism-bar-shaped" }}>
     <MoldedHandle height={.16} width={.017} p={[0, .03, 0]} />
     <RoundedPlate width={.012} height={.281} depth={.008} radius={.005} p={[-.042, .225, 0]} color={colors.darkMetal} />
     <RoundedPlate width={.012} height={.281} depth={.008} radius={.005} p={[.042, .225, 0]} color={colors.darkMetal} />
     <RoundedPlate width={.084} height={.012} depth={.008} radius={.005} p={[0, .090, 0]} color={colors.darkMetal} />
     <RoundedPlate width={.084} height={.012} depth={.008} radius={.005} p={[0, .360, 0]} color={colors.darkMetal} />
-    {Array.from({ length: 8 }, (_, index) => {
+    {cells.map((power, index) => {
       const radius = .019 + index * .0015;
+      const y = profile === "maddox" ? MADDOX_PRISM_CELL_Y[index] : .118 + index * .032;
       return <group key={index}>
-        <mesh position={[0, .118 + index * .032, .008]}>
+        <mesh position={[0, y, .008]}>
           <circleGeometry args={[radius, 32]} />
           <meshPhysicalMaterial color="#d9f6f1" roughness={.05} transmission={.86} thickness={.003} transparent opacity={index === selectedIndex ? .10 : .18} depthWrite={false} />
         </mesh>
-        <mesh position={[0, .118 + index * .032, .012]} rotation={[Math.PI / 2, 0, (index % 2 ? 1 : -1) * Math.PI / 2]} scale={[1.2, 1, 1]} castShadow>
+        <mesh position={[0, y, .012]} rotation={[Math.PI / 2, 0, (index % 2 ? 1 : -1) * Math.PI / 2]} scale={[1.2, 1, 1]} castShadow>
           <cylinderGeometry args={[radius * .82, radius, .014, 3]} />
           <meshPhysicalMaterial color="#9fded7" roughness={.08} transmission={.78} thickness={.006} transparent opacity={index === selectedIndex ? .14 : .28} depthWrite={false} />
         </mesh>
-        <mesh position={[.04, .118 + index * .032, .023]} castShadow userData={{ xrPrismCell: index, xrPrismCellSelected: index === selectedIndex }}><boxGeometry args={[.012, .005, .004]} /><StandardMaterial color={index === selectedIndex ? colors.accent : colors.metal} metalness={.6} roughness={.34} /></mesh>
+        <mesh position={[.04, y, .023]} castShadow userData={{ xrPrismCell: index, xrPrismPower: power, xrPrismCellSelected: index === selectedIndex }}><boxGeometry args={[.012, .005, .004]} /><StandardMaterial color={index === selectedIndex ? colors.accent : colors.metal} metalness={.6} roughness={.34} /></mesh>
       </group>;
     })}
+    {profile === "maddox" && <group position={[0, .385, .018]} userData={{ xrPrismBaseArrow: true }}>
+      <mesh rotation={[0, 0, -Math.PI / 2]}><coneGeometry args={[.012, .03, 3]} /><StandardMaterial color={colors.accent} metalness={.2} roughness={.4} /></mesh>
+    </group>}
   </group>;
 }
 

@@ -184,7 +184,7 @@ describe("mounted consultation two-controller walkthrough", () => {
     const remaining: THREE.Object3D[] = [];
     sim.state.scene.traverse(object => { if (object.userData.consultationToolId) remaining.push(object); });
     // Leaving XR restores the same full case-independent inventory to the desktop room.
-    expect(remaining).toHaveLength(20);
+    expect(remaining).toHaveLength(CASE_INDEPENDENT_CONSULTATION_EQUIPMENT.length);
     await sim.event(1, "selectstart");
     await sim.event(1, "selectend");
     expect(sim.interact).not.toHaveBeenCalled();

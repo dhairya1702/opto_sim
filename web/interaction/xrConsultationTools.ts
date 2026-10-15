@@ -7,7 +7,7 @@ import {
 export type ConsultationHand = XRClinicHand;
 export type ToolPoint = XRClinicVector3;
 export type ToolRotation = XRClinicQuaternion;
-export type ConsultationToolId = "distance" | "pinhole" | "cover" | "pupils" | "motility" | "objective" | "near" | "subjective" | "fundus" | "prism" | "worth" | "red-green" | "polarised" | "stereo" | "maddox" | "thorington" | "trial-lens" | "lens-flipper" | "prism-flipper" | "fixation";
+export type ConsultationToolId = "distance" | "pinhole" | "cover" | "pupils" | "motility" | "objective" | "near" | "subjective" | "fundus" | "prism" | "four-prism" | "worth" | "red-green" | "polarised" | "stereo" | "maddox" | "thorington" | "trial-lens" | "lens-flipper" | "prism-flipper" | "fixation";
 export type RestingTool = { kind: "socket" | "surface"; position: ToolPoint; rotation: ToolRotation; socketId?: string; fittingLayer?: "correction" | "filters" | "occlusion" };
 export type ConsultationTool = {
   placement: RestingTool | { kind: "held"; hand: ConsultationHand };
@@ -67,6 +67,7 @@ export const SENSORY_TOOLS: readonly ConsultationToolDefinition[] = [
   { id: "red-green", label: "Red OD / green OS glasses", home: auxiliaryInstrumentKitPoint(-.56, AUXILIARY_INSTRUMENT_KIT.surfaceY + .05, -.13), homeYaw: AUXILIARY_INSTRUMENT_KIT_ROTATION_Y, workingPoint: [0, 0, 0], forward: [0, 0, -1], gripRotation: upright, restRotation: auxiliaryRest(upright), restHeight: .05, footprint: [.25, .18], illuminates: false },
   { id: "polarised", label: "Polarised glasses", home: auxiliaryInstrumentKitPoint(-.25, AUXILIARY_INSTRUMENT_KIT.surfaceY + .05, -.13), homeYaw: AUXILIARY_INSTRUMENT_KIT_ROTATION_Y, workingPoint: [0, 0, 0], forward: [0, 0, -1], gripRotation: upright, restRotation: auxiliaryRest(upright), restHeight: .05, footprint: [.25, .18], illuminates: false },
   { id: "stereo", label: "Circle stereo booklet", home: auxiliaryInstrumentKitPoint(.06, AUXILIARY_INSTRUMENT_KIT.surfaceY + .075, -.13), homeYaw: AUXILIARY_INSTRUMENT_KIT_ROTATION_Y, workingPoint: [0, .08, -.006], forward: [0, 0, -1], gripRotation: upright, restRotation: auxiliaryRest(upright), restHeight: .075, footprint: [.24, .09], illuminates: false },
+  { id: "four-prism", label: "Dedicated 4Δ prism", home: auxiliaryInstrumentKitPoint(.84, AUXILIARY_INSTRUMENT_KIT.surfaceY + .10, -.13), homeYaw: AUXILIARY_INSTRUMENT_KIT_ROTATION_Y, workingPoint: [0, .10, .012], forward: [0, 0, -1], heldPose: "ray", gripRotation: upright, restRotation: auxiliaryRest(upright), restHeight: .10, footprint: [.24, .12], illuminates: false },
 ];
 const exerciseTool = { workingPoint: [0, .10, 0] as ToolPoint, forward: [0, 0, -1] as ToolPoint, gripRotation: upright, restRotation: upright, restHeight: .07, footprint: [.16, .10] as const, illuminates: false };
 export const EXERCISE_TOOLS: readonly ConsultationToolDefinition[] = [

@@ -41,7 +41,8 @@ describe("sensory equipment and patient fitting", () => {
     expect(CASE_INDEPENDENT_CONSULTATION_EQUIPMENT).toEqual(ALL_CLINIC_TOOLS.map(tool => tool.id));
     expect(sensoryEquipment("worth")).toEqual(["subjective", "red-green", "worth"]);
     expect(sensoryEquipment("stereo")).toEqual(["subjective", "polarised", "stereo"]);
-    expect(sensoryEquipment("four-prism")).toEqual(["subjective", "prism"]);
+    expect(sensoryEquipment("four-prism")).toEqual(["subjective", "four-prism"]);
+    expect(consultationToolDefinition("four-prism")).toMatchObject({ label: "Dedicated 4Δ prism", workingPoint: [0, .10, .012] });
     expect(consultationToolDefinition("subjective").home).toEqual(instrumentKitPoint(.72, .96, .08));
     expect(sensorySockets("stereo").some(s => s.tool === "red-green")).toBe(false);
   });

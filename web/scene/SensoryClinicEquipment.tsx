@@ -78,6 +78,19 @@ function StereoBooklet() {
   </group>;
 }
 
+/** Fixed-power teaching prism. Local +X is the physical base axis used by the procedure engine. */
+function FourDioptrePrism() {
+  return <group userData={{ xrFourPrism: true, xrPrismPower: 4, xrPrismBaseAxis: [1, 0, 0] }}>
+    <SensoryGrip position={[0, -.005, 0]} />
+    <group position={[0, .10, 0]}>
+      <mesh rotation={[Math.PI / 2, 0, 0]} castShadow><cylinderGeometry args={[.044, .044, .018, 40]} /><meshPhysicalMaterial color="#b9e8e1" transmission={.55} transparent opacity={.62} roughness={.12} thickness={.015} /></mesh>
+      <mesh position={[0, 0, -.011]}><torusGeometry args={[.035, .004, 10, 40]} /><meshStandardMaterial color="#d8a94f" metalness={.35} roughness={.35} /></mesh>
+      <mesh position={[.052, 0, 0]} rotation={[0, 0, -Math.PI / 2]}><coneGeometry args={[.012, .035, 3]} /><meshStandardMaterial color="#f1c35e" /></mesh>
+      <Sign text={["4Δ", "BASE →"]} p={[0, -.058, .013]} size={[.105, .038]} bg="#173a3e" fg="#e8fff9" />
+    </group>
+  </group>;
+}
+
 export function SensoryInstrumentModel({ id, powered, point, onPowerChange }: { id: ConsultationToolId; powered: boolean; point?: boolean; onPowerChange?: (powered: boolean) => void }) {
   if (id === "worth") return <group>
     <SensoryGrip />
@@ -92,6 +105,7 @@ export function SensoryInstrumentModel({ id, powered, point, onPowerChange }: { 
     </mesh>
   </group>;
   if (id === "stereo") return <StereoBooklet />;
+  if (id === "four-prism") return <FourDioptrePrism />;
   return <SensoryGlasses redGreen={id === "red-green"} />;
 }
 
@@ -116,7 +130,7 @@ function MirrorDisplay({ runtime, letter }: { runtime: XRClinicRuntime; letter: 
   return <group ref={image} visible={false} userData={{ xrIgnoreRay: true }}><WorthTargetFace mirror point={runtime.equipment.includes("maddox")} /></group>;
 }
 export function SensoryClinicStation({ runtime, distanceLetter = false, active = false, showFittingGuides = true }: { runtime: XRClinicRuntime; distanceLetter?: boolean; active?: boolean; showFittingGuides?: boolean }) {
-  const sensory = runtime.equipment.some(id => ["worth", "red-green", "polarised", "stereo"].includes(id));
+  const sensory = runtime.equipment.some(id => ["worth", "red-green", "polarised", "stereo", "four-prism"].includes(id));
   if (!sensory && !distanceLetter) return null;
   const near = runtime.equipment.some(id => id === "worth" || id === "stereo");
   return <>

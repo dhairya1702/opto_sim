@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { capturePhoria, phoriaSubmission } from "../interaction/xrPhoriaPractice";
-import { maddoxTrials } from "../interaction/maddoxPractice";
+import { Quaternion, Vector3 } from "three";
 import { newNPCRun, markNPCEndpoint, npcPhases, newVergenceRun, markVergenceEndpoint, vergenceBases, newVergenceFacility, flipVergenceFacility, freezeVergenceCapture, numericCaptureSubmission } from "../interaction/xrVergencePractice";
 import { vergenceFindings } from "../interaction/vergencePractice";
 import { accommodationEyes, pushUpEndpoint, minusLensEndpoint, newAccommodationFacility, flipAccommodationFacility } from "../interaction/xrAccommodationPractice";
@@ -8,20 +7,6 @@ import { libraryDistance, libraryOpticPlacement, libraryNear, libraryOcclusion, 
 import { initialConsultationTools, grabConsultationTool, releaseConsultationTool } from "../interaction/xrConsultationTools";
 import { SENSORY_NEAR_TARGET } from "../interaction/xrSensoryEquipment";
 describe("remaining XR library sequences and geometry", () => {
-  it("requires starting prism and valid axes for all four Maddox measurements; entries remain independent", () => {
-    maddoxTrials.forEach((trial, i) => {
-      const input = { kind: "maddox" as const, trial: i, pattern: 0, ready: true, started: true, power: trial.neutral, base: trial.base, angle: trial.axis === "horizontal" ? 0 : 90, distanceCm: trial.site === "near" ? 40 : 600, generation: 0, setup: "fitted" };
-      const capture = capturePhoria(input); expect(capture?.power).toBe(trial.neutral); expect(Object.isFrozen(capture)).toBe(true);
-      for (const change of [{ ready: false }, { started: false }, { power: 20 }, { angle: 45 }, { base: "BO" }]) expect(capturePhoria({ ...input, ...change })).toBeNull();
-      expect(phoriaSubmission(capture, "", undefined, "maddox")).toBeNull(); expect(phoriaSubmission(capture, "20", undefined, "maddox")).toBe(false); expect(phoriaSubmission(capture, String(trial.neutral), undefined, "maddox")).toBe(true);
-    });
-  });
-  it("records both Thorington axes and authored pattern directions", () => {
-    for (let pattern = 0; pattern < 2; pattern++) for (let trial = 0; trial < 2; trial++) {
-      const capture = capturePhoria({ kind: "thorington", trial, pattern, ready: true, started: false, power: 0, base: "", angle: trial ? 90 : 0, distanceCm: 40, generation: 1, setup: "fit" });
-      expect(capture).not.toBeNull(); expect(phoriaSubmission(capture, String(capture!.power), "orthophoria", "thorington")).toBe(false); expect(phoriaSubmission(capture, String(capture!.power), capture!.direction, "thorington")).toBe(true);
-    }
-  });
   it("orders blur, break and recovery for every prism condition", () => {
     for (const kind of ["horizontal-distance", "vertical-distance", "horizontal-near"] as const) for (const base of vergenceBases(kind)) {
       let run = newVergenceRun(); const endpoints = vergenceFindings[kind][base];
@@ -63,5 +48,17 @@ describe("remaining XR library sequences and geometry", () => {
     for (const id of ["subjective", "cover"] as const) { const socket = sockets.find(s => s.tool === id && (id !== "cover" || s.id.endsWith("OS")))!; tools = releaseConsultationTool(grabConsultationTool(tools, id, "left"), "left", { position: socket.position, rotation: socket.rotation }, undefined, sockets, libraryEquipment("push-up")).state; }
     expect(libraryOcclusion(tools, "OD")).toBe(true); expect(libraryOcclusion(tools, "OS")).toBe(false); expect(libraryOcclusion(tools, "OU")).toBe(false);
     for (const kind of Object.keys(LIBRARY_TITLES) as (keyof typeof LIBRARY_TITLES)[]) expect(librarySockets(kind).every(socket => libraryEquipment(kind).includes(socket.tool))).toBe(true);
+  });
+  it("keeps both Maddox socket rotations on the same OD lens centre and rejects an intermediate roll", () => {
+    const sockets = librarySockets("maddox").filter(socket => socket.tool === "maddox");
+    expect(sockets.map(socket => socket.id)).toEqual(["sensory-maddox-horizontal", "sensory-maddox-vertical"]);
+    for (const socket of sockets) {
+      const centre = new Vector3(0, .10, 0).applyQuaternion(new Quaternion(...socket.rotation)).add(new Vector3(...socket.position));
+      expect(centre.toArray()).toEqual(expect.arrayContaining([expect.closeTo(-.048, 6), expect.closeTo(1.5, 6), expect.closeTo(-.475, 6)]));
+    }
+    const held = grabConsultationTool(initialConsultationTools(), "maddox", "left");
+    const intermediate = new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), Math.PI / 4).toArray();
+    const release = releaseConsultationTool(held, "left", { position: sockets[0].position, rotation: intermediate }, undefined, sockets, libraryEquipment("maddox"));
+    expect(Boolean(release.state.maddox.placement.kind === "socket" && release.state.maddox.placement.socketId?.startsWith("sensory-maddox"))).toBe(false);
   });
 });
