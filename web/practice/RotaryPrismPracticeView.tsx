@@ -7,15 +7,15 @@ export type RotaryPrismEyeState = Readonly<{
   OS: Readonly<{ x: number; y: number }>;
 }>;
 
-export function RotaryPrismPracticeView({ power, orientation, eyeState, highlightAperture, highlightDial, targetLabel }: {
+export function RotaryPrismPracticeView({ power, orientation, eyeState, highlightAperture, highlightDial, targetLabel, targetKind = "mirror" }: {
   power: number; orientation: RotaryPrismOrientation; eyeState: RotaryPrismEyeState;
-  highlightAperture: boolean; highlightDial: boolean; targetLabel: string;
+  highlightAperture: boolean; highlightDial: boolean; targetLabel: string; targetKind?: "mirror" | "near";
 }) {
   const ticks = Array.from({ length: 31 }, (_, value) => value);
   const eyeStyle = { "--fusional-od-x": eyeState.OD.x, "--fusional-od-y": eyeState.OD.y,
     "--fusional-os-x": eyeState.OS.x, "--fusional-os-y": eyeState.OS.y } as CSSProperties;
   return <div className="fusional-room" aria-hidden="true">
-    <div className="fusional-mirror-target"><span>E</span><small>{targetLabel}</small></div>
+    <div className={`fusional-mirror-target ${targetKind === "near" ? "near-target" : ""}`}><span>E</span><small>{targetLabel}</small></div>
     <div className="fusional-patient">
       <div className="fusional-eyes" style={eyeStyle}><span><i /></span><span><i /></span></div>
       <small>ARUN · ILLUSTRATIVE {eyeState.broken ? `${orientation} BREAKDOWN` : "FUSIONAL RESPONSE"}</small>

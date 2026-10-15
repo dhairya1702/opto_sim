@@ -1,7 +1,9 @@
+import { NEAR_FUSIONAL_CASE } from "./nearFusionalVergenceProcedure";
+
 /** Existing desktop Practice findings; fictional teaching examples, not clinical norms. */
 export type VergenceEndpoint = { blur: number | null; break: number; recovery: number };
 export const vergenceFindings: Record<string, Record<string, VergenceEndpoint>> = {
-  "horizontal-near": { BI: { blur: 13, break: 21, recovery: 13 }, BO: { blur: 17, break: 21, recovery: 11 } },
+  "horizontal-near": NEAR_FUSIONAL_CASE.endpoints,
 };
 export const vergenceFacilityDelay = { BO: 850, BI: 650 } as const;
 

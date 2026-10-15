@@ -11,7 +11,7 @@ import { LibraryEquipmentTray, LibraryNearStand } from "../../scene/LibraryClini
 import { XRSign } from "../../scene/XRClinicPanels";
 import { PracticeLessonUI, usePracticeLesson, type BatchMirror, type LessonField } from "./PracticeLessonUI";
 import { useClinicEyeMotion } from "./useClinicEyeMotion";
-type Kind = PrismVergenceKind | "facility";
+type Kind = "facility";
 export function VergencePracticeController({ kind, active, preview = false, onComplete, onExit, onMirror }: {
   kind: Kind; active: boolean; preview?: boolean; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
 }) {

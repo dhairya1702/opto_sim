@@ -6,7 +6,7 @@ import { EyeSurface } from "../scene/EyeSurface";
 import { PracticeVoiceControl } from "../voice/PracticeVoiceControl";
 
 export type VergenceMode = "npc" | "horizontal-distance" | "vertical-distance" | "horizontal-near" | "facility";
-type GenericVergenceMode = Exclude<VergenceMode, "npc" | "horizontal-distance" | "vertical-distance">;
+type GenericVergenceMode = "facility";
 import { vergenceFindings as data, vergenceFacilityDelay, prismVergenceGaze, facilityVergenceGaze } from "../interaction/vergencePractice";
 type PrismPhase = "blur" | "break" | "recovery";
 

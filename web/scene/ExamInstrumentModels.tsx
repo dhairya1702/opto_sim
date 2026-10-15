@@ -141,11 +141,16 @@ export function PrismBarModel({ selectedIndex = 0, profile = "standard" }: { sel
 }
 
 /** Approved handled reading card, authored in the original x/z card plane. */
-export function NearCardModel() {
+export function NearCardModel({ isolated = false }: { isolated?: boolean }) {
   return <group userData={{ instrumentModel: "near-card-shaped" }}>
     <RoundedPlate width={.236} height={.166} depth={.005} radius={.014} r={[Math.PI / 2, 0, 0]} color={colors.paper} />
     <RoundedPlate width={.012} height={.15} depth={.008} radius={.004} p={[-.108, -.008, 0]} r={[Math.PI / 2, 0, 0]} color={colors.teal} />
-    {[0, 1, 2, 3, 4].map(index => <mesh key={index} position={[.015, -.008, .045 - index * .022]} rotation={[Math.PI / 2, 0, 0]}>
+    {isolated ? <group userData={{ xrPreparedIsolatedNearTarget: true }}>
+      <mesh position={[-.025, -.008, 0]} rotation={[Math.PI / 2, 0, 0]}><boxGeometry args={[.012, .004, .080]} /><StandardMaterial color={colors.darkMetal} metalness={.25} roughness={.43} /></mesh>
+      {[.034, 0, -.034].map((z, index) => <mesh key={z} position={[index === 1 ? .002 : .010, -.008, z]} rotation={[Math.PI / 2, 0, 0]}>
+        <boxGeometry args={[index === 1 ? .055 : .072, .004, .012]} /><StandardMaterial color={colors.darkMetal} metalness={.25} roughness={.43} />
+      </mesh>)}
+    </group> : [0, 1, 2, 3, 4].map(index => <mesh key={index} position={[.015, -.008, .045 - index * .022]} rotation={[Math.PI / 2, 0, 0]}>
       <boxGeometry args={[.12 - index * .014, .004, .002]} /><StandardMaterial color={index === 0 ? colors.red : colors.darkMetal} metalness={index === 0 ? 0 : .54} roughness={.43} />
     </mesh>)}
     <mesh position={[0, -.004, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow><capsuleGeometry args={[.012, .12, 6, 16]} /><StandardMaterial color={colors.grip} metalness={.02} roughness={.73} /></mesh>

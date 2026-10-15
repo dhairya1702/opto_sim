@@ -52,7 +52,7 @@ export function ConsultationInstrumentModel({ id, powered, fundusView, brucknerV
     <Retinoscope p={[0, -.1, 0]} r={[0, 0, 0]} ophthalmo={id === "fundus"} showApertureSelector={id !== "fundus"} />
     <XRScopeOptics powered={powered} ophthalmo={id === "fundus"} view={fundusView} brucknerView={id === "fundus" ? brucknerView : undefined} scopeControl={id === "fundus" ? scopeControl : undefined} />
   </group>;
-  if (id === "near") return <NearVisionCard r={[Math.PI / 2, 0, 0]} />;
+  if (id === "near") return <NearVisionCard r={[Math.PI / 2, 0, 0]} isolated={settings?.near?.isolatedTarget} />;
   if (id === "subjective") return <TrialFrameModel />;
   const target = id === "motility";
   return <group>

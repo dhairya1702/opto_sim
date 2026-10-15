@@ -8,6 +8,7 @@ import type { ConsultationToolId } from "../interaction/xrConsultationTools";
 export type ClinicInstrumentSetting = {
   power?: number; base?: string; angle?: number; side?: string; point?: boolean;
   distanceCm?: number;
+  isolatedTarget?: boolean;
   highlightCarriage?: boolean;
   highlightAperture?: boolean;
   highlightDial?: boolean;

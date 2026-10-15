@@ -394,10 +394,10 @@ export function Paddle({ p, pinhole = false, cover = false }: { p: V; pinhole?: 
   );
 }
 
-export function NearVisionCard({ p = [0, 0, 0], r = [0, 0, 0] }: { p?: V; r?: V }) {
+export function NearVisionCard({ p = [0, 0, 0], r = [0, 0, 0], isolated = false }: { p?: V; r?: V; isolated?: boolean }) {
   return (
     <group position={p} rotation={r}>
-      <NearCardModel />
+      <NearCardModel isolated={isolated} />
     </group>
   );
 }

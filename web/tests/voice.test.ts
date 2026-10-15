@@ -167,6 +167,21 @@ describe("voice contracts and Practice allowlists", () => {
     await expect(invokePracticeVoiceAction("vertical-distance", "request-report", reportRoot)).resolves.toEqual({ accepted: true, spokenText: "It is single again." });
     expect(reportClick).not.toHaveBeenCalled();
   });
+  it("arms the near blur/diplopia/recovery instruction and reads the engine report without endpoint evidence", async () => {
+    const instructionClick = vi.fn();
+    const instruction = { disabled: false, offsetParent: {}, innerText: "GIVE BLUR / DOUBLE / RECOVERY INSTRUCTION", click: instructionClick, getAttribute: () => null } as unknown as HTMLButtonElement;
+    const instructionRoot = { querySelectorAll: () => [instruction], querySelector: () => null } as unknown as ParentNode;
+    await expect(invokePracticeVoiceAction("horizontal-near", "fixate-target", instructionRoot)).resolves.toMatchObject({ accepted: true });
+    expect(instructionClick).toHaveBeenCalledTimes(1);
+
+    const evidenceClick = vi.fn();
+    const report = { disabled: false, offsetParent: {}, innerText: "MARK PATIENT ENDPOINT", click: evidenceClick, getAttribute: () => null } as unknown as HTMLButtonElement;
+    const reportRoot = { querySelectorAll: () => [report],
+      querySelector: (selector: string) => selector === "[data-voice-report]" ? { innerText: "The target has become blurred and stays blurred." } : null } as unknown as ParentNode;
+    await expect(invokePracticeVoiceAction("horizontal-near", "request-report", reportRoot)).resolves.toEqual({ accepted: true, spokenText: "The target has become blurred and stays blurred." });
+    expect(evidenceClick).not.toHaveBeenCalled();
+    expect(PRACTICE_VOICE_ACTIONS["horizontal-near"][0].phrases.join(" ")).toContain("blur");
+  });
   it("routes stereopsis fixation and speaks only the synchronous current-page reply", async () => {
     const fixationClick = vi.fn();
     const fixation = { disabled: false, offsetParent: {}, innerText: "LOOK AT THE CIRCLES", click: fixationClick, getAttribute: () => null } as unknown as HTMLButtonElement;

@@ -62,10 +62,11 @@ No backend is required. `main.py` is a small pre-existing Python entry point and
 | `web/interaction/xrScopeEquipment.ts` | Shared small/large ophthalmoscope aperture settings, illustrative beam angles and physical selector reach |
 | `web/interaction/xrViewer.ts` | Renderer adapter sampling actual headset eye cameras for shared scope-view checks; desktop single-camera fallback |
 | `web/scene/XRScopeView.tsx`, `XRScopeObservation.tsx` | Shared B/Y observation view without instructional overlays, with transparent incomplete fundus aiming and beam-driven Bruckner reflexes; technique credit remains separate |
-| `web/practice/xr/PhoriaPracticeController.tsx`, `VergencePracticeController.tsx`, `AccommodationPracticeController.tsx` | Shared-clinic XR adapters for the remaining phoria, prism-vergence, facility, and accommodation modules |
+| `web/practice/xr/PhoriaPracticeController.tsx`, `VergencePracticeController.tsx`, `AccommodationPracticeController.tsx` | Shared-clinic XR adapters for the remaining phoria, near-facility, and accommodation modules |
 | `web/practice/xr/NPCPracticeController.tsx`, `web/practice/NPCPracticeStage.tsx`, `web/interaction/npcProcedure.ts` | Dedicated desktop/XR RAF-style NPC rule, shared three-trial motion/capture engine, patient response, and independent recording |
 | `web/practice/xr/FusionalVergencePracticeController.tsx`, `web/practice/FusionalVergencePracticeStage.tsx`, `web/interaction/fusionalVergenceProcedure.ts` | Dedicated desktop/XR horizontal-distance rotary-prism procedure, continuous motion/capture engine, concealed fictional reports, and independent six-field recording |
 | `web/practice/xr/VerticalFusionalVergencePracticeController.tsx`, `web/practice/VerticalFusionalVergencePracticeStage.tsx`, `web/interaction/verticalFusionalVergenceProcedure.ts`, `web/interaction/rotaryPrismProcedure.ts` | Dedicated desktop/XR vertical-distance BU→BD rotary-prism procedure plus the shared continuous dial, motion-tolerance, dwell, and four-way physical-roll foundation used by distance vergence |
+| `web/practice/xr/NearFusionalVergencePracticeController.tsx`, `web/practice/NearFusionalVergencePracticeStage.tsx`, `web/interaction/nearFusionalVergenceProcedure.ts` | Dedicated desktop/XR horizontal-near BI→BO rotary-prism procedure, supported isolated target, automatic endpoints, condition-bound resets, and independent six-field recording |
 | `web/interaction/xrLibraryEquipment.ts`, `xrPhoriaPractice.ts`, `xrVergencePractice.ts`, `xrAccommodationPractice.ts` | Selected kits, physical readiness, remaining ordered sequences, immutable captures and independent entry |
 | `web/interaction/vergencePractice.ts`, `accommodationPractice.ts` | Existing authored desktop/XR findings and illustrative gaze formulas |
 | `docs/vr-library-completion.md` | Full-library XR implementation, software checks and physical Quest acceptance still pending |
@@ -82,7 +83,7 @@ No backend is required. `main.py` is a small pre-existing Python entry point and
 | `web/practice/PhoriaPracticeStage.tsx` | Routes latent-deviation Practice modes to the dedicated Maddox rod and Modified Thorington stages |
 | `web/practice/MaddoxPracticeStage.tsx` | Full-screen distance and near Maddox rod setup, patient percept, prism neutralisation, and recording |
 | `web/practice/ThoringtonPracticeStage.tsx` | Full-screen Modified Thorington setup, patient percept, and magnitude/direction recording |
-| `web/practice/VergencePracticeStage.tsx` | Full-screen prism-vergence and near-facility practice flow; NPC now uses its dedicated stage |
+| `web/practice/VergencePracticeStage.tsx` | Retained generic near-facility practice flow; NPC and measured fusional-vergence modules use dedicated stages |
 | `web/practice/AccommodationPracticeStage.tsx` | Routes push-up, minus-lens, NRA/PRA, and accommodative-facility Practice modules |
 | `web/practice/MinusLensPracticeStage.tsx` | Full-screen monocular minus-lens amplitude interaction and recording |
 | `web/practice/RelativeAccommodationStage.tsx` | Full-screen binocular NRA/PRA lens sequence and recording |

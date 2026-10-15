@@ -1,26 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { Quaternion, Vector3 } from "three";
-import { newVergenceRun, markVergenceEndpoint, vergenceBases, newVergenceFacility, flipVergenceFacility, freezeVergenceCapture, numericCaptureSubmission } from "../interaction/xrVergencePractice";
-import { vergenceFindings } from "../interaction/vergencePractice";
+import { newVergenceFacility, flipVergenceFacility } from "../interaction/xrVergencePractice";
 import { accommodationEyes, pushUpEndpoint, minusLensEndpoint, newAccommodationFacility, flipAccommodationFacility } from "../interaction/xrAccommodationPractice";
 import { libraryDistance, libraryOpticPlacement, libraryNear, libraryOcclusion, libraryLightThroughCard, libraryEquipment, librarySockets, LIBRARY_TITLES } from "../interaction/xrLibraryEquipment";
 import { initialConsultationTools, grabConsultationTool, releaseConsultationTool } from "../interaction/xrConsultationTools";
 import { SENSORY_NEAR_TARGET } from "../interaction/xrSensoryEquipment";
 describe("remaining XR library sequences and geometry", () => {
-  it("orders blur, break and recovery for every prism condition", () => {
-    for (const kind of ["horizontal-near"] as const) for (const base of vergenceBases(kind)) {
-      let run = newVergenceRun(); const endpoints = vergenceFindings[kind][base];
-      expect(markVergenceEndpoint(kind, base, endpoints.break, run, true)).toBe(run);
-      run.initialized = true;
-      for (const phase of ["blur", "break", "recovery"] as const) {
-        const power = endpoints[phase]; if (power === null) continue;
-        expect(markVergenceEndpoint(kind, base, power, run, false)).toBe(run);
-        expect(markVergenceEndpoint(kind, base, power + 1, run, true)).toBe(run);
-        run = markVergenceEndpoint(kind, base, power, run, true);
-      }
-      expect(run.complete).toBe(true); expect(run.values).toMatchObject({ break: endpoints.break, recovery: endpoints.recovery });
-    }
-  });
   it("counts full timed pairs only after authored responses and before 60 seconds", () => {
     let vergence = newVergenceFacility(0); expect(flipVergenceFacility(vergence, 849, true)).toBe(vergence); expect(flipVergenceFacility(vergence, 850, false)).toBe(vergence);
     vergence = flipVergenceFacility(vergence, 850, true); expect(vergence.cycles).toBe(0); vergence = flipVergenceFacility(vergence, 1500, true); expect(vergence.cycles).toBe(1); expect(flipVergenceFacility(vergence, 60000, true)).toBe(vergence);
@@ -42,9 +27,9 @@ describe("remaining XR library sequences and geometry", () => {
     expect(libraryOcclusion(tools, "OD")).toBe(true); expect(libraryOcclusion(tools, "OS")).toBe(false); expect(libraryOcclusion(tools, "OU")).toBe(false);
     for (const kind of Object.keys(LIBRARY_TITLES) as (keyof typeof LIBRARY_TITLES)[]) expect(librarySockets(kind).every(socket => libraryEquipment(kind).includes(socket.tool))).toBe(true);
   });
-  it("stocks the rotary prism only for 6.3 while preserving 6.4 and 6.5 kits", () => {
+  it("stocks the rotary prism for dedicated distance and near procedures while preserving 6.5", () => {
     expect(libraryEquipment("vertical-distance")).toEqual(["subjective", "vergence-prism"]);
-    expect(libraryEquipment("horizontal-near")).toEqual(["subjective", "near", "prism"]);
+    expect(libraryEquipment("horizontal-near")).toEqual(["subjective", "near", "vergence-prism"]);
     expect(libraryEquipment("facility")).toEqual(["subjective", "near", "prism-flipper"]);
   });
   it("keeps both Maddox socket rotations on the same OD lens centre and rejects an intermediate roll", () => {

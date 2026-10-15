@@ -25,10 +25,11 @@ const fixateStereo = action("fixate-target", ["look at the circles", "keep looki
 const fixateFourPrism = action("fixate-target", ["look at the isolated letter", "keep looking at the letter", "keep the letter single", "look at the letter", "fixate the letter"], ["look at the isolated letter"], "Okay, I’m looking at the letter and keeping it single.");
 const followTarget = action("follow-target", ["follow the target", "follow the light"], ["following instruction", "follow this target", "follow light", "start following"], "Okay, I will follow it with my eyes.");
 const reportSymptoms = action("report-symptoms", ["any symptoms", "any double vision", "any pain", "any discomfort"], ["ask diplopia", "ask symptoms", "symptoms"], "I will tell you if I notice double vision, pain, or discomfort.");
-const reportPercept = action("request-report", ["what do you see", "tell me what you see", "how many dots", "what colours do you see", "tell me where the dots are", "report now"], ["ask count", "present page", "ask number", "patient report", "mark patient endpoint", "mark sustained blur", "capture coincidence"], "I can report what I see now that the examination setup is ready.");
+const reportPercept = action("request-report", ["what do you see", "tell me what you see", "how many dots", "what colours do you see", "tell me where the dots are", "report now"], ["ask count", "present page", "ask number", "patient report", "mark sustained blur", "capture coincidence"], "I can report what I see now that the examination setup is ready.");
 const npcInstruction = action("fixate-target", ["look at the target", "fixate the target", "keep this clear and single tell me when it becomes double", "tell me when it becomes double", "keep the target clear and single"], ["keep this clear and single"], "Okay, I am looking at the target.");
 const fusionalInstruction = action("fixate-target", ["look at the target", "fixate the target", "tell me when it first blurs becomes double and becomes single again", "report blur double and recovery", "tell me when it blurs doubles and becomes single again"], ["report first sustained blur, double, and single again", "blur / double / recovery instruction"], "Okay, I am looking at the target.");
 const verticalFusionalInstruction = action("fixate-target", ["look at the target", "fixate the target", "tell me when it becomes double and becomes single again", "report double and recovery", "tell me when it doubles and becomes single again"], ["report sustained double, then single again", "double / recovery instruction"], "Okay, I am looking at the target and will report sustained double vision and when it becomes single again.");
+const nearFusionalInstruction = action("fixate-target", ["look at the near target", "fixate the near target", "tell me when it first blurs becomes double and becomes single again", "report near blur double and recovery"], ["report first sustained blur, double, and single again", "blur / double / recovery instruction"], "Okay, I am looking at the near target and will report sustained blur, double vision, and when it becomes single again.");
 const reportStereo = action("request-report", ["which circle appears raised", "which circle is raised", "which circle is closer", "does one circle stand out", "what do you see", "tell me what you see"], ["ask which circle is raised"], "I can report what I see now that the examination setup is ready.");
 const targetOn = action("target-on", ["turn on the target", "switch the worth lights on", "switch the worth target on"], ["switch target on"], "Worth target switched on.");
 const targetOff = action("target-off", ["turn off the target", "switch the worth lights off", "switch the worth target off"], ["switch target off"], "Worth target switched off.");
@@ -52,7 +53,7 @@ export const PRACTICE_VOICE_ACTIONS: Record<PracticeLessonId, readonly PracticeV
   npc: [npcInstruction, reportPercept],
   "horizontal-distance": [fusionalInstruction, reportPercept],
   "vertical-distance": [verticalFusionalInstruction, reportPercept],
-  "horizontal-near": [fixateTarget, reportPercept],
+  "horizontal-near": [nearFusionalInstruction, reportPercept],
   facility: [fixateTarget, reportClear],
   "push-up": [fixateTarget, reportPercept],
   "minus-lens": [fixateTarget, reportPercept],
@@ -76,7 +77,7 @@ export async function invokePracticeVoiceAction(lessonId: PracticeLessonId, acti
   const existingReport = root.querySelector?.<HTMLElement>("[data-voice-report]")?.innerText.trim();
   // A repeat question reads the immutable engine-owned capture. It must not
   // click the reporting control and start another procedure.
-  if ((lessonId === "thorington" || lessonId === "npc" || lessonId === "horizontal-distance" || lessonId === "vertical-distance") && actionId === "request-report" && existingReport)
+  if ((lessonId === "thorington" || lessonId === "npc" || lessonId === "horizontal-distance" || lessonId === "vertical-distance" || lessonId === "horizontal-near") && actionId === "request-report" && existingReport)
     return { accepted: true, spokenText: existingReport.slice(0, 1000) };
   const buttons = [...root.querySelectorAll<HTMLButtonElement>("button")].filter(usableButton);
   const control = buttons.find((button) => candidate.controls.some((fragment) => normalized(button.innerText || button.getAttribute("aria-label") || "").includes(normalized(fragment))));

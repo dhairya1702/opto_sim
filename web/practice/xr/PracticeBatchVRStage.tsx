@@ -17,6 +17,7 @@ import { BatchLessonMirror, type BatchMirror } from "./PracticeLessonUI";
 import { NPCPracticeController } from "./NPCPracticeController";
 import { FusionalVergencePracticeController } from "./FusionalVergencePracticeController";
 import { VerticalFusionalVergencePracticeController } from "./VerticalFusionalVergencePracticeController";
+import { NearFusionalVergencePracticeController } from "./NearFusionalVergencePracticeController";
 
 type BatchKind = LibraryKind | "krimsky" | "bruckner" | "motility" | "cover-uncover" | "alternate-cover" | "worth" | "stereopsis" | "four-prism";
 const titles: Record<BatchKind, string> = { ...LIBRARY_TITLES, worth: "Worth four dot", stereopsis: "Stereopsis", "four-prism": "4Δ base-out", krimsky: "Krimsky test", bruckner: "Bruckner test", motility: "Extraocular motilities", "cover-uncover": "Cover–uncover test", "alternate-cover": "Alternating cover + prism neutralisation" };
@@ -36,7 +37,8 @@ export function PracticeBatchVRStage({ kind, scenario = "equal", motilityScenari
         : kind === "npc" ? <NPCPracticeController {...common} />
         : kind === "horizontal-distance" ? <FusionalVergencePracticeController {...common} />
         : kind === "vertical-distance" ? <VerticalFusionalVergencePracticeController {...common} />
-        : kind === "horizontal-near" || kind === "facility" ? <VergencePracticeController {...common} kind={kind} />
+        : kind === "horizontal-near" ? <NearFusionalVergencePracticeController {...common} />
+        : kind === "facility" ? <VergencePracticeController {...common} kind={kind} />
         : kind === "push-up" || kind === "minus-lens" || kind === "relative" || kind === "accommodative-facility" ? <AccommodationPracticeController {...common} kind={kind} />
         : kind === "krimsky" ? <KrimskyPracticeController {...common} />
         : kind === "motility" ? <MotilityPracticeController {...common} scenarioId={motilityScenario} onNext={onNext} /> : <CoverPracticeController {...common} kind={kind} />;
