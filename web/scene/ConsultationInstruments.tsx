@@ -8,7 +8,7 @@ import { LibraryInstrumentModel, type ClinicInstrumentSettings } from "./Library
 import { SensoryInstrumentModel } from "./SensoryClinicEquipment";
 import type { OphthalmoscopeControl } from "../interaction/xrScopeEquipment";
 import { XRSign } from "./XRClinicPanels";
-import { CONSULTATION_EQUIPMENT, consultationToolDefinition, type ConsultationToolId, type ConsultationTools } from "../interaction/xrConsultationTools";
+import { CONSULTATION_EQUIPMENT, PRISM_BAR_WORKING_Y, consultationToolDefinition, type ConsultationToolId, type ConsultationTools } from "../interaction/xrConsultationTools";
 import { INSTRUMENT_KIT_ROTATION_Y } from "../interaction/clinicLayout";
 import { krimskyPrismCellY, krimskyPrismPowerIndex } from "../interaction/xrKrimskyPractice";
 import { MADDOX_PRISM_CELLS, MADDOX_PRISM_CELL_Y } from "../interaction/maddoxProcedure";
@@ -26,9 +26,8 @@ export function ConsultationInstrumentModel({ id, powered, fundusView, brucknerV
   if (id === "prism") {
     const maddoxProfile = settings?.prism?.profile === "maddox";
     const selectedPower = settings?.prism?.power;
-    const anchorPower = settings?.prism?.anchorPower;
-    const selectedY = selectedPower === undefined ? .143 : krimskyPrismCellY(selectedPower);
-    const apertureY = anchorPower === undefined ? selectedY : krimskyPrismCellY(anchorPower);
+    const selectedY = selectedPower === undefined ? PRISM_BAR_WORKING_Y : krimskyPrismCellY(selectedPower);
+    const apertureY = PRISM_BAR_WORKING_Y;
     const barOffsetY = apertureY - selectedY;
     const baseLabel = settings?.prism?.base === "BI" ? "← BASE IN · BI" : settings?.prism?.base === "BO" ? "BASE OUT · BO →" : "← BI · BO →";
     return <group><group position={[0, maddoxProfile ? 0 : barOffsetY, 0]} userData={{ xrPrismSlidingBar: true }}><PrismBarModel profile={maddoxProfile ? "maddox" : "standard"} selectedIndex={selectedPower === undefined ? 4 : krimskyPrismPowerIndex(selectedPower)} />
@@ -39,9 +38,6 @@ export function ConsultationInstrumentModel({ id, powered, fundusView, brucknerV
     </mesh>
     {settings?.prism?.aligned && <mesh position={[0, apertureY, .024]} renderOrder={1159}>
       <circleGeometry args={[.0265, 40]} /><meshBasicMaterial color="#c8f7ee" transparent opacity={.07} side={DoubleSide} depthWrite={false} />
-    </mesh>}
-    {settings?.prism?.aligned && settings.prism.showReflex && <mesh position={[settings.prism.reflexOffset ?? 0, apertureY + .004, .029]} renderOrder={1161} userData={{ xrPrismReflexWindow: true }}>
-      <circleGeometry args={[.0032, 24]} /><meshBasicMaterial color="#fff7bd" depthTest={false} depthWrite={false} />
     </mesh>}
   </group>;
   }

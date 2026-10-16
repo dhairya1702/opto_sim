@@ -7,7 +7,7 @@ const krimsky = (overrides: Partial<KrimskyGuidedState> = {}): KrimskyGuidedStat
 });
 const cover = (overrides: Partial<CoverGuidedState> = {}): CoverGuidedState => ({
   kind: "cover-uncover", occluderHeld: false, fixation: false, sequenceIndex: 0, sequenceTotal: 4,
-  observed: false, prismAligned: false, prismConfigured: false, neutralized: false,
+  observed: false, prismHeld: false, prismAligned: false, prismConfigured: false, neutralized: false,
   observationComplete: false, recorded: false, ...overrides,
 });
 
@@ -43,8 +43,9 @@ describe("alignment guided coaches", () => {
 
   it("adds physical prism alignment and neutralisation to alternating cover", () => {
     const observed = cover({ kind: "alternate-cover", observed: true });
-    expect(coverGuidedStep(observed).id).toBe("prism");
-    expect(coverGuidedStep({ ...observed, prismAligned: true, prismConfigured: true }).id).toBe("neutralise");
+    expect(coverGuidedStep(observed).title).toBe("Pick up the prism bar");
+    expect(coverGuidedStep({ ...observed, prismHeld: true }).title).toBe("Set and align the prism");
+    expect(coverGuidedStep({ ...observed, prismHeld: true, prismAligned: true, prismConfigured: true }).id).toBe("neutralise");
     expect(coverGuidedStep({ ...observed, neutralized: true }).id).toBe("interpret");
     expect(coverGuidedStep({ ...observed, neutralized: true, observationComplete: true }).id).toBe("record");
   });

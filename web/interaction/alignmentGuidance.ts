@@ -77,6 +77,7 @@ export type CoverGuidedState = {
   /** Interruption/restart feedback from the sequence, if any. */
   sequenceMessage?: string;
   observed: boolean;
+  prismHeld: boolean;
   prismAligned: boolean;
   prismConfigured: boolean;
   neutralized: boolean;
@@ -108,11 +109,13 @@ export function coverGuidedStep(state: CoverGuidedState): AlignmentGuidedStep {
     id: "interpret", index: 3, title: "Classify the timing",
     lines: ["Choose the pattern you actually observed.", "Use cover versus uncover timing to classify it."], complete: false,
   };
-  // Once alternate-cover observation is complete, the occluder may be put down
-  // to free a hand for the prism. Do not send the learner back to pickup.
+  if (alternate && state.observed && !state.prismHeld) return {
+    id: "prism-pickup", index: 3, title: "Pick up the prism bar",
+    lines: ["Find the labelled prism bar on the left-side instrument kit.", "Keep the occluder in one hand; squeeze beside the prism handle with your free hand."], complete: false,
+  };
   if (alternate && state.observed && (!state.prismAligned || !state.prismConfigured)) return {
     id: "prism", index: 3, title: "Set and align the prism",
-    lines: ["Hold the selected prism cell before one eye.", "Apex toward the deviation, e.g. base up before a hypo eye."], complete: false,
+    lines: ["Open PRISM SETTINGS; choose a base and power.", "Then hold the gold-ringed cell before one eye."], complete: false,
   };
   if (alternate && state.observed) return {
     id: "neutralise", index: 4, title: "Repeat to neutralise",

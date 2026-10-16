@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { clinic } from "./helpers/xrClinicHarness";
 import { KrimskyPracticeController } from "../practice/xr/KrimskyPracticeController";
 import type { BatchMirror } from "../practice/xr/PracticeLessonUI";
-import { consultationToolDefinition } from "../interaction/xrConsultationTools";
+import { PRISM_BAR_WORKING_Y, consultationToolDefinition } from "../interaction/xrConsultationTools";
 import { krimskyPrismCellY, KRIMSKY_PRISM_POWERS } from "../interaction/xrKrimskyPractice";
 import { PracticeAttemptProvider, type PracticeAttemptKind } from "../practice/PracticeAttemptContext";
 
@@ -158,21 +158,23 @@ describe("mounted Krimsky Practice in the shared clinic", () => {
     await sim.prismAt("OS");
     const alignedAperture = part("xrPrismWorkingCell");
     expect(alignedAperture?.userData.xrPrismAligned).toBe(true);
+    expect(alignedAperture?.position.y).toBe(PRISM_BAR_WORKING_Y);
     expect(sim.haptics[1]).toHaveBeenCalledTimes(1);
     await sim.step(1 / 72, 12);
     expect(sim.haptics[1]).toHaveBeenCalledTimes(1);
 
     const apertureBefore = part("xrPrismWorkingCell")!.getWorldPosition(new Vector3());
     const barBefore = part("xrPrismSlidingBar")!.position.y;
-    await sim.setPrism("BI", 20);
+    await sim.setPrism("BI", 40);
     const apertureAfter = part("xrPrismWorkingCell")!.getWorldPosition(new Vector3());
     expect(apertureAfter.distanceTo(apertureBefore)).toBeLessThan(.0001);
     expect(part("xrPrismSlidingBar")!.position.y).toBeLessThan(barBefore);
-    expect(part("xrPrismReflexWindow")).toBeDefined();
+    expect(part("xrPrismReflexWindow")).toBeUndefined();
 
     await sim.at(1, [.35, 1.2, -.481]); await sim.step(1 / 72, 12);
     const releasedAperture = part("xrPrismWorkingCell");
     expect(releasedAperture?.userData.xrPrismAligned).toBe(false);
+    expect(releasedAperture?.position.y).toBe(PRISM_BAR_WORKING_Y);
     expect(part("xrPrismReflexWindow")).toBeUndefined();
   });
   it("standard Krimsky moves visible reflexes, captures with the prism trigger and permits independent recording after release", async () => {

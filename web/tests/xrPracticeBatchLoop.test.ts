@@ -10,7 +10,7 @@ import type { BatchMirror } from "../practice/xr/PracticeLessonUI";
 import { brucknerReflexVisual, type BrucknerScenario } from "../interaction/brucknerPractice";
 import { coverIrisOffset } from "../interaction/coverDeviation";
 import { gazePositions, motilityScenarios, type MotilityScenarioId } from "../interaction/motility";
-import { consultationToolDefinition } from "../interaction/xrConsultationTools";
+import { PRISM_BAR_WORKING_Y, consultationToolDefinition } from "../interaction/xrConsultationTools";
 import { PRACTICE_NEAR_SOCKET } from "../interaction/xrPracticeBatch";
 import { PracticeAttemptProvider, type PracticeAttemptKind } from "../practice/PracticeAttemptContext";
 
@@ -293,9 +293,18 @@ describe("new Practice lessons in the shared clinic", () => {
   });
   it("cover–uncover gates order/entry, shows authored motion on physical uncover, and changes findings", async () => {
     const sim = await lesson("cover-uncover"); await sim.pickup(1, "cover");
+    expect(sim.labels()).not.toContain("NEAR CARD · RELEASE HERE");
+    let nearCardPresent = false;
+    sim.state.scene.traverse(object => { if (object.userData.consultationToolId === "near") nearCardPresent = true; });
+    expect(nearCardPresent).toBe(false);
     await sim.click(0, sim.button("LOOK AT THE TARGET"));
     await sim.coverAt("OS"); expect(sim.mirror().entryReady).toBe(false);
     await sim.coverSequence(); expect(sim.mirror().ready).toBe(true);
+    sim.tracked[1] = false; await sim.step(1 / 72, 12);
+    expect(sim.mirror().ready).toBe(true);
+    sim.tracked[1] = true; await sim.step(1 / 72, 12);
+    await sim.putDown(1); await sim.step(1 / 72, 12);
+    expect(sim.mirror().ready).toBe(true);
     await sim.click(0, sim.button("ORTHOPHORIA")); await sim.click(0, sim.button("SUBMIT / CHECK"));
     expect(sim.complete).toHaveBeenCalledTimes(1); expect(sim.record).not.toHaveBeenCalled();
     await sim.click(0, sim.button("NEW PATIENT FINDING"));
@@ -356,9 +365,18 @@ describe("new Practice lessons in the shared clinic", () => {
     expect(sim.labels()).toContain("GUIDED · STEP 3 OF 7");
     await sim.coverSequence();
     expect(sim.labels()).toContain("GUIDED · STEP 4 OF 7");
-    expect(sim.labels()).toContain("Set and align the prism");
+    expect(sim.labels()).toContain("Pick up the prism bar");
+    expect(sim.labels()).toContain("Prism bar");
+    expect(sim.labels()).not.toContain("0Δ · choose base");
+    expect(sim.tool("prism").visible).toBe(true);
+    expect(sim.tool("prism").position.toArray()).toEqual(consultationToolDefinition("prism").home);
     await sim.pickup(0, "prism"); await sim.at(0, [.048, 1.357, -.481]);
+    expect(sim.labels()).toContain("Set and align the prism");
+    let workingRing: THREE.Object3D | undefined;
+    sim.tool("prism").traverse(object => { if (object.userData.xrPrismWorkingCell) workingRing = object; });
+    expect(workingRing?.position.y).toBe(PRISM_BAR_WORKING_Y);
     await sim.action("BASE IN"); for (let i = 0; i < 6; i++) await sim.action("POWER +2Δ");
+    expect(workingRing?.position.y).toBe(PRISM_BAR_WORKING_Y);
     expect(sim.labels()).toContain("GUIDED · STEP 5 OF 7");
     await sim.action("REPEAT WITH PRISM"); await sim.coverSequence();
     expect(sim.labels()).toContain("GUIDED · STEP 6 OF 7");
@@ -375,8 +393,8 @@ describe("new Practice lessons in the shared clinic", () => {
     expect(sim.labels().some(label => label.startsWith("GUIDED · STEP"))).toBe(false);
   });
   it("near-card motion invalidates earlier cover work and the stand frees a hand", async () => {
-    const sim = await lesson("cover-uncover"); await sim.pickup(1, "cover"); await sim.click(0, sim.button("LOOK AT THE TARGET"));
-    await sim.coverSequence(); expect(sim.mirror().ready).toBe(true);
+    const sim = await lesson("alternate-cover"); await sim.pickup(1, "cover"); await sim.click(0, sim.button("LOOK AT THE TARGET"));
+    await sim.coverSequence(); expect(sim.mirror().entryReady).toBe(true);
     await sim.pickup(0, "near"); await sim.at(0, [0, 1.5, .1]); await sim.step(1 / 72, 12);
     expect(sim.mirror().entryReady).toBe(false); expect(sim.mirror().status).toContain("67 cm");
     await sim.at(0, PRACTICE_NEAR_SOCKET.position); await sim.putDown(0); await sim.step(1 / 72, 12);
@@ -385,7 +403,7 @@ describe("new Practice lessons in the shared clinic", () => {
     const eye = new THREE.Vector3(-.048, 1.5, -.572);
     const sight = new THREE.Raycaster(viewer, eye.clone().sub(viewer).normalize(), 0, eye.distanceTo(viewer));
     expect(sight.intersectObject(sim.tool("near"), true)).toHaveLength(0);
-    await sim.coverSequence(); expect(sim.mirror().ready).toBe(true);
+    await sim.coverSequence(); expect(sim.mirror().entryReady).toBe(true);
     await sim.pickup(0, "near"); await sim.at(0, consultationToolDefinition("near").home); await sim.putDown(0); await sim.step(1 / 72, 12);
     expect(sim.mirror().status).toContain("DISTANCE"); expect(sim.mirror().entryReady).toBe(false);
   });
@@ -449,7 +467,7 @@ describe("new Practice lessons in the shared clinic", () => {
     }
     expect(sim.mirror().status).toContain("No refixation movement");
   });
-  it("cancels a completed cover observation form without recording, and reset clears the attempt", async () => {
+  it("cancels without recording, resets the attempt, then records completed evidence after returning the occluder", async () => {
     const sim = await lesson("cover-uncover"); await sim.pickup(1, "cover"); await sim.click(0, sim.button("LOOK AT THE TARGET"));
     await sim.coverSequence(); await sim.click(0, sim.button("ORTHOPHORIA"));
     await sim.click(0, sim.button("CANCEL"));
@@ -457,7 +475,11 @@ describe("new Practice lessons in the shared clinic", () => {
     await act(async () => sim.mirror().reset()); await sim.step(1 / 72, 12);
     expect(sim.mirror().ready).toBe(false); expect(sim.mirror().entryReady).toBe(false);
     expect(sim.tool("cover").position.toArray()).toEqual(consultationToolDefinition("cover").home);
-    await sim.exit(); await sim.event(1, "squeezestart"); sim.mirror().record(); expect(sim.complete).not.toHaveBeenCalled();
+    await sim.pickup(1, "cover"); await sim.click(0, sim.button("LOOK AT THE TARGET")); await sim.coverSequence();
+    await sim.putDown(1); await sim.step(1 / 72, 12);
+    expect(sim.mirror().ready).toBe(true);
+    await sim.click(0, sim.button("ORTHOPHORIA")); await sim.click(0, sim.button("SUBMIT / CHECK"));
+    expect(sim.complete).toHaveBeenCalledTimes(1);
   });
   it("alternating cover loses dissociation after long exposure and cannot neutralise a prism away from the pupil", async () => {
     const sim = await lesson("alternate-cover"); await sim.pickup(1, "cover"); await sim.click(0, sim.button("LOOK AT THE TARGET"));

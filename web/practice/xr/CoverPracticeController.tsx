@@ -3,7 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import { Vector3 } from "three";
 import { ALTERNATE_COVER_GUIDED_STEP_COUNT, COVER_UNCOVER_GUIDED_STEP_COUNT, coverGuidedStep } from "../../interaction/alignmentGuidance";
 import { useXRClinicRuntime } from "../../interaction/useXRClinicRuntime";
-import { consultationToolDefinition } from "../../interaction/xrConsultationTools";
+import { CONSULTATION_EQUIPMENT, consultationToolDefinition } from "../../interaction/xrConsultationTools";
 import { coverScenarios, alternateCoverModel, alternateCoverScenarios, alternateDeviationChoices, alternateDeviationLabel, practiceCoverProcedures, prismBaseLabel, prismTrialNeutralizes, type PracticeCoverKind } from "../../interaction/practiceCover";
 import { advanceXRPracticeCover, emptyPracticeCoverSequence, xrCoverGuideTarget, xrPracticeCoverPosition, xrPracticeEyePlacement, xrPracticeNearFixation, PRACTICE_NEAR_SOCKET } from "../../interaction/xrPracticeBatch";
 import type { CoverEye, CoverPosition } from "../../interaction/cover";
@@ -18,6 +18,7 @@ import { PracticeLessonUI, usePracticeLesson, type BatchMirror, type LessonField
 import { usePracticeAttempt } from "../PracticeAttemptContext";
 
 const bases = [["base-in", "Base in"], ["base-out", "Base out"], ["base-up", "Base up"], ["base-down", "Base down"]] as const;
+const COVER_UNCOVER_EQUIPMENT = CONSULTATION_EQUIPMENT.filter(id => id !== "near");
 const fieldsFor = (kind: PracticeCoverKind): LessonField[] => kind === "cover-uncover"
   ? [{ id: "pattern", label: "Movement timing", choices: coverScenarios.map(item => [item.id, item.label]) }]
   : [{ id: "movement", label: "OD movement on uncovering", choices: [["in", "In"], ["out", "Out"], ["up", "Up"], ["down", "Down"]] },
@@ -40,7 +41,9 @@ export function CoverPracticeController({ active, preview = false, kind, onCompl
   const [readout, setReadout] = useState({ index: 0, observed: false, neutralized: false, mode: "distance", distance: 0, targetReady: true, held: false, prism: "", trial: false, message: "", at: "", progress: 0 });
   const lastTarget = useRef({ mode: "distance", ready: true, position: [0, 0, 0] });
   const interrupt = useCallback(() => { progress.current.sequence.dwell = 0; progress.current.sequence.transit = 0; }, []);
-  const runtime = useXRClinicRuntime({ active: active && !preview, editorOpen: lesson.mode !== "none", onInterrupt: interrupt, placementSockets: [PRACTICE_NEAR_SOCKET],
+  const runtime = useXRClinicRuntime({ active: active && !preview, editorOpen: lesson.mode !== "none", onInterrupt: interrupt,
+    equipment: kind === "cover-uncover" ? COVER_UNCOVER_EQUIPMENT : CONSULTATION_EQUIPMENT,
+    placementSockets: kind === "cover-uncover" ? [] : [PRACTICE_NEAR_SOCKET],
     onMenu: open => lesson.setMode(open ? "menu" : "none"), onSelection: selection => { if (selection.station === "patient") lesson.setMode("menu"); },
   });
   const eyes = useClinicEyeMotion(active);
@@ -56,6 +59,7 @@ export function CoverPracticeController({ active, preview = false, kind, onCompl
     const position = held ? xrPracticeCoverPosition(runtime.origin.toArray() as [number, number, number], runtime.direction.toArray() as [number, number, number]) : null;
     const prismHeld = frame && runtime.workingPose("prism", forRecording);
     const prism = prismHeld ? xrPracticeEyePlacement(runtime.origin.toArray() as [number, number, number], runtime.direction.toArray() as [number, number, number], true) : null;
+    if (kind === "cover-uncover") return { held, position, prism: null, mode: "distance", targetReady: true, distance: 0, card: [0, 0, 0] };
     const card = runtime.objects.current.get("near");
     const placement = runtime.toolsRef.current.near.placement;
     const home = consultationToolDefinition("near").home;
@@ -135,8 +139,9 @@ export function CoverPracticeController({ active, preview = false, kind, onCompl
   }, [lesson.reset, clearSequence, runtime.resetClinic, guideAvailable, scenarioModel]);
   useEffect(() => { reset(); }, [kind, scenarioIndex, reset]);
   useEffect(() => { if (!active) reset(); }, [active, reset]);
+  const prismHeld = kind === "alternate-cover" && runtime.tools.prism.placement.kind === "held";
   const changePrism = (newBase: string, newPower: number) => {
-    if (lesson.awarded.current) return;
+    if (lesson.awarded.current || !prismHeld) return;
     setup.current.base = newBase; setup.current.power = newPower; setBase(newBase); setPower(newPower);
     progress.current.neutralized = false; progress.current.trial = false; progress.current.message = "Align the prism before one eye, then repeat.";
     progress.current.sequence = emptyPracticeCoverSequence(); progress.current.pulseKey = "";
@@ -149,14 +154,23 @@ export function CoverPracticeController({ active, preview = false, kind, onCompl
     lesson.setMode("none");
   };
   const entryReady = readout.observed && readout.targetReady;
-  const ready = active && entryReady && readout.held && fixation && (kind === "cover-uncover" || readout.neutralized);
+  // Once the four cover-uncover observations are complete, the evidence is
+  // frozen. The learner can return the occluder and use either hand to record.
+  // Alternating cover still needs its live held-tool state for neutralisation.
+  const toolReady = kind === "cover-uncover" || readout.held;
+  const ready = active && entryReady && toolReady && fixation && (kind === "cover-uncover" || readout.neutralized);
   const status = !fixation ? "Ask the patient to fixate the target."
     : !readout.targetReady ? `${readout.distance} cm · position the near card at about 40 cm; release onto its stand.`
     : !readout.observed || readout.trial ? `${readout.mode.toUpperCase()} · ${practiceCoverProcedures[kind][readout.index]?.label ?? "Sequence observed"}${readout.message ? " · " + readout.message : ""}`
-      : readout.message || (kind === "alternate-cover" && !readout.neutralized ? "Observe movement, add prism, then repeat to neutralise." : `${readout.mode.toUpperCase()} · sequence observed; record your finding.`);
+      : kind === "alternate-cover" && !readout.neutralized
+        ? !prismHeld ? "Sequence observed · pick up the prism bar from the left-side instrument kit."
+          : !base || power <= 0 ? "Prism held · open Prism Settings and choose a base and power."
+            : !readout.prism ? "Move the gold-ringed prism cell before one eye."
+              : readout.message || "Prism aligned · choose Repeat with prism."
+        : readout.message || `${readout.mode.toUpperCase()} · sequence observed; record your finding.`;
   const actions = [
     { label: fixation ? "FIXATION GIVEN ✓" : "LOOK AT THE TARGET", run: () => { setup.current.fixation = true; setFixation(true); }, active: fixation },
-    kind === "alternate-cover" ? { label: "PRISM SETTINGS", run: () => lesson.setMode("settings") } : { label: "REPEAT SEQUENCE", run: repeat },
+    ...(kind === "alternate-cover" ? prismHeld ? [{ label: "PRISM SETTINGS", run: () => lesson.setMode("settings") }] : [] : [{ label: "REPEAT SEQUENCE", run: repeat }]),
     { label: "HELP", run: () => lesson.setMode("help") },
     ...(guideAvailable ? [{ label: guides ? "HIDE COVER GUIDE" : "SHOW COVER GUIDE", run: () => setGuides(value => !value), active: guides }] : []),
   ];
@@ -171,6 +185,7 @@ export function CoverPracticeController({ active, preview = false, kind, onCompl
     nextPositionLabel: practiceCoverProcedures[kind][readout.index]?.label,
     sequenceMessage: readout.message,
     observed: readout.observed,
+    prismHeld,
     prismAligned: Boolean(readout.prism),
     prismConfigured: Boolean(base) && power > 0,
     neutralized: readout.neutralized,
@@ -179,7 +194,8 @@ export function CoverPracticeController({ active, preview = false, kind, onCompl
   });
   const record = () => {
     const spatial = sample(true), state = progress.current, entries = lesson.entriesRef.current;
-    const valid = active && spatial.held && spatial.targetReady && setup.current.fixation && state.observed;
+    const toolValid = kind === "cover-uncover" || spatial.held;
+    const valid = active && toolValid && spatial.targetReady && setup.current.fixation && state.observed;
     const correct = kind === "cover-uncover" ? entries.pattern === cover.id : entries.movement === alternate.movement && entries.deviation === alternate.deviation && state.neutralized && spatial.prism === state.trialEye;
     const entriesComplete = fields.every(field => Boolean(entries[field.id]));
     lesson.submit(Boolean(valid && entriesComplete && (kind === "cover-uncover" || state.neutralized)), correct,
@@ -187,9 +203,9 @@ export function CoverPracticeController({ active, preview = false, kind, onCompl
         : "Repeat and watch which eye moves, in which direction, and when.");
   };
   const next = () => { if (!lesson.awarded.current) return; reset(); setScenarioIndex(value => value + 1); };
-  const prismActions: LessonAction[] = [...bases.map(([value, label]) => ({ label: label.toUpperCase(), run: () => changePrism(value, setup.current.power), active: base === value })),
-    { label: "POWER −2Δ", run: () => changePrism(setup.current.base, Math.max(0, setup.current.power - 2)) },
-    { label: "POWER +2Δ", run: () => changePrism(setup.current.base, Math.min(30, setup.current.power + 2)) },
+  const prismActions: LessonAction[] = [...bases.map(([value, label]) => ({ label: label.toUpperCase(), run: () => changePrism(value, setup.current.power), active: base === value, disabled: !prismHeld })),
+    { label: "POWER −2Δ", run: () => changePrism(setup.current.base, Math.max(0, setup.current.power - 2)), disabled: !prismHeld },
+    { label: "POWER +2Δ", run: () => changePrism(setup.current.base, Math.min(30, setup.current.power + 2)), disabled: !prismHeld },
     { label: "REPEAT WITH PRISM", run: startTrial, disabled: !readout.observed || !base || !readout.prism },
     { label: "REPEAT SEQUENCE", run: repeat }];
   useEffect(() => { onMirror?.({ title: kind === "cover-uncover" ? "Cover–uncover" : "Alternating cover", findingPosition: { current: scenarioIndex % (kind === "cover-uncover" ? coverScenarios.length : alternateCoverScenarios.length) + 1, total: kind === "cover-uncover" ? coverScenarios.length : alternateCoverScenarios.length },
@@ -207,23 +223,23 @@ export function CoverPracticeController({ active, preview = false, kind, onCompl
   return <>
     <XRClinicRuntimeView cleanHands runtime={runtime} active={active && !preview} preview={preview}
       title={`${kind === "cover-uncover" ? "COVER–UNCOVER" : "ALTERNATING COVER"} · PRACTICE`}
-      instrumentSettings={{ prism: { power, base } }} showWallInstructions={!guided} />
+      instrumentSettings={{ prism: { power, base } }} showWallInstructions={!guided}
+      instructionalEquipment={guided && kind === "alternate-cover" && readout.observed && !prismHeld ? ["prism"] : []} />
     {(active || preview) && guided && <XRGuidedStepBubble stepId={guidance.id} stepNumber={guidance.index + 1}
       total={kind === "cover-uncover" ? COVER_UNCOVER_GUIDED_STEP_COUNT : ALTERNATE_COVER_GUIDED_STEP_COUNT}
       title={guidance.title} lines={guidance.lines} complete={guidance.complete} />}
     {showCoverGuide && guideTarget && <XRCoverGuide target={guideTarget} current={(readout.at || null) as CoverPosition | null}
       progress={readout.progress / 100} />}
-    {(active || preview) && <group position={[0, 0, PRACTICE_NEAR_SOCKET.position[2]]} userData={{ xrIgnoreRay: true }}>
+    {(active || preview) && kind === "alternate-cover" && <group position={[0, 0, PRACTICE_NEAR_SOCKET.position[2]]} userData={{ xrIgnoreRay: true }}>
       <Cylinder p={[0, .6625, 0]} h={1.325} radius={.009} c="#72908c" />
       <Box p={[0, .02, 0]} s={[.22, .025, .18]} c="#39565b" radius={.008} />
       <Box p={[0, PRACTICE_NEAR_SOCKET.position[1] - .087, 0]} s={[.26, .018, .035]} c="#39565b" radius={.006} />
       <XRSign text={["NEAR CARD · RELEASE HERE", "40 cm · assisted placement"]} p={[.22, 1.29, 0]} size={[.30, .075]} bg="#173a3e" fg="#e8fff9" />
     </group>}
-    {active && kind === "alternate-cover" && <XRSign text={[`${power}Δ · ${base || "choose base"}`, "Middle cell · aim before one eye"]} p={[-.35, 1.82, -.1]} size={[.34, .09]} bg="#173a3e" fg="#e8fff9" />}
     <PracticeLessonUI runtime={runtime} active={active} title={kind === "cover-uncover" ? "COVER–UNCOVER" : "ALTERNATING COVER"} status={status}
       tools={kind === "cover-uncover" ? ["cover"] : ["cover", "prism"]} actions={actions} fields={fields} lesson={lesson} entryReady={entryReady} ready={ready}
       onRecord={record} onReset={reset} onNext={next} onExit={onExit} settings={settings}
-      help={["Pick the cover occluder; establish target fixation.", "Distance target is illustrative in this clinic.", "Move the near card to 40 cm; mount it on the stand.", "Cover one pupil, keeping the other eye visible.", kind === "cover-uncover" ? "Watch the visible eye, then uncover immediately." : "Shift directly between eyes; keep fusion broken.",
+      help={["Pick the cover occluder; establish target fixation.", "Distance target is illustrative in this clinic.", ...(kind === "alternate-cover" ? ["Move the near card to 40 cm; mount it on the stand."] : []), "Cover one pupil, keeping the other eye visible.", kind === "cover-uncover" ? "Watch the visible eye, then uncover immediately." : "Shift directly between eyes; keep fusion broken.",
         kind === "cover-uncover" ? "Repeat with the fellow eye and classify timing." : "Add prism before either eye; repeat until no movement."]} />
   </>;
 }

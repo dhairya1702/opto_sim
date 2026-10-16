@@ -46,6 +46,7 @@ const auxiliaryRest = (rotation: ToolRotation): ToolRotation => restAtYaw(rotati
 // Paddles follow the aiming pose like the prism bar: the Quest grip pose is
 // tilted back toward the forearm, which laid the handle along the arm.
 const paddle = { workingPoint: [0, .121, 0] as ToolPoint, forward: [0, 0, -1] as ToolPoint, heldPose: "ray" as const, gripRotation: upright, restRotation: upright, restHeight: .10, footprint: [.13, .065] as const, illuminates: false };
+export const PRISM_BAR_WORKING_Y = .143;
 // Every mode uses the same stocked cart beside the patient's learner-left side.
 // Core consultation instruments stay on the learner-left cart. The larger
 // future-case inventory uses a separate learner-right cart so neither kit is
@@ -58,7 +59,7 @@ export const CONSULTATION_TOOLS: readonly ConsultationToolDefinition[] = [
   { id: "motility", label: "Motility target", home: instrumentKitPoint(-.17, .9975, .08), workingPoint: [0, .137, 0], forward: [0, 1, 0], gripRotation: forwardGrip, restRotation: kitRest(upright), restHeight: .12, footprint: [.055, .055], illuminates: true },
   { id: "objective", label: "Retinoscope", home: instrumentKitPoint(.10, .99, .08), workingPoint: [0, .17, .032], forward: [0, 0, 1], gripRotation: reverseGrip, restRotation: kitRest(upright), restHeight: .1125, footprint: [.125, .085], illuminates: true },
   { id: "near", label: "Near card", home: instrumentKitPoint(.31, .8945, .08), workingPoint: [0, 0, .005], forward: [0, 0, 1], gripRotation: reverseGrip, restRotation: kitRest(flatCard), restHeight: .017, footprint: [.25, .18], illuminates: false },
-  { id: "prism", label: "Prism bar", home: instrumentKitPoint(.49, 1.03, .245), workingPoint: [0, .143, .012], forward: [0, 0, -1], heldPose: "ray", gripRotation: upright, restRotation: kitRest(upright), restHeight: .1525, footprint: [.10, .065], illuminates: false },
+  { id: "prism", label: "Prism bar", home: instrumentKitPoint(.49, 1.03, .245), workingPoint: [0, PRISM_BAR_WORKING_Y, .012], forward: [0, 0, -1], heldPose: "ray", gripRotation: upright, restRotation: kitRest(upright), restHeight: .1525, footprint: [.10, .065], illuminates: false },
   { id: "subjective", label: "Trial frame", home: instrumentKitPoint(.72, .96, .08), workingPoint: [0, 0, 0], forward: [0, 0, -1], gripRotation: upright, restRotation: kitRest(upright), restHeight: .0825, footprint: [.34, .20], illuminates: false },
   { id: "fundus", label: "Ophthalmoscope", home: instrumentKitPoint(-.05, .99, .08), workingPoint: [0, .17, .032], forward: [0, 0, 1], gripRotation: reverseGrip, restRotation: kitRest(upright), restHeight: .1125, footprint: [.11, .065], illuminates: true },
 ];

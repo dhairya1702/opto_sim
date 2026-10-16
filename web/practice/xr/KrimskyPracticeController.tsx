@@ -4,8 +4,9 @@ import { Group, Mesh, MeshBasicMaterial, Quaternion, Vector3 } from "three";
 import { krimskyCases, krimskyEye, type KrimskyMethod } from "../../interaction/krimsky";
 import { KRIMSKY_GUIDED_STEP_COUNT, krimskyGuidedStep } from "../../interaction/alignmentGuidance";
 import { CLINIC_PATIENT_EYES } from "../../interaction/clinicPatient";
+import { PRISM_BAR_WORKING_Y } from "../../interaction/xrConsultationTools";
 import { useXRClinicRuntime } from "../../interaction/useXRClinicRuntime";
-import { captureKrimskyComparison, clinicKrimskyReflex, krimskyComparisonSubmission, krimskyPrismCellY, stepKrimskyPrismPower, xrKrimskyTechnique, type ExaminerEye, type KrimskyComparison } from "../../interaction/xrKrimskyPractice";
+import { captureKrimskyComparison, clinicKrimskyReflex, krimskyComparisonSubmission, stepKrimskyPrismPower, xrKrimskyTechnique, type ExaminerEye, type KrimskyComparison } from "../../interaction/xrKrimskyPractice";
 import { createXRViewerScratch, xrExaminerPose, xrViewerPoses } from "../../interaction/xrViewer";
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
 import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
@@ -51,8 +52,7 @@ export function KrimskyPracticeController({ active, preview = false, onComplete,
     const prism = runtime.objects.current.get("prism");
     let prismPosition: [number, number, number] | null = null;
     if (prism && (placement.kind !== "held" || prismHeld)) {
-      const workingPower = prismAnchorPowerRef.current ?? setupRef.current.power;
-      vectors.prism.set(0, krimskyPrismCellY(workingPower), .012); prism.localToWorld(vectors.prism);
+      vectors.prism.set(0, PRISM_BAR_WORKING_Y, .012); prism.localToWorld(vectors.prism);
       prismPosition = vectors.prism.toArray() as [number, number, number];
       prism.getWorldQuaternion(vectors.rotation); vectors.forward.set(0, 0, -1).applyQuaternion(vectors.rotation);
     }
