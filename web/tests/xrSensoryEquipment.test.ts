@@ -44,6 +44,9 @@ describe("sensory equipment and patient fitting", () => {
     expect(sensoryEquipment("four-prism")).toEqual(["subjective", "four-prism"]);
     expect(consultationToolDefinition("four-prism")).toMatchObject({ label: "Dedicated 4Δ prism", workingPoint: [0, .10, .012] });
     expect(consultationToolDefinition("subjective").home).toEqual(instrumentKitPoint(.72, .96, .08));
+    for (const id of ["subjective", "red-green", "polarised"] as const) {
+      expect(consultationToolDefinition(id).heldPose, id).toBe("ray");
+    }
     expect(sensorySockets("stereo").some(s => s.tool === "red-green")).toBe(false);
   });
   it("reserves distinct visible handle homes for all instruments and both-hand transfer", () => {

@@ -124,6 +124,16 @@ describe("voice contracts and Practice allowlists", () => {
     await expect(invokePracticeVoiceAction("thorington", "request-report", root)).resolves.toEqual({ accepted: true, spokenText: "Arun reports 6, right." });
     expect(click).toHaveBeenCalledTimes(1);
   });
+  it("repeats the engine-owned NRA/PRA report without advancing its procedure control", async () => {
+    const click = vi.fn();
+    const button = { disabled: false, offsetParent: {}, innerText: "PATIENT REPORT · WHAT DO YOU SEE?", click, getAttribute: () => null } as unknown as HTMLButtonElement;
+    const root = {
+      querySelectorAll: () => [button],
+      querySelector: (selector: string) => selector === "[data-voice-report]" ? { innerText: "The letters are clear and single." } : null,
+    } as unknown as ParentNode;
+    await expect(invokePracticeVoiceAction("relative", "request-report", root)).resolves.toEqual({ accepted: true, spokenText: "The letters are clear and single." });
+    expect(click).not.toHaveBeenCalled();
+  });
   it("bounds a Thorington report wait without inventing evidence", async () => {
     vi.useFakeTimers();
     try {
@@ -181,6 +191,20 @@ describe("voice contracts and Practice allowlists", () => {
     await expect(invokePracticeVoiceAction("horizontal-near", "request-report", reportRoot)).resolves.toEqual({ accepted: true, spokenText: "The target has become blurred and stays blurred." });
     expect(evidenceClick).not.toHaveBeenCalled();
     expect(PRACTICE_VOICE_ACTIONS["horizontal-near"][0].phrases.join(" ")).toContain("blur");
+  });
+  it("arms the minus-lens blur instruction and replays its engine-owned report without capturing", async () => {
+    const instructionClick = vi.fn();
+    const instruction = { disabled: false, offsetParent: {}, innerText: "GIVE FIRST SUSTAINED BLUR INSTRUCTION", click: instructionClick, getAttribute: () => null } as unknown as HTMLButtonElement;
+    const instructionRoot = { querySelectorAll: () => [instruction], querySelector: () => null } as unknown as ParentNode;
+    await expect(invokePracticeVoiceAction("minus-lens", "fixate-target", instructionRoot)).resolves.toMatchObject({ accepted: true });
+    expect(instructionClick).toHaveBeenCalledTimes(1);
+
+    const reportClick = vi.fn();
+    const report = { disabled: false, offsetParent: {}, innerText: "PATIENT REPORT · WHAT DO YOU SEE?", click: reportClick, getAttribute: () => null } as unknown as HTMLButtonElement;
+    const reportRoot = { querySelectorAll: () => [report],
+      querySelector: (selector: string) => selector === "[data-voice-report]" ? { innerText: "The letters remain blurred; I cannot clear them." } : null } as unknown as ParentNode;
+    await expect(invokePracticeVoiceAction("minus-lens", "request-report", reportRoot)).resolves.toEqual({ accepted: true, spokenText: "The letters remain blurred; I cannot clear them." });
+    expect(reportClick).not.toHaveBeenCalled();
   });
   it("routes stereopsis fixation and speaks only the synchronous current-page reply", async () => {
     const fixationClick = vi.fn();

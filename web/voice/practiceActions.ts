@@ -30,6 +30,8 @@ const npcInstruction = action("fixate-target", ["look at the target", "fixate th
 const fusionalInstruction = action("fixate-target", ["look at the target", "fixate the target", "tell me when it first blurs becomes double and becomes single again", "report blur double and recovery", "tell me when it blurs doubles and becomes single again"], ["report first sustained blur, double, and single again", "blur / double / recovery instruction"], "Okay, I am looking at the target.");
 const verticalFusionalInstruction = action("fixate-target", ["look at the target", "fixate the target", "tell me when it becomes double and becomes single again", "report double and recovery", "tell me when it doubles and becomes single again"], ["report sustained double, then single again", "double / recovery instruction"], "Okay, I am looking at the target and will report sustained double vision and when it becomes single again.");
 const nearFusionalInstruction = action("fixate-target", ["look at the near target", "fixate the near target", "tell me when it first blurs becomes double and becomes single again", "report near blur double and recovery"], ["report first sustained blur, double, and single again", "blur / double / recovery instruction"], "Okay, I am looking at the near target and will report sustained blur, double vision, and when it becomes single again.");
+const minusLensInstruction = action("fixate-target", ["look at the near target", "fixate the near target", "tell me when it first becomes blurred", "report the first sustained blur"], ["give first sustained blur instruction"], "Okay, I am reading the line and will report the first blur that remains blurred.");
+const relativeInstruction = action("fixate-target", ["look at the near target", "keep the line clear and single", "tell me when it first becomes blurred", "report the first sustained blur"], ["give clear / single / sustained blur instruction"], "Okay, I will keep the line clear and single and report the first blur that remains blurred.");
 const reportStereo = action("request-report", ["which circle appears raised", "which circle is raised", "which circle is closer", "does one circle stand out", "what do you see", "tell me what you see"], ["ask which circle is raised"], "I can report what I see now that the examination setup is ready.");
 const targetOn = action("target-on", ["turn on the target", "switch the worth lights on", "switch the worth target on"], ["switch target on"], "Worth target switched on.");
 const targetOff = action("target-off", ["turn off the target", "switch the worth lights off", "switch the worth target off"], ["switch target off"], "Worth target switched off.");
@@ -56,8 +58,8 @@ export const PRACTICE_VOICE_ACTIONS: Record<PracticeLessonId, readonly PracticeV
   "horizontal-near": [nearFusionalInstruction, reportPercept],
   facility: [fixateTarget, reportClear],
   "push-up": [fixateTarget, reportPercept],
-  "minus-lens": [fixateTarget, reportPercept],
-  relative: [fixateTarget, reportPercept],
+  "minus-lens": [minusLensInstruction, reportPercept],
+  relative: [relativeInstruction, reportPercept],
   "accommodative-facility": [fixateTarget, reportClear],
 };
 
@@ -77,7 +79,7 @@ export async function invokePracticeVoiceAction(lessonId: PracticeLessonId, acti
   const existingReport = root.querySelector?.<HTMLElement>("[data-voice-report]")?.innerText.trim();
   // A repeat question reads the immutable engine-owned capture. It must not
   // click the reporting control and start another procedure.
-  if ((lessonId === "thorington" || lessonId === "npc" || lessonId === "horizontal-distance" || lessonId === "vertical-distance" || lessonId === "horizontal-near") && actionId === "request-report" && existingReport)
+  if ((lessonId === "thorington" || lessonId === "npc" || lessonId === "horizontal-distance" || lessonId === "vertical-distance" || lessonId === "horizontal-near" || lessonId === "minus-lens" || lessonId === "relative") && actionId === "request-report" && existingReport)
     return { accepted: true, spokenText: existingReport.slice(0, 1000) };
   const buttons = [...root.querySelectorAll<HTMLButtonElement>("button")].filter(usableButton);
   const control = buttons.find((button) => candidate.controls.some((fragment) => normalized(button.innerText || button.getAttribute("aria-label") || "").includes(normalized(fragment))));

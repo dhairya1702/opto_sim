@@ -2,12 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { worthCases, worthDots } from "../../interaction/worth";
 import { captureWorthReport, recordWorthEndpoint, WORTH_GUIDED_STEP_COUNT, worthCaptureSubmission, worthComparisonComplete, worthGuidedStep, xrWorthTechnique,
-  type WorthCapture, type WorthEndpoint, type WorthFilter, type WorthRecords } from "../../interaction/xrWorthPractice";
+  type WorthCapture, type WorthEndpoint, type WorthRecords } from "../../interaction/xrWorthPractice";
 import { useXRClinicRuntime } from "../../interaction/useXRClinicRuntime";
 import { isPatientFitted, sensoryEquipment, sensoryFittingSignature, sensorySockets, sensoryTargetCondition } from "../../interaction/xrSensoryEquipment";
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
 import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
-import { XRHeadPanel, XRPanelButton, XRSign } from "../../scene/XRClinicPanels";
+import { XRSign } from "../../scene/XRClinicPanels";
 import { Box } from "../../scene/Models";
 import { PracticeLessonUI, usePracticeLesson, type BatchMirror, type LessonAction, type LessonField } from "./PracticeLessonUI";
 import { usePracticeAttempt } from "../PracticeAttemptContext";
@@ -17,7 +17,6 @@ const fields: LessonField[] = [
   { id: "interpretation", label: "Interpretation", choices: [["flat-fusion", "Flat fusion"], ["left-suppression", "Left-eye suppression"],
     ["right-suppression", "Right-eye suppression"], ["eso", "Eso · uncrossed"], ["exo", "Exo · crossed"], ["left-hyper", "Left hyper"], ["right-hyper", "Right hyper"]] },
 ];
-const noChecks = () => ({ red: false, green: false });
 function ReportDots({ finding }: { finding: WorthCapture["finding"] }) {
   return <group userData={{ xrIgnoreRay: true }}>{worthDots(finding).map((dot, i) => <mesh key={i} position={[dot.x * .001, -dot.y * .001, .018]}>
     <circleGeometry args={[.008, 24]} /><meshBasicMaterial color={dot.color} />
@@ -32,8 +31,6 @@ export function WorthPracticeController({ active, preview = false, onComplete, o
   const [index, setIndex] = useState(0);
   const lesson = usePracticeLesson(onComplete);
   const attempt = useRef(0), revision = useRef(0);
-  const verifiedRef = useRef(noChecks()), filterRef = useRef<WorthFilter | null>(null);
-  const [verified, setVerified] = useState(noChecks), [filter, setFilter] = useState<WorthFilter | null>(null);
   const capturedRef = useRef<WorthCapture | null>(null), recordsRef = useRef<WorthRecords>({});
   const [captured, setCaptured] = useState<WorthCapture | null>(null), [records, setRecords] = useState<WorthRecords>({});
   const fixationRef = useRef<WorthEndpoint | null>(null);
@@ -51,7 +48,7 @@ export function WorthPracticeController({ active, preview = false, onComplete, o
     const pose = runtime.supportedWorkingPose("worth", true);
     return { active: active && !preview && runtime.frameValid.current,
     correction: isPatientFitted(runtime.toolsRef.current, "subjective"), glasses: isPatientFitted(runtime.toolsRef.current, "red-green"),
-    light: runtime.toolsRef.current.worth.powered, verified: verifiedRef.current, filter: filterRef.current,
+    light: runtime.toolsRef.current.worth.powered,
     fixationEndpoint: fixationRef.current,
     condition: pose ? sensoryTargetCondition(pose, runtime.toolsRef.current) : { distanceCm: 0, endpoint: null, facing: false },
   }; };
@@ -60,7 +57,6 @@ export function WorthPracticeController({ active, preview = false, onComplete, o
   const clearCapture = () => { capturedRef.current = null; setCaptured(null); clearPending(); };
   const resetComparison = () => {
     revision.current++; clearCapture(); recordsRef.current = {}; setRecords({}); lesson.reset();
-    verifiedRef.current = noChecks(); setVerified(noChecks()); filterRef.current = null; setFilter(null);
     fixationRef.current = null; setFixationEndpoint(null);
   };
   const clock = useRef(0);
@@ -70,7 +66,7 @@ export function WorthPracticeController({ active, preview = false, onComplete, o
     const key = sensoryFittingSignature(runtime.toolsRef.current, ["subjective", "red-green"]);
     if (fittedKey.current !== key) {
       const revised = Boolean(capturedRef.current || recordsRef.current.near || recordsRef.current.distance
-        || verifiedRef.current.red || verifiedRef.current.green || fixationRef.current);
+        || fixationRef.current);
       fittedKey.current = key; resetComparison();
       if (revised) setRestartNotice("Correction or filters changed—the comparison has restarted.");
     }
@@ -88,7 +84,7 @@ export function WorthPracticeController({ active, preview = false, onComplete, o
   });
   const reset = useCallback(() => {
     attempt.current++; revision.current++; capturedRef.current = null; setCaptured(null); recordsRef.current = {}; setRecords({});
-    verifiedRef.current = noChecks(); setVerified(noChecks()); filterRef.current = null; setFilter(null); fittedKey.current = "";
+    fittedKey.current = "";
     fixationRef.current = null; setFixationEndpoint(null); fixationCondition.current = "";
     setRestartNotice("");
     lesson.reset(); runtime.resetClinic();
@@ -98,23 +94,9 @@ export function WorthPracticeController({ active, preview = false, onComplete, o
   const setPower = (powered: boolean) => {
     if (!active || preview || lesson.awarded.current) return;
     if (runtime.toolsRef.current.worth.powered === powered) return;
-    clearCapture(); filterRef.current = null; setFilter(null);
+    clearCapture();
     fixationRef.current = null; setFixationEndpoint(null);
     runtime.setToolPower("worth", powered);
-  };
-  const check = (value: WorthFilter) => {
-    if (lesson.awarded.current || !xrWorthTechnique(sample()).filterReady) return;
-    // Rechecking a filter explicitly begins a new comparison.
-    revision.current++; clearCapture(); recordsRef.current = {}; setRecords({});
-    verifiedRef.current = { ...verifiedRef.current, [value]: false }; setVerified(verifiedRef.current);
-    filterRef.current = value; setFilter(value); lesson.setMode("settings");
-  };
-  const confirm = () => {
-    const value = filterRef.current;
-    if (!value || !xrWorthTechnique(sample()).filterReady) return;
-    verifiedRef.current = { ...verifiedRef.current, [value]: true }; setVerified(verifiedRef.current);
-    if (verifiedRef.current.red && verifiedRef.current.green) setRestartNotice("");
-    filterRef.current = null; setFilter(null); lesson.setMode("none");
   };
   function ask() {
     if (lesson.awarded.current || capturedRef.current || !active || preview) return;
@@ -125,8 +107,8 @@ export function WorthPracticeController({ active, preview = false, onComplete, o
   const fixate = () => {
     if (!active || preview || lesson.awarded.current) return;
     const live = sample();
-    const filterReady = xrWorthTechnique({ ...live, fixationEndpoint: live.condition.endpoint }).filterReady;
-    if (!live.condition.endpoint || !filterReady || !live.verified.red || !live.verified.green || live.filter) return;
+    const setupReady = xrWorthTechnique({ ...live, fixationEndpoint: live.condition.endpoint }).setupReady;
+    if (!live.condition.endpoint || !setupReady) return;
     fixationRef.current = live.condition.endpoint; setFixationEndpoint(live.condition.endpoint);
   };
   const askFresh = () => {
@@ -152,12 +134,10 @@ export function WorthPracticeController({ active, preview = false, onComplete, o
   const next = () => { if (active && !preview) { reset(); setIndex(value => (value + 1) % worthCases.length); } };
   const history = `Near ${records.near ? "recorded" : "pending"} · distance ${records.distance ? "recorded" : "pending"}`;
   const conditionLabel = technique.endpoint === "distance" ? "simulated mirrored 6 m path" : `${Math.round(technique.distanceCm)} cm`;
-  const status = (filter ? `${filter === "red" ? "Red OD: green blocked, two red visible" : "Green OS: red blocked, three green visible"} · illustrative isolated-filter view; confirm then return to binocular viewing.`
-    : captured ? `${captured.report} · captured ${captured.endpoint ?? "intermediate"} at ${Math.round(captured.actualDistanceCm)} cm`
+  const status = (captured ? `${captured.report} · captured ${captured.endpoint ?? "intermediate"} at ${Math.round(captured.actualDistanceCm)} cm`
     : !isPatientFitted(runtime.tools, "subjective") ? "Fit the trial frame with correction to the patient."
     : !isPatientFitted(runtime.tools, "red-green") ? "Fit red OD / green OS glasses to the patient."
     : !runtime.tools.worth.powered ? "Turn on the Worth target."
-    : !verified.red || !verified.green ? "Inspect and confirm each isolated filter view."
     : !technique.facing ? "Face the illuminated target toward the patient or seat it in the distance dock."
     : !technique.endpoint ? `Reposition the target from ${Math.round(technique.distanceCm)} cm to the 40 cm stand or the tagged distance dock.`
     : technique.endpoint && fixationEndpoint !== technique.endpoint ? `Ask Arun to look at the ${technique.endpoint === "near" ? "near" : "mirrored distance"} target.`
@@ -167,45 +147,29 @@ export function WorthPracticeController({ active, preview = false, onComplete, o
     run: () => setPower(requestedPower) };
   const fixationAction: LessonAction = { label: fixationEndpoint === technique.endpoint && fixationEndpoint !== null ? "LOOKING AT TARGET ✓" : "LOOK AT THE TARGET",
     active: fixationEndpoint === technique.endpoint && fixationEndpoint !== null,
-    disabled: !technique.filterReady || !verified.red || !verified.green || !technique.endpoint || Boolean(filter) || lesson.recorded, run: fixate };
+    disabled: !technique.setupReady || !technique.endpoint || lesson.recorded, run: fixate };
   const reportAction: LessonAction = { label: "ASK COUNT, COLOURS AND POSITIONS", disabled: !technique.ready || lesson.recorded, run: askFresh };
-  const redAction: LessonAction = { label: verified.red ? "RED FILTER CHECK ✓" : "CHECK RED FILTER", disabled: !technique.filterReady || lesson.recorded, run: () => check("red") };
-  const greenAction: LessonAction = { label: verified.green ? "GREEN FILTER CHECK ✓" : "CHECK GREEN FILTER", disabled: !technique.filterReady || lesson.recorded, run: () => check("green") };
   const actions: LessonAction[] = [
     powerAction,
     fixationAction,
     reportAction,
-    redAction,
-    greenAction,
-    ...(filter ? [{ label: "CONFIRM ISOLATED FILTER VIEW", disabled: !technique.filterReady, run: confirm }] : []),
     { label: "NEW PATIENT PATTERN", run: next },
   ];
   const ready = active && !preview && Boolean(captured?.endpoint && !records[captured.endpoint]);
   const guidance = worthGuidedStep({ correctionFitted: isPatientFitted(runtime.tools, "subjective"), filtersFitted: isPatientFitted(runtime.tools, "red-green"),
     targetHandled: (runtime.tools.worth.revision ?? 0) > 0, targetHeld: runtime.tools.worth.placement.kind === "held", powered: runtime.tools.worth.powered,
-    condition: { endpoint: technique.endpoint, facing: technique.facing, distanceCm: technique.distanceCm }, verified,
+    condition: { endpoint: technique.endpoint, facing: technique.facing, distanceCm: technique.distanceCm },
     fixationEndpoint, captureEndpoint: captured?.endpoint ?? null, nearRecorded: Boolean(records.near), distanceRecorded: Boolean(records.distance) });
   const directActions = !runtime.tools.worth.powered ? [powerAction]
-    : !verified.red ? [redAction]
-      : !verified.green ? [greenAction]
-        : technique.endpoint && fixationEndpoint !== technique.endpoint ? [fixationAction]
-          : technique.endpoint && !captured ? [reportAction] : [];
+    : technique.endpoint && fixationEndpoint !== technique.endpoint ? [fixationAction]
+      : technique.endpoint && !captured ? [reportAction] : [];
   const voiceReport = captured ? `I see ${captured.report.charAt(0).toLowerCase()}${captured.report.slice(1)}` : undefined;
   useEffect(() => { onMirror?.({ title: "Worth four dot", voiceReport, reportLines: Object.values(records).map(record => `${record.capture.endpoint}: ${record.capture.report} Entered ${record.submittedCount} dots · ${record.submittedInterpretation}`), findingPosition: { current: index + 1, total: worthCases.length }, status, ready,
     entryReady: ready, fields, actions, lesson, reset, record, next, cancel }); },
-    [onMirror, status, ready, technique.ready, technique.filterReady, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, index, verified, filter, runtime.tools, voiceReport]);
-  const settings = <XRHeadPanel>
-    <Box s={[.76, .76, .018]} c="#102329" radius={.012} />
-    <XRSign text={[`${filter === "red" ? "RED OD" : "GREEN OS"} · ISOLATED FILTER CHECK`, "Illustrative cancellation; not measured through the headset.",
-      filter === "red" ? "Green blocked · two red dots visible" : "Red blocked · three green dots visible"]} p={[0, .23, .012]} size={[.70, .23]} bg="#102329" fg="#eefbf7" />
-    {filter && <ReportDots finding={filter === "red" ? "suppress-os" : "suppress-od"} />}
-    <XRPanelButton label="CONFIRM ISOLATED FILTER VIEW" position={[0, -.16, .025]} width={.70} disabled={!technique.filterReady || !filter} onClick={confirm} />
-    <XRPanelButton label="CANCEL FILTER CHECK" position={[-.18, -.25, .025]} width={.34} onClick={() => { filterRef.current = null; setFilter(null); lesson.setMode("none"); }} />
-    <XRPanelButton label="EXIT VR" position={[.18, -.25, .025]} width={.34} onClick={onExit} />
-  </XRHeadPanel>;
+    [onMirror, status, ready, technique.ready, technique.setupReady, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, index, runtime.tools, voiceReport]);
   return <>
     <XRClinicRuntimeView cleanHands runtime={runtime} active={active} preview={preview} sensoryStation="worth" title="WORTH FOUR DOT · PRACTICE"
-      instruction="Fit frames · check filters · move target · ask and record each endpoint" showWallInstructions={!guided}
+      instruction="Fit frames · move target · ask and record each endpoint" showWallInstructions={!guided}
       showInstructionalHighlights={guided}
       instrumentSettings={{ worth: { powered: runtime.tools.worth.powered, onPowerChange: setPower } }} />
     {(active || preview) && guided && <XRGuidedStepBubble stepId={guidance.id} stepNumber={guidance.index + 1}
@@ -216,8 +180,8 @@ export function WorthPracticeController({ active, preview = false, onComplete, o
       <group position={[0, -.05, .015]}><ReportDots finding={captured.finding} /></group>
     </group>}
     <PracticeLessonUI runtime={runtime} active={active} title="WORTH FOUR DOT" status={status} tools={["subjective", "red-green", "worth"]} actions={actions} directActions={directActions} fields={fields}
-      lesson={lesson} entryReady={ready} ready={ready} onRecord={record} onReset={reset} onNext={next} onExit={onExit} onCancel={cancel} settings={settings}
+      lesson={lesson} entryReady={ready} ready={ready} onRecord={record} onReset={reset} onNext={next} onExit={onExit} onCancel={cancel}
       forceBoardVisible={Boolean(captured)}
-      help={["Fit correction, then red OD / green OS glasses.", "Turn target on; inspect and confirm each isolated filter.", "Near: face target to patient at about 40 cm or use stand.", "Distance: seat target in the simulated mirrored 6 m dock.", "Ask for count, colours and positions at each condition.", "Report captures survive release. Enter your own count and interpretation."]} />
+      help={["Fit correction, then the fixed red OD / green OS glasses.", "Turn on the Worth target.", "Near: face target to patient at about 40 cm or use stand.", "Distance: seat target in the simulated mirrored 6 m dock.", "Ask for count, colours and positions at each condition.", "Report captures survive release. Enter your own count and interpretation."]} />
   </>;
 }

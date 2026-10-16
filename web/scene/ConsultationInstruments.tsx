@@ -20,7 +20,7 @@ export function ConsultationInstrumentModel({ id, powered, fundusView, brucknerV
     target.position.set(0, .7, 0);
     return target;
   }, []);
-  if (["maddox", "thorington", "trial-lens", "lens-flipper", "prism-flipper", "vergence-prism", "fixation", "npc-rule"].includes(id)) return <LibraryInstrumentModel id={id} setting={settings?.[id]} />;
+  if (["maddox", "thorington", "trial-lens", "minus-lens-holder", "lens-flipper", "prism-flipper", "vergence-prism", "fixation", "npc-rule", "push-up-rule"].includes(id)) return <LibraryInstrumentModel id={id} setting={settings?.[id]} />;
   if (["worth", "red-green", "polarised", "stereo", "four-prism"].includes(id)) return <SensoryInstrumentModel id={id} powered={powered} point={settings?.[id]?.point}
     onPowerChange={settings?.[id]?.onPowerChange} />;
   if (id === "prism") {
@@ -48,7 +48,9 @@ export function ConsultationInstrumentModel({ id, powered, fundusView, brucknerV
     <Retinoscope p={[0, -.1, 0]} r={[0, 0, 0]} ophthalmo={id === "fundus"} showApertureSelector={id !== "fundus"} />
     <XRScopeOptics powered={powered} ophthalmo={id === "fundus"} view={fundusView} brucknerView={id === "fundus" ? brucknerView : undefined} scopeControl={id === "fundus" ? scopeControl : undefined} />
   </group>;
-  if (id === "near") return <NearVisionCard r={[Math.PI / 2, 0, 0]} isolated={settings?.near?.isolatedTarget} />;
+  if (id === "near") return <group><NearVisionCard r={[Math.PI / 2, 0, 0]} isolated={settings?.near?.isolatedTarget} />
+    {settings?.near?.readableTarget && <XRSign text={["C D H N O", "READ THIS LINE"]} p={[.015, -.011, 0]} size={[.145, .055]} rotation={[Math.PI / 2, 0, 0]} bg="#f3f0df" fg="#162d2c" />}
+  </group>;
   if (id === "subjective") return <TrialFrameModel />;
   const target = id === "motility";
   return <group>

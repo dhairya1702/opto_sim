@@ -2,23 +2,20 @@ import { interpretWorth, worthReports, type WorthFinding } from "./sensory";
 import { worthAtDistance, worthDots, type WorthCase } from "./worth";
 
 export type WorthEndpoint = "near" | "distance";
-export type WorthFilter = "red" | "green";
 export type WorthCondition = Readonly<{ distanceCm: number; endpoint: WorthEndpoint | null; facing: boolean }>;
 export type XRWorthInput = {
   active: boolean; correction: boolean; glasses: boolean; light: boolean;
-  verified: Readonly<Record<WorthFilter, boolean>>; filter: WorthFilter | null;
   fixationEndpoint?: WorthEndpoint | null;
   condition: WorthCondition;
 };
 export function xrWorthTechnique(input: XRWorthInput) {
-  const filterReady = input.active && input.correction && input.glasses && input.light && input.condition.facing
+  const setupReady = input.active && input.correction && input.glasses && input.light && input.condition.facing
     && Number.isFinite(input.condition.distanceCm) && input.condition.distanceCm > 0;
-  const ready = filterReady && input.verified.red && input.verified.green && !input.filter
-    && input.condition.endpoint !== null && input.fixationEndpoint === input.condition.endpoint;
-  return { ...input.condition, filterReady, ready, endpointReady: ready && input.condition.endpoint !== null };
+  const ready = setupReady && input.condition.endpoint !== null && input.fixationEndpoint === input.condition.endpoint;
+  return { ...input.condition, setupReady, ready, endpointReady: ready && input.condition.endpoint !== null };
 }
 
-export const WORTH_GUIDED_STEP_COUNT = 14;
+export const WORTH_GUIDED_STEP_COUNT = 12;
 export type WorthGuidedState = Readonly<{
   correctionFitted: boolean;
   filtersFitted: boolean;
@@ -26,7 +23,6 @@ export type WorthGuidedState = Readonly<{
   targetHeld: boolean;
   powered: boolean;
   condition: WorthCondition;
-  verified: Readonly<Record<WorthFilter, boolean>>;
   fixationEndpoint: WorthEndpoint | null;
   captureEndpoint: WorthEndpoint | null;
   nearRecorded: boolean;
@@ -46,7 +42,7 @@ const guided = (id: string, index: number, title: string, lines: readonly string
 /** Pure, event/state-driven Worth coach. It never owns findings or interpretation rules. */
 export function worthGuidedStep(state: WorthGuidedState): WorthGuidedStep {
   if (state.nearRecorded && state.distanceRecorded)
-    return guided("complete", 13, "Worth comparison complete", ["Near and mirrored-distance findings are independently recorded."], true);
+    return guided("complete", 11, "Worth comparison complete", ["Near and mirrored-distance findings are independently recorded."], true);
   if (!state.correctionFitted)
     return guided("fit-correction", 0, "Fit the patient's correction", ["Pick up the correction frame and fit it at the patient bridge."]);
   if (!state.filtersFitted)
@@ -65,28 +61,24 @@ export function worthGuidedStep(state: WorthGuidedState): WorthGuidedStep {
     }
     if (!state.powered)
       return guided("power-target", 4, "Switch the target on", ["Use the free-hand side switch, say ‘turn on the target’, or use the board control."]);
-    if (!state.verified.red)
-      return guided("check-red", 5, "Check the red filter", ["Open the isolated red-filter view, check that green is blocked, then confirm it."]);
-    if (!state.verified.green)
-      return guided("check-green", 6, "Check the green filter", ["Check that red is blocked in the isolated green-filter view, then confirm it."]);
     if (state.fixationEndpoint !== "near")
-      return guided("fixate-near", 7, "Establish near fixation", ["Ask Arun to look at the illuminated near target."]);
+      return guided("fixate-near", 5, "Establish near fixation", ["Ask Arun to look at the illuminated near target."]);
     if (state.captureEndpoint !== "near")
-      return guided("elicit-near", 8, "Elicit the near report", ["Ask how many dots he sees, their colours, and their relative positions."]);
-    return guided("record-near", 9, "Record the near finding", ["Enter both the dot count and interpretation, then submit the near record."]);
+      return guided("elicit-near", 6, "Elicit the near report", ["Ask how many dots he sees, their colours, and their relative positions."]);
+    return guided("record-near", 7, "Record the near finding", ["Enter both the dot count and interpretation, then submit the near record."]);
   }
 
   if (state.condition.endpoint !== "distance") {
     const correction = !state.condition.facing && state.targetHandled
       ? "Seat the target facing the mirror; reverse it if the face points toward Arun."
       : "Move the same powered target to the tagged distance dock.";
-    return guided("dock-distance", 10, "Place the distance target", [correction, "The mirror provides an illustrative simulated 6 m path."]);
+    return guided("dock-distance", 8, "Place the distance target", [correction, "The mirror provides an illustrative simulated 6 m path."]);
   }
   if (state.fixationEndpoint !== "distance")
-    return guided("fixate-distance", 11, "Re-establish distance fixation", ["Ask Arun to look at the target in the mirror."]);
+    return guided("fixate-distance", 9, "Re-establish distance fixation", ["Ask Arun to look at the target in the mirror."]);
   if (state.captureEndpoint !== "distance")
-    return guided("elicit-distance", 12, "Elicit the distance report", ["Ask again for the number, colours, and relative positions."]);
-  return guided("record-distance", 13, "Record the distance finding", ["Enter the dot count and interpretation, then submit the distance record."]);
+    return guided("elicit-distance", 10, "Elicit the distance report", ["Ask again for the number, colours, and relative positions."]);
+  return guided("record-distance", 11, "Record the distance finding", ["Enter the dot count and interpretation, then submit the distance record."]);
 }
 export type WorthCapture = Readonly<{
   attempt: number; revision: number; endpoint: WorthEndpoint | null; nominalDistanceCm: 40 | 600 | null;

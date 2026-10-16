@@ -3,16 +3,16 @@ import { WORTH_GUIDED_STEP_COUNT, worthGuidedStep, type WorthGuidedState } from 
 
 const base = (): WorthGuidedState => ({
   correctionFitted: false, filtersFitted: false, targetHandled: false, targetHeld: false, powered: false,
-  condition: { distanceCm: 0, endpoint: null, facing: false }, verified: { red: false, green: false },
+  condition: { distanceCm: 0, endpoint: null, facing: false },
   fixationEndpoint: null, captureEndpoint: null, nearRecorded: false, distanceRecorded: false,
 });
 const step = (patch: Partial<WorthGuidedState>) => worthGuidedStep({ ...base(), ...patch });
 const nearSetup = (): WorthGuidedState => ({ ...base(), correctionFitted: true, filtersFitted: true, targetHandled: true, targetHeld: true,
-  powered: true, condition: { distanceCm: 40, endpoint: "near", facing: true }, verified: { red: true, green: true } });
+  powered: true, condition: { distanceCm: 40, endpoint: "near", facing: true } });
 
 describe("Worth Guided state coach", () => {
-  it("has fourteen canonical event-driven steps through near capture and record", () => {
-    expect(WORTH_GUIDED_STEP_COUNT).toBe(14);
+  it("has twelve canonical event-driven steps through near capture and record", () => {
+    expect(WORTH_GUIDED_STEP_COUNT).toBe(12);
     expect(step({}).id).toBe("fit-correction");
     expect(step({ correctionFitted: true }).id).toBe("fit-filters");
     expect(step({ correctionFitted: true, filtersFitted: true }).id).toBe("pick-up-target");
@@ -22,8 +22,6 @@ describe("Worth Guided state coach", () => {
       condition: { distanceCm: 40, endpoint: null, facing: false } }).lines.join(" ")).toContain("Turn");
     const ready = nearSetup();
     expect(worthGuidedStep({ ...ready, powered: false }).id).toBe("power-target");
-    expect(worthGuidedStep({ ...ready, verified: { red: false, green: false } }).id).toBe("check-red");
-    expect(worthGuidedStep({ ...ready, verified: { red: true, green: false } }).id).toBe("check-green");
     expect(worthGuidedStep(ready).id).toBe("fixate-near");
     expect(worthGuidedStep({ ...ready, fixationEndpoint: "near" }).id).toBe("elicit-near");
     expect(worthGuidedStep({ ...ready, fixationEndpoint: "near", captureEndpoint: "near" }).id).toBe("record-near");
@@ -37,7 +35,7 @@ describe("Worth Guided state coach", () => {
     expect(worthGuidedStep({ ...distance, fixationEndpoint: "distance" }).id).toBe("elicit-distance");
     expect(worthGuidedStep({ ...distance, fixationEndpoint: "distance", captureEndpoint: "distance" }).id).toBe("record-distance");
     const complete = worthGuidedStep({ ...distance, nearRecorded: true, distanceRecorded: true });
-    expect(complete.complete).toBe(true); expect(complete.index).toBe(13);
+    expect(complete.complete).toBe(true); expect(complete.index).toBe(11);
   });
 
   it("retains a valid out-of-order distance record but coaches the missing near endpoint", () => {

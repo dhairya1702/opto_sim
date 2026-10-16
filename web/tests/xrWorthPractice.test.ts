@@ -4,7 +4,7 @@ import { worthAtDistance, worthCases, worthDots } from "../interaction/worth";
 import { interpretWorth, worthReports } from "../interaction/sensory";
 
 const input = (distanceCm = 40, endpoint: "near" | "distance" | null = "near"): XRWorthInput => ({ active: true, correction: true, glasses: true, light: true,
-  verified: { red: true, green: true }, filter: null, fixationEndpoint: endpoint, condition: { distanceCm, endpoint, facing: true } });
+  fixationEndpoint: endpoint, condition: { distanceCm, endpoint, facing: true } });
 describe("Worth XR report snapshots and independent endpoint recording", () => {
   it("preserves all eight authored patterns at both conditions without changing the physical target", () => {
     for (const scenario of worthCases) for (const [distance, endpoint] of [[40, "near"], [600, "distance"]] as const) {
@@ -15,13 +15,13 @@ describe("Worth XR report snapshots and independent endpoint recording", () => {
       expect(worthCaptureSubmission(capture, String(worthDots(finding).length), interpretWorth(finding), 3, 7)).toBe(true);
     }
   });
-  it("requires correction, fitted filters, lit/facing target and independent explicit confirmation of both filters", () => {
-    for (const patch of [{ active: false }, { correction: false }, { glasses: false }, { light: false }, { verified: { red: false, green: true } },
-      { verified: { red: true, green: false } }, { filter: "red" as const }, { condition: { distanceCm: 40, endpoint: "near" as const, facing: false } }]) {
+  it("requires correction, fitted filters and a lit, facing target without a redundant filter-confirmation gate", () => {
+    for (const patch of [{ active: false }, { correction: false }, { glasses: false }, { light: false },
+      { condition: { distanceCm: 40, endpoint: "near" as const, facing: false } }]) {
       const sample = { ...input(), ...patch };
       expect(xrWorthTechnique(sample).ready).toBe(false); expect(captureWorthReport(sample, "fusion", 1, 1)).toBeNull();
     }
-    expect(xrWorthTechnique({ ...input(), verified: { red: false, green: false } }).filterReady).toBe(true);
+    expect(xrWorthTechnique(input()).setupReady).toBe(true);
   });
   it("rejects intermediate reports before creating a recordable snapshot", () => {
     expect(captureWorthReport(input(150, null), "central-os", 1, 1)).toBeNull();

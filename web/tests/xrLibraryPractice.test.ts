@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { Quaternion, Vector3 } from "three";
 import { newVergenceFacility, flipVergenceFacility } from "../interaction/xrVergencePractice";
-import { accommodationEyes, pushUpEndpoint, minusLensEndpoint, newAccommodationFacility, flipAccommodationFacility } from "../interaction/xrAccommodationPractice";
+import { accommodationEyes, pushUpEndpoint, newAccommodationFacility, flipAccommodationFacility } from "../interaction/xrAccommodationPractice";
+import { MINUS_LENS_EYES } from "../interaction/minusLensProcedure";
+import { PUSH_UP_EYES } from "../interaction/pushUpProcedure";
 import { libraryDistance, libraryOpticPlacement, libraryNear, libraryOcclusion, libraryLightThroughCard, libraryEquipment, librarySockets, LIBRARY_TITLES } from "../interaction/xrLibraryEquipment";
-import { initialConsultationTools, grabConsultationTool, releaseConsultationTool } from "../interaction/xrConsultationTools";
+import { consultationToolDefinition, initialConsultationTools, grabConsultationTool, releaseConsultationTool } from "../interaction/xrConsultationTools";
 import { SENSORY_NEAR_TARGET } from "../interaction/xrSensoryEquipment";
 describe("remaining XR library sequences and geometry", () => {
   it("counts full timed pairs only after authored responses and before 60 seconds", () => {
@@ -11,10 +13,9 @@ describe("remaining XR library sequences and geometry", () => {
     vergence = flipVergenceFacility(vergence, 850, true); expect(vergence.cycles).toBe(0); vergence = flipVergenceFacility(vergence, 1500, true); expect(vergence.cycles).toBe(1); expect(flipVergenceFacility(vergence, 60000, true)).toBe(vergence);
     let accommodation = newAccommodationFacility(0); expect(flipAccommodationFacility(accommodation, 1499, true)).toBe(accommodation); accommodation = flipAccommodationFacility(accommodation, 1500, true); expect(accommodation.cycles).toBe(0); accommodation = flipAccommodationFacility(accommodation, 3300, true); expect(accommodation.cycles).toBe(1); expect(flipAccommodationFacility(accommodation, 60000, true)).toBe(accommodation);
   });
-  it("keeps actual push-up distance and calculation; gates minus-lens settling and required eyes", () => {
+  it("keeps actual push-up distance and calculation and dedicated minus-lens eyes", () => {
     expect(pushUpEndpoint("OD", 9.8, true, true)).toEqual({ distance: 9.8, amplitude: 10.2 }); expect(pushUpEndpoint("OD", 10.2, true, true)).toBeNull(); expect(pushUpEndpoint("OD", 10, false, true)).toBeNull(); expect(pushUpEndpoint("OS", 10, true, true)).toBeNull();
-    expect(minusLensEndpoint(-4, true, true)).toEqual({ amplitude: 6.5 }); expect(minusLensEndpoint(-4, false, true)).toBeNull(); expect(minusLensEndpoint(-3.75, true, true)).toBeNull();
-    expect(accommodationEyes("minus-lens")).toEqual(["OD", "OS"]); expect(accommodationEyes("relative")).toEqual(["OU"]); expect(accommodationEyes("push-up")).toEqual(["OD", "OS", "OU"]);
+    expect(MINUS_LENS_EYES).toEqual(["OD", "OS"]); expect(accommodationEyes("accommodative-facility")).toEqual(["OD", "OS", "OU"]); expect(PUSH_UP_EYES).toEqual(["OD", "OS", "OU"]);
   });
   it("uses spatial facing, spectacle-plane distances, near and optical alignment", () => {
     const pose = { position: [0, 1.5, -.111] as const, forward: [0, 0, -1] as const }; expect(libraryDistance(pose, true)).toEqual({ distanceCm: 40, ready: true }); expect(libraryDistance({ ...pose, forward: [0, 0, 1] }, true).ready).toBe(false);
@@ -31,6 +32,9 @@ describe("remaining XR library sequences and geometry", () => {
     expect(libraryEquipment("vertical-distance")).toEqual(["subjective", "vergence-prism"]);
     expect(libraryEquipment("horizontal-near")).toEqual(["subjective", "near", "vergence-prism"]);
     expect(libraryEquipment("facility")).toEqual(["subjective", "near", "prism-flipper"]);
+    expect(libraryEquipment("minus-lens")).toEqual(["subjective", "near", "minus-lens-holder", "cover"]);
+    expect(libraryEquipment("relative")).toEqual(["subjective", "near", "trial-lens"]);
+    expect(consultationToolDefinition("trial-lens")).toMatchObject({ label: "Binocular NRA / PRA lens holder", heldPose: "ray", workingPoint: [0, .1, 0] });
   });
   it("keeps both Maddox socket rotations on the same OD lens centre and rejects an intermediate roll", () => {
     const sockets = librarySockets("maddox").filter(socket => socket.tool === "maddox");

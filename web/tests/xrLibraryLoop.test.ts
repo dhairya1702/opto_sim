@@ -10,6 +10,9 @@ import { FusionalVergencePracticeController } from "../practice/xr/FusionalVerge
 import { VerticalFusionalVergencePracticeController } from "../practice/xr/VerticalFusionalVergencePracticeController";
 import { NearFusionalVergencePracticeController } from "../practice/xr/NearFusionalVergencePracticeController";
 import { AccommodationPracticeController } from "../practice/xr/AccommodationPracticeController";
+import { PushUpPracticeController } from "../practice/xr/PushUpPracticeController";
+import { MinusLensPracticeController } from "../practice/xr/MinusLensPracticeController";
+import { RelativeAccommodationPracticeController } from "../practice/xr/RelativeAccommodationPracticeController";
 import type { BatchMirror } from "../practice/xr/PracticeLessonUI";
 import { librarySockets, type LibraryKind } from "../interaction/xrLibraryEquipment";
 import { consultationToolDefinition, type ConsultationToolId } from "../interaction/xrConsultationTools";
@@ -23,7 +26,7 @@ async function lesson(kind: LibraryKind, preview = false, attemptKind?: Practice
   const complete = vi.fn(), leave = vi.fn();
   const sim = await clinic({ renderAdapter: ({ active }) => {
     const common = { active, preview, onComplete: complete, onExit: leave, onMirror: (next: BatchMirror) => { mirror = next; } };
-    const controller = kind === "maddox" || kind === "thorington" ? createElement(PhoriaPracticeController, { ...common, kind }) : kind === "npc" ? createElement(NPCPracticeController, common) : kind === "horizontal-distance" ? createElement(FusionalVergencePracticeController, common) : kind === "vertical-distance" ? createElement(VerticalFusionalVergencePracticeController, common) : kind === "horizontal-near" ? createElement(NearFusionalVergencePracticeController, common) : kind === "push-up" || kind === "minus-lens" || kind === "relative" || kind === "accommodative-facility" ? createElement(AccommodationPracticeController, { ...common, kind }) : createElement(VergencePracticeController, { ...common, kind });
+    const controller = kind === "maddox" || kind === "thorington" ? createElement(PhoriaPracticeController, { ...common, kind }) : kind === "npc" ? createElement(NPCPracticeController, common) : kind === "push-up" ? createElement(PushUpPracticeController, common) : kind === "minus-lens" ? createElement(MinusLensPracticeController, common) : kind === "relative" ? createElement(RelativeAccommodationPracticeController, common) : kind === "horizontal-distance" ? createElement(FusionalVergencePracticeController, common) : kind === "vertical-distance" ? createElement(VerticalFusionalVergencePracticeController, common) : kind === "horizontal-near" ? createElement(NearFusionalVergencePracticeController, common) : kind === "accommodative-facility" ? createElement(AccommodationPracticeController, { ...common, kind }) : createElement(VergencePracticeController, { ...common, kind });
     return attemptKind ? createElement(PracticeAttemptProvider, { value: { settings: { kind: attemptKind, interaction: "vr", voice: "enabled" }, setSettings: vi.fn() }, children: controller }) : controller;
   } }); dispose = sim.dispose;
   const action = async (label: string) => { const item = mirror!.actions.find(a => a.label === label); if (!item) throw new Error(`Missing ${label}: ${mirror!.actions.map(a => a.label).join(", ")}`); await act(async () => item.run()); await sim.step(1 / 72, 12); };
@@ -35,11 +38,45 @@ async function lesson(kind: LibraryKind, preview = false, attemptKind?: Practice
   const physicalTargetSwitch = async () => { const control = targetSwitch(), point = control.getWorldPosition(new Vector3()); await sim.at(0, [point.x, point.y, point.z + .025]); await sim.click(0, control); };
   const prismCell = async (power: number, base: "BI" | "BO" | "BU" | "BD") => { const index = MADDOX_PRISM_CELLS.indexOf(power as typeof MADDOX_PRISM_CELLS[number]); const angle = ({ BI: 0, BU: Math.PI / 2, BO: Math.PI, BD: -Math.PI / 2 } as const)[base], y = MADDOX_PRISM_CELL_Y[index]; sim.rays[1].rotation.set(0, 0, angle); sim.grips[1].rotation.set(0, 0, angle); await sim.at(1, [-.048 + Math.sin(angle) * y, 1.5 - Math.cos(angle) * y, -.481]); await tick(1); await tick(260); };
   const holdNearPenlight = async () => { await sim.pickup(0, "pupils"); sim.rays[0].rotation.set(0, 0, 0); sim.grips[0].rotation.set(0, 0, 0); await sim.at(0, [0, 1.5, .026]); await sim.event(0, "selectstart"); await sim.step(1 / 72, 12); };
-  const prepare = async (cover?: "OD" | "OS") => { await fit("subjective"); if (cover) await fit("cover", `sensory-occlude-${cover}`); if (["horizontal-near", "facility", "minus-lens", "relative", "accommodative-facility"].includes(kind)) await fit("near"); if (kind === "horizontal-near") { await action("CONFIRM PREPARED NEAR TARGET AT 40 CM"); await action("GIVE BLUR / DOUBLE / RECOVERY INSTRUCTION"); } else await action("ESTABLISH FIXATION"); };
+  const prepare = async (cover?: "OD" | "OS") => { await fit("subjective"); if (cover) await fit("cover", `sensory-occlude-${cover}`); if (kind === "push-up") { await fit("push-up-rule", "library-push-up-spectacle"); await action("GIVE FIRST SUSTAINED BLUR INSTRUCTION"); return; } if (["horizontal-near", "facility", "minus-lens", "relative", "accommodative-facility"].includes(kind)) await fit("near"); if (kind === "horizontal-near") { await action("CONFIRM PREPARED NEAR TARGET AT 40 CM"); await action("GIVE BLUR / DOUBLE / RECOVERY INSTRUCTION"); } else if (kind !== "minus-lens" && kind !== "relative") await action("ESTABLISH FIXATION"); };
   const noTest = () => { expect(sim.record).not.toHaveBeenCalled(); expect(sim.encounter().results).toHaveLength(0); };
   return { ...sim, mirror: () => mirror!, complete, leave, action, fit, enter, tick, settle, prepare, noTest, physicalTargetSwitch, prismCell, holdNearPenlight };
 }
 describe("mounted remaining shared-clinic XR modules", () => {
+  it("shows the seven-step Push-up coach and highlights only in Guided mode", async () => {
+    const guided = await lesson("push-up", false, "guided");
+    expect(guided.labels().join(" ")).toContain("GUIDED STEP 1 / 7");
+    let guidedHighlights = 0; guided.state.scene.traverse(object => { if (object.userData.xrInstructionalHighlight) guidedHighlights++; });
+    expect(guidedHighlights).toBeGreaterThan(0);
+    await dispose?.(); dispose = undefined;
+    const test = await lesson("push-up", false, "test");
+    expect(test.labels().join(" ")).not.toContain("GUIDED STEP");
+    let testHighlights = 0; test.state.scene.traverse(object => { if (object.userData.xrInstructionalHighlight) testHighlights++; });
+    expect(testHighlights).toBe(0);
+  });
+  it("stocks the monocular minus-lens holder and keeps its eight-step coach out of Test", async () => {
+    const guided = await lesson("minus-lens", true, "guided");
+    expect(guided.tool("minus-lens-holder")).toBeDefined();
+    expect(guided.labels().join(" ")).toContain("GUIDED STEP 1 / 8");
+    expect(guided.labels().join(" ")).toContain("C D H N O");
+    await dispose?.(); dispose = undefined;
+    const test = await lesson("minus-lens", true, "test");
+    expect(test.labels().join(" ")).not.toContain("GUIDED STEP");
+    expect(test.mirror().status).not.toContain("−4.00 D");
+  });
+  it("stocks the face-on binocular NRA/PRA holder and keeps its ten-step coach out of Test", async () => {
+    const guided = await lesson("relative", true, "guided");
+    expect(guided.tool("trial-lens")).toBeDefined();
+    expect(guided.labels().join(" ")).toContain("GUIDED STEP 1 / 10");
+    expect(guided.labels().join(" ")).toContain("C D H N O");
+    let apertures = 0; guided.tool("trial-lens").traverse(object => { if (object.userData.xrRelativeAccommodationAperture) apertures++; });
+    expect(apertures).toBe(2);
+    await dispose?.(); dispose = undefined;
+    const test = await lesson("relative", true, "test");
+    expect(test.labels().join(" ")).not.toContain("GUIDED STEP");
+    let highlights = 0; test.state.scene.traverse(object => { if (object.userData.xrInstructionalHighlight) highlights++; });
+    expect(highlights).toBe(0);
+  });
   it("shows the ten-step Maddox coach and fitting highlights only in Guided preview", async () => {
     const guided = await lesson("maddox", true, "guided");
     expect(guided.labels()).toContain("GUIDED · STEP 1 OF 10");
@@ -407,40 +444,78 @@ describe("mounted remaining shared-clinic XR modules", () => {
     expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
   });
   it("completes push-up OD, OS and OU with fitted occlusion and independently calculated amplitudes", async () => {
-    const sim = await lesson("push-up"); await sim.prepare("OS"); await sim.pickup(1, "fixation");
+    const sim = await lesson("push-up", false, "guided"); await sim.prepare("OS");
     for (let i = 0; i < 3; i++) {
-      if (i === 1) await sim.fit("cover", "sensory-occlude-OD"); if (i === 2) { await sim.pickup(0, "cover"); await sim.at(0, [-1.31, .9775, .59]); await sim.putDown(0); }
-      await sim.at(1, [0, 1.4, -.111]); await sim.step(1 / 72, 12); const cm = [10, 11, 12][i]; await sim.at(1, [0, 1.4, -.511 + cm / 100]); await sim.action("MARK SUSTAINED BLUR"); expect(sim.mirror().ready).toBe(true);
+      if (i === 1) { await sim.fit("cover", "sensory-occlude-OD"); await sim.action("GIVE FIRST SUSTAINED BLUR INSTRUCTION"); }
+      if (i === 2) { await sim.action("REMOVE COVER · TEST OU"); await sim.action("GIVE FIRST SUSTAINED BLUR INSTRUCTION"); }
+      const cm = [10, 11, 12][i];
+      await sim.event(1, "selectstart"); await sim.at(1, [0, 1.545, -.111]); await sim.tick(260);
+      for (let distance = 38; distance > cm; distance -= 2) await sim.at(1, [0, 1.545, -.511 + Math.max(cm, distance) / 100]);
+      await sim.at(1, [0, 1.545, -.511 + cm / 100]); await sim.tick(500); await sim.event(1, "selectend");
+      expect(sim.mirror().ready, sim.mirror().status).toBe(true);
       await sim.enter({ distance: String(cm), amplitude: (100 / cm).toFixed(2) });
     }
     expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
   });
-  it("settles quarter-dioptre minus lenses and records each monocular amplitude after release", async () => {
-    const sim = await lesson("minus-lens"); await sim.prepare("OS");
+  it("automatically freezes each monocular minus-lens endpoint and records raw power plus amplitude after release", async () => {
+    const sim = await lesson("minus-lens", false, "guided"); await sim.prepare("OS");
     for (let i = 0; i < 2; i++) {
-      if (i) await sim.fit("cover", "sensory-occlude-OD"); await sim.pickup(1, "trial-lens"); await sim.at(1, [0, 1.4, -.46]);
-      for (let step = 0; step < 16; step++) { await sim.settle(); await sim.action("ADD −0.25 D"); }
-      await sim.action("MARK SUSTAINED BLUR"); expect(sim.mirror().ready).toBe(false); await sim.settle(); await sim.action("MARK SUSTAINED BLUR"); expect(sim.mirror().ready).toBe(true);
-      await sim.putDown(1); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(true); await sim.enter({ amplitude: "6.5" });
+      if (i) await sim.fit("cover", "sensory-occlude-OD");
+      if (!i) await sim.pickup(1, "minus-lens-holder");
+      await sim.at(1, [i ? .048 : -.048, 1.4, -.46]);
+      await sim.action("GIVE FIRST SUSTAINED BLUR INSTRUCTION"); await sim.action("CONFIRM LINE CLEAR AT 0.00 D");
+      for (let step = 0; step < 16; step++) await sim.action("DIAL ADD −0.25 D · ACCESSIBILITY");
+      expect(sim.mirror().ready).toBe(false); await sim.tick(1200); expect(sim.mirror().ready, sim.mirror().status).toBe(true);
+      await sim.putDown(1); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(true); await sim.enter({ power: "-4", amplitude: "6.5" });
+      if (i === 0) await sim.pickup(1, "minus-lens-holder");
     }
     expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
   });
+  it("operates the minus-lens power dial with the free controller while the other hand holds the aperture", async () => {
+    const sim = await lesson("minus-lens", false, "guided"); await sim.prepare("OS");
+    await sim.pickup(1, "minus-lens-holder"); await sim.at(1, [-.048, 1.4, -.46]);
+    await sim.action("GIVE FIRST SUSTAINED BLUR INSTRUCTION"); await sim.action("CONFIRM LINE CLEAR AT 0.00 D");
+    const holder = sim.tool("minus-lens-holder");
+    const start = holder.localToWorld(new Vector3(.065, .095, .006));
+    await sim.at(0, start.toArray() as [number, number, number]); await sim.event(0, "selectstart"); await sim.step();
+    const turn = holder.localToWorld(new Vector3(.035, .085, .006));
+    await sim.at(0, turn.toArray() as [number, number, number]); await sim.step(1 / 72, 12);
+    expect(sim.mirror().status).toMatch(/scale -0\.(25|50|75) D/); expect(sim.haptics[0]).toHaveBeenCalled();
+    await sim.event(0, "selectend"); sim.noTest();
+  });
   it("requires NRA, restored clear baseline and PRA in order", async () => {
     const sim = await lesson("relative"); await sim.prepare(); await sim.pickup(1, "trial-lens"); await sim.at(1, [0, 1.4, -.46]);
-    for (let i = 0; i < 8; i++) { await sim.settle(); await sim.action("ADD +0.25 D"); } await sim.settle(); await sim.action("MARK SUSTAINED BLUR"); expect(sim.mirror().ready).toBe(false);
-    await sim.action("CONFIRM CLEAR BASELINE"); expect(sim.mirror().status).toContain("baseline");
-    for (let i = 0; i < 8; i++) { await sim.settle(); await sim.action("REMOVE +0.25 D"); } await sim.settle(); await sim.action("CONFIRM CLEAR BASELINE");
-    for (let i = 0; i < 9; i++) { await sim.settle(); await sim.action("ADD −0.25 D"); } await sim.settle(); await sim.action("MARK SUSTAINED BLUR"); expect(sim.mirror().ready).toBe(true);
+    await sim.action("GIVE CLEAR / SINGLE / SUSTAINED BLUR INSTRUCTION"); await sim.action("CONFIRM INITIAL CLEAR AT 0.00 D");
+    for (let i = 0; i < 8; i++) await sim.action("DIAL +0.25 D · ACCESSIBILITY");
+    await sim.tick(1200); expect(sim.mirror().ready).toBe(false); await sim.action("CONFIRM CLEAR BASELINE AT 0.00 D"); expect(sim.mirror().status).toContain("Remove all plus");
+    for (let i = 0; i < 8; i++) await sim.action("DIAL −0.25 D · ACCESSIBILITY"); await sim.action("CONFIRM CLEAR BASELINE AT 0.00 D");
+    for (let i = 0; i < 9; i++) await sim.action("DIAL −0.25 D · ACCESSIBILITY"); await sim.tick(1200); expect(sim.mirror().ready).toBe(true);
+    await sim.putDown(1); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(true);
     await sim.enter({ nra: "2", pra: "-2.25" }); expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
+  });
+  it("operates the NRA/PRA power dial with the free controller while the holder remains face-on", async () => {
+    const sim = await lesson("relative", false, "guided"); await sim.prepare(); await sim.pickup(1, "trial-lens"); await sim.at(1, [0, 1.4, -.46]);
+    await sim.action("GIVE CLEAR / SINGLE / SUSTAINED BLUR INSTRUCTION"); await sim.action("CONFIRM INITIAL CLEAR AT 0.00 D");
+    const holder = sim.tool("trial-lens");
+    const start = holder.localToWorld(new Vector3(.075, .085, .006));
+    await sim.at(0, start.toArray() as [number, number, number]); await sim.event(0, "selectstart"); await sim.step();
+    const turn = holder.localToWorld(new Vector3(.045, .075, .006));
+    await sim.at(0, turn.toArray() as [number, number, number]); await sim.step(1 / 72, 12);
+    expect(sim.mirror().status).toMatch(/scale \+0\.(25|50|75) D/); expect(sim.haptics[0]).toHaveBeenCalled();
+    await sim.event(0, "selectend"); sim.noTest();
   });
 
   it.each(["thorington", "push-up"] as const)("discards cancelled %s captures, invalidates refitting and ignores stale exit submission", async kind => {
     const sim = await lesson(kind);
     if (kind === "thorington") { await sim.fit("subjective"); await sim.fit("maddox", "sensory-maddox-horizontal"); await sim.fit("thorington"); await sim.pickup(1, "pupils"); await sim.at(1, [0, 1.425, .137]); await sim.event(1, "selectstart"); }
-    else { await sim.prepare(kind === "push-up" ? "OS" : undefined); await sim.pickup(1, "fixation"); }
+    else await sim.prepare("OS");
     const observe = async () => {
       if (kind === "thorington") { await sim.action("ASK NUMBER AND SIDE"); await sim.tick(1); await sim.tick(260); await sim.event(1, "selectend"); await sim.putDown(1); await sim.step(1 / 72, 12); }
-      else { await sim.at(1, [0, 1.4, -.111]); await sim.step(1 / 72, 12); await sim.at(1, [0, 1.4, -.411]); await sim.action("MARK SUSTAINED BLUR"); }
+      else {
+        await sim.action("GIVE FIRST SUSTAINED BLUR INSTRUCTION"); await sim.event(1, "selectstart"); await sim.at(1, [0, 1.545, -.111]); await sim.tick(260);
+        for (let cm = 38; cm >= 10; cm -= 2) await sim.at(1, [0, 1.545, -.511 + cm / 100]);
+        await sim.tick(500); await sim.event(1, "selectend");
+      }
     };
     await observe(); expect(sim.mirror().ready, sim.mirror().status).toBe(true);
     await act(async () => sim.mirror().cancel?.()); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(false); expect(sim.complete).not.toHaveBeenCalled();
@@ -467,9 +542,10 @@ describe("mounted remaining shared-clinic XR modules", () => {
   });
   it("uses paged signed decimal entries through real headset rays for NRA/PRA", async () => {
     const sim = await lesson("relative"); await sim.prepare(); await sim.pickup(1, "trial-lens"); await sim.at(1, [0, 1.4, -.46]);
-    for (let i = 0; i < 8; i++) { await sim.settle(); await sim.action("ADD +0.25 D"); } await sim.settle(); await sim.action("MARK SUSTAINED BLUR");
-    for (let i = 0; i < 8; i++) { await sim.settle(); await sim.action("REMOVE +0.25 D"); } await sim.settle(); await sim.action("CONFIRM CLEAR BASELINE");
-    for (let i = 0; i < 9; i++) { await sim.settle(); await sim.action("ADD −0.25 D"); } await sim.settle(); await sim.action("MARK SUSTAINED BLUR");
+    await sim.action("GIVE CLEAR / SINGLE / SUSTAINED BLUR INSTRUCTION"); await sim.action("CONFIRM INITIAL CLEAR AT 0.00 D");
+    for (let i = 0; i < 8; i++) await sim.action("DIAL +0.25 D · ACCESSIBILITY"); await sim.tick(1200);
+    for (let i = 0; i < 8; i++) await sim.action("DIAL −0.25 D · ACCESSIBILITY"); await sim.action("CONFIRM CLEAR BASELINE AT 0.00 D");
+    for (let i = 0; i < 9; i++) await sim.action("DIAL −0.25 D · ACCESSIBILITY"); await sim.tick(1200);
     await sim.putDown(1); await sim.panel(1); await sim.click(1, sim.button("RECORD FINDING"));
     await sim.click(1, sim.button("ENTRY +1 D")); await sim.click(1, sim.button("ENTRY +1 D")); expect(sim.mirror().lesson.entries.nra).toBe("2");
     await sim.click(1, sim.button("NEXT ENTRIES")); await sim.click(1, sim.button("ENTRY −1 D")); await sim.click(1, sim.button("ENTRY −1 D")); await sim.click(1, sim.button("ENTRY −0.25 D"));

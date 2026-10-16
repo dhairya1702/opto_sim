@@ -78,6 +78,17 @@ describe("sensory shared runtime foundation", () => {
     expect(isPatientFitted(sim.runtime().toolsRef.current, "red-green")).toBe(true);
     expect(sim.tool("red-green").position.equals(marker.position)).toBe(true);
   });
+  it("keeps the trial and red-green frames face-on instead of following the tilted grip pose", async () => {
+    const sim = await foundation("worth");
+    sim.grips[0].quaternion.setFromAxisAngle(new Vector3(1, 0, 0), Math.PI / 2);
+    sim.grips[1].quaternion.setFromAxisAngle(new Vector3(1, 0, 0), Math.PI / 2);
+    sim.rays[0].quaternion.identity();
+    sim.rays[1].quaternion.identity();
+    await sim.pickup(0, "subjective");
+    await sim.pickup(1, "red-green");
+    expect(sim.tool("subjective").getWorldQuaternion(new Quaternion()).angleTo(sim.rays[0].getWorldQuaternion(new Quaternion()))).toBeCloseTo(0);
+    expect(sim.tool("red-green").getWorldQuaternion(new Quaternion()).angleTo(sim.rays[1].getWorldQuaternion(new Quaternion()))).toBeCloseTo(0);
+  });
   it("keeps a flat card's footprint preview horizontal instead of tilting it with the model", async () => {
     const sim = await foundation(); await sim.pickup(0, "near");
     await sim.at(0, consultationToolDefinition("near").home);

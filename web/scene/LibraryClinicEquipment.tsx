@@ -10,8 +10,10 @@ export type ClinicInstrumentSetting = {
   distanceCm?: number;
   isolatedTarget?: boolean;
   highlightCarriage?: boolean;
+  highlightStart?: boolean;
   highlightAperture?: boolean;
   highlightDial?: boolean;
+  readableTarget?: boolean;
   profile?: "standard" | "maddox";
   anchorPower?: number; aligned?: boolean; reflexOffset?: number; showReflex?: boolean;
   powered?: boolean; onPowerChange?: (powered: boolean) => void;
@@ -85,12 +87,12 @@ function Lens({ x, material = "clear" }: { x: number; material?: "clear" | "red"
   </group>;
 }
 
-function FlipperModel({ id, setting }: { id: "trial-lens" | "lens-flipper" | "prism-flipper"; setting: ClinicInstrumentSetting }) {
+function FlipperModel({ id, setting }: { id: "lens-flipper" | "prism-flipper"; setting: ClinicInstrumentSetting }) {
   const label = id === "prism-flipper"
     ? setting.side === "BI" ? "3Δ BI" : "12Δ BO"
     : id === "lens-flipper"
       ? setting.side === "minus" ? "−2.00 D" : "+2.00 D"
-      : `${(setting.power ?? 0).toFixed(2)} D`;
+      : "+2.00 D";
   const rimAccent = id === "prism-flipper" ? accent : setting.side === "minus" || (setting.power ?? 0) < 0 ? "#b04f61" : "#488da0";
   return <group>
     <MoldedHandle />
@@ -98,13 +100,62 @@ function FlipperModel({ id, setting }: { id: "trial-lens" | "lens-flipper" | "pr
       <tubeGeometry args={[path, 16, .006, 10, false]} />
       <meshStandardMaterial color={shell} roughness={.54} metalness={.11} />
     </mesh>)}
-    <Lens x={-.065} material={id === "prism-flipper" ? "prism" : id === "trial-lens" ? "red" : "clear"} />
+    <Lens x={-.065} material={id === "prism-flipper" ? "prism" : "clear"} />
     <Lens x={.065} material={id === "prism-flipper" ? "prism" : "clear"} />
     {[-.065, .065].map(x => <mesh key={x} position={[x, .10, .010]}>
       <torusGeometry args={[.037, .0015, 6, 32]} />
       <meshStandardMaterial color={rimAccent} roughness={.42} metalness={.34} />
     </mesh>)}
     <XRSign text={[label]} p={[0, .005, .014]} size={[.058, .017]} bg="#173a3e" fg="#e8fff9" />
+  </group>;
+}
+
+function RelativeLensHolderModel({ power = 0, highlightAperture = false, highlightDial = false }: { power?: number; highlightAperture?: boolean; highlightDial?: boolean }) {
+  const bounded = Math.max(-2.25, Math.min(2, power));
+  const dialAngle = (2 - bounded) / 4.25 * Math.PI * 1.5;
+  return <group>
+    <MoldedHandle />
+    {[new CatmullRomCurve3([new Vector3(0, .057, 0), new Vector3(-.022, .073, 0), new Vector3(-.048, .088, 0)]),
+      new CatmullRomCurve3([new Vector3(0, .057, 0), new Vector3(.022, .073, 0), new Vector3(.048, .088, 0)])].map((path, index) => <mesh key={index} castShadow receiveShadow>
+      <tubeGeometry args={[path, 16, .006, 10, false]} /><meshStandardMaterial color={shell} roughness={.54} metalness={.11} />
+    </mesh>)}
+    {[-.048, .048].map(x => <group key={x} position={[x, .10, 0]} userData={{ xrRelativeAccommodationAperture: x < 0 ? "OD" : "OS" }}>
+      <mesh castShadow><torusGeometry args={[.038, .007, 12, 40]} /><meshStandardMaterial color={shell} roughness={.48} metalness={.16} /></mesh>
+      <mesh position={[0, 0, .005]} castShadow><circleGeometry args={[.031, 40]} /><meshPhysicalMaterial color="#b7dbea" transparent opacity={.48} transmission={.42} roughness={.12} /></mesh>
+      <mesh position={[0, 0, .009]}><torusGeometry args={[.031, .0015, 8, 36]} /><meshStandardMaterial color={bounded < 0 ? "#b04f61" : "#488da0"} roughness={.38} metalness={.36} /></mesh>
+      {highlightAperture && <mesh position={[0, 0, .014]} userData={{ xrInstructionalHighlight: true }}><ringGeometry args={[.043, .050, 32]} /><meshBasicMaterial color="#8df5d3" side={DoubleSide} depthTest={false} /></mesh>}
+    </group>)}
+    <group position={[.075, .035, .006]} userData={{ xrRelativeAccommodationDial: true }}>
+      <mesh castShadow rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[.032, .032, .014, 40]} /><meshStandardMaterial color={darkMetal} roughness={.38} metalness={.48} /></mesh>
+      {Array.from({ length: 18 }, (_, index) => <group key={index} rotation={[0, 0, -index / 17 * Math.PI * 1.5]}>
+        <Box p={[0, .027, .010]} s={[index % 4 === 0 ? .003 : .0015, index % 4 === 0 ? .009 : .005, .002]} c={index % 4 === 0 ? accent : paper} />
+      </group>)}
+      <group rotation={[0, 0, -dialAngle]}><Box p={[0, .019, .018]} s={[.004, .033, .004]} c="#f1c45f" /></group>
+      {highlightDial && <mesh position={[0, 0, .018]} userData={{ xrInstructionalHighlight: true }}><ringGeometry args={[.037, .044, 32]} /><meshBasicMaterial color="#8df5d3" side={DoubleSide} depthTest={false} /></mesh>}
+    </group>
+    <XRSign text={[`${bounded >= 0 ? "+" : ""}${bounded.toFixed(2)} D`, "+2.00 → 0.00 → −2.25", "0.25 D STEPS"]} p={[-.050, .027, .014]} size={[.088, .050]} bg="#173a3e" fg="#e8fff9" />
+  </group>;
+}
+
+function MinusLensHolderModel({ power = 0, highlightAperture = false, highlightDial = false }: { power?: number; highlightAperture?: boolean; highlightDial?: boolean }) {
+  const dialAngle = Math.abs(Math.max(-4, Math.min(0, power))) / 4 * Math.PI * 1.5;
+  return <group>
+    <MoldedHandle />
+    <group position={[0, .10, 0]} userData={{ xrMinusLensAperture: true }}>
+      <mesh castShadow><torusGeometry args={[.040, .007, 12, 40]} /><meshStandardMaterial color={shell} roughness={.48} metalness={.16} /></mesh>
+      <mesh position={[0, 0, .005]} castShadow><circleGeometry args={[.033, 40]} /><meshPhysicalMaterial color="#b7dbea" transparent opacity={.48} transmission={.42} roughness={.12} /></mesh>
+      <mesh position={[0, 0, .009]}><torusGeometry args={[.033, .0015, 8, 36]} /><meshStandardMaterial color="#b04f61" roughness={.38} metalness={.36} /></mesh>
+      {highlightAperture && <mesh position={[0, 0, .014]} userData={{ xrInstructionalHighlight: true }}><ringGeometry args={[.045, .052, 32]} /><meshBasicMaterial color="#8df5d3" side={DoubleSide} depthTest={false} /></mesh>}
+    </group>
+    <group position={[.065, .045, .006]} userData={{ xrMinusLensDial: true }}>
+      <mesh castShadow rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[.031, .031, .014, 40]} /><meshStandardMaterial color={darkMetal} roughness={.38} metalness={.48} /></mesh>
+      {Array.from({ length: 17 }, (_, index) => <group key={index} rotation={[0, 0, -index / 16 * Math.PI * 1.5]}>
+        <Box p={[0, .026, .010]} s={[index % 4 === 0 ? .003 : .0015, index % 4 === 0 ? .009 : .005, .002]} c={index % 4 === 0 ? accent : paper} />
+      </group>)}
+      <group rotation={[0, 0, -dialAngle]}><Box p={[0, .018, .018]} s={[.004, .032, .004]} c="#f1c45f" /></group>
+      {highlightDial && <mesh position={[0, 0, .018]} userData={{ xrInstructionalHighlight: true }}><ringGeometry args={[.036, .043, 32]} /><meshBasicMaterial color="#8df5d3" side={DoubleSide} depthTest={false} /></mesh>}
+    </group>
+    <XRSign text={[`${power.toFixed(2)} D`, "0.00 → −4.00", "0.25 D STEPS"]} p={[-.052, .030, .014]} size={[.080, .050]} bg="#173a3e" fg="#e8fff9" />
   </group>;
 }
 
@@ -187,6 +238,30 @@ function NPCRuleModel({ distanceCm = 40, highlightCarriage = false }: { distance
   </group>;
 }
 
+function PushUpRuleModel({ distanceCm = 40, highlightCarriage = false, highlightStart = false }: { distanceCm?: number; highlightCarriage?: boolean; highlightStart?: boolean }) {
+  const carriageZ = Math.max(.02, Math.min(.42, distanceCm / 100));
+  return <group>
+    <Box p={[0, 0, .22]} s={[.028, .018, .44]} c={metal} radius={.003} />
+    <Box p={[0, -.012, 0]} s={[.10, .035, .045]} c={shell} radius={.006} />
+    <XRSign text={["SPECTACLE PLANE"]} p={[0, .027, .015]} size={[.11, .022]} rotation={[-Math.PI / 2, 0, 0]} bg="#173a3e" fg="#e8fff9" />
+    {Array.from({ length: 41 }, (_, index) => index + 2).map(cm => <group key={cm} position={[0, .012, cm / 100]}>
+      <Box p={[cm % 5 === 0 ? .016 : .009, 0, 0]} s={[cm % 5 === 0 ? .025 : .012, .003, .0015]} c={cm === 40 ? "#f1c45f" : cm % 5 === 0 ? accent : darkMetal} />
+      {cm % 5 === 0 && <XRSign text={[String(cm)]} p={[-.025, .005, 0]} size={[.022, .012]} rotation={[-Math.PI / 2, 0, 0]} bg={paper} fg={cm === 40 ? "#9a5c00" : "#244b47"} />}
+    </group>)}
+    {highlightStart && <group position={[0, .014, .40]} userData={{ xrInstructionalHighlight: true }}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[.032, .044, 28]} /><meshBasicMaterial color="#8df5d3" side={DoubleSide} depthTest={false} /></mesh>
+      <XRSign text={["START · 40 CM"]} p={[.075, .012, 0]} size={[.10, .020]} rotation={[-Math.PI / 2, 0, 0]} bg="#153b3c" fg="#e8fff9" />
+    </group>}
+    <group position={[0, .045, carriageZ]} userData={{ xrPushUpCarriage: true }}>
+      <Box s={[.082, .075, .028]} c={shell} radius={.008} />
+      {highlightCarriage && <mesh position={[0, 0, .017]}><ringGeometry args={[.047, .054, 28]} /><meshBasicMaterial color="#8df5d3" side={DoubleSide} depthTest={false} /></mesh>}
+      <Box p={[0, .052, 0]} s={[.105, .070, .010]} c={paper} radius={.006} />
+      <XRSign text={["C D H N O", "R S V Z"]} p={[0, .052, -.006]} size={[.092, .046]} rotation={[0, Math.PI, 0]} bg={paper} fg="#162d2c" />
+      <XRSign text={["READ THIS LINE"]} p={[0, .013, -.006]} size={[.072, .012]} rotation={[0, Math.PI, 0]} bg={paper} fg="#3f827a" />
+    </group>
+  </group>;
+}
+
 function RotaryVergencePrismModel({ power = 0, base = "BI", highlightAperture = false, highlightDial = false }: { power?: number; base?: string; highlightAperture?: boolean; highlightDial?: boolean }) {
   const dialAngle = Math.max(0, Math.min(30, power)) / 30 * Math.PI * 1.5;
   return <group>
@@ -220,8 +295,11 @@ export function LibraryInstrumentModel({ id, setting = {} }: { id: ConsultationT
   if (id === "thorington") return <ThoringtonModel />;
   if (id === "fixation") return <FixationModel />;
   if (id === "npc-rule") return <NPCRuleModel distanceCm={setting.distanceCm} highlightCarriage={setting.highlightCarriage} />;
+  if (id === "push-up-rule") return <PushUpRuleModel distanceCm={setting.distanceCm} highlightCarriage={setting.highlightCarriage} highlightStart={setting.highlightStart} />;
+  if (id === "trial-lens") return <RelativeLensHolderModel power={setting.power} highlightAperture={setting.highlightAperture} highlightDial={setting.highlightDial} />;
+  if (id === "minus-lens-holder") return <MinusLensHolderModel power={setting.power} highlightAperture={setting.highlightAperture} highlightDial={setting.highlightDial} />;
   if (id === "vergence-prism") return <RotaryVergencePrismModel power={setting.power} base={setting.base} highlightAperture={setting.highlightAperture} highlightDial={setting.highlightDial} />;
-  if (id === "trial-lens" || id === "lens-flipper" || id === "prism-flipper") return <FlipperModel id={id} setting={setting} />;
+  if (id === "lens-flipper" || id === "prism-flipper") return <FlipperModel id={id} setting={setting} />;
   return null;
 }
 

@@ -5,8 +5,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { clinic } from "./helpers/xrClinicHarness";
 import { VergencePracticeController } from "../practice/xr/VergencePracticeController";
 import { NPCPracticeController } from "../practice/xr/NPCPracticeController";
-import { AccommodationPracticeController } from "../practice/xr/AccommodationPracticeController";
 import { WorthPracticeController } from "../practice/xr/WorthPracticeController";
+import { PushUpPracticeController } from "../practice/xr/PushUpPracticeController";
+import { MinusLensPracticeController } from "../practice/xr/MinusLensPracticeController";
+import { RelativeAccommodationPracticeController } from "../practice/xr/RelativeAccommodationPracticeController";
 import type { BatchMirror } from "../practice/xr/PracticeLessonUI";
 let dispose: (() => Promise<void>) | undefined;
 afterEach(async () => { await dispose?.(); dispose = undefined; vi.unstubAllGlobals(); });
@@ -69,11 +71,11 @@ describe("headset panel layout", () => {
     const labels = panelBounds(sim.state.scene).map(button => button.label);
     expect(labels).toContain("RIGHT HYPER"); expect(labels).toContain("SUBMIT / CHECK");
   });
-  it.each(["npc", "relative"] as const)("fits paged decimal %s entries and navigation without overlap", async kind => {
+  it.each(["npc", "relative", "push-up", "minus-lens"] as const)("fits paged decimal %s entries and navigation without overlap", async kind => {
     let mirror: BatchMirror;
     const sim = await clinic({ renderAdapter: ({ active }) => {
       const common = { active, onComplete: vi.fn(), onExit: vi.fn(), onMirror: (next: BatchMirror) => { mirror = next; } };
-      return kind === "npc" ? createElement(NPCPracticeController, common) : createElement(AccommodationPracticeController, { ...common, kind });
+      return kind === "npc" ? createElement(NPCPracticeController, common) : kind === "push-up" ? createElement(PushUpPracticeController, common) : kind === "minus-lens" ? createElement(MinusLensPracticeController, common) : createElement(RelativeAccommodationPracticeController, common);
     } }); dispose = sim.dispose;
     await act(async () => mirror!.lesson.setMode("record")); await sim.step(1 / 72, 12);
     const labels = panelBounds(sim.state.scene).map(button => button.label); expect(labels).toContain("NEXT ENTRIES"); expect(labels).toContain("SUBMIT / CHECK");
