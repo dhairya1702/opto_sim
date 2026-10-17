@@ -7,6 +7,7 @@ export const MADDOX_PRISM_CELLS = [2, 4, 6, 8, 10, 12, 15, 20] as const;
 export type MaddoxPrismPower = typeof MADDOX_PRISM_CELLS[number];
 export const MADDOX_ORIENTATION_TOLERANCE_DEG = 30;
 export const MADDOX_REPORT_DWELL_MS = 250;
+export const MADDOX_GUIDED_STEP_COUNT = 9;
 
 export type MaddoxTrial = Readonly<{
   id: string;
@@ -94,11 +95,15 @@ export const maddoxGrooveCorrect = (axis: MaddoxAxis, degrees: number | null) =>
 
 export function maddoxSetupIssue(sample: MaddoxSpatialSample, trial: MaddoxTrial) {
   if (!sample.tracking) return "Restore headset, controller and instrument tracking.";
-  if (!sample.correctionFitted) return "Fit Arun's habitual correction.";
+  if (!sample.correctionFitted) return "Fit the trial frame over both eyes.";
   if (!sample.rodFitted) return "Fit the Maddox rod before OD.";
   if (!maddoxGrooveCorrect(trial.axis, sample.grooveDegrees)) return `Remove, roll and refit the rod with ${trial.axis} grooves.`;
-  if (!sample.targetReady || sample.targetSite !== trial.site) return trial.site === "distance" ? "Dock the point target at the mirrored distance station." : "Hold the penlight 38–42 cm from Arun and centre it toward him.";
-  if (!sample.targetPowered) return trial.site === "distance" ? "Switch on the distance point target." : "Hold the near-penlight trigger to keep its light on.";
+  if (!sample.targetReady || sample.targetSite !== trial.site) return trial.site === "distance"
+    ? "Pick up the point target and place it on the Distance Target Dock beside Arun."
+    : "Pick up the penlight and hold it 38–42 cm in front of Arun's eyes, aimed toward him.";
+  if (!sample.targetPowered) return trial.site === "distance"
+    ? "Press the target's switch and confirm that the illuminated point appears in the mirror."
+    : "Hold the penlight trigger to keep its light on.";
   if (!sample.fixationInstruction) return "Ask Arun to fixate and report where the streak lies relative to the light.";
   if (!sample.prismHeld) return "Pick up the stepped prism bar.";
   if (!sample.prismForward) return "Turn the prism bar's working face toward Arun.";
@@ -190,21 +195,37 @@ export const interruptMaddox = (run: MaddoxRun, reason: string) => run.capture |
 
 export function maddoxGuidedStep(run: MaddoxRun, sample: MaddoxSpatialSample): MaddoxGuidedStep & { index: number } {
   const trial = MADDOX_TRIALS[run.trialIndex];
+  const correctTarget = sample.targetReady && sample.targetSite === trial.site;
+  const targetGuidance = trial.site === "distance"
+    ? !correctTarget
+      ? { title: "Dock the distance target", lines: ["Pick up the point target from the left instrument table.", "Place it on the DISTANCE TARGET DOCK beside Arun."] }
+      : { title: "Turn on the distance target", lines: ["Press the highlighted POWER switch on either side of the target.", "Confirm that the white point appears in the mirror."] }
+    : !correctTarget
+      ? { title: "Position the near penlight", lines: ["Pick up the penlight and aim it toward Arun.", "Hold it 38–42 cm in front of his eyes."] }
+      : { title: "Turn on the near penlight", lines: ["Hold the penlight trigger to keep its light on.", "Keep it aimed toward Arun for this measurement."] };
   const checks = [
-    ["correction", "Fit habitual correction", "Seat Arun's habitual correction before beginning.", sample.correctionFitted],
-    ["rod", "Fit the rod before OD", "Pick up the rod and place its lens centre over OD.", sample.rodFitted],
-    ["grooves", "Orient the grooves", `Remove, roll and refit the rod with ${trial.axis} grooves.`, maddoxGrooveCorrect(trial.axis, sample.grooveDegrees)],
-    ["target", "Establish the target", trial.site === "distance" ? "Dock and switch on the mirrored point target." : "Hold the lit penlight at 38–42 cm, centred toward Arun.", sample.targetReady && sample.targetPowered && sample.targetSite === trial.site],
-    ["instruction", "Ask for the report", "Ask Arun to fixate and say where the streak is and when it passes through the light.", run.reportInstruction],
-    ["pickup", "Pick up the prism bar", "Use the free hand to pick up the stepped prism bar.", sample.prismHeld],
-    ["introduce", "Introduce 20Δ", `Centre the 20Δ cell over OD with base ${trial.base}.`, run.introduced20],
-    ["reduce", "Reduce through the cells", "Slide the physical bar while holding its face, base and target geometry steady.", run.report === "The streak passes through the light."],
-    ["capture", "Capture coincidence", "Press the prism-hand trigger only when Arun reports coincidence.", Boolean(run.capture)],
-    ["record", "Record independently", "Put tools down, then enter prism power and base without a preselected answer.", run.records.length > run.trialIndex || run.phase === "complete"],
+    ["correction", "Fit the trial frame", ["Pick up the trial frame from the instrument table.", "Place it over both of Arun's eyes."], sample.correctionFitted],
+    ["rod", `Fit the rod for the ${trial.axis} test`, ["Place the red Maddox lens over Arun's right eye (OD).", `Rotate it to match the single ${trial.axis} guide.`], sample.rodFitted && maddoxGrooveCorrect(trial.axis, sample.grooveDegrees)],
+    ["target", targetGuidance.title, targetGuidance.lines, correctTarget && sample.targetPowered],
+    ["instruction", "Ask for the report", ["Ask Arun to fixate and report where the streak lies.", "Continue until he says it passes through the light."], run.reportInstruction],
+    ["pickup", "Pick up the prism bar", ["Use the free hand to pick up the stepped prism bar."], sample.prismHeld],
+    ["introduce", "Introduce 20Δ", ["Centre the prism's working ring over OD.", `Use up/down for 20Δ; ${trial.axis === "horizontal" ? "left selects BI and right selects BO" : "left selects BU and right selects BD"}.`], run.introduced20],
+    ["reduce", "Reduce through the cells", ["Press the prism-hand thumbstick down to reduce power.", "Keep the working ring centred over OD until Arun reports coincidence."], run.report === "The streak passes through the light."],
+    ["capture", "Capture coincidence", ["Press the prism-hand trigger only when Arun reports coincidence."], Boolean(run.capture)],
+    ["record", "Record independently", ["Put the tools down.", "Enter the captured prism power and base without a preselected answer."], run.records.length > run.trialIndex || run.phase === "complete"],
   ] as const;
   const index = run.phase === "complete" ? checks.length - 1 : Math.max(0, checks.findIndex(check => !check[3]));
   const step = checks[index];
-  return { id: `${trial.id}-${step[0]}`, index, title: step[1], lines: [step[2], `Trial ${run.trialIndex + 1} of ${MADDOX_TRIALS.length}: ${trial.site} ${trial.axis}.`], complete: run.phase === "complete" };
+  return { id: `${trial.id}-${step[0]}`, index, title: step[1], lines: step[2], complete: run.phase === "complete" };
+}
+
+/** Show only the fitting guide needed by the current Maddox setup step. */
+export function maddoxFittingGuideSocketIds(sample: MaddoxSpatialSample, trial: MaddoxTrial): readonly string[] {
+  if (!sample.correctionFitted) return ["sensory-correction"];
+  if (!sample.rodFitted || !maddoxGrooveCorrect(trial.axis, sample.grooveDegrees)) {
+    return [trial.axis === "horizontal" ? "sensory-maddox-horizontal" : "sensory-maddox-vertical"];
+  }
+  return [];
 }
 
 /** Classify the visible base arrow after tracked roll. Zero degrees is BI; positive quarter turns follow BO, BU, BD. */

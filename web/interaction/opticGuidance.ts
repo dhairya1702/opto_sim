@@ -110,7 +110,7 @@ export function hirschbergGuidedStep(state: HirschbergGuidedState): GuidedCoachS
     id: "inspect", index: 3, title: "Align and inspect",
     lines: [
       state.aimReady ? "Penlight aim is centred between both eyes." : "Aim midway between both eyes.",
-      state.viewReady ? "Hold steady to capture both reflexes." : "Move your head to view directly along the axis.",
+      state.viewReady ? "Hold steady to capture both reflexes." : "Face the patient and look toward both eyes.",
     ], complete: false,
   };
 }

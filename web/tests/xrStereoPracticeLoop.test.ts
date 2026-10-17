@@ -45,7 +45,6 @@ async function lesson(attemptKind: PracticeAttemptKind = "guided", preview = fal
     const authored = stereoPatientReply(page);
     if (!authored) throw new Error("Missing authored response");
     await action(["LEFT", "MIDDLE", "RIGHT"][authored.selected]);
-    await action(authored.correct ? "CORRECT" : "INCORRECT");
   };
   const run = async () => {
     for (let page = 0; page < 6; page++) {
@@ -60,17 +59,17 @@ describe("stereopsis Practice in the real shared XR loop", () => {
   it("shows the nine-step Guided coach immediately and keeps the examiner key off the patient face", async () => {
     const sim = await lesson("guided", true);
     expect(sim.labels()).toContain("GUIDED · STEP 1 OF 9");
-    expect(sim.labels()).toContain("PAGE KEY · MIDDLE");
+    expect(sim.labels()).toContain("CORRECT CIRCLE · MIDDLE");
     let patientKey = false;
     sim.state.scene.traverse(object => {
       if (!object.userData.xrStereoPatientCircle) return;
-      object.traverse(descendant => { if (descendant.userData.xrLabel?.includes("PAGE KEY")) patientKey = true; });
+      object.traverse(descendant => { if (descendant.userData.xrLabel?.includes("CORRECT CIRCLE")) patientKey = true; });
     });
     expect(patientKey).toBe(false);
     expect(sim.labels().join(" ")).not.toContain("last correct is");
   });
 
-  it("fits, fixates, captures immediately, transcribes, classifies and records exactly once", async () => {
+  it("fits, fixates, captures, transcribes, automatically classifies and records exactly once", async () => {
     const sim = await lesson();
     await sim.fit(); await sim.book();
     expect(sim.mirror().status).toContain("ask Arun to look");
@@ -82,11 +81,8 @@ describe("stereopsis Practice in the real shared XR loop", () => {
     await sim.action("LEFT");
     expect(sim.mirror().status).toContain("does not match Arun's spoken response");
     await sim.action("MIDDLE");
-    expect(sim.mirror().status).toContain("Examiner key · middle");
-    await sim.action("INCORRECT");
-    expect(sim.mirror().reportLines).toEqual([]);
-    await sim.action("CORRECT");
-    expect(sim.mirror().reportLines?.[0]).toBe("800 arcsec · patient middle · classified correct");
+    expect(sim.mirror().status).toContain("Patient said middle; correct circle middle. Automatically marked correct.");
+    expect(sim.mirror().reportLines?.[0]).toBe("800 arcsec · patient said middle · correct circle middle · correct");
     await sim.action("TURN PAGE");
     expect(sim.labels()).toContain("PAGE 2 OF 6");
     expect(sim.mirror().actions.find(item => item.label === "ASK WHICH CIRCLE IS RAISED")?.disabled).toBe(true);
@@ -126,7 +122,7 @@ describe("stereopsis Practice in the real shared XR loop", () => {
     if (!socket) throw new Error("Missing stand");
     await sim.at(0, [0, 1.5, .05]); await sim.step(1 / 72, 12);
     await sim.at(0, socket.position); await sim.step(1 / 72, 12);
-    expect(sim.mirror().reportLines).toEqual(["800 arcsec · patient middle · classified correct"]);
+    expect(sim.mirror().reportLines).toEqual(["800 arcsec · patient said middle · correct circle middle · correct"]);
     expect(sim.mirror().voiceReport).toBeUndefined();
     expect(sim.mirror().status).toContain("Page 2 of 6 · ask Arun to look");
     await sim.action("ASK WHICH CIRCLE IS RAISED");
@@ -136,10 +132,12 @@ describe("stereopsis Practice in the real shared XR loop", () => {
   it("keeps the full procedure in Test while hiding coaching and highlights", async () => {
     const sim = await lesson("test");
     expect(sim.labels().join(" ")).not.toContain("GUIDED · STEP");
-    expect(sim.labels()).toContain("PAGE KEY · MIDDLE");
+    expect(sim.labels()).toContain("CORRECT CIRCLE · MIDDLE");
     await sim.fit(); await sim.book(); await sim.answer(0);
-    expect(sim.mirror().reportLines?.[0]).toContain("classified correct");
-    expect(sim.mirror().actions.map(action => action.label)).toEqual(expect.arrayContaining(["LOOK AT THE CIRCLES", "ASK WHICH CIRCLE IS RAISED", "CORRECT", "INCORRECT", "TURN PAGE"]));
+    expect(sim.mirror().reportLines?.[0]).toContain("correct circle middle · correct");
+    expect(sim.mirror().actions.map(action => action.label)).toEqual(expect.arrayContaining(["LOOK AT THE CIRCLES", "ASK WHICH CIRCLE IS RAISED", "TURN PAGE"]));
+    expect(sim.mirror().actions.map(action => action.label)).not.toContain("CORRECT");
+    expect(sim.mirror().actions.map(action => action.label)).not.toContain("INCORRECT");
   });
 
   it("reset, refitting and exit clear unfinished state and cannot create late evidence", async () => {

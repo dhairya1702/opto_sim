@@ -33,7 +33,7 @@ function Scene({ pose, rotation, run, onFrame }: { pose: { x: number; y: number 
     <mesh scale={[.64, .85, .48]}><sphereGeometry args={[1, 40, 28]} /><meshStandardMaterial color="#a97453" /></mesh>
     <group position={[0, .2, .51]} scale={1.3}><EyeSurface x={-.17} pupils={false} motility={false} progress={0} movement={movement} gazeOffset={od} /><EyeSurface x={.17} pupils={false} motility={false} progress={0} movement={movement} gazeOffset={os} /></group>
     <group position={[pose.x, pose.y, .78]} rotation={[0, 0, rotation * Math.PI / 180]} userData={{ dedicatedFourPrism: true }}>
-      <mesh rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[.14, .14, .045, 40]} /><meshPhysicalMaterial color="#bce4dd" transmission={.45} transparent opacity={.5} /></mesh>
+      <mesh rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[.14, .14, .045, 40]} /><meshStandardMaterial color="#bce4dd" transparent opacity={.5} /></mesh>
       <mesh position={[.17, 0, 0]} rotation={[0, 0, -Math.PI / 2]}><coneGeometry args={[.035, .10, 3]} /><meshStandardMaterial color="#f1c35e" /></mesh>
       <mesh position={[0, -.22, 0]} scale={[.09, .16, .065]}><sphereGeometry args={[1, 20, 14]} /><meshStandardMaterial color="#a97453" /></mesh>
     </group>

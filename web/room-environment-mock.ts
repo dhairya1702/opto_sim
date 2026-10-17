@@ -239,11 +239,6 @@ const current = new THREE.Group();
   const rf = place(new THREE.Group(), r, [-1.45, 0, -1.4]);
   box(0.85, 0.06, 1.2, C("#deddd4"), rf, [0, 0.85, 0]); box(0.75, 0.8, 0.65, C("#e9eeea"), rf, [0, 0.4, -0.2]);
   for (let i = 0; i < 18; i++) mesh(new THREE.TorusGeometry(0.035, 0.008, 8, 20), C("#9fb4b6"), rf, [-0.3 + (i % 6) * 0.12, 0.9, -0.4 + Math.floor(i / 6) * 0.14], [Math.PI / 2, 0, 0]);
-  // slit lamp
-  const sl = place(new THREE.Group(), r, [1.35, 0, -0.95]);
-  box(1.0, 0.065, 0.7, C("#dfe5e2"), sl, [0, 0.84, 0]); cyl(0.065, 0.065, 0.8, C("#7f8d8c"), sl, [0, 0.4, 0]);
-  box(0.7, 0.05, 0.48, C("#9baaaa"), sl, [0, 0.05, 0]); box(0.5, 0.07, 0.32, C("#d7dfda"), sl, [0, 0.91, 0.03]);
-  cyl(0.035, 0.035, 0.34, C("#e5e6da"), sl, [-0.08, 1.1, 0.08]); box(0.26, 0.12, 0.22, C("#e4e8df"), sl, [-0.08, 1.29, 0.08]);
   clayPatient(r);
 }
 const currentLights = new THREE.Group();
@@ -365,24 +360,8 @@ const slats: THREE.Mesh[] = [];
   rbox(0.5, 0.06, 0.34, 0.01, std("#1f3b40", 0.5), rf, [-0.05, 0.9, 0.25]);
   for (let i = 0; i < 24; i++) cyl(0.017, 0.017, 0.004, P.glassBlue, rf, [-0.25 + (i % 8) * 0.057, 0.935, 0.17 + Math.floor(i / 8) * 0.08]);
 
-  // slit lamp (station 1.35, -0.95) on an instrument table
-  const sl = place(new THREE.Group(), r, [1.35, 0, -0.95], [0, -0.35, 0]);
-  rbox(0.62, 0.06, 0.5, 0.02, P.dark, sl, [0, 0.03, 0]);
-  cyl(0.055, 0.075, 0.76, P.shell, sl, [0, 0.42, 0]);
-  rbox(0.9, 0.04, 0.6, 0.015, P.shell, sl, [0, 0.82, 0]);
-  rbox(0.4, 0.05, 0.3, 0.012, P.dark, sl, [0, 0.865, 0.04]);
-  for (const x of [-0.13, 0.13]) cyl(0.009, 0.009, 0.5, P.chrome, sl, [x, 1.12, -0.13]);
-  box(0.28, 0.022, 0.022, P.chrome, sl, [0, 1.37, -0.13]);
-  rbox(0.11, 0.02, 0.05, 0.008, P.black, sl, [0, 1.04, -0.14]);
-  cyl(0.022, 0.026, 0.24, P.shell, sl, [0, 1.0, 0.06]);
-  const scope = place(new THREE.Group(), sl, [0, 1.16, 0.08], [-0.2, 0, 0]);
-  rbox(0.11, 0.13, 0.22, 0.03, P.shell, scope);
-  for (const x of [-0.032, 0.032]) cyl(0.015, 0.015, 0.11, P.black, scope, [x, 0.035, 0.14], [Math.PI / 2 - 0.4, 0, 0]);
-  cyl(0.03, 0.03, 0.26, P.shell, sl, [0.12, 1.14, 0.0]);
-  cyl(0.02, 0.02, 0.06, P.black, sl, [0.12, 1.3, 0.0]);
-
   // fake contact shadows (would be baked on Quest)
-  for (const [x, z, sx, sz] of [[0, -0.63, 1.1, 1.1], [-1.37, 0.75, 1.2, 0.85], [-1.45, -1.5, 1.1, 0.95], [1.35, -0.95, 0.9, 0.75], [0.1, 0.4, 0.7, 0.7], [-X + 0.3, 1.78, 0.9, 1.5]] as [number, number, number, number][]) {
+  for (const [x, z, sx, sz] of [[0, -0.63, 1.1, 1.1], [-1.37, 0.75, 1.2, 0.85], [-1.45, -1.5, 1.1, 0.95], [0.1, 0.4, 0.7, 0.7], [-X + 0.3, 1.78, 0.9, 1.5]] as [number, number, number, number][]) {
     plane(sx, sz, P.fakeShadow, r, [x, 0.003, z], [-Math.PI / 2, 0, 0]);
   }
 }

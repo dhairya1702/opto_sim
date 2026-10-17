@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { RoundedBox } from "@react-three/drei";
 import { CanvasTexture, LinearFilter, RepeatWrapping, SRGBColorSpace, Vector3, Quaternion, type Mesh } from "three";
+import { perfCount } from "../perf/perfFlag";
 import { CLINIC_IRIS_RADIUS, CLINIC_PUPIL_RADIUS } from "../interaction/clinicPatient";
 import { INSTRUMENT_KIT, INSTRUMENT_KIT_ROTATION_Y } from "../interaction/clinicLayout";
 import { PATIENT_BLINK_DURATION_SECONDS, patientBlinkClosure, patientBlinkDelay, patientMouthTarget } from "../interaction/patientAnimation";
@@ -103,6 +104,7 @@ export function Sign({
   fg = "#264e50",
   rotation = [0, 0, 0],
   fit = false,
+  transparentBackground = false,
 }: {
   text: string[];
   p: V;
@@ -112,14 +114,18 @@ export function Sign({
   rotation?: V;
   /** Match the texture aspect to the physical label for readable compact XR controls. */
   fit?: boolean;
+  /** Draw only glyphs so a shaped panel behind the texture defines the silhouette. */
+  transparentBackground?: boolean;
 }) {
   const texture = useMemo(() => {
     const canvas = document.createElement("canvas");
     canvas.width = fit ? 1536 : 1024;
     canvas.height = fit ? Math.max(160, Math.round(1536 * size[1] / size[0])) : 640;
     const ctx = canvas.getContext("2d")!;
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (!transparentBackground) {
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
     ctx.fillStyle = fg;
     ctx.textAlign = "center";
     if (fit) ctx.textBaseline = "middle";
@@ -132,6 +138,7 @@ export function Sign({
       }
       ctx.fillText(t, canvas.width / 2, (canvas.height * (i + 1)) / (text.length + 1));
     });
+    perfCount("sign texture");
     const tex = new CanvasTexture(canvas);
     tex.colorSpace = SRGBColorSpace;
     if (fit) {
@@ -145,12 +152,12 @@ export function Sign({
       tex.anisotropy = 8;
     }
     return tex;
-  }, [text.join("|"), bg, fg, fit, fit ? size[0] : 0, fit ? size[1] : 0]);
+  }, [text.join("|"), bg, fg, fit, transparentBackground, fit ? size[0] : 0, fit ? size[1] : 0]);
   useEffect(() => () => texture.dispose(), [texture]);
   return (
     <mesh position={p} rotation={rotation}>
       <planeGeometry args={size} />
-      <meshBasicMaterial map={texture} />
+      <meshBasicMaterial map={texture} transparent={transparentBackground} depthWrite={!transparentBackground} />
     </mesh>
   );
 }
@@ -495,56 +502,6 @@ export function Refraction({ portable = true }: { portable?: boolean }) {
       >
         <TrialFrameModel />
       </group>}
-    </group>
-  );
-}
-export function SlitLamp() {
-  return (
-    <group position={[1.35, 0, -0.95]}>
-      <Box p={[0, 0.84, 0]} s={[1.0, 0.065, 0.7]} c="#dfe5e2" radius={.025} />
-      <Cylinder p={[0, 0.4, 0]} h={0.8} radius={0.065} />
-      <Box p={[0, 0.05, 0]} s={[0.7, 0.05, 0.48]} c="#9baaaa" />
-      <Box p={[0, 0.91, 0.03]} s={[0.5, 0.07, 0.32]} c="#d7dfda" radius={.02} />
-      <Cylinder p={[-0.08, 1.1, 0.08]} h={0.34} radius={0.035} c="#e5e6da" />
-      <Box p={[-0.08, 1.29, 0.08]} s={[0.26, 0.12, 0.22]} c="#e4e8df" />
-      {[-0.15, -0.02].map((x) => (
-        <group key={x}>
-          <Cylinder
-            p={[x, 1.33, 0.22]}
-            h={0.19}
-            radius={0.035}
-            c="#303c40"
-            r={[Math.PI / 2 - 0.25, 0, 0]}
-          />
-          <Cylinder
-            p={[x, 1.35, 0.32]}
-            h={0.035}
-            radius={0.042}
-            c="#18282d"
-            r={[Math.PI / 2 - 0.25, 0, 0]}
-          />
-        </group>
-      ))}
-      <Cylinder p={[0.19, 1.23, -0.07]} h={0.53} radius={0.036} c="#303b3e" />
-      <Box p={[0.19, 1.5, -0.07]} s={[0.09, 0.12, 0.1]} c="#dfdfd1" />
-      {[-0.28, 0.28].map((x) => (
-        <Cylinder key={x} p={[x, 1.23, -0.25]} h={0.68} radius={0.015} c="#a8b8b7" />
-      ))}
-      <Box p={[0, 1.53, -0.25]} s={[0.58, 0.035, 0.065]} c="#dfe5df" />
-      <Box p={[0, 1.12, -0.25]} s={[0.25, 0.035, 0.11]} c="#6e9594" />
-      <Cylinder p={[-0.28, 1.01, 0.15]} h={0.18} radius={0.018} c="#293d42" />
-      <Orb p={[-0.28, 1.11, 0.15]} s={[0.034, 0.035, 0.034]} c="#293d42" />
-      <Stool p={[0.05, 0, -0.7]} />
-      <Stool p={[0, 0, 0.9]} />
-    </group>
-  );
-}
-function Stool({ p }: { p: V }) {
-  return (
-    <group position={p}>
-      <Cylinder p={[0, 0.51, 0]} h={0.09} radius={0.23} c="#537c7d" />
-      <Cylinder p={[0, 0.29, 0]} h={0.4} radius={0.027} />
-      <Cylinder p={[0, 0.08, 0]} h={0.035} radius={0.23} c="#9aacab" />
     </group>
   );
 }

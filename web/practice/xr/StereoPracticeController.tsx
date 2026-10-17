@@ -6,10 +6,10 @@ import { consultationToolDefinition } from "../../interaction/xrConsultationTool
 import { sensoryEquipment, sensorySockets, isPatientFitted, sensoryFittingSignature } from "../../interaction/xrSensoryEquipment";
 import { stereoPracticeLevels, stereoTargets } from "../../interaction/stereoPractice";
 import {
-  STEREO_GUIDED_STEP_COUNT, classifyXRStereoResponse, fixateXRStereoPage, initialXRStereoRun,
-  interruptXRStereoRun, markXRStereoResponse, nextXRStereoPage, requestXRStereoReply,
+  STEREO_GUIDED_STEP_COUNT, fixateXRStereoPage, initialXRStereoRun,
+  interruptXRStereoRun, nextXRStereoPage, recordXRStereoResponse, requestXRStereoReply,
   reviseXRStereoSetup, stereoCircleNames, stereoGuidedStep, xrStereoEntryCorrect, xrStereoGeometry,
-  type StereoCircle, type StereoClassification, type XRStereoRun,
+  type StereoCircle, type XRStereoRun,
 } from "../../interaction/xrStereoPractice";
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
 import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
@@ -145,26 +145,16 @@ export function StereoPracticeController({ active, preview = false, onComplete, 
   };
   const mark = (circle: StereoCircle) => {
     if (lesson.awarded.current) return;
-    const current = runRef.current;
-    const next = markXRStereoResponse(current, circle, sample().ready);
+    const current = runRef.current, now = sample();
+    const next = recordXRStereoResponse(current, circle, now.ready, now.distanceCm);
     if (next === current) {
       if (current.reply) setMessage("That does not match Arun's spoken response. Listen again and transcribe the named circle.");
       return;
     }
     publish(next);
-    setMessage("Response transcribed. Compare it with the examiner-only page key.");
-  };
-  const classify = (classification: StereoClassification) => {
-    if (lesson.awarded.current) return;
-    const now = sample(), current = runRef.current;
-    const next = classifyXRStereoResponse(current, classification, now.ready, now.distanceCm);
-    if (next === current) {
-      if (current.markedCircle) setMessage("Recheck the marked response against the examiner-only page key.");
-      return;
-    }
-    publish(next);
-    setMessage(next.capture ? "Two consecutive errors reached. Record the threshold independently."
-      : "Classification recorded. Turn one page to continue.");
+    const result = next.records.at(-1);
+    setMessage(next.capture ? `Patient said ${result?.reportedCircle}; correct circle ${result?.targetCircle}. Two consecutive errors reached—record the last correct threshold.`
+      : `Patient said ${result?.reportedCircle}; correct circle ${result?.targetCircle}. Automatically marked ${result?.classification}. Turn one page to continue.`);
   };
   const nextPage = () => {
     if (lesson.awarded.current) return;
@@ -193,7 +183,7 @@ export function StereoPracticeController({ active, preview = false, onComplete, 
   const entryReady = Boolean(run.capture && run.records.length === run.capture.records.length);
   const ready = active && !preview && entryReady && spatial.correction && spatial.filters;
   const voiceReport = run.reply ? `The ${stereoCircleNames[run.reply.selected]} circle looks raised.` : undefined;
-  const history = run.records.map(record => `${record.level} arcsec · patient ${record.reportedCircle} · classified ${record.classification}`);
+  const history = run.records.map(record => `${record.level} arcsec · patient said ${record.reportedCircle} · correct circle ${record.targetCircle} · ${record.classification}`);
   const key = stereoCircleNames[run.reply?.target ?? stereoTargets[run.page] ?? 0];
   const status = !spatial.correction ? "Near correction is not fitted."
     : !spatial.filters ? "Polarised glasses are not fitted over the correction."
@@ -204,7 +194,7 @@ export function StereoPracticeController({ active, preview = false, onComplete, 
               : !run.fixation ? `Page ${run.page + 1} of 6 · ask Arun to look at the circles.`
                 : !run.reply ? `Page ${run.page + 1} of 6 · ask which circle is raised.`
                   : !run.markedCircle ? `Arun: ${voiceReport} Mark the circle he named.`
-                    : !run.confirmed ? `Examiner key · ${key}. Classify Arun's marked response.`
+                    : !run.confirmed ? `Correct circle · ${key}. Recording Arun's response…`
                       : `Page ${run.page + 1} confirmed · turn one page.`;
   const fullStatus = `${status}${message ? ` · ${message}` : ""}${restartNotice ? ` · ${restartNotice}` : ""}`;
 
@@ -212,12 +202,10 @@ export function StereoPracticeController({ active, preview = false, onComplete, 
   const askAction: LessonAction = { label: "ASK WHICH CIRCLE IS RAISED", disabled: !spatial.ready || !run.fixation || Boolean(run.capture) || lesson.recorded, run: ask };
   const markActions: LessonAction[] = stereoCircleNames.map(circle => ({ label: circle.toUpperCase(), active: run.markedCircle === circle,
     disabled: !spatial.ready || !run.reply || run.confirmed || lesson.recorded, run: () => mark(circle) }));
-  const classificationActions: LessonAction[] = (["correct", "incorrect"] as const).map(value => ({ label: value.toUpperCase(), active: run.classification === value,
-    disabled: !spatial.ready || !run.markedCircle || run.confirmed || lesson.recorded, run: () => classify(value) }));
   const turnAction: LessonAction = { label: "TURN PAGE", disabled: !spatial.ready || !run.confirmed || Boolean(run.capture) || lesson.recorded, run: nextPage };
-  const actions = [fixationAction, askAction, ...markActions, ...classificationActions, turnAction, { label: "PATIENT-REPORTED VIEW", run: () => lesson.setMode("settings"), disabled: !run.reply }];
+  const actions = [fixationAction, askAction, ...markActions, turnAction, { label: "PATIENT-REPORTED VIEW", run: () => lesson.setMode("settings"), disabled: !run.reply }];
   const directActions = !spatial.ready ? [] : !run.fixation ? [fixationAction] : !run.reply ? [askAction]
-    : !run.markedCircle ? markActions : !run.confirmed ? classificationActions : run.capture ? [] : [turnAction];
+    : !run.confirmed ? markActions : run.capture ? [] : [turnAction];
   const guidance = stereoGuidedStep({
     correctionFitted: spatial.correction,
     filtersFitted: spatial.filters,
@@ -263,7 +251,7 @@ export function StereoPracticeController({ active, preview = false, onComplete, 
       </group>
       <group position={book.workingPoint}>
         <Box p={[0, 0, .014]} s={[.23, .115, .001]} c="#efeada" />
-        <XRSign text={[`PAGE ${run.page + 1} OF 6`, `PAGE KEY · ${key.toUpperCase()}`]} p={[0, .037, .016]} size={[.15, .032]} bg="#efeada" fg="#284b47" />
+        <XRSign text={["EXAMINER SIDE", `CORRECT CIRCLE · ${key.toUpperCase()}`, "RECORD PATIENT ANSWER BELOW"]} p={[0, .038, .016]} size={[.20, .044]} bg="#efeada" fg="#284b47" />
         <group position={[.092, .037, .018]} userData={{ xrButton: true, xrWidth: .055, xrHeight: .045, xrLabel: "BOOKLET TURN PAGE",
           xrInstrumentControl: "stereo", xrAction: pageTurnEnabled ? nextPage : undefined }}>
           <Box s={[.05, .04, .009]} c={pageTurnEnabled ? "#1f7061" : "#9aa39e"} radius={.006} />
@@ -289,7 +277,7 @@ export function StereoPracticeController({ active, preview = false, onComplete, 
       onRecord={record} onCancel={cancel} onReset={reset} onExit={exit} settings={reportPanel}
       forceBoardVisible={Boolean(run.reply || run.capture)} boardStatusLines={[`PAGE ${run.page + 1} OF 6`, ...history.slice(-3), status]}
       help={guided ? ["Fit near correction and polarised glasses as separate layers.", "Face the booklet to Arun within 38–42 cm.",
-        "Establish fixation for every page, ask, transcribe, then classify using the examiner key.", "Turn one page only after classification.",
+        "Establish fixation for every page, ask, then select the circle Arun named.", "The simulator compares his answer with the correct circle automatically; then turn one page.",
         "Two consecutive errors end the run; record the last correct threshold independently.", "This is an educational approximation, not calibrated stereo optics."]
         : ["Complete the examination using the available neutral controls.", "This is an educational approximation, not calibrated stereo optics."]} />
   </>;

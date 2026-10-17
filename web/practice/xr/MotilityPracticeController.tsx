@@ -7,7 +7,6 @@ import { xrMotilityTarget } from "../../interaction/xrMotility";
 import { MOTILITY_GUIDED_STEP_COUNT, motilityGuidedStep } from "../../interaction/motilityGuidance";
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
 import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
-import { XRSign } from "../../scene/XRClinicPanels";
 import { usePracticeAttempt } from "../PracticeAttemptContext";
 import { useClinicEyeMotion } from "./useClinicEyeMotion";
 import { PracticeLessonUI, usePracticeLesson, type BatchMirror, type LessonField } from "./PracticeLessonUI";
@@ -114,18 +113,17 @@ export function MotilityPracticeController({ active, preview = false, scenarioId
       const seen = coverage.current.seen.includes(position.id);
       const current = readout.current === position.id && !seen;
       const progress = current ? readout.progress / 100 : 0;
-      return <group key={position.id} position={[position.x * .35 * .65, 1.5 + position.y * .35 * .45, CLINIC_EYE_MIDPOINT[2] + .35]}>
-        <mesh scale={[.055, .038, 1]}>
+      return <group key={position.id} position={[position.x * .35 * .65, 1.5 + position.y * .35 * .45, CLINIC_EYE_MIDPOINT[2] + .35]}
+        userData={{ xrMotilityGazeGuide: position.id }}>
+        <mesh scale={[.038, .027, 1]} userData={{ xrMotilityGuideRing: true }}>
           <ringGeometry args={[.78, 1, 48]} />
           <meshBasicMaterial color={seen ? "#65c9b6" : current ? "#f3c969" : "#8da8a3"} transparent opacity={seen ? .9 : current ? .95 : .48} />
         </mesh>
-        {current && progress > 0 && <mesh position={[0, 0, .001]} scale={[.055, .038, 1]}>
+        {current && progress > 0 && <mesh position={[0, 0, .001]} scale={[.038, .027, 1]} userData={{ xrMotilityGuideProgress: true }}>
           <ringGeometry args={[.54, .72, 48, 1, Math.PI / 2, Math.PI * 2 * progress]} />
           <meshBasicMaterial color="#fff0a8" />
         </mesh>}
-        <mesh position={[0, 0, .001]}><circleGeometry args={[.007, 20]} /><meshBasicMaterial color={seen ? "#dffff7" : current ? "#fff6c9" : "#c5d8d4"} /></mesh>
-        <XRSign text={[seen ? `✓ ${position.label}` : current ? `${readout.progress}% · ${position.label}` : `○ ${position.label}`]}
-          p={[0, -.052, .002]} size={[.13, .026]} bg={seen ? "#176b5e" : current ? "#6d5922" : "#173a3e"} fg="#f4fffc" />
+        <mesh position={[0, 0, .001]}><circleGeometry args={[.005, 20]} /><meshBasicMaterial color={seen ? "#dffff7" : current ? "#fff6c9" : "#c5d8d4"} /></mesh>
       </group>;
     })}
     <PracticeLessonUI runtime={runtime} active={active} title="MOTILITY" status={status} tools={["pupils"]} actions={actions} directActions={actions} forceBoardVisible wallOnly fields={fields} lesson={lesson}

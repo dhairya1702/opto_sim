@@ -1,12 +1,55 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Group, Mesh, Quaternion, Vector3 } from "three";
+import { Group, Mesh, Quaternion, Shape, ShapeGeometry, Vector3 } from "three";
 import { Box, Sign as RoomSign } from "./Models";
 import type { ConsultationToolId } from "../interaction/xrConsultationTools";
 import type { XRClinicRuntime } from "../interaction/useXRClinicRuntime";
 
 export function XRSign(props: Parameters<typeof RoomSign>[0]) {
   return <RoomSign {...props} fit />;
+}
+
+export function XRRoundedPanel({ width, height, radius, color, position = [0, 0, 0], rotation = [0, 0, 0], userData }: {
+  width: number;
+  height: number;
+  radius: number;
+  color: string;
+  position?: [number, number, number];
+  rotation?: [number, number, number];
+  userData?: Record<string, unknown>;
+}) {
+  const shape = useMemo(() => {
+    const next = new Shape();
+    const x = width / 2, y = height / 2, corner = Math.min(radius, x, y);
+    next.moveTo(-x + corner, -y);
+    next.lineTo(x - corner, -y); next.quadraticCurveTo(x, -y, x, -y + corner);
+    next.lineTo(x, y - corner); next.quadraticCurveTo(x, y, x - corner, y);
+    next.lineTo(-x + corner, y); next.quadraticCurveTo(-x, y, -x, y - corner);
+    next.lineTo(-x, -y + corner); next.quadraticCurveTo(-x, -y, -x + corner, -y);
+    return next;
+  }, [height, radius, width]);
+  const geometry = useMemo(() => new ShapeGeometry(shape, 16), [shape]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  return <mesh position={position} rotation={rotation} userData={userData}>
+    <primitive object={geometry} attach="geometry" />
+    <meshBasicMaterial color={color} />
+  </mesh>;
+}
+
+export function XRLabelPill({ label, position = [0, 0, 0], rotation = [0, 0, 0], width = .18, height = .03, background = "#173a3e", foreground = "#e8fff9", toolId }: {
+  label: string;
+  position?: [number, number, number];
+  rotation?: [number, number, number];
+  width?: number;
+  height?: number;
+  background?: string;
+  foreground?: string;
+  toolId?: ConsultationToolId;
+}) {
+  return <group position={position} rotation={rotation} userData={{ xrLabelPill: true, xrHeldToolPill: toolId ? true : undefined, xrToolId: toolId, width, height }}>
+    <XRRoundedPanel width={width} height={height} radius={height / 2} color={background} />
+    <XRSign transparentBackground text={[label]} p={[0, 0, .001]} size={[width - .018, height - .009]} bg={background} fg={foreground} />
+  </group>;
 }
 
 export function XRToolControls({ runtime, id, children }: { runtime: XRClinicRuntime; id: ConsultationToolId; children: React.ReactNode }) {

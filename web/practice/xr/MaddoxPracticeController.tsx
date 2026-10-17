@@ -2,11 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Vector3 } from "three";
 import {
-  MADDOX_PRISM_CELLS, MADDOX_TRIALS, armMaddoxReport, cancelMaddoxEntry,
-  captureMaddox, enterMaddox, interruptMaddox, maddoxBaseFromRoll, maddoxGuidedStep, maddoxNearestCell,
+  MADDOX_GUIDED_STEP_COUNT, MADDOX_PRISM_CELLS, MADDOX_TRIALS, armMaddoxReport, cancelMaddoxEntry,
+  captureMaddox, enterMaddox, interruptMaddox, maddoxFittingGuideSocketIds, maddoxGuidedStep,
   maddoxSetupIssue, newMaddoxRun, sampleMaddox, submitMaddox, type MaddoxBase, type MaddoxRun, type MaddoxSpatialSample,
 } from "../../interaction/maddoxProcedure";
 import { useXRClinicRuntime } from "../../interaction/useXRClinicRuntime";
+import { PRISM_BAR_WORKING_Y } from "../../interaction/xrConsultationTools";
 import { CLINIC_PATIENT_EYES } from "../../interaction/clinicPatient";
 import { isPatientFitted, sensoryTargetCondition } from "../../interaction/xrSensoryEquipment";
 import { LIBRARY_SURFACES, libraryDistance, libraryEquipment, libraryRodFitted, libraryRodOrientation, librarySockets } from "../../interaction/xrLibraryEquipment";
@@ -20,6 +21,7 @@ import { PracticeLessonUI, usePracticeLesson, type BatchMirror, type LessonField
 const emptySample = (): MaddoxSpatialSample => ({ correctionFitted: false, rodFitted: false, grooveDegrees: null, targetReady: false,
   targetPowered: false, targetSite: null, distanceCm: 0, fixationInstruction: false, prismHeld: false, prismForward: false,
   prismAligned: false, cell: null, base: null, tracking: false });
+const initialPrismSetting = Object.freeze({ power: 20 as (typeof MADDOX_PRISM_CELLS)[number], base: "BI" as MaddoxBase });
 
 export function MaddoxPracticeController({ active, preview = false, onComplete, onExit, onMirror }: {
   active: boolean; preview?: boolean; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
@@ -30,15 +32,35 @@ export function MaddoxPracticeController({ active, preview = false, onComplete, 
   const lesson = usePracticeLesson(onComplete);
   const runRef = useRef<MaddoxRun>(newMaddoxRun());
   const sampleRef = useRef<MaddoxSpatialSample>(emptySample());
+  const prismSettingRef = useRef(initialPrismSetting);
   const [run, setRunState] = useState(runRef.current);
   const [spatial, setSpatial] = useState(sampleRef.current);
+  const [prismSetting, setPrismSettingState] = useState(prismSettingRef.current);
   const fixation = useRef(false);
   const lastCell = useRef<string>("");
   const captureTrigger = useRef<() => void>(() => undefined);
   const setRun = useCallback((next: MaddoxRun) => { runRef.current = next; setRunState(next); }, []);
+  const setPrismSetting = useCallback((next: { power: (typeof MADDOX_PRISM_CELLS)[number]; base: MaddoxBase }) => {
+    prismSettingRef.current = Object.freeze(next); setPrismSettingState(prismSettingRef.current);
+  }, []);
+  const stepPrismPower = useCallback((step: -1 | 1) => {
+    const current = prismSettingRef.current;
+    const index = MADDOX_PRISM_CELLS.indexOf(current.power);
+    const nextIndex = Math.max(0, Math.min(MADDOX_PRISM_CELLS.length - 1, index + step));
+    if (nextIndex === index) return false;
+    setPrismSetting({ ...current, power: MADDOX_PRISM_CELLS[nextIndex] }); return true;
+  }, [setPrismSetting]);
+  const selectPrismBase = useCallback((step: -1 | 1) => {
+    const current = prismSettingRef.current;
+    const axis = MADDOX_TRIALS[runRef.current.trialIndex].axis;
+    const base: MaddoxBase = axis === "horizontal" ? step < 0 ? "BI" : "BO" : step < 0 ? "BU" : "BD";
+    if (base === current.base) return false;
+    setPrismSetting({ ...current, base }); return true;
+  }, [setPrismSetting]);
   const runtime = useXRClinicRuntime({ active: live, equipment: libraryEquipment("maddox"), placementSockets: librarySockets("maddox"), placementSurfaces: LIBRARY_SURFACES,
     editorOpen: lesson.mode !== "none", onMenu: open => lesson.setMode(open ? "menu" : "none"),
     onToolUsed: (id, action) => { if (id === "prism" && action === "activate") captureTrigger.current(); },
+    onThumbstickStep: (id, step, _hand, axis) => id === "prism" && (axis === "horizontal" ? selectPrismBase(step) : stepPrismPower(step)),
     onInterrupt: reason => {
       if (reason === "panel" || runRef.current.capture) return;
       const labels: Record<string, string> = { tracking: "Tracking was interrupted.", visibility: "Headset visibility was interrupted.", procedure: "Teleport interrupted the setup.", transfer: "Tool transfer interrupted the setup.", release: "Tool release interrupted the setup.", pickup: "Equipment changed." };
@@ -74,13 +96,12 @@ export function MaddoxPracticeController({ active, preview = false, onComplete, 
     if (object && prismHeld) {
       object.updateMatrixWorld(true);
       const localEye = object.worldToLocal(new Vector3(...CLINIC_PATIENT_EYES.OD));
-      cell = maddoxNearestCell(localEye.y);
-      prismAligned = cell !== null && Math.abs(localEye.x) <= .038 && Math.abs(localEye.z - .012) <= .14;
+      cell = prismSettingRef.current.power;
+      prismAligned = Math.abs(localEye.x) <= .038 && Math.abs(localEye.y - PRISM_BAR_WORKING_Y) <= .030 && Math.abs(localEye.z - .012) <= .14;
       const quaternion = object.getWorldQuaternion(runtime.quaternion);
       const forward = new Vector3(0, 0, -1).applyQuaternion(quaternion);
       prismForward = forward.z <= -Math.cos(Math.PI / 6);
-      const up = new Vector3(0, 1, 0).applyQuaternion(quaternion);
-      base = maddoxBaseFromRoll(Math.atan2(-up.x, up.y) * 180 / Math.PI);
+      base = prismSettingRef.current.base;
     }
     return { correctionFitted, rodFitted, grooveDegrees, targetReady, targetPowered, targetSite: targetReady ? trial.site : null,
       distanceCm, fixationInstruction: fixation.current, prismHeld, prismForward, prismAligned, cell, base, tracking: live && runtime.frameValid.current };
@@ -108,8 +129,8 @@ export function MaddoxPracticeController({ active, preview = false, onComplete, 
   });
 
   const reset = useCallback(() => {
-    fixation.current = false; lastCell.current = ""; setRun(newMaddoxRun()); lesson.reset(); runtime.resetClinic(); publishSample(emptySample());
-  }, [lesson.reset, publishSample, runtime.resetClinic, setRun]);
+    fixation.current = false; lastCell.current = ""; setRun(newMaddoxRun()); setPrismSetting(initialPrismSetting); lesson.reset(); runtime.resetClinic(); publishSample(emptySample());
+  }, [lesson.reset, publishSample, runtime.resetClinic, setPrismSetting, setRun]);
   useEffect(() => { if (!live) reset(); }, [live, reset]);
 
   const ask = () => {
@@ -136,7 +157,7 @@ export function MaddoxPracticeController({ active, preview = false, onComplete, 
     next = submitMaddox(next); setRun(next);
     if (next.records.length === previousRecords) { lesson.explain(next.feedback); return; }
     if (next.phase === "complete") { lesson.submit(true, true, "All four Maddox measurements independently recorded."); return; }
-    fixation.current = false; lesson.clearPending(); lesson.setMode("none"); lesson.progress(next.feedback);
+    fixation.current = false; setPrismSetting(initialPrismSetting); lesson.clearPending(); lesson.setMode("none"); lesson.progress(next.feedback);
   };
   const cancel = () => { if (!lesson.awarded.current) { setRun(cancelMaddoxEntry(runRef.current)); fixation.current = false; lesson.clearPending(); } lesson.setMode("none"); };
 
@@ -144,8 +165,10 @@ export function MaddoxPracticeController({ active, preview = false, onComplete, 
   const issue = maddoxSetupIssue(spatial, trial);
   const procedureStatus = !run.reportInstruction ? issue || "Ask Arun to fixate and report the streak/light relationship."
     : run.report || issue || run.feedback || "Hold the selected prism cell steady.";
-  const status = `${trial.site} · ${trial.axis} · ${Math.round(spatial.distanceCm)} cm · ${run.records.length}/4 records · ${run.capture ? toolsDown ? "Captured; enter power and base." : "Captured; put the tools down before entry." : procedureStatus}`;
+  const status = `${trial.site} · ${trial.axis} · ${Math.round(spatial.distanceCm)} cm · prism ${prismSetting.power}Δ ${prismSetting.base} · ${run.records.length}/4 records · ${run.capture ? toolsDown ? "Captured; enter power and base." : "Captured; put the tools down before entry." : procedureStatus}`;
   const guidance = maddoxGuidedStep(run, spatial);
+  const fittingGuideSocketIds = maddoxFittingGuideSocketIds(spatial, trial);
+  const highlightPowerSwitch = guided && trial.site === "distance" && spatial.targetReady && !spatial.targetPowered;
   const actions = [
     { label: run.reportInstruction ? "REPORTING INSTRUCTION GIVEN ✓" : "ASK STREAK / LIGHT RELATION", run: ask, active: run.reportInstruction, disabled: Boolean(run.capture) },
     { label: "PRISM TRIGGER · CAPTURE", run: capture, disabled: Boolean(run.capture) },
@@ -161,12 +184,14 @@ export function MaddoxPracticeController({ active, preview = false, onComplete, 
 
   return <>
     <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="MADDOX ROD" showInstructionalHighlights={guided}
-      instrumentSettings={{ maddox: { angle: 0 }, worth: { point: true, onPowerChange: live ? powered => runtime.setToolPower("worth", powered) : undefined }, prism: { profile: "maddox" } }} />
-    {(live || preview) && <LibraryEquipmentTray active={live} equipment={runtime.equipment} showFittingGuides={guided} />}
-    {(live || preview) && guided && <XRGuidedStepBubble stepId={guidance.id} stepNumber={guidance.index + 1} total={10} title={guidance.title} lines={guidance.lines} complete={guidance.complete} />}
+      instrumentSettings={{ maddox: { angle: 0 }, worth: { point: true, highlightPowerSwitch, onPowerChange: live ? powered => runtime.setToolPower("worth", powered) : undefined }, prism: { profile: "maddox", power: prismSetting.power, base: prismSetting.base } }} />
+    {(live || preview) && <LibraryEquipmentTray active={live} equipment={runtime.equipment} showFittingGuides={guided} fittingGuideSocketIds={fittingGuideSocketIds} />}
+    {(live || preview) && guided && <XRGuidedStepBubble stepId={guidance.id} stepNumber={guidance.index + 1} total={MADDOX_GUIDED_STEP_COUNT}
+      context={`TRIAL ${run.trialIndex + 1}/${MADDOX_TRIALS.length} · ${trial.site.toUpperCase()} · ${trial.axis.toUpperCase()}`}
+      title={guidance.title} lines={guidance.lines} complete={guidance.complete} />}
     {live && run.report && <XRSign text={["FICTIONAL PATIENT-REPORTED VIEW", "ENLARGED ILLUSTRATION · NOT A CALIBRATED TEST", run.report]} p={[.56, 1.74, -.10]} size={[.64, .25]} bg="#07151b" fg="#eefbf7" />}
     <PracticeLessonUI runtime={runtime} active={live} title="Maddox rod" status={status} tools={["prism", "pupils"]} actions={actions} fields={fields} lesson={lesson}
       ready={entryReady} entryReady={entryReady} onRecord={record} onReset={reset} onExit={onExit} onCancel={cancel}
-      help={guided ? ["Fit correction and physically fit the rod at the highlighted OD socket.", "Remove, roll and refit it between horizontal and vertical trials.", "Use the switched mirrored point target at distance; hold the lit penlight at 38–42 cm for near.", "Introduce 20Δ, then slide the stepped cells over OD while preserving the visible base arrow.", "Use the prism-hand trigger at coincidence; then put tools down and enter power plus base.", "Optics, tolerances and reports are illustrative draft assumptions."] : ["Grip, trigger, panel and recording controls remain available as accessibility guidance.", "Complete the physical procedure and record the captured observation."]} />
+      help={guided ? ["Place the trial frame over both eyes, then fit the red Maddox lens over the right eye (OD) using the single highlighted guide.", "Remove, rotate and refit the rod when the guide changes between horizontal and vertical trials.", "At distance, place the point target on the Distance Target Dock beside Arun, switch it on and confirm the point in the mirror. At near, hold the lit penlight 38–42 cm from his eyes.", "Hold the prism over OD. Thumbstick up/down changes power; left/right selects the base pair for the current axis.", "Start at 20Δ, press down to reduce through the cells, then use the prism-hand trigger at coincidence.", "Put tools down and enter power plus base. Optics, tolerances and reports are illustrative draft assumptions."] : ["Grip, trigger, panel and recording controls remain available as accessibility guidance.", "Complete the physical procedure and record the captured observation."]} />
   </>;
 }

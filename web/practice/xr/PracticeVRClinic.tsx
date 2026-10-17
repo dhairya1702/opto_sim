@@ -11,6 +11,8 @@ import { XRVoiceIndicator } from "../../scene/XRVoiceIndicator";
 import { useVoiceStatus } from "../../voice/VoiceStatusContext";
 import { PracticeVoiceControl } from "../../voice/PracticeVoiceControl";
 import { usePracticeAttempt } from "../PracticeAttemptContext";
+import { perfEnabled, perfEvent, perfRender } from "../../perf/perfFlag";
+import { PerfFrameProbe } from "../../perf/PerfFrameProbe";
 
 class PracticeSceneBoundary extends Component<{ children: ReactNode; onFailure: () => void }, { failed: boolean }> {
   state = { failed: false };
@@ -27,7 +29,9 @@ export function PracticeVRClinic({ title, findingPosition, onClose, onDesktop, c
   children: (session: PracticeClinicSession) => ReactNode;
   mirror?: ReactNode;
 }) {
+  perfRender("PracticeVRClinic");
   const { settings } = usePracticeAttempt();
+  useEffect(() => { perfEvent(`lesson ${title}`); }, [title]);
   const guided = settings?.kind !== "test";
   const voiceStatus = useVoiceStatus();
   const dialog = useRef<HTMLDialogElement>(null);
@@ -108,6 +112,7 @@ export function PracticeVRClinic({ title, findingPosition, onClose, onDesktop, c
           <Suspense fallback={<PracticeWebGLFallback />}>
             <Canvas shadows dpr={[1, 1.35]} camera={{ position: [0, 1.6, 1.65], fov: 66, near: .01, far: 20 }}
               onCreated={({ gl }) => { renderer.current = gl; gl.xr.enabled = true; gl.domElement.tabIndex = 0; gl.domElement.setAttribute("aria-label", "Practice clinic layout; drag to look and use WASD to move in preview"); }} fallback={<PracticeWebGLFallback />}>
+              {perfEnabled && <PerfFrameProbe />}
               <ConsultationInterior xr />
               <XRVoiceIndicator status={voiceStatus} />
               <Controller active={preview && !active} onTarget={() => undefined}

@@ -44,7 +44,7 @@ describe("sensory equipment and patient fitting", () => {
     expect(sensoryEquipment("four-prism")).toEqual(["subjective", "four-prism"]);
     expect(consultationToolDefinition("four-prism")).toMatchObject({ label: "Dedicated 4Δ prism", workingPoint: [0, .10, .012] });
     expect(consultationToolDefinition("subjective").home).toEqual(instrumentKitPoint(.72, .96, .08));
-    for (const id of ["subjective", "red-green", "polarised"] as const) {
+    for (const id of ["subjective", "red-green", "polarised", "worth"] as const) {
       expect(consultationToolDefinition(id).heldPose, id).toBe("ray");
     }
     expect(sensorySockets("stereo").some(s => s.tool === "red-green")).toBe(false);
@@ -150,6 +150,10 @@ describe("physical near and mirrored distance endpoints", () => {
       expect(sensoryNearCondition(pose).distanceCm).toBeCloseTo(40, 12);
       if (id === "worth") expect(sensoryTargetCondition(pose, state).endpoint).toBe("near");
     }
+    const worth = place(initialConsultationTools(), socket("sensory-worth-near"));
+    const reversed = poseOf(worth, "worth");
+    reversed.forward = reversed.forward.map(value => -value) as [number, number, number];
+    expect(sensoryTargetCondition(reversed, worth)).toMatchObject({ endpoint: "near", facing: true });
   });
   it("preserves exact 38/42 cm stereo boundaries, facing and spatial alignment", () => {
     for (const cm of [38, 40, 42]) expect(sensoryNearCondition({ position: [0, 1.5, CLINIC_EYE_MIDPOINT[2] + cm / 100], forward: [0, 0, -1] }).ready).toBe(true);
@@ -168,13 +172,13 @@ describe("physical near and mirrored distance endpoints", () => {
     expect(sensoryMirrorPath(SENSORY_DISTANCE_TARGET, { ...SENSORY_MIRROR, center: [1.2, 1.5, 2.3], width: .1 }).valid).toBe(false);
     expect(sensoryMirrorPath([.65, 1.5, 2.5]).valid).toBe(false);
   });
-  it("earns distance identity only at the tagged dock, never at an arbitrary 6 m pose or reversed target", () => {
+  it("accepts either illuminated face at the tagged distance dock, but never an arbitrary 6 m pose", () => {
     const state = place(initialConsultationTools(), socket("sensory-worth-distance"));
     const pose = poseOf(state, "worth");
     expect(pose.position).toEqual(SENSORY_DISTANCE_TARGET);
     expect(sensoryTargetCondition(pose, state)).toMatchObject({ endpoint: "distance", facing: true });
     expect(sensoryTargetCondition(pose, initialConsultationTools()).endpoint).toBeNull();
-    expect(sensoryTargetCondition({ ...pose, forward: [0, 0, -1] }, state).endpoint).toBeNull();
+    expect(sensoryTargetCondition({ ...pose, forward: [0, 0, -1] }, state)).toMatchObject({ endpoint: "distance", facing: true });
     expect(sensoryTargetCondition({ position: [0, 1.5, 1.427], forward: [0, 0, -1] }, state).endpoint).toBeNull();
     const removed = grabConsultationTool(state, "worth", "left");
     const returned = releaseConsultationTool(removed, "left", { position: [0, 2.8, 0], rotation: [0, 1, 0, 0] }, [], SENSORY_SOCKETS).state;

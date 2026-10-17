@@ -228,7 +228,7 @@ describe("exam and session transitions", () => {
     expect(examBlock(c, s, "pinhole", { eye: "OD", mode: "default" })).toBeDefined();
     expect(examBlock(c, s, "pinhole", { eye: "OS", mode: "default" })).toBeUndefined();
     expect(perform(s, "subjective").results).toEqual(s.results);
-    expect(examBlock(c, s, "anterior", { eye: "OS", mode: "default" })).toBeUndefined();
+    expect(examBlock(c, s, "fundus", { eye: "OS", mode: "default" })).toBeUndefined();
   });
   it("rejects invalid configurations and distinguishes a generic pupil check from RAPD", () => {
     let s = start();
@@ -300,9 +300,9 @@ describe("exam and session transitions", () => {
   it("permits alternative ordering of independent procedures", () => {
     let a = start(),
       b = start();
-    for (const id of ["anterior", "fundus", "motility", "distance"])
+    for (const id of ["fundus", "motility", "distance"])
       a = perform(a, id, id === "motility" ? "OU" : "OD");
-    for (const id of ["distance", "motility", "fundus", "anterior"])
+    for (const id of ["distance", "motility", "fundus"])
       b = perform(b, id, id === "motility" ? "OU" : "OD");
     expect(a.results.map((r) => r.id).sort()).toEqual(b.results.map((r) => r.id).sort());
   });
@@ -367,7 +367,7 @@ describe("room navigation", () => {
   it("prevents passage through patient, furniture and outer walls", () => {
     expect(walkable(0, -0.6)).toBe(false);
     expect(walkable(-1.37, 0.75)).toBe(false);
-    expect(walkable(1.35, -0.95)).toBe(false);
+    expect(walkable(1.35, -0.95)).toBe(true);
     expect(walkable(2, 0)).toBe(false);
     expect(walkable(0, 2.5)).toBe(false);
     expect(walkable(0, 1.65)).toBe(true);

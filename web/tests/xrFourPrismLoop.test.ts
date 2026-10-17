@@ -28,6 +28,7 @@ async function lesson(kind: PracticeAttemptKind = "guided", preview = false, sce
     await sim.pickup(0, "subjective"); await sim.at(0, socket.position); await sim.putDown(0); await sim.step(1 / 72, 12);
   };
   const orient = async (eye: "OD" | "OS") => { sim.rays[1].rotation.z = eye === "OD" ? Math.PI : 0; await sim.step(); };
+  const selectBase = async (eye: "OD" | "OS") => sim.thumbstick(1, eye === "OD" ? -1 : 1, "horizontal");
   const prism = async (eye: "OD" | "OS") => { await sim.at(1, [eye === "OD" ? -.048 : .048, eye === "OD" ? 1.6 : 1.4, -.492]); };
   const prepare = async () => {
     await fit(); await action("LOOK AT THE ISOLATED LETTER");
@@ -46,7 +47,7 @@ async function lesson(kind: PracticeAttemptKind = "guided", preview = false, sce
     });
     await sim.step(1 / 72, 12);
   };
-  return { ...sim, mirror: () => mirror!, complete, leave, action, fit, orient, prism, prepare, bilateral, observations };
+  return { ...sim, mirror: () => mirror!, complete, leave, action, fit, orient, selectBase, prism, prepare, bilateral, observations };
 }
 
 describe("mounted shared-clinic 4Δ base-out Practice", () => {
@@ -78,6 +79,23 @@ describe("mounted shared-clinic 4Δ base-out Practice", () => {
     expect(sim.complete).not.toHaveBeenCalled(); expect(sim.mirror().lesson.feedback).not.toContain("normal");
     await act(async () => { sim.mirror().lesson.choose("interpretation", "normal"); sim.mirror().record(); sim.mirror().record(); });
     expect(sim.complete).toHaveBeenCalledTimes(1); expect(sim.record).not.toHaveBeenCalled();
+  });
+
+  it("switches the fixed prism's base arrow with the held-controller thumbstick", async () => {
+    const sim = await lesson(); await sim.fit(); await sim.action("LOOK AT THE ISOLATED LETTER");
+    sim.viewerCamera.position.set(0, 1.5, .65); await sim.pickup(1, "four-prism");
+    let pill: import("three").Object3D | undefined;
+    sim.tool("four-prism").traverse(object => { if (object.userData.xrLabelPill) pill = object; });
+    expect(pill?.userData).toMatchObject({ width: .10, height: .026 });
+    expect(sim.labels().some(label => label.includes("BASE →"))).toBe(true);
+    const haptics = sim.haptics[1].mock.calls.length;
+    await sim.selectBase("OD"); expect(sim.labels().some(label => label.includes("← BASE"))).toBe(true);
+    expect(sim.haptics[1]).toHaveBeenCalledTimes(haptics + 1);
+    sim.rays[1].rotation.z = 0; await sim.step();
+    await sim.at(1, [-.048, 1.4, -.492]); await sim.step(1 / 72, 175); expect(sim.mirror().status).toContain("withdraw");
+    await sim.at(1, [.4, 1.4, -.492]); await sim.step(1 / 72, 3);
+    await sim.selectBase("OS"); expect(sim.labels().some(label => label.includes("BASE →"))).toBe(true);
+    await sim.prism("OS"); await sim.step(1 / 72, 175); expect(sim.mirror().ready).toBe(true);
   });
 
   it("preserves completed OD through tracking loss but requires fresh fixation", async () => {

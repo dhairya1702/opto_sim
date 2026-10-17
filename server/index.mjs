@@ -7,6 +7,7 @@ import { loadConfig } from "./config.mjs";
 import { issueVoiceToken, parseCookie, verifyVoiceToken, voiceCookie } from "./auth.mjs";
 import { CanonicalSpeech } from "./voice/google.mjs";
 import { VoiceSession } from "./voice/session.mjs";
+import { createPerfHandler, perfLogEnabled } from "./perf.mjs";
 
 export function createOptoServer(config = loadConfig(), overrides = {}) {
   const app = express(); const server = createServer(app); const sessions = new Set(); const sessionsByIp = new Map();
@@ -14,6 +15,8 @@ export function createOptoServer(config = loadConfig(), overrides = {}) {
   app.disable("x-powered-by"); app.use(express.json({ limit: "4kb" }));
   app.get("/healthz", (_request, response) => response.status(200).json({ status: "ok" }));
   app.post("/api/voice/access", (request, response) => issueVoiceAccess(request, response, config));
+  // Developer-only frame log; 404 and silent unless PERF_LOG=1 (see server/perf.mjs).
+  app.use("/api/perf", createPerfHandler({ enabled: perfLogEnabled() }));
   app.use(express.static(dist, { index: false, maxAge: "1h", setHeaders: (response, path) => { if (path.includes("/assets/")) response.setHeader("cache-control", "public, max-age=31536000, immutable"); } }));
   app.use((_request, response) => response.sendFile(join(dist, "index.html")));
   const wss = new WebSocketServer({ noServer: true, maxPayload: config.maxAudioFrameBytes });
@@ -54,5 +57,8 @@ export function voiceUpgradeDecision(request, config, sessionCount, sessionsByIp
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const config = loadConfig(); const { server } = createOptoServer(config);
-  server.listen(config.port, "0.0.0.0", () => console.log(JSON.stringify({ component: "server", event: "listening", port: config.port })));
+  server.listen(config.port, "0.0.0.0", () => {
+    console.log(JSON.stringify({ component: "server", event: "listening", port: config.port }));
+    if (perfLogEnabled()) console.log("[perf] PERF_LOG=1: printing reports from ?perf=1 clients on this network.");
+  });
 }

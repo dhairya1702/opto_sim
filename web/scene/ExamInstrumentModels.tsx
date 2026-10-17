@@ -91,7 +91,7 @@ export function PenlightModel({ powered = false, p = [0, 0, 0], r = [0, 0, 0] }:
   return <group position={p} rotation={r} userData={{ instrumentModel: "penlight-shaped" }}>
     <mesh position={[0, .01, 0]} castShadow receiveShadow><latheGeometry args={[profile, 32]} /><StandardMaterial color={colors.grip} metalness={.02} roughness={.73} /></mesh>
     <mesh position={[0, .12, 0]} castShadow><cylinderGeometry args={[.023, .023, .023, 32]} /><StandardMaterial color={colors.metal} metalness={.72} roughness={.3} /></mesh>
-    <mesh position={[0, .137, 0]} castShadow><cylinderGeometry args={[.018, .018, .008, 32]} /><meshPhysicalMaterial color={powered ? "#ffdda1" : "#a9e4dc"} emissive={powered ? "#a45d12" : "#000000"} emissiveIntensity={powered ? .35 : 0} roughness={.12} transmission={.32} thickness={.01} transparent opacity={.84} /></mesh>
+    <mesh position={[0, .137, 0]} castShadow><cylinderGeometry args={[.018, .018, .008, 32]} /><meshStandardMaterial color={powered ? "#ffdda1" : "#a9e4dc"} emissive={powered ? "#a45d12" : "#000000"} emissiveIntensity={powered ? .35 : 0} roughness={.12} transparent opacity={.84} /></mesh>
     <mesh position={[.018, .035, 0]} rotation={[0, 0, Math.PI / 2]} castShadow><capsuleGeometry args={[.005, .022, 4, 12]} /><StandardMaterial color={colors.accent} metalness={.42} roughness={.42} /></mesh>
     <mesh position={[-.019, -.005, 0]} castShadow><boxGeometry args={[.007, .07, .005]} /><StandardMaterial color={colors.darkMetal} metalness={.54} roughness={.36} /></mesh>
   </group>;
@@ -125,11 +125,11 @@ export function PrismBarModel({ selectedIndex = 0, profile = "standard" }: { sel
       return <group key={index}>
         <mesh position={[0, y, .008]}>
           <circleGeometry args={[radius, 32]} />
-          <meshPhysicalMaterial color="#d9f6f1" roughness={.05} transmission={.86} thickness={.003} transparent opacity={index === selectedIndex ? .10 : .18} depthWrite={false} />
+          <meshStandardMaterial color="#d9f6f1" roughness={.05} transparent opacity={index === selectedIndex ? .10 : .18} depthWrite={false} />
         </mesh>
         <mesh position={[0, y, .012]} rotation={[Math.PI / 2, 0, (index % 2 ? 1 : -1) * Math.PI / 2]} scale={[1.2, 1, 1]} castShadow>
           <cylinderGeometry args={[radius * .82, radius, .014, 3]} />
-          <meshPhysicalMaterial color="#9fded7" roughness={.08} transmission={.78} thickness={.006} transparent opacity={index === selectedIndex ? .14 : .28} depthWrite={false} />
+          <meshStandardMaterial color="#9fded7" roughness={.08} transparent opacity={index === selectedIndex ? .14 : .28} depthWrite={false} />
         </mesh>
         <mesh position={[.04, y, .023]} castShadow userData={{ xrPrismCell: index, xrPrismPower: power, xrPrismCellSelected: index === selectedIndex }}><boxGeometry args={[.012, .005, .004]} /><StandardMaterial color={index === selectedIndex ? colors.accent : colors.metal} metalness={.6} roughness={.34} /></mesh>
       </group>;
@@ -200,7 +200,7 @@ export function OphthalmoscopeModel({ p = [0, 0, 0], r = [0, 0, 0], showAperture
     <mesh castShadow receiveShadow><tubeGeometry args={[neckPath, 16, .019, 20, false]} /><StandardMaterial color={colors.shell} metalness={.12} roughness={.52} /></mesh>
     <mesh position={[0, .254, -.023]} scale={[.65, 1, 1]} castShadow receiveShadow><extrudeGeometry args={[headShape, headOptions]} /><StandardMaterial color={colors.shell} metalness={.12} roughness={.52} /></mesh>
     <mesh position={[0, .27, .020]} rotation={[Math.PI / 2, 0, 0]} castShadow><cylinderGeometry args={[.024, .024, .010, 32]} /><StandardMaterial color={colors.metal} metalness={.72} roughness={.3} /></mesh>
-    <mesh position={[0, .27, .026]} rotation={[Math.PI / 2, 0, 0]} castShadow><cylinderGeometry args={[.016, .016, .006, 32]} /><meshPhysicalMaterial color="#ffdda1" emissive="#a45d12" emissiveIntensity={.18} roughness={.15} transmission={.2} thickness={.01} /></mesh>
+    <mesh position={[0, .27, .026]} rotation={[Math.PI / 2, 0, 0]} castShadow><cylinderGeometry args={[.016, .016, .006, 32]} /><meshStandardMaterial color="#ffdda1" emissive="#a45d12" emissiveIntensity={.18} roughness={.15} /></mesh>
     <mesh position={[0, .27, .027]} castShadow><torusGeometry args={[.025, .003, 10, 36]} /><StandardMaterial color={colors.rubber} metalness={0} roughness={.86} /></mesh>
     <mesh position={[0, .27, -.019]} rotation={[Math.PI / 2, 0, 0]} castShadow><cylinderGeometry args={[.026, .026, .012, 32]} /><StandardMaterial color={colors.rubber} metalness={0} roughness={.86} /></mesh>
     <mesh position={[0, .27, -.025]} rotation={[Math.PI / 2, 0, 0]} castShadow><cylinderGeometry args={[.012, .012, .008, 32]} /><StandardMaterial color={colors.darkMetal} metalness={.56} roughness={.34} /></mesh>

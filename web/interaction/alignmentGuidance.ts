@@ -115,11 +115,11 @@ export function coverGuidedStep(state: CoverGuidedState): AlignmentGuidedStep {
   };
   if (alternate && state.observed && (!state.prismAligned || !state.prismConfigured)) return {
     id: "prism", index: 3, title: "Set and align the prism",
-    lines: ["Open PRISM SETTINGS; choose a base and power.", "Then hold the gold-ringed cell before one eye."], complete: false,
+    lines: ["Prism thumbstick: left/right changes base; up/down changes power.", "Then hold the gold-ringed cell before one eye."], complete: false,
   };
   if (alternate && state.observed) return {
     id: "neutralise", index: 4, title: "Repeat to neutralise",
-    lines: ["Start REPEAT WITH PRISM.", "Repeat the alternating sequence until movement stops."], complete: false,
+    lines: ["Press the prism-hand trigger to start the repeat.", "Repeat the alternating sequence until movement stops."], complete: false,
   };
   if (!state.occluderHeld) return {
     id: "tool", index: 0, title: "Pick up the occluder",

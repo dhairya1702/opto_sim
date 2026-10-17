@@ -41,14 +41,6 @@ export const stations: {
     look: [-1.43, 1, -1.2],
   },
   {
-    id: "slit",
-    name: "Slit-lamp station",
-    action: "Slit lamp: examine anterior segment",
-    description: "Anterior-segment assessment",
-    position: [0.7, 1.6, 0.3],
-    look: [1.35, 1.2, -0.9],
-  },
-  {
     id: "fundus",
     name: "Ophthalmoscope",
     action: "Ophthalmoscope: examine fundus",
@@ -63,7 +55,6 @@ export const obstacles = [
   { x: INSTRUMENT_KIT.x, z: INSTRUMENT_KIT.z, w: INSTRUMENT_KIT.depth + .08, d: INSTRUMENT_KIT.width + .04 },
   { x: AUXILIARY_INSTRUMENT_KIT.x, z: AUXILIARY_INSTRUMENT_KIT.z, w: AUXILIARY_INSTRUMENT_KIT.depth + .08, d: AUXILIARY_INSTRUMENT_KIT.width + .04 },
   { x: -1.45, z: -1.4, w: 0.85, d: 1.25 },
-  { x: 1.35, z: -0.95, w: 1.02, d: 0.72 },
   { x: 1.4, z: -1.65, w: 0.55, d: 0.55 },
   { x: 1.35, z: -0.05, w: 0.52, d: 0.52 },
 ];

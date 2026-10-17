@@ -67,6 +67,7 @@ describe("new Practice lessons in the shared clinic", () => {
     expect(sim.mirror().actions[0].active).toBe(false); // Instrument trigger never operates wall UI.
     await sim.at(0, [0, 1.33, .459]);
     await sim.scope(0); await sim.step(1 / 72, 12);
+    expect(sim.labels().some(label => /^3 · WORKING DISTANCE \d+ CM ✓$/.test(label))).toBe(true);
     let observation: THREE.Object3D | undefined;
     sim.state.scene.traverse(object => { if (object.userData.xrScopeViewObservation) observation = object; });
     const pupilColours = () => {
@@ -87,6 +88,7 @@ describe("new Practice lessons in the shared clinic", () => {
     // Both pupils are illuminated at 70 cm, but the taught working zone still gates credit.
     await sim.at(0, [0, 1.33, .159]);
     await sim.action("LOOK AT THE LIGHT"); await sim.step(1 / 72, 12);
+    expect(sim.labels().some(label => /^3 · WORKING DISTANCE \d+ CM · TARGET 90–110 CM$/.test(label))).toBe(true);
     expect(observation?.visible).toBe(true);
     expect(pupilColours()).toEqual([brucknerReflexVisual("od", "od").color.slice(1), brucknerReflexVisual("od", "os").color.slice(1)]);
     expect(sim.mirror().status).toContain("move the light to 90–110 cm");
@@ -219,7 +221,11 @@ describe("new Practice lessons in the shared clinic", () => {
   });
   it("motility follows the held penlight, requires nine dwells and symptoms, and records an explicit observation", async () => {
     const sim = await lesson("motility");
-    expect(sim.labels()).toContain("○ Up");
+    const guideRings: THREE.Object3D[] = [];
+    sim.state.scene.traverse(object => { if (object.userData.xrMotilityGuideRing) guideRings.push(object); });
+    expect(guideRings).toHaveLength(gazePositions.length);
+    expect(guideRings.every(ring => ring.scale.x === .038 && ring.scale.y === .027)).toBe(true);
+    expect(sim.labels()).not.toContain("○ Up");
     expect(sim.labels()).toContain("FOLLOW LIGHT · HEAD STILL");
     expect(sim.labels()).toContain("ASK ABOUT SYMPTOMS");
     expect(sim.labels()).toContain("HIDE GAZE GUIDE");
@@ -231,7 +237,11 @@ describe("new Practice lessons in the shared clinic", () => {
     await sim.panel(0); // Motility keeps A/X out of panel mode; the held trigger remains the light.
     await sim.event(0, "selectstart");
     await sim.at(0, [0, 1.5, -.086]); await sim.step(1 / 72, 15);
-    expect(sim.labels().some(label => /% · Centre/.test(label))).toBe(true);
+    expect(sim.labels().some(label => /% · Centre/.test(label))).toBe(false);
+    const progressGuides: THREE.Object3D[] = [];
+    sim.state.scene.traverse(object => { if (object.userData.xrMotilityGuideProgress) progressGuides.push(object); });
+    expect(progressGuides).toHaveLength(1);
+    expect(progressGuides[0].scale.x).toBe(.038); expect(progressGuides[0].scale.y).toBe(.027);
     for (const gaze of gazePositions) {
       await sim.at(0, [gaze.x * .35 * .65, 1.5 + gaze.y * .35 * .45, -.086]);
       await sim.step(1 / 72, 60);
@@ -372,15 +382,22 @@ describe("new Practice lessons in the shared clinic", () => {
     expect(sim.tool("prism").position.toArray()).toEqual(consultationToolDefinition("prism").home);
     await sim.pickup(0, "prism"); await sim.at(0, [.048, 1.357, -.481]);
     expect(sim.labels()).toContain("Set and align the prism");
+    expect(sim.labels().join(" ")).toContain("Prism thumbstick: left/right changes base; up/down changes power.");
     let workingRing: THREE.Object3D | undefined;
     sim.tool("prism").traverse(object => { if (object.userData.xrPrismWorkingCell) workingRing = object; });
     expect(workingRing?.position.y).toBe(PRISM_BAR_WORKING_Y);
-    await sim.action("BASE IN"); for (let i = 0; i < 6; i++) await sim.action("POWER +2Δ");
+    sim.axes[0][2] = -.8; await sim.step(); sim.axes[0][2] = 0; await sim.step();
+    for (let i = 0; i < 6; i++) await sim.thumbstick(0, 1);
+    expect(sim.mirror().status).toContain("prism 12Δ base-in");
+    expect(sim.labels()).toContain("← BASE IN · BI");
     expect(workingRing?.position.y).toBe(PRISM_BAR_WORKING_Y);
     expect(sim.labels()).toContain("GUIDED · STEP 5 OF 7");
-    await sim.action("REPEAT WITH PRISM"); await sim.coverSequence();
+    expect(sim.labels().join(" ")).toContain("Press the prism-hand trigger to start the repeat.");
+    await sim.event(0, "selectstart"); await sim.event(0, "selectend"); await sim.coverSequence();
     expect(sim.labels()).toContain("GUIDED · STEP 6 OF 7");
     expect(sim.labels()).toContain("Classify the movement");
+    await sim.putDown(0); await sim.putDown(1);
+    expect(sim.mirror().ready).toBe(true);
     await sim.panel(1); await sim.click(1, sim.button("RECORD FINDING"));
     await sim.click(1, sim.button("IN")); await sim.click(1, sim.button("EXO"));
     expect(sim.labels()).toContain("GUIDED · STEP 7 OF 7");
@@ -411,12 +428,12 @@ describe("new Practice lessons in the shared clinic", () => {
     const sim = await lesson("alternate-cover"); await sim.pickup(1, "cover"); await sim.click(0, sim.button("LOOK AT THE TARGET"));
     await sim.coverSequence(); expect(sim.mirror().entryReady).toBe(true); expect(sim.mirror().ready).toBe(false);
     await sim.pickup(0, "prism"); await sim.at(0, [.048, 1.357, -.481]);
-    await sim.panel(1); await sim.click(1, sim.button("PRISM SETTINGS"));
+    await sim.panel(1); await sim.click(1, sim.button("PRISM SETTINGS · ACCESSIBILITY"));
     await sim.click(1, sim.button("BASE OUT"));
     for (let i = 0; i < 6; i++) await sim.click(1, sim.button("POWER +2Δ"));
     await sim.click(1, sim.button("REPEAT WITH PRISM")); await sim.panel(1); await sim.coverSequence();
     expect(sim.mirror().ready).toBe(false); expect(sim.mirror().status).toContain("Refixation remains");
-    await sim.panel(1); await sim.click(1, sim.button("PRISM SETTINGS")); await sim.click(1, sim.button("BASE IN"));
+    await sim.panel(1); await sim.click(1, sim.button("PRISM SETTINGS · ACCESSIBILITY")); await sim.click(1, sim.button("BASE IN"));
     await sim.click(1, sim.button("REPEAT WITH PRISM")); await sim.panel(1); await sim.coverSequence();
     expect(sim.mirror().ready).toBe(true);
     await sim.panel(1); await sim.click(1, sim.button("RECORD FINDING"));

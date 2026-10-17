@@ -91,6 +91,16 @@ describe("Hirschberg in the shared consultation clinic", () => {
     expect(sim.mirror().technique.ready).toBe(true);
     expect(sim.reflexes().every(object => object.visible)).toBe(true);
     expect(sim.labels()).toContain("OBSERVATION CAPTURED ✓ · choose answers and submit");
+
+    sim.viewerCamera.rotation.y = .4; await sim.step(1 / 72, 12);
+    expect(sim.mirror().technique.ready).toBe(false);
+    expect(sim.reflexes().every(object => object.visible)).toBe(true);
+
+    await sim.event(0, "selectend"); await sim.step(1 / 72, 12);
+    expect(sim.reflexes().every(object => !object.visible)).toBe(true);
+    await sim.click(1, sim.button("NO DEVIATION")); await sim.click(1, sim.button("CENTRED · 0°"));
+    await sim.click(1, sim.button("SUBMIT / CHECK"));
+    expect(sim.complete).toHaveBeenCalledTimes(1);
   });
   it("puts one findings form on the rear wall, keeps hands clean and explains an incomplete submission", async () => {
     const sim = await lesson(); await sim.pickup(1, "pupils");

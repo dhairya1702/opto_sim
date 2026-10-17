@@ -44,8 +44,11 @@ describe("alignment guided coaches", () => {
   it("adds physical prism alignment and neutralisation to alternating cover", () => {
     const observed = cover({ kind: "alternate-cover", observed: true });
     expect(coverGuidedStep(observed).title).toBe("Pick up the prism bar");
-    expect(coverGuidedStep({ ...observed, prismHeld: true }).title).toBe("Set and align the prism");
+    const prism = coverGuidedStep({ ...observed, prismHeld: true });
+    expect(prism.title).toBe("Set and align the prism");
+    expect(prism.lines[0]).toContain("thumbstick");
     expect(coverGuidedStep({ ...observed, prismHeld: true, prismAligned: true, prismConfigured: true }).id).toBe("neutralise");
+    expect(coverGuidedStep({ ...observed, prismHeld: true, prismAligned: true, prismConfigured: true }).lines[0]).toContain("prism-hand trigger");
     expect(coverGuidedStep({ ...observed, neutralized: true }).id).toBe("interpret");
     expect(coverGuidedStep({ ...observed, neutralized: true, observationComplete: true }).id).toBe("record");
   });

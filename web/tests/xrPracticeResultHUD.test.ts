@@ -3,7 +3,13 @@ import { act } from "@react-three/fiber";
 import { Mesh, MeshBasicMaterial, type Object3D, Quaternion, Vector3 } from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { clinic } from "./helpers/xrClinicHarness";
-import { useXRPracticeResult, XRPracticeResultHUD, XR_RESULT_DURATION_MS } from "../scene/XRPracticeResultHUD";
+import {
+  useXRPracticeResult,
+  XRPracticeResultHUD,
+  XR_RESULT_CARD_DISTANCE,
+  XR_RESULT_CARD_WIDTH,
+  XR_RESULT_DURATION_MS,
+} from "../scene/XRPracticeResultHUD";
 
 let dispose: (() => Promise<void>) | undefined;
 afterEach(async () => { await dispose?.(); dispose = undefined; vi.useRealTimers(); vi.unstubAllGlobals(); });
@@ -30,7 +36,7 @@ describe("temporary Practice result HUD", () => {
     await sim.step();
     const board = hud()!;
     const rotation = sim.viewerCamera.getWorldQuaternion(new Quaternion());
-    const expected = new Vector3(0, -.04, -1.25).applyQuaternion(rotation).add(sim.viewerCamera.position);
+    const expected = new Vector3(0, -.03, -XR_RESULT_CARD_DISTANCE).applyQuaternion(rotation).add(sim.viewerCamera.position);
     expect(board.position.distanceTo(expected)).toBeLessThan(1e-8);
     expect(board.quaternion.angleTo(rotation)).toBeLessThan(1e-6);
     expect(board.userData.xrIgnoreRay).toBe(false); expect(board.userData.xrPanel).toBe(true);
@@ -41,13 +47,18 @@ describe("temporary Practice result HUD", () => {
       expect(child.renderOrder).toBeGreaterThan(1102);
       const materials = Array.isArray(child.material) ? child.material : [child.material];
       expect(materials.every(material => !material.depthTest && !material.depthWrite)).toBe(true);
+      expect(materials.every(material => material.transparent)).toBe(true);
       materials.forEach(material => {
         if (!(material instanceof MeshBasicMaterial)) return;
         const image = material.map?.image as { renderedText?: string[] } | undefined;
         rows.push(...(image?.renderedText ?? []).filter(line => line !== "CORRECT" && line !== "TRY NEW CASE"));
       });
     });
-    expect(rows.join(" ")).toBe(message); expect(rows.every(line => line.length <= 44)).toBe(true);
+    expect(rows.join(" ")).toBe(message); expect(rows.every(line => line.length <= 34)).toBe(true);
+    let card: Object3D | undefined;
+    board.traverse(child => { if (child.userData.xrPracticeResultCard) card = child; });
+    expect(card?.userData.width).toBe(XR_RESULT_CARD_WIDTH);
+    expect(card?.userData.height).toBeLessThan(.5);
     await act(async () => sim.button("TRY NEW CASE").userData.xrAction());
     expect(tryNewCase).toHaveBeenCalledTimes(1);
   });

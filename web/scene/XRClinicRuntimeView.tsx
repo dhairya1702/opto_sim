@@ -2,7 +2,7 @@ import { DoubleSide } from "three";
 import type { ClinicInstrumentSettings } from "./LibraryClinicEquipment";
 import { SensoryClinicStation } from "./SensoryClinicEquipment";
 import { ConsultationInstruments } from "./ConsultationInstruments";
-import { XRSign as Sign } from "./XRClinicPanels";
+import { XRLabelPill, XRSign as Sign } from "./XRClinicPanels";
 import { stations } from "../interaction/navigation";
 import { consultationXRArrival } from "../interaction/xrConsultationNavigation";
 import { AUXILIARY_INSTRUMENT_KIT } from "../interaction/clinicLayout";
@@ -10,6 +10,7 @@ import { consultationToolDefinition, consultationPickupLabel, toolInHand, type C
 import type { XRClinicRuntime, XRClinicHand } from "../interaction/useXRClinicRuntime";
 import type { FundusScopeView, BrucknerScopeView } from "./XRScopeOptics";
 import { XRScopeView } from "./XRScopeView";
+import { perfRender } from "../perf/perfFlag";
 export function XRClinicRuntimeView({ runtime, active, preview = false, title = "VR CONSULTATION", instruction = "Explore freely · A/X · patient menu", showWallInstructions = true, showInstructionalHighlights = true, cleanHands = false, helperHand, helperReady = false, fundusView, brucknerView, sensoryStation, instrumentSettings, selectableEquipment, instructionalEquipment = [] }: {
   instrumentSettings?: ClinicInstrumentSettings;
   selectableEquipment?: readonly ConsultationToolId[];
@@ -30,6 +31,7 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
   fundusView?: FundusScopeView;
   brucknerView?: BrucknerScopeView;
 }) {
+  perfRender("XRClinicRuntimeView");
   const { tools, slots, highlighted, returnedAt, registerTool, hoverMarker, pickupHints, handlingMessage } = runtime;
   const showGuides = active || preview;
   return <>
@@ -84,10 +86,16 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
       </group>
       {active && slots.map((slot, index) => {
         const id = slot.hand ? toolInHand(tools, slot.hand) : null;
+        const definition = id ? consultationToolDefinition(id) : null;
+        const heldLabel = id && definition
+          ? `${id === "four-prism" ? "4Δ PRISM" : definition.label.toUpperCase()}${definition.illuminates ? tools[id].powered ? " · ON" : definition.powerMode === "persistent" ? " · SWITCH" : " · TRIGGER" : ""}`
+          : null;
         return <group key={index} userData={{ xrIgnoreRay: true }}>
           <primitive object={slot.grip}>
             <mesh rotation={[Math.PI / 2, 0, 0]}><capsuleGeometry args={[.025, .075, 5, 10]} /><meshStandardMaterial color={slot.hand === "left" ? "#6a8fa0" : "#72ae9f"} roughness={.5} /></mesh>
-            {!cleanHands && <Sign text={[slot.panel ? "MENU · A/X TO RETURN" : id ? `${consultationToolDefinition(id).label}${consultationToolDefinition(id).illuminates ? tools[id].powered ? " · LIGHT ON" : consultationToolDefinition(id).powerMode === "persistent" ? " · LIGHT OFF · USE SWITCH" : " · TRIGGER FOR LIGHT" : ""}` : slot.hand ? consultationPickupLabel(pickupHints[slot.hand]) : "BRING HAND TO A TOOL"]} p={[0, .075, 0]} size={[.26, .042]} rotation={[-Math.PI / 2, 0, 0]} bg={slot.panel ? "#176b5e" : "#173a3e"} fg="#e8fff9" />}
+            {!cleanHands && (heldLabel && id
+              ? <XRLabelPill label={heldLabel} toolId={id} position={[0, .068, 0]} rotation={[-Math.PI / 2, 0, 0]} />
+              : <Sign text={[slot.panel ? "MENU · A/X TO RETURN" : slot.hand ? consultationPickupLabel(pickupHints[slot.hand]) : "BRING HAND TO A TOOL"]} p={[0, .075, 0]} size={[.26, .042]} rotation={[-Math.PI / 2, 0, 0]} bg={slot.panel ? "#176b5e" : "#173a3e"} fg="#e8fff9" />)}
             {helperHand && slot.hand && helperHand !== slot.hand && !id && !slot.panel && <group position={[0, 0, -.1]}>
               <mesh><sphereGeometry args={[.018, 20, 14]} /><meshBasicMaterial color={helperReady ? "#f06b55" : "#a16960"} /></mesh>
               <mesh position={[0, 0, .001]}><ringGeometry args={[.026, .032, 24]} /><meshBasicMaterial color="#fff2c5" side={DoubleSide} /></mesh>

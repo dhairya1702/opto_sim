@@ -65,8 +65,7 @@ async function lesson(attemptKind?: PracticeAttemptKind) {
   };
   const compare = async () => { await sim.event(1, "selectstart"); await sim.event(1, "selectend"); await sim.step(1 / 72, 12); };
   const enterPower = async (power: number, controller = 1) => {
-    for (let i = 0; i < Math.floor(power / 5); i++) await sim.click(controller, sim.button("ENTRY +5Δ"));
-    for (let i = 0; i < power % 5; i++) await sim.click(controller, sim.button("ENTRY +1Δ"));
+    await sim.click(controller, sim.button(`${power}Δ`));
   };
   return { ...sim, mirror: () => mirror!, action, reflex, light, prismAt, setBase, setPrism, compare, enterPower, complete, leave };
 }
@@ -91,7 +90,7 @@ describe("mounted Krimsky Practice in the shared clinic", () => {
     expect(sim.labels()).toContain("Align the selected prism cell");
     await sim.prismAt("OS");
     expect(sim.labels()).toContain("Set the prism direction and power");
-    expect(sim.labels()).toContain("Place the prism before the required eye. Thumbstick left/right selects BI/BO.");
+    expect(sim.labels().join(" ")).toContain("Place the prism before the required eye. Thumbstick left/right selects BI/BO.");
     await sim.setPrism("BI", 20);
     expect(sim.mirror().status).toContain("Reflexes match");
     expect(sim.labels()).toContain("GUIDED · STEP 6 OF 7");
@@ -101,6 +100,9 @@ describe("mounted Krimsky Practice in the shared clinic", () => {
     expect(sim.labels()).toContain("Record the prism power");
     await sim.event(0, "selectend"); await sim.putDown(1); await sim.putDown(0);
     await sim.panel(1); await sim.click(1, sim.button("RECORD FINDING"));
+    expect(sim.labels()).toContain("Neutralising prism · BI");
+    expect(KRIMSKY_PRISM_POWERS.every(power => sim.labels().includes(`${power}Δ`))).toBe(true);
+    expect(sim.labels().some(label => label.startsWith("ENTRY +") || label.startsWith("ENTRY −"))).toBe(false);
     await sim.enterPower(20); await sim.click(1, sim.button("SUBMIT / CHECK"));
     expect(sim.complete).toHaveBeenCalledTimes(1);
     expect(sim.labels()).toContain("GUIDED · COMPLETE");
@@ -197,12 +199,12 @@ describe("mounted Krimsky Practice in the shared clinic", () => {
     await sim.click(1, sim.button("SUBMIT / CHECK")); expect(sim.complete).not.toHaveBeenCalled();
     await sim.enterPower(15); await sim.click(1, sim.button("SUBMIT / CHECK"));
     expect(sim.complete).not.toHaveBeenCalled(); expect(sim.mirror().lesson.feedback).toContain("Read the captured");
-    await sim.click(1, sim.button("ENTRY +5Δ")); await sim.click(1, sim.button("SUBMIT / CHECK"));
+    await sim.enterPower(20); await sim.click(1, sim.button("SUBMIT / CHECK"));
     expect(sim.complete).toHaveBeenCalledTimes(1); expect(sim.mirror().lesson.feedback).toContain("20Δ BI, prism before OS");
     sim.mirror().record(); expect(sim.complete).toHaveBeenCalledTimes(1);
     expect(sim.record).not.toHaveBeenCalled(); expect(sim.encounter().results).toHaveLength(0);
   });
-  it("modified Krimsky requires the fixating eye and completes both authored endpoints with 1Δ controls", async () => {
+  it("modified Krimsky requires the fixating eye and completes both authored endpoints with direct prism-bar choices", async () => {
     const sim = await lesson();
     for (const [base, power] of [["BI", 20], ["BO", 15]] as const) {
       await sim.action("MODIFIED · OD"); await sim.light();

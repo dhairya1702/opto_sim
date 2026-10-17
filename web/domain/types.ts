@@ -1,5 +1,5 @@
 export type Eye = "OD" | "OS" | "OU";
-export type StationId = "patient" | "trolley" | "refraction" | "slit" | "fundus" | "acuity";
+export type StationId = "patient" | "trolley" | "refraction" | "fundus" | "acuity";
 export type ExamConfig = { eye: Eye; mode: string };
 export type HistoryFact = {
   id: string;

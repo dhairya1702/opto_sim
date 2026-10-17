@@ -26,9 +26,9 @@ export const SENSORY_SOCKETS: readonly PlacementSocket[] = [
   { id: "sensory-correction", tool: "subjective", position: [0, 1.5, -.511], rotation: identity, radius: .085, orientationToleranceRad: Math.PI / 6, fittingLayer: "correction" },
   { id: "sensory-red-green", tool: "red-green", position: [0, 1.5, -.482], rotation: identity, radius: .085, orientationToleranceRad: Math.PI / 6, fittingLayer: "filters" },
   { id: "sensory-polarised", tool: "polarised", position: [0, 1.5, -.482], rotation: identity, radius: .085, orientationToleranceRad: Math.PI / 6, fittingLayer: "filters" },
-  { id: "sensory-worth-near", tool: "worth", position: rootAtWorkingPoint("worth", SENSORY_NEAR_TARGET), rotation: identity, radius: .11, orientationToleranceRad: Math.PI / 6 },
+  { id: "sensory-worth-near", tool: "worth", position: rootAtWorkingPoint("worth", SENSORY_NEAR_TARGET), rotation: identity, radius: .11 },
   { id: "sensory-stereo-near", tool: "stereo", position: rootAtWorkingPoint("stereo", SENSORY_NEAR_TARGET), rotation: identity, radius: .11, orientationToleranceRad: Math.PI / 6 },
-  { id: "sensory-worth-distance", tool: "worth", position: rootAtWorkingPoint("worth", SENSORY_DISTANCE_TARGET, true), rotation: reverse, radius: .11, orientationToleranceRad: Math.PI / 6 },
+  { id: "sensory-worth-distance", tool: "worth", position: rootAtWorkingPoint("worth", SENSORY_DISTANCE_TARGET, true), rotation: reverse, radius: .11 },
 ];
 export function sensoryEquipment(kind: SensoryKind): readonly ConsultationToolId[] {
   if (kind === "worth") return ["subjective", "red-green", "worth"];
@@ -60,10 +60,15 @@ function facingPoint(pose: SensoryWorkingPose, point: ToolPoint) {
   const length = Math.hypot(...pose.forward) * Math.hypot(...vector);
   return length > 0 && pose.forward.reduce((sum, value, i) => sum + value * vector[i], 0) / length >= Math.cos(Math.PI / 6);
 }
+function facingPointEitherSide(pose: SensoryWorkingPose, point: ToolPoint) {
+  const vector: ToolPoint = [point[0] - pose.position[0], point[1] - pose.position[1], point[2] - pose.position[2]];
+  const length = Math.hypot(...pose.forward) * Math.hypot(...vector);
+  return length > 0 && Math.abs(pose.forward.reduce((sum, value, i) => sum + value * vector[i], 0) / length) >= Math.cos(Math.PI / 6);
+}
 /** Existing stereo distance range, plus spatial/facing checks; epsilon keeps exact boundary samples valid. */
-export function sensoryNearCondition(pose: SensoryWorkingPose) {
+export function sensoryNearCondition(pose: SensoryWorkingPose, twoSided = false) {
   const distanceCm = gap(pose.position, CLINIC_EYE_MIDPOINT) * 100;
-  const facing = facingPoint(pose, CLINIC_EYE_MIDPOINT);
+  const facing = twoSided ? facingPointEitherSide(pose, CLINIC_EYE_MIDPOINT) : facingPoint(pose, CLINIC_EYE_MIDPOINT);
   const aligned = pose.position[2] > CLINIC_EYE_MIDPOINT[2] && Math.hypot(pose.position[0], pose.position[1] - CLINIC_EYE_MIDPOINT[1]) <= .10;
   return { distanceCm, facing, ready: facing && aligned && distanceCm >= 38 - 1e-8 && distanceCm <= 42 + 1e-8 };
 }
@@ -86,9 +91,9 @@ export function sensoryTargetCondition(pose: SensoryWorkingPose, tools: Consulta
     && gap(pose.position, SENSORY_DISTANCE_TARGET) < .002;
   if (docked) {
     const path = sensoryMirrorPath(pose.position);
-    const facing = path.valid && facingPoint(pose, path.intersection);
+    const facing = path.valid && facingPointEitherSide(pose, path.intersection);
     return { distanceCm: path.distanceCm, endpoint: facing && Math.abs(path.distanceCm - 600) < .2 ? "distance" : null, facing };
   }
-  const near = sensoryNearCondition(pose);
+  const near = sensoryNearCondition(pose, true);
   return { distanceCm: near.distanceCm, endpoint: near.ready ? "near" : null, facing: near.facing };
 }

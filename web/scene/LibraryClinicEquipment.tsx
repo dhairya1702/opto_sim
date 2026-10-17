@@ -2,6 +2,7 @@ import { CatmullRomCurve3, DoubleSide, Path, Shape, Vector2, Vector3 } from "thr
 import { Box, Cylinder } from "./Models";
 import { XRSign } from "./XRClinicPanels";
 import { LIBRARY_SOCKETS } from "../interaction/xrLibraryEquipment";
+import { CLINIC_PATIENT_EYES } from "../interaction/clinicPatient";
 import { THORINGTON_CARD_APERTURE_RADIUS_M, THORINGTON_SCALE, thoringtonCardCoordinate } from "../interaction/thoringtonProcedure";
 import type { ConsultationToolId } from "../interaction/xrConsultationTools";
 
@@ -17,6 +18,7 @@ export type ClinicInstrumentSetting = {
   profile?: "standard" | "maddox";
   anchorPower?: number; aligned?: boolean; reflexOffset?: number; showReflex?: boolean;
   powered?: boolean; onPowerChange?: (powered: boolean) => void;
+  highlightPowerSwitch?: boolean;
 };
 export type ClinicInstrumentSettings = Partial<Record<ConsultationToolId, ClinicInstrumentSetting>>;
 
@@ -79,10 +81,10 @@ function Lens({ x, material = "clear" }: { x: number; material?: "clear" | "red"
     </mesh>
     {material === "prism" ? <mesh position={[0, 0, .005]} rotation={[Math.PI / 2, 0, x < 0 ? Math.PI / 2 : -Math.PI / 2]} castShadow>
       <cylinderGeometry args={[.034, .027, .008, 3]} />
-      <meshPhysicalMaterial color="#9fded7" roughness={.12} transmission={.38} thickness={.01} transparent opacity={.68} side={DoubleSide} />
+      <meshStandardMaterial color="#9fded7" roughness={.12} transparent opacity={.68} side={DoubleSide} />
     </mesh> : <mesh position={[0, 0, .005]} rotation={[Math.PI / 2, 0, 0]} castShadow>
       <cylinderGeometry args={[.032, .032, .007, 36]} />
-      <meshPhysicalMaterial color={material === "red" ? "#d83d4b" : "#9fded7"} roughness={.15} transmission={.32} thickness={.01} transparent opacity={material === "red" ? .76 : .56} />
+      <meshStandardMaterial color={material === "red" ? "#d83d4b" : "#9fded7"} roughness={.15} transparent opacity={material === "red" ? .76 : .56} />
     </mesh>}
   </group>;
 }
@@ -121,7 +123,7 @@ function RelativeLensHolderModel({ power = 0, highlightAperture = false, highlig
     </mesh>)}
     {[-.048, .048].map(x => <group key={x} position={[x, .10, 0]} userData={{ xrRelativeAccommodationAperture: x < 0 ? "OD" : "OS" }}>
       <mesh castShadow><torusGeometry args={[.038, .007, 12, 40]} /><meshStandardMaterial color={shell} roughness={.48} metalness={.16} /></mesh>
-      <mesh position={[0, 0, .005]} castShadow><circleGeometry args={[.031, 40]} /><meshPhysicalMaterial color="#b7dbea" transparent opacity={.48} transmission={.42} roughness={.12} /></mesh>
+      <mesh position={[0, 0, .005]} castShadow><circleGeometry args={[.031, 40]} /><meshStandardMaterial color="#b7dbea" transparent opacity={.48} roughness={.12} /></mesh>
       <mesh position={[0, 0, .009]}><torusGeometry args={[.031, .0015, 8, 36]} /><meshStandardMaterial color={bounded < 0 ? "#b04f61" : "#488da0"} roughness={.38} metalness={.36} /></mesh>
       {highlightAperture && <mesh position={[0, 0, .014]} userData={{ xrInstructionalHighlight: true }}><ringGeometry args={[.043, .050, 32]} /><meshBasicMaterial color="#8df5d3" side={DoubleSide} depthTest={false} /></mesh>}
     </group>)}
@@ -143,7 +145,7 @@ function MinusLensHolderModel({ power = 0, highlightAperture = false, highlightD
     <MoldedHandle />
     <group position={[0, .10, 0]} userData={{ xrMinusLensAperture: true }}>
       <mesh castShadow><torusGeometry args={[.040, .007, 12, 40]} /><meshStandardMaterial color={shell} roughness={.48} metalness={.16} /></mesh>
-      <mesh position={[0, 0, .005]} castShadow><circleGeometry args={[.033, 40]} /><meshPhysicalMaterial color="#b7dbea" transparent opacity={.48} transmission={.42} roughness={.12} /></mesh>
+      <mesh position={[0, 0, .005]} castShadow><circleGeometry args={[.033, 40]} /><meshStandardMaterial color="#b7dbea" transparent opacity={.48} roughness={.12} /></mesh>
       <mesh position={[0, 0, .009]}><torusGeometry args={[.033, .0015, 8, 36]} /><meshStandardMaterial color="#b04f61" roughness={.38} metalness={.36} /></mesh>
       {highlightAperture && <mesh position={[0, 0, .014]} userData={{ xrInstructionalHighlight: true }}><ringGeometry args={[.045, .052, 32]} /><meshBasicMaterial color="#8df5d3" side={DoubleSide} depthTest={false} /></mesh>}
     </group>
@@ -169,7 +171,7 @@ function MaddoxModel({ angle = 90 }: { angle?: number }) {
       </mesh>
       <mesh position={[0, 0, .004]} rotation={[Math.PI / 2, 0, 0]} castShadow>
         <cylinderGeometry args={[.026, .026, .006, 36]} />
-        <meshPhysicalMaterial color="#d83d4b" roughness={.17} transmission={.30} thickness={.01} transparent opacity={.78} />
+        <meshStandardMaterial color="#d83d4b" roughness={.17} transparent opacity={.78} />
       </mesh>
       {[-.018, -.009, 0, .009, .018].map(y => <mesh key={y} position={[0, y, .009]} rotation={[0, 0, Math.PI / 2]} castShadow>
         <cylinderGeometry args={[.0014, .0014, .047, 10]} />
@@ -268,7 +270,7 @@ function RotaryVergencePrismModel({ power = 0, base = "BI", highlightAperture = 
     <MoldedHandle />
     <group position={[0, .10, 0]}>
       <mesh castShadow><torusGeometry args={[.042, .008, 12, 40]} /><meshStandardMaterial color={shell} roughness={.48} metalness={.16} /></mesh>
-      <mesh position={[0, 0, .004]} castShadow><circleGeometry args={[.033, 40]} /><meshPhysicalMaterial color="#a7e3dc" transparent opacity={.48} transmission={.32} roughness={.12} /></mesh>
+      <mesh position={[0, 0, .004]} castShadow><circleGeometry args={[.033, 40]} /><meshStandardMaterial color="#a7e3dc" transparent opacity={.48} roughness={.12} /></mesh>
       <mesh position={[0, 0, .010]} rotation={[Math.PI / 2, 0, Math.PI / 2]}><cylinderGeometry args={[.030, .025, .006, 3]} /><meshPhysicalMaterial color="#c5f0e7" transparent opacity={.58} /></mesh>
       {highlightAperture && <mesh position={[0, 0, .014]}><ringGeometry args={[.045, .051, 32]} /><meshBasicMaterial color="#8df5d3" side={DoubleSide} depthTest={false} /></mesh>}
       <XRSign text={[base && ["BI", "BU", "BO", "BD"].includes(base) ? base : "BI"]} p={[0, .052, .012]} size={[.040, .018]} bg="#173a3e" fg="#f1c45f" />
@@ -303,13 +305,29 @@ export function LibraryInstrumentModel({ id, setting = {} }: { id: ConsultationT
   return null;
 }
 
-export function LibraryEquipmentTray({ active = false, equipment = [], showFittingGuides = true }: { active?: boolean; equipment?: readonly ConsultationToolId[]; showFittingGuides?: boolean }) {
+export function LibraryEquipmentTray({ active = false, equipment = [], showFittingGuides = true, fittingGuideSocketIds }: {
+  active?: boolean;
+  equipment?: readonly ConsultationToolId[];
+  showFittingGuides?: boolean;
+  fittingGuideSocketIds?: readonly string[];
+}) {
+  const fittingGuides = LIBRARY_SOCKETS.filter(socket => socket.fittingLayer
+    && equipment.includes(socket.tool)
+    && (!fittingGuideSocketIds || fittingGuideSocketIds.includes(socket.id)));
   return <>
     {([[0, .25, "PATIENT FITTING"]] as const).map(([x, z, label]) => <group key={label} position={[x, .012, z]} userData={active ? { xrTeleport: [x, 0, z] } : { xrPreviewPad: true }}>
       <mesh rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[.19, .26, 32]} /><meshBasicMaterial color="#4fae9d" transparent opacity={.65}/></mesh>
       <XRSign text={[label]} p={[0, .008, 0]} size={[.33, .08]} rotation={[-Math.PI / 2, 0, 0]} bg="#153b3c" fg="#e8fff9"/>
     </group>)}
-    {showFittingGuides && LIBRARY_SOCKETS.filter(socket => socket.fittingLayer && equipment.includes(socket.tool)).map(socket => <group key={socket.id} position={[...socket.position]} userData={{ xrIgnoreRay: true, xrInstructionalHighlight: true }}><mesh><ringGeometry args={[.009, .012, 20]}/><meshBasicMaterial color="#f1da96" transparent opacity={.5} side={DoubleSide}/></mesh></group>)}
+    {showFittingGuides && fittingGuides.map(socket => {
+      const maddox = socket.id === "sensory-maddox-horizontal" || socket.id === "sensory-maddox-vertical";
+      const position = maddox ? [CLINIC_PATIENT_EYES.OD[0], CLINIC_PATIENT_EYES.OD[1], -.46] as const : socket.position;
+      const vertical = socket.id === "sensory-maddox-vertical";
+      return <group key={socket.id} position={[...position]} userData={{ xrIgnoreRay: true, xrInstructionalHighlight: true, xrFittingGuideSocket: socket.id }}>
+        <mesh><ringGeometry args={maddox ? [.034, .040, 32] : [.009, .012, 20]}/><meshBasicMaterial color="#f1da96" transparent opacity={.58} side={DoubleSide} depthTest={false}/></mesh>
+        {maddox && <Box p={[0, 0, .001]} s={vertical ? [.003, .068, .002] : [.068, .003, .002]} c="#f1da96" />}
+      </group>;
+    })}
   </>;
 }
 

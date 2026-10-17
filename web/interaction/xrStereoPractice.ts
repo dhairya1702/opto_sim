@@ -133,6 +133,13 @@ export function classifyXRStereoResponse(run: XRStereoRun, classification: Stere
   return { ...run, records, replies: records.map(item => ({ level: item.level, target: stereoCircleNames.indexOf(item.targetCircle), selected: stereoCircleNames.indexOf(item.reportedCircle), correct: item.derivedCorrect })), classification, confirmed: true, capture };
 }
 
+/** Record the circle the patient named; the deterministic page key supplies classification. */
+export function recordXRStereoResponse(run: XRStereoRun, circle: StereoCircle, ready: boolean, distanceCm: number): XRStereoRun {
+  const marked = markXRStereoResponse(run, circle, ready);
+  if (marked === run || !marked.reply) return marked;
+  return classifyXRStereoResponse(marked, marked.reply.correct ? "correct" : "incorrect", ready, distanceCm);
+}
+
 export function nextXRStereoPage(run: XRStereoRun, ready: boolean): XRStereoRun {
   if (!ready || !run.confirmed || run.capture || run.page >= stereoPracticeLevels.length - 1 || stopped(run.records)) return run;
   return {
@@ -191,20 +198,18 @@ export function stereoGuidedStep(state: StereoGuidedState): StereoGuidedStep {
   }
   if (!fixationCurrent(run)) return { id: "establish-fixation", index: 4, title: "Establish fixation", lines: ["Ask Arun to look at the circles.", `PAGE ${run.page + 1} OF ${stereoPracticeLevels.length}`], complete: false };
   if (!run.reply) return { id: "present-ask", index: 5, title: "Present and ask", lines: ["Ask which circle appears raised or closer.", `PAGE ${run.page + 1} OF ${stereoPracticeLevels.length}`], complete: false };
-  if (!run.markedCircle) return { id: "mark-response", index: 6, title: "Mark Arun's response", lines: ["Transcribe only the circle Arun named: left, middle, or right.", `PAGE ${run.page + 1} OF ${stereoPracticeLevels.length}`], complete: false };
-  if (!run.confirmed) return { id: "classify", index: 7, title: "Classify and continue", lines: ["Compare Arun's answer with the examiner-only page key.", `PAGE ${run.page + 1} OF ${stereoPracticeLevels.length} · choose CORRECT or INCORRECT.`], complete: false };
-  if (!run.capture) return { id: "turn-page", index: 7, title: "Classify and continue", lines: ["Turn exactly one page, then establish fixation again.", `PAGE ${run.page + 1} OF ${stereoPracticeLevels.length} confirmed`], complete: false };
+  if (!run.markedCircle) return { id: "mark-response", index: 6, title: "Record Arun's answer", lines: ["Select only the circle Arun named: left, middle, or right.", "The simulator compares it with the correct circle automatically."], complete: false };
+  if (!run.confirmed) return { id: "compare-response", index: 7, title: "Compare the response", lines: ["The simulator is comparing Arun's answer with the correct circle for this page."], complete: false };
+  if (!run.capture) return { id: "turn-page", index: 7, title: "Turn one page", lines: ["The response has been classified automatically. Turn exactly one page, then establish fixation again.", `PAGE ${run.page + 1} OF ${stereoPracticeLevels.length} confirmed`], complete: false };
   return { id: "record-threshold", index: 8, title: "Record the threshold", lines: ["Select the last correct level independently.", "No answer is preselected."], complete: false };
 }
 
 /** @deprecated Responses no longer use a delay. */
 export const stereoResponseDelayMs = 0;
 
-/** @deprecated Use markXRStereoResponse followed by classifyXRStereoResponse. */
+/** @deprecated Use recordXRStereoResponse. */
 export function confirmXRStereoReply(run: XRStereoRun, selected: number, ready: boolean, distanceCm: number): XRStereoRun {
   const circle = stereoCircleNames[selected];
   if (!circle) return run;
-  const marked = markXRStereoResponse(run, circle, ready);
-  if (marked === run || !marked.reply) return marked;
-  return classifyXRStereoResponse(marked, marked.reply.correct ? "correct" : "incorrect", ready, distanceCm);
+  return recordXRStereoResponse(run, circle, ready, distanceCm);
 }

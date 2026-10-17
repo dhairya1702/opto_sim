@@ -131,10 +131,14 @@ export function HirschbergPracticeController({ active, preview = false, scenario
       entries.current = { direction: "", amount: "" }; setDirection(""); setAmount(""); setChecked(false);
     }
     wasReady.current = next.ready; techniqueRef.current = next;
-    // A visible reflex is a usable observation. Keep its gate identical to the
-    // immutable capture gate so the learner cannot see a finding that submission rejects.
-    visual.lit = active && next.ready;
-    visual.quality = next.quality;
+    // Before capture, strict live alignment gates the finding. Once captured,
+    // keep the observed reflex stable through normal head/controller micro-motion
+    // for as long as the learner is still holding the illuminated penlight.
+    const liveIllumination = active && runtime.frameValid.current
+      && runtime.toolsRef.current.pupils.placement.kind === "held"
+      && runtime.toolsRef.current.pupils.powered;
+    visual.lit = liveIllumination && (next.ready || Boolean(capturedRef.current));
+    visual.quality = next.ready ? next.quality : capturedRef.current?.quality ?? 0;
     clock.current += dt;
     if (clock.current >= .1) { clock.current = 0; setTechnique(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next); }
   });

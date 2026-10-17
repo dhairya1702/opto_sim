@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { CLINIC_EYE_MIDPOINT } from "../interaction/clinicPatient";
 import { stereoPatientReply, stereoPracticeLevels, stereoTargets } from "../interaction/stereoPractice";
 import {
-  STEREO_GUIDED_STEP_COUNT, classifyXRStereoResponse, fixateXRStereoPage, initialXRStereoRun,
+  STEREO_GUIDED_STEP_COUNT, fixateXRStereoPage, initialXRStereoRun,
   interruptXRStereoRun, markXRStereoResponse, nextXRStereoPage, requestXRStereoReply,
-  resolveXRStereoReply, reviseXRStereoSetup, stereoCircleNames, stereoGuidedStep,
+  recordXRStereoResponse, resolveXRStereoReply, reviseXRStereoSetup, stereoCircleNames, stereoGuidedStep,
   xrStereoEntryCorrect, xrStereoGeometry, type XRStereoRun,
 } from "../interaction/xrStereoPractice";
 
@@ -13,8 +13,7 @@ const answerPage = (run: XRStereoRun, distance = 40) => {
   next = requestXRStereoReply(next, true);
   const reply = next.reply;
   if (!reply) throw new Error("Missing authored stereo response");
-  next = markXRStereoResponse(next, stereoCircleNames[reply.selected], true);
-  return classifyXRStereoResponse(next, reply.correct ? "correct" : "incorrect", true, distance);
+  return recordXRStereoResponse(next, stereoCircleNames[reply.selected], true, distance);
 };
 
 describe("shared stereopsis procedure", () => {
@@ -45,13 +44,11 @@ describe("shared stereopsis procedure", () => {
     expect(resolveXRStereoReply(answered, { stale: true }, false)).toBe(answered);
   });
 
-  it("validates transcription separately from learner classification", () => {
+  it("validates transcription and derives classification from the page key", () => {
     let run = requestXRStereoReply(fixateXRStereoPage(initialXRStereoRun(), true), true);
-    expect(markXRStereoResponse(run, "left", true)).toBe(run);
-    run = markXRStereoResponse(run, "middle", true);
+    expect(recordXRStereoResponse(run, "left", true, 40)).toBe(run);
+    run = recordXRStereoResponse(run, "middle", true, 40);
     expect(run.markedCircle).toBe("middle");
-    expect(classifyXRStereoResponse(run, "incorrect", true, 40)).toBe(run);
-    run = classifyXRStereoResponse(run, "correct", true, 40);
     expect(run.records[0]).toMatchObject({ page: 0, level: 800, targetCircle: "middle", reportedCircle: "middle", markedCircle: "middle", classification: "correct", derivedCorrect: true, distanceCm: 40, geometryValid: true });
     expect(Object.isFrozen(run.records[0])).toBe(true);
     expect(nextXRStereoPage(run, false)).toBe(run);
@@ -122,6 +119,7 @@ describe("shared stereopsis procedure", () => {
     const answered = requestXRStereoReply(fixed, true);
     expect(stereoGuidedStep({ ...positioned, run: answered }).id).toBe("mark-response");
     const marked = markXRStereoResponse(answered, "middle", true);
-    expect(stereoGuidedStep({ ...positioned, run: marked }).id).toBe("classify");
+    expect(stereoGuidedStep({ ...positioned, run: marked }).id).toBe("compare-response");
+    expect(stereoGuidedStep({ ...positioned, run: recordXRStereoResponse(answered, "middle", true, 40) }).id).toBe("turn-page");
   });
 });

@@ -3,7 +3,7 @@ export type XRVector3 = readonly [number, number, number];
 export const XR_HIRSCHBERG_TARGET_DISTANCE_CM = 50;
 export const XR_HIRSCHBERG_DISTANCE_TOLERANCE_CM = 4;
 export const XR_HIRSCHBERG_AIM_TOLERANCE_DEG = 8;
-export const XR_HIRSCHBERG_VIEW_TOLERANCE_DEG = 8;
+export const XR_HIRSCHBERG_VIEW_TOLERANCE_DEG = 20;
 
 export type XRHirschbergTechniqueInput = {
   penlightPosition: XRVector3;
@@ -79,6 +79,6 @@ export function xrHirschbergPrompt(technique: XRHirschbergTechnique, input: Pick
   if (!input.light) return "Hold the trigger to illuminate the penlight.";
   if (!technique.distanceReady) return `Move the light to about 50 cm. Current distance: ${Math.round(technique.distanceCm)} cm.`;
   if (!technique.aimReady) return "Aim the penlight at the midpoint between both eyes.";
-  if (!technique.viewReady) return "Move your head and look directly along the visual axis.";
+  if (!technique.viewReady) return "Face the patient and look toward the midpoint between both eyes.";
   return "Technique aligned. Inspect both corneal reflexes and record the finding.";
 }

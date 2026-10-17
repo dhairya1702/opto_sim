@@ -186,10 +186,10 @@ export function fourPrismGuidedStep(state: FourPrismGuidedState): FourPrismGuide
   if (!state.fitted) return step("fit", 0, "Fit best distance correction", ["Fit the trial frame at the patient socket in the shown orientation."]);
   if (state.fixationSetupRevision === null) return step("fixate", 1, "Establish isolated-letter fixation", ["Ask Arun to look at the isolated letter and keep it single."]);
   if (!state.prismHandled) return step("pickup", 2, "Pick up the dedicated 4Δ prism", ["Use the fixed 4Δ handled prism; there is no power selector."]);
-  if (state.phase === "orient-od") return step("orient-od", 3, "Orient base out for OD", ["Point the base marking temporally for OD."]);
+  if (state.phase === "orient-od") return step("orient-od", 3, "Orient base out for OD", ["Press the held prism's thumbstick left for the ← base arrow, or physically roll the marking temporally."]);
   if (state.phase === "observe-od") return step("observe-od", 4, "Observe OD", ["Maintain the valid view continuously for 2400 ms."]);
   if (state.phase === "withdraw") return step("withdraw", 5, "Withdraw completely", ["Move the prism clear of both eyes before changing sides."]);
-  if (["orient-os", "observe-os"].includes(state.phase)) return step("observe-os", 6, "Orient and observe OS", ["Reverse the temporal base direction for OS, then observe continuously."]);
+  if (["orient-os", "observe-os"].includes(state.phase)) return step("observe-os", 6, "Orient and observe OS", ["Press the held prism's thumbstick right for the → base arrow, or physically roll the marking temporally, then observe continuously."]);
   if (!state.completedRun) return step("record", 7, "Record both observations", ["Enter OD and OS movement patterns independently."]);
   return step("interpret", 8, "Interpret and record", ["Choose the bilateral interpretation from your confirmed observations."]);
 }

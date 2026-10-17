@@ -230,13 +230,6 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
         setStation(id);
         setInitialExam(examId);
         setInitialConfig(config);
-        if (examId === "anterior") {
-          setHeld(null);
-          setHeldTool(null);
-          setAnimation(selected);
-          open(null);
-          return;
-        }
         setHeld(selected);
         if (isConsultationToolId(examId)) setHeldTool(examId);
         setPanel(null);
@@ -527,7 +520,7 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
             <div className="target-label">
               <kbd>E</kbd>
               {targetExam
-                ? `${targetExam === "anterior" ? "Use" : "Pick up"} ${c.exams.find((e) => e.id === targetExam)?.equipment ?? (isConsultationToolId(targetExam) ? consultationToolDefinition(targetExam).label : "instrument")}`
+                ? `Pick up ${c.exams.find((e) => e.id === targetExam)?.equipment ?? (isConsultationToolId(targetExam) ? consultationToolDefinition(targetExam).label : "instrument")}`
                 : target === "patient" && heldTool
                   ? "Examine Arun"
                   : stations.find((s) => s.id === target)?.action}
@@ -719,12 +712,6 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
               setInitialConfig(config);
               setPanel(null);
               unlock();
-              if (examId === "anterior") {
-                setHeld(null);
-                setHeldTool(null);
-                setAnimation(selected);
-                return;
-              }
               setHeld(selected);
               if (isConsultationToolId(examId)) setHeldTool(examId);
               setVisit({ id: "patient", seq: Date.now() });
@@ -737,7 +724,7 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
           <p className="eyebrow">INSTRUMENT READY · {held.config.eye}</p>
           <h2>{held.equipment}</h2>
           <p>
-            {held.examId === "anterior" ? "Station ready." : "Instrument in hand."} Aim at Arun and
+            Instrument in hand. Aim at Arun and
             press E, or examine below.
           </p>
           <div className="held-config">

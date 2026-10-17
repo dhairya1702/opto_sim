@@ -178,6 +178,30 @@ Horizontal near vergence (6.4) now uses a dedicated deterministic BI-then-BO rot
 
 Completed captures allow putting tools down before recording. Enter your own values with signed decimal controls and ±1/±5 shortcuts; multi-field numeric records use previous/next pages. All required trials/eyes/bases must be recorded. Interrupted tracking or invalid setup resets unfinished progress; cancellation clears an unrecorded capture. Practice completion remains separate from Test scoring. See [the full-library implementation and Quest checklist](docs/vr-library-completion.md) and [the code review](docs/vr-code-review.md). Teleportation accounts for physical headset displacement; unsupported releases return lesson-fitted equipment home. Mirror targets appear on the visible mirror face, and booklet responses use patient-relative circle names. Device testing and clinician review are still pending.
 
+### Performance logging (developer only)
+
+An opt-in frame logger reports Quest/desktop frame drops to your terminal. Two locks must both be on:
+
+```sh
+npm run build
+PERF_LOG=1 npm start            # or PERF_LOG=1 npm run preview / npm run dev
+```
+
+Then open the app with `?perf=1` (for example `https://<laptop-ip>:<port>/?perf=1`). Once per second the server prints one line per client, such as:
+
+```
+[perf ab12 0:12 xr 72Hz] fps 61 drop 11 | frame p50 13.9 p95 31 max 48ms | js 9.8 (render 4.1) max 22ms | long 2/84ms | draws 412 tris 210k | tex 96 geo 300 shaders 41 | renders: XRRuntimeHost 22, InstrumentInstance 640 | counts: sign texture 6 | ▶ pickup penlight
+```
+
+- `drop`: missed display refreshes (an interval ≈2× the budget; 13.9 ms at 72 Hz). Green = none, yellow = some, red = ≥10% dropped or ≥100 ms of long tasks.
+- `js`: time per frame from the first frame callback to the end of `renderer.render`. High `js` with drops suggests CPU/React cost; low `js` with drops suggests GPU cost.
+- `long`: browser long tasks (>50 ms), including garbage-collection and React commit hitches.
+- `renders`: component render counts for the main XR scene components; `counts: sign texture` counts canvas label texture rebuilds.
+- `▶` events: VR enter/exit, lesson title, tool pickup/place/trigger and panel presses.
+- A `VR SUMMARY` line prints on VR exit and a `PAGE SUMMARY` on page close, including the worst second and texture/geometry/shader growth.
+
+Without `PERF_LOG=1` the `/api/perf` endpoint returns 404 and logs nothing; without `?perf=1` the probe is never downloaded or run. Reports contain only numbers and the event names above—no learner input, findings, case data or audio—are accepted only from loopback/private-network addresses, are rate-limited, and are printed to stdout only (never stored). Judge performance on the production build; development mode renders twice under StrictMode.
+
 ## Binocular-vision Practice
 
 The 20-module Practice set covers motor alignment, sensory status, latent deviation, vergence, and accommodation. It includes extraocular motilities; Bruckner, Hirschberg, Krimsky, cover–uncover, and alternating cover; Worth four dot, stereopsis, and the 4Δ base-out test; Maddox rod and Modified Thorington; near point of convergence, horizontal distance, vertical distance, horizontal near, and near vergence facility; plus push-up and minus-lens amplitude, NRA/PRA, and accommodative facility. Tools and findings remain illustrative educational drafts rather than calibrated optical simulations, and the clinical content has not been approved for certification. NPC retains two fictional reporting patterns—patient-reported 6/8 cm and objective OS movement at 5/9 cm—without classifying either as a diagnosis. Maddox practice supports horizontal/vertical measurement at 6 m and 40 cm with prism neutralisation. Modified Thorington retains the authored 6-right/4-above and 8-left/3-below cases and separately records patient transcription and clinical interpretation.

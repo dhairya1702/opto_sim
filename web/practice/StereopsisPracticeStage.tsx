@@ -3,10 +3,10 @@ import { Canvas } from "./PracticeWebGLFallback";
 import { EyeSurface } from "../scene/EyeSurface";
 import { stereoDistanceReady, stereoPracticeLevels, stereoTargets } from "../interaction/stereoPractice";
 import {
-  STEREO_GUIDED_STEP_COUNT, classifyXRStereoResponse, fixateXRStereoPage, initialXRStereoRun,
-  interruptXRStereoRun, markXRStereoResponse, nextXRStereoPage, requestXRStereoReply,
+  STEREO_GUIDED_STEP_COUNT, fixateXRStereoPage, initialXRStereoRun,
+  interruptXRStereoRun, nextXRStereoPage, recordXRStereoResponse, requestXRStereoReply,
   reviseXRStereoSetup, stereoCircleNames, stereoGuidedStep, xrStereoEntryCorrect,
-  type StereoCircle, type StereoClassification, type XRStereoRun,
+  type StereoCircle, type XRStereoRun,
 } from "../interaction/xrStereoPractice";
 import { PracticeVoiceControl } from "../voice/PracticeVoiceControl";
 import { usePracticeAttempt } from "./PracticeAttemptContext";
@@ -88,14 +88,12 @@ export function StereopsisPracticeStage({ onClose, onComplete }: { onClose: () =
     if (next !== run) { publish(next); setFeedback(""); }
   }
   function mark(circle: StereoCircle) {
-    const next = markXRStereoResponse(run, circle, ready);
-    if (next === run) { if (run.reply) setFeedback("That does not match Arun's spoken response. Listen again and transcribe the named circle."); return; }
-    publish(next); setFeedback("Response transcribed. Compare it with the examiner-only page key.");
-  }
-  function classify(value: StereoClassification) {
-    const next = classifyXRStereoResponse(run, value, ready, distance);
-    if (next === run) { setFeedback("Recheck the marked response against the examiner-only page key."); return; }
-    publish(next); setFeedback(next.capture ? "Two consecutive errors reached. Record the threshold independently." : "Classification recorded. Turn one page to continue.");
+    const next = recordXRStereoResponse(run, circle, ready, distance);
+    if (next === run) { if (run.reply) setFeedback("That does not match Arun's spoken response. Listen again and record the circle he named."); return; }
+    publish(next);
+    const result = next.records.at(-1);
+    setFeedback(next.capture ? `Patient said ${result?.reportedCircle}; correct circle ${result?.targetCircle}. Two consecutive errors reached—record the last correct threshold.`
+      : `Patient said ${result?.reportedCircle}; correct circle ${result?.targetCircle}. Automatically marked ${result?.classification}. Turn one page to continue.`);
   }
   function turnPage() {
     const next = nextXRStereoPage(run, ready);
@@ -106,7 +104,7 @@ export function StereopsisPracticeStage({ onClose, onComplete }: { onClose: () =
     if (!xrStereoEntryCorrect(run.capture, answer)) { setFeedback("Recheck the confirmed page record and choose the last correctly identified level."); return; }
     setComplete(true); setFeedback("Threshold recorded in seconds of arc."); onComplete();
   }
-  const history = run.records.map(record => `${record.level} arcsec · patient ${record.reportedCircle} · classified ${record.classification}`);
+  const history = run.records.map(record => `${record.level} arcsec · patient said ${record.reportedCircle} · correct circle ${record.targetCircle} · ${record.classification}`);
   return <dialog ref={dialog} className="clinical-practice-dialog" aria-labelledby="stereo-title" onCancel={event => { event.preventDefault(); onClose(); }}>
     <header className="clinical-stage-header"><div><p className="eyebrow">{guided ? "GUIDED PRACTICE" : "INDEPENDENT TEST"} · SENSORY STATUS</p><h1 id="stereo-title">Stereopsis · circle booklet</h1></div><div className="clinical-stage-distance"><span>Booklet distance</span><strong>{distance} cm</strong></div><PracticeVoiceControl /><button className="secondary" onClick={onClose}>Close</button></header>
     <div className="clinical-stage-body"><div className="clinical-viewport-wrap"><div className={`clinical-viewport ${grabbed ? "is-grabbed" : ""}`} tabIndex={0} role="application" aria-label="Stereo booklet. Drag upward to bring it nearer, downward to move it farther away, use the mouse wheel, or press the up and down arrow keys."
@@ -123,11 +121,10 @@ export function StereopsisPracticeStage({ onClose, onComplete }: { onClose: () =
     </div>
     <aside className="clinical-control-rail">
       <section><button className={`task-button ${correction ? "done" : ""}`} onClick={() => fit("correction")}>Fit near correction</button><button className={`task-button ${glasses ? "done" : ""}`} disabled={!correction} onClick={() => fit("glasses")}>Fit polarised viewing glasses</button><label className="distance-control">Booklet distance · {distance} cm<input type="range" min="25" max="60" value={distance} onChange={event => move(+event.target.value)} /></label><button className="secondary full" onClick={() => move(40)}>Position booklet at 40 cm</button></section>
-      <section><p className="eyebrow">PAGE {run.page + 1} OF 6 · {stereoPracticeLevels[run.page]} ARCSEC</p><p className="stereo-page-key">Examiner-only page key · <b>{key}</b></p>
+      <section><p className="eyebrow">PAGE {run.page + 1} OF 6 · {stereoPracticeLevels[run.page]} ARCSEC</p><p className="stereo-page-key">Correct circle for this page · <b>{key}</b></p>
         <button className="primary full" disabled={!ready || Boolean(run.fixation) || Boolean(run.capture) || complete} onClick={fixate}>LOOK AT THE CIRCLES</button>
         <button className="primary full" disabled={!ready || !run.fixation || Boolean(run.capture) || complete} onClick={ask}>ASK WHICH CIRCLE IS RAISED</button>
-        <div className="site-switch">{stereoCircleNames.map(circle => <button key={circle} disabled={!ready || !run.reply || run.confirmed || complete} aria-pressed={run.markedCircle === circle} onClick={() => mark(circle)}>{circle}</button>)}</div>
-        <div className="site-switch">{(["correct", "incorrect"] as const).map(value => <button key={value} disabled={!ready || !run.markedCircle || run.confirmed || complete} onClick={() => classify(value)}>{value}</button>)}</div>
+        <p><b>Record the circle Arun named</b></p><div className="site-switch">{stereoCircleNames.map(circle => <button key={circle} disabled={!ready || !run.reply || run.confirmed || complete} aria-pressed={run.markedCircle === circle} onClick={() => mark(circle)}>{circle}</button>)}</div>
         <button className="secondary full" disabled={!ready || !run.confirmed || Boolean(run.capture) || complete} onClick={turnPage}>TURN PAGE</button>
         <div aria-label="Confirmed page records">{history.length ? history.map(line => <p key={line}>{line}</p>) : <p>No confirmed pages yet.</p>}</div>
       </section>

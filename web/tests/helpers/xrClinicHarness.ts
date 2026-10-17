@@ -162,10 +162,11 @@ export async function clinic({ guided = false, selectedExamId, renderAdapter }: 
     buttons[index][5].pressed = true; await step();
     buttons[index][5].pressed = false; await step();
   };
-  const thumbstick = async (index: number, stepDirection: -1 | 1) => {
-    axes[index][3] = stepDirection > 0 ? -.8 : .8;
+  const thumbstick = async (index: number, stepDirection: -1 | 1, axis: "horizontal" | "vertical" = "vertical") => {
+    const axisIndex = axis === "horizontal" ? 2 : 3;
+    axes[index][axisIndex] = axis === "horizontal" ? stepDirection * .8 : stepDirection > 0 ? -.8 : .8;
     await step();
-    axes[index][3] = 0;
+    axes[index][axisIndex] = 0;
     await step();
   };
   const controls = () => {

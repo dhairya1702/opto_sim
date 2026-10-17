@@ -257,14 +257,14 @@ export function assess(c: ClinicalCase, s: Session): Feedback {
       if (key === "correction" && sub?.management.includes("optical"))
         ratio = fraction("subjective");
       if (key === "followup" && sub?.management.includes("followup"))
-        ratio = (fraction("anterior") + fraction("fundus")) / 2;
+        ratio = fraction("fundus");
       if (key === "explain")
         ratio =
           ((sub?.management.includes("explain") ? 1 : 0) +
             (sub?.management.includes("safety") ? 1 : 0)) /
           2;
       const examIds =
-        key === "correction" ? ["subjective"] : key === "followup" ? ["anterior", "fundus"] : [];
+        key === "correction" ? ["subjective"] : key === "followup" ? ["fundus"] : [];
       events = s.events.filter(
         (e) =>
           e.type === "submission" ||

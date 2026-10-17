@@ -32,12 +32,11 @@ Arun is a fictional 24-year-old adult. Gradual distance blur has developed over 
 | Motility | Full; no reported diplopia during procedure | OU; no full binocular-workup claim |
 | Objective refraction | Gross OD +0.25 D and OS 0.00 D at 67 cm; net OD −1.25 D sphere and OS −1.50 D sphere | Manual with/neutral/against bracketing; cylinder explicitly 0.00 D, axis not applicable; −1.50 D working-distance correction |
 | Subjective endpoint | Same sphere values; corrected OD and OS 6/6 | Separate eyes; objective same-eye result first in draft |
-| Anterior segment | Authored lids/lashes, conjunctiva, cornea, chamber, iris, lens within normal limits | Each eye; does not imply normal posterior segment |
 | Fundus | Authored disc, macula, visible posterior pole within normal limits | Each eye; limited undilated direct view; peripheral retina not fully assessed |
 
 Pinhole improvement supports a refractive contribution. It does not establish myopia, determine a prescription, or exclude eye disease. The decorative wall chart is not calibrated, and the trainee is never asked to read its small letters.
 
-The slit lamp stays at its table. The direct ophthalmoscope is stored on the trolley and launches a simulated patient examination. Equipment selection alone earns nothing. Supported XR tool use can reveal the existing authored visual responses; explicit completed recording remains necessary for evidence and scoring. Physical positioning or instrument handling is not a validated competency assessment.
+The direct ophthalmoscope is stored on the trolley and launches a simulated patient examination. Equipment selection alone earns nothing. Supported XR tool use can reveal the existing authored visual responses; explicit completed recording remains necessary for evidence and scoring. Physical positioning or instrument handling is not a validated competency assessment. The earlier non-interactive slit-lamp station and authored anterior-segment examination have been removed from this draft.
 
 ## Free-roam consultation XR — draft interaction review
 
@@ -62,15 +61,15 @@ XR direct ophthalmoscopy now uses the same explicit B/Y scope mode. The front op
 | Dimension | Weight | Draft scoring |
 | --- | ---: | --- |
 | History | 25 | Authored domain weights remain onset 3, distance/near 3, laterality 2, impact 2, correction 2, symptoms 3, safety 4, general history 3, family 2, consent 1. Compound domains award proportional detail credit; a broad question earns the full domain. |
-| Examination selection | 30 | Distance 4, pinhole 3, near 2, pupils 2, cover 2, motility 2, objective 4, subjective 5, anterior 3, fundus 3 |
+| Examination selection | 30 | Distance 4, pinhole 3, near 2, pupils 2, cover 2, motility 2, objective 4, subjective 5, fundus 6 |
 | Interpretation | 25 | Diagnosis 10, selected acquired baseline evidence 4, pinhole evidence 4, subjective endpoint evidence 7 |
-| Management / communication | 20 | Optical correction supported by refraction 8; health review and follow-up supported by anterior/fundus results 6; structured explanation and safety choices 3 each |
+| Management / communication | 20 | Optical correction supported by refraction 8; health review and follow-up supported by fundus results 6; structured explanation and safety choices 3 each |
 
 Per-examination points are proportional to completed authored eye/configuration combinations. No score is awarded merely for opening a station. No extra score for repeats. The only dependencies are same-eye baseline → pinhole and objective → subjective; these are case configuration, not universal clinical rules. Alternative independent procedure order is supported.
 
 Free-text clinical reasoning, management reasoning and patient explanation are unscored and preserved for human review. Structured communication choices assess intent, not the quality of the written explanation. Optional further assessment/referral is recorded without a penalty or additional points. Supporting evidence must be acquired. An otherwise correct diagnosis can receive 10 points while missing assessments remain prominent.
 
-Safety-history and incomplete anterior/fundus assessment are provisional prominent omission flags requested for this draft. They do not impose score caps. The clinical partner must decide whether these flags, scope and weights are appropriate. The undilated view never proves an adequate peripheral-retinal assessment. No pass threshold is implemented.
+Safety-history and incomplete fundus assessment are provisional prominent omission flags requested for this draft. They do not impose score caps. The clinical partner must decide whether these flags, scope and weights are appropriate. The undilated view never proves an adequate peripheral-retinal assessment. No pass threshold is implemented. The removed anterior-segment station contributes no finding, evidence, score, or omission requirement; its former three examination-selection points have provisionally moved to the remaining ocular-health examination so the draft rubric stays at 100 points.
 
 ## Decisions awaiting the clinical partner
 
@@ -99,7 +98,6 @@ These establish broad examination categories, not endorsement of the case, rubri
 - College of Optometrists routine examination: https://www.college-optometrists.org/clinical-guidance/guidance/knowledge,-skills-and-performance/the-routine-eye-examination
 - Community Eye Health, detecting myopia: https://pmc.ncbi.nlm.nih.gov/articles/PMC6688402/
 - Community Eye Health, refractive-error case finding: https://archive.cehjournal.org/article/case-finding-in-the-clinic-refractive-errors/
-- EyeWiki slit lamp: https://eyewiki.aao.org/Slit_Lamp_Examination
 - EyeWiki retinoscopy: https://eyewiki.aao.org/Retinoscopy
 
 ## Krimsky Practice — draft review pending

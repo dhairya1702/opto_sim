@@ -69,7 +69,7 @@ export function RetinoscopeModel({ p = [0, 0, 0], r = [0, 0, 0] }: { p?: V; r?: 
     </mesh>
     <mesh position={[.011, .272, .036]} rotation={[Math.PI / 2, 0, 0]} castShadow>
       <cylinderGeometry args={[.015, .015, .006, 32]} />
-      <meshPhysicalMaterial color="#a9e4dc" roughness={.12} transmission={.38} thickness={.01} transparent opacity={.84} />
+      <meshStandardMaterial color="#a9e4dc" roughness={.12} transparent opacity={.84} />
     </mesh>
     <mesh position={[.011, .285, -.026]} rotation={[Math.PI / 2, 0, 0]} castShadow>
       <cylinderGeometry args={[.012, .012, .010, 28]} />

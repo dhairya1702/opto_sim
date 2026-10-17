@@ -62,6 +62,20 @@ async function lesson(preview = false, attemptKind?: PracticeAttemptKind) {
 }
 
 describe("mounted Worth Practice with the shared clinic runtime", () => {
+  it("renders illuminated dots and a reachable switch on both physical faces", async () => {
+    const sim = await lesson();
+    const faces = new Set<string>(), switches = new Set<string>();
+    sim.tool("worth").traverse(object => {
+      if (object.userData.xrWorthFace) faces.add(object.userData.xrWorthFace as string);
+      if (object.userData.xrWorthSwitchFace) switches.add(object.userData.xrWorthSwitchFace as string);
+    });
+    expect(faces).toEqual(new Set(["front", "back"]));
+    expect(switches).toEqual(new Set(["front", "back"]));
+    expect(sim.labels()).toContain("POWER");
+    expect(sim.labels()).toContain("OFF");
+    expect(consultationToolDefinition("worth").heldPose).toBe("ray");
+  });
+
   it("runs all twelve Guided steps from physical setup through both endpoint records", async () => {
     const sim = await lesson(false, "guided");
     expect(sim.labels()).toContain("GUIDED · STEP 1 OF 12");
@@ -72,6 +86,7 @@ describe("mounted Worth Practice with the shared clinic runtime", () => {
     const haptics = sim.haptics[1].mock.calls.length;
     await sim.click(0, sim.targetSwitch()); // The target-holding hand cannot operate its side switch.
     expect(sim.mirror().actions.some(action => action.label === "SWITCH TARGET ON")).toBe(true);
+    sim.rays[0].rotation.set(0, 0, 0); sim.grips[0].rotation.set(0, 0, 0); await sim.step(1 / 72, 12);
     await sim.at(1, [0, 1.6, 1.8]); await sim.click(1, sim.targetSwitch()); // Free hand remains outside control reach.
     expect(sim.mirror().actions.some(action => action.label === "SWITCH TARGET ON")).toBe(true);
     await sim.physicalSwitch(); expect(sim.mirror().actions.some(action => action.label === "SWITCH TARGET OFF")).toBe(true);
@@ -156,12 +171,14 @@ describe("mounted Worth Practice with the shared clinic runtime", () => {
     await sim.near(); await sim.action("SWITCH TARGET ON"); await sim.action("ASK COUNT, COLOURS AND POSITIONS");
     expect(sim.mirror().ready).toBe(false); expect(sim.complete).not.toHaveBeenCalled();
   });
-  it("blocks unlit, reversed and untracked target reports; transfer preserves power and captured reports survive tracking loss", async () => {
+  it("blocks unlit and untracked reports, accepts either target face, and preserves power through transfer", async () => {
     const sim = await lesson(); await sim.setup();
     await sim.action("SWITCH TARGET OFF"); await sim.action("ASK COUNT, COLOURS AND POSITIONS"); expect(sim.mirror().ready).toBe(false);
-    await sim.action("SWITCH TARGET ON"); sim.grips[0].rotation.y = Math.PI; sim.rays[0].rotation.y = Math.PI; await sim.step(1 / 72, 12);
-    await sim.action("ASK COUNT, COLOURS AND POSITIONS"); expect(sim.mirror().ready).toBe(false);
-    sim.grips[0].rotation.y = 0; sim.rays[0].rotation.y = 0; await sim.step(1 / 72, 12); await sim.action("LOOK AT THE TARGET");
+    await sim.action("SWITCH TARGET ON"); await sim.action("LOOK AT THE TARGET");
+    sim.grips[0].rotation.y = Math.PI; sim.rays[0].rotation.y = Math.PI; await sim.step(1 / 72, 12);
+    await sim.action("ASK COUNT, COLOURS AND POSITIONS"); expect(sim.mirror().ready).toBe(true);
+    await act(async () => sim.mirror().cancel?.()); await sim.step(1 / 72, 12);
+    sim.grips[0].rotation.y = 0; sim.rays[0].rotation.y = 0; await sim.step(1 / 72, 12);
     sim.tracked[0] = false; await sim.step(1 / 72, 12); await sim.action("ASK COUNT, COLOURS AND POSITIONS");
     expect(sim.mirror().ready).toBe(false); sim.tracked[0] = true; await sim.step(1 / 72, 12);
     await sim.action("LOOK AT THE TARGET"); await sim.action("ASK COUNT, COLOURS AND POSITIONS"); expect(sim.mirror().ready).toBe(true);

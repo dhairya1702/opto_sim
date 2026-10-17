@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Group, Mesh, Vector3, PointLight } from "three";
+import { Group, Vector3, PointLight } from "three";
 import { Cylinder, NearVisionCard, Retinoscope, Paddle, Ring, Sign } from "./Models";
 import { MotilityExamination } from "./MotilityExamination";
 import { EyeSurface } from "./EyeSurface";
@@ -87,7 +87,6 @@ function Demonstration({
 }) {
   const tool = useRef<Group>(null);
   const light = useRef<PointLight>(null);
-  const slit = useRef<Mesh>(null);
   const selectedX = animation.config.eye === "OD" ? -0.2 : animation.config.eye === "OS" ? 0.2 : 0;
   useFrame(({ camera, size }) => {
     const t = Math.min(1, progress * 4);
@@ -113,15 +112,6 @@ function Demonstration({
       if (light.current)
         light.current.position.set(tool.current.position.x, tool.current.position.y + 0.12, 0.2);
     }
-    if (slit.current)
-      slit.current.position.set(
-        eyeX +
-          (movement.current.used
-            ? movement.current.x * 0.13
-            : Math.sin(progress * Math.PI * 2) * 0.09),
-        0,
-        0.052,
-      );
   });
   const pupils = animation.examId === "pupils";
   return (
@@ -161,7 +151,7 @@ function Demonstration({
           fg="#263c3e"
         />
       )}
-      {animation.examId !== "anterior" && animation.examId!=='fundus' && (
+      {animation.examId !== "fundus" && (
         <group ref={tool}>
           <Instrument id={animation.examId} />
         </group>
@@ -173,12 +163,6 @@ function Demonstration({
           intensity={0.3}
           distance={0.7}
         />
-      )}
-      {animation.examId === "anterior" && (
-        <mesh ref={slit} position={[selectedX, 0, 0.052]}>
-          <planeGeometry args={[0.01, 0.17]} />
-          <meshBasicMaterial color="#fff3bb" transparent opacity={0.7} />
-        </mesh>
       )}
     </>
   );

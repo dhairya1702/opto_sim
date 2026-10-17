@@ -17,7 +17,7 @@ import type { BatchMirror } from "../practice/xr/PracticeLessonUI";
 import { librarySockets, type LibraryKind } from "../interaction/xrLibraryEquipment";
 import { consultationToolDefinition, type ConsultationToolId } from "../interaction/xrConsultationTools";
 import { maddoxTrials } from "../interaction/maddoxPractice";
-import { MADDOX_PRISM_CELLS, MADDOX_PRISM_CELL_Y } from "../interaction/maddoxProcedure";
+import { MADDOX_PRISM_CELLS } from "../interaction/maddoxProcedure";
 import { PracticeAttemptProvider, type PracticeAttemptKind } from "../practice/PracticeAttemptContext";
 let dispose: (() => Promise<void>) | undefined;
 afterEach(async () => { await dispose?.(); dispose = undefined; vi.restoreAllMocks(); vi.unstubAllGlobals(); });
@@ -30,13 +30,22 @@ async function lesson(kind: LibraryKind, preview = false, attemptKind?: Practice
     return attemptKind ? createElement(PracticeAttemptProvider, { value: { settings: { kind: attemptKind, interaction: "vr", voice: "enabled" }, setSettings: vi.fn() }, children: controller }) : controller;
   } }); dispose = sim.dispose;
   const action = async (label: string) => { const item = mirror!.actions.find(a => a.label === label); if (!item) throw new Error(`Missing ${label}: ${mirror!.actions.map(a => a.label).join(", ")}`); await act(async () => item.run()); await sim.step(1 / 72, 12); };
-  const fit = async (id: ConsultationToolId, socketId?: string) => { const socket = librarySockets(kind).find(s => s.tool === id && (!socketId || s.id === socketId))!; await sim.pickup(0, id); sim.grips[0].quaternion.copy(new Quaternion(...socket.rotation).multiply(new Quaternion(...consultationToolDefinition(id).gripRotation).invert())); await sim.at(0, socket.position); await sim.putDown(0); await sim.step(1 / 72, 12); sim.grips[0].quaternion.identity(); };
+  const fit = async (id: ConsultationToolId, socketId?: string) => { const socket = librarySockets(kind).find(s => s.tool === id && (!socketId || s.id === socketId))!; await sim.pickup(0, id); const rotation = new Quaternion(...socket.rotation).multiply(new Quaternion(...consultationToolDefinition(id).gripRotation).invert()); sim.grips[0].quaternion.copy(rotation); sim.rays[0].quaternion.copy(rotation); await sim.at(0, socket.position); await sim.putDown(0); await sim.step(1 / 72, 12); sim.grips[0].quaternion.identity(); sim.rays[0].quaternion.identity(); };
   const enter = async (values: Record<string, string>) => { await act(async () => { for (const [id, value] of Object.entries(values)) mirror!.lesson.choose(id, value); }); await act(async () => mirror!.record()); await sim.step(1 / 72, 12); };
   const tick = async (ms: number) => { now += ms; await sim.step(1 / 72, 12); };
   const settle = () => sim.step(1 / 72, 90);
   const targetSwitch = () => { let control: typeof sim.state.scene | undefined; sim.tool("worth").traverse(object => { if (object.userData.xrInstrumentControl === "worth") control = object as typeof sim.state.scene; }); if (!control) throw new Error("Missing point-target switch"); return control; };
   const physicalTargetSwitch = async () => { const control = targetSwitch(), point = control.getWorldPosition(new Vector3()); await sim.at(0, [point.x, point.y, point.z + .025]); await sim.click(0, control); };
-  const prismCell = async (power: number, base: "BI" | "BO" | "BU" | "BD") => { const index = MADDOX_PRISM_CELLS.indexOf(power as typeof MADDOX_PRISM_CELLS[number]); const angle = ({ BI: 0, BU: Math.PI / 2, BO: Math.PI, BD: -Math.PI / 2 } as const)[base], y = MADDOX_PRISM_CELL_Y[index]; sim.rays[1].rotation.set(0, 0, angle); sim.grips[1].rotation.set(0, 0, angle); await sim.at(1, [-.048 + Math.sin(angle) * y, 1.5 - Math.cos(angle) * y, -.481]); await tick(1); await tick(260); };
+  const prismCell = async (power: number, base: "BI" | "BO" | "BU" | "BD") => {
+    const match = mirror!.status.match(/prism (\d+)Δ/); const current = Number(match?.[1] ?? 20);
+    let index = MADDOX_PRISM_CELLS.indexOf(current as typeof MADDOX_PRISM_CELLS[number]);
+    const target = MADDOX_PRISM_CELLS.indexOf(power as typeof MADDOX_PRISM_CELLS[number]);
+    await sim.thumbstick(1, base === "BI" || base === "BU" ? -1 : 1, "horizontal");
+    while (index < target) { await sim.thumbstick(1, 1); index++; }
+    while (index > target) { await sim.thumbstick(1, -1); index--; }
+    sim.rays[1].rotation.set(0, 0, 0); sim.grips[1].rotation.set(0, 0, 0);
+    await sim.at(1, [-.048, 1.357, -.481]); await tick(1); await tick(260);
+  };
   const holdNearPenlight = async () => { await sim.pickup(0, "pupils"); sim.rays[0].rotation.set(0, 0, 0); sim.grips[0].rotation.set(0, 0, 0); await sim.at(0, [0, 1.5, .026]); await sim.event(0, "selectstart"); await sim.step(1 / 72, 12); };
   const prepare = async (cover?: "OD" | "OS") => { await fit("subjective"); if (cover) await fit("cover", `sensory-occlude-${cover}`); if (kind === "push-up") { await fit("push-up-rule", "library-push-up-spectacle"); await action("GIVE FIRST SUSTAINED BLUR INSTRUCTION"); return; } if (["horizontal-near", "facility", "minus-lens", "relative", "accommodative-facility"].includes(kind)) await fit("near"); if (kind === "horizontal-near") { await action("CONFIRM PREPARED NEAR TARGET AT 40 CM"); await action("GIVE BLUR / DOUBLE / RECOVERY INSTRUCTION"); } else if (kind !== "minus-lens" && kind !== "relative") await action("ESTABLISH FIXATION"); };
   const noTest = () => { expect(sim.record).not.toHaveBeenCalled(); expect(sim.encounter().results).toHaveLength(0); };
@@ -77,11 +86,14 @@ describe("mounted remaining shared-clinic XR modules", () => {
     let highlights = 0; test.state.scene.traverse(object => { if (object.userData.xrInstructionalHighlight) highlights++; });
     expect(highlights).toBe(0);
   });
-  it("shows the ten-step Maddox coach and fitting highlights only in Guided preview", async () => {
+  it("shows the nine-step Maddox coach and only the current fitting guide in Guided preview", async () => {
     const guided = await lesson("maddox", true, "guided");
-    expect(guided.labels()).toContain("GUIDED · STEP 1 OF 10");
+    expect(guided.labels()).toContain("GUIDED · STEP 1 OF 9");
     let highlights = 0; guided.state.scene.traverse(object => { if (object.userData.xrInstructionalHighlight) highlights++; });
     expect(highlights).toBeGreaterThan(0);
+    const fittingGuides: string[] = [];
+    guided.state.scene.traverse(object => { if (object.userData.xrFittingGuideSocket) fittingGuides.push(object.userData.xrFittingGuideSocket as string); });
+    expect(fittingGuides).toEqual(["sensory-correction"]);
   });
   it("keeps independent Maddox Test preview free of coach and instructional highlights", async () => {
     const test = await lesson("maddox", true, "test");
@@ -101,7 +113,19 @@ describe("mounted remaining shared-clinic XR modules", () => {
     expect(testHighlights).toBe(0);
   });
   it("completes all four Maddox trials with physical distance/near target, starting prism and independent recording", async () => {
-    const sim = await lesson("maddox"); await sim.fit("subjective"); await sim.fit("maddox", "sensory-maddox-horizontal"); await sim.fit("worth", "sensory-worth-distance"); await sim.physicalTargetSwitch(); await sim.pickup(1, "prism");
+    const sim = await lesson("maddox"); await sim.fit("subjective"); await sim.fit("maddox", "sensory-maddox-horizontal"); await sim.fit("worth", "sensory-worth-distance");
+    expect(sim.labels()).toContain("TRIAL 1/4 · DISTANCE · HORIZONTAL");
+    expect(sim.labels()).toContain("Turn on the distance target");
+    expect(sim.labels()).toContain("POWER"); expect(sim.labels()).toContain("OFF");
+    let switchHighlights = 0; sim.tool("worth").traverse(object => { if (object.userData.xrInstructionalHighlight) switchHighlights++; });
+    expect(switchHighlights).toBe(2);
+    await sim.physicalTargetSwitch(); expect(sim.labels()).toContain("ON"); await sim.pickup(1, "prism");
+    expect(sim.labels()).toContain("20Δ · BI");
+    expect(MADDOX_PRISM_CELLS.some(power => sim.labels().includes(`${power}Δ`))).toBe(false);
+    await sim.thumbstick(1, -1); expect(sim.mirror().status).toContain("prism 15Δ BI");
+    await sim.thumbstick(1, 1); expect(sim.mirror().status).toContain("prism 20Δ BI");
+    await sim.thumbstick(1, 1, "horizontal"); expect(sim.mirror().status).toContain("prism 20Δ BO");
+    await sim.thumbstick(1, -1, "horizontal"); expect(sim.mirror().status).toContain("prism 20Δ BI");
     for (let i = 0; i < 4; i++) {
       const trial = maddoxTrials[i];
       if (i > 0) await sim.fit("maddox", trial.axis === "horizontal" ? "sensory-maddox-horizontal" : "sensory-maddox-vertical");

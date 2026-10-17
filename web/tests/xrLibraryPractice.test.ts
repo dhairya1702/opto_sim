@@ -37,6 +37,7 @@ describe("remaining XR library sequences and geometry", () => {
     expect(consultationToolDefinition("trial-lens")).toMatchObject({ label: "Binocular NRA / PRA lens holder", heldPose: "ray", workingPoint: [0, .1, 0] });
   });
   it("keeps both Maddox socket rotations on the same OD lens centre and rejects an intermediate roll", () => {
+    expect(consultationToolDefinition("maddox").heldPose).toBe("ray");
     const sockets = librarySockets("maddox").filter(socket => socket.tool === "maddox");
     expect(sockets.map(socket => socket.id)).toEqual(["sensory-maddox-horizontal", "sensory-maddox-vertical"]);
     for (const socket of sockets) {

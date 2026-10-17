@@ -6,7 +6,7 @@ import { KRIMSKY_GUIDED_STEP_COUNT, krimskyGuidedStep } from "../../interaction/
 import { CLINIC_PATIENT_EYES } from "../../interaction/clinicPatient";
 import { PRISM_BAR_WORKING_Y } from "../../interaction/xrConsultationTools";
 import { useXRClinicRuntime } from "../../interaction/useXRClinicRuntime";
-import { captureKrimskyComparison, clinicKrimskyReflex, krimskyComparisonSubmission, stepKrimskyPrismPower, xrKrimskyTechnique, type ExaminerEye, type KrimskyComparison } from "../../interaction/xrKrimskyPractice";
+import { captureKrimskyComparison, clinicKrimskyReflex, krimskyComparisonSubmission, KRIMSKY_PRISM_POWERS, stepKrimskyPrismPower, xrKrimskyTechnique, type ExaminerEye, type KrimskyComparison } from "../../interaction/xrKrimskyPractice";
 import { createXRViewerScratch, xrExaminerPose, xrViewerPoses } from "../../interaction/xrViewer";
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
 import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
@@ -15,7 +15,7 @@ import { Box } from "../../scene/Models";
 import { PracticeLessonUI, usePracticeLesson, type BatchMirror, type LessonAction, type LessonField } from "./PracticeLessonUI";
 import { usePracticeAttempt } from "../PracticeAttemptContext";
 
-const fields: LessonField[] = [{ id: "power", label: "Neutralising power", choices: [], number: { min: 0, max: 40, unit: "Δ" } }];
+const prismPowerChoices = KRIMSKY_PRISM_POWERS.map(power => [String(power), `${power}Δ`] as const);
 const initialSetup = () => ({ method: "standard" as KrimskyMethod, fixation: false, examinerEye: null as ExaminerEye | null, base: "", power: 0 });
 export function KrimskyPracticeController({ active, preview = false, onComplete, onExit, onMirror }: {
   active: boolean; preview?: boolean; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
@@ -32,6 +32,11 @@ export function KrimskyPracticeController({ active, preview = false, onComplete,
   const prismAnchorPowerRef = useRef<number | null>(null);
   const [prismAnchorPower, setPrismAnchorPower] = useState<number | null>(null);
   const [captured, setCaptured] = useState<KrimskyComparison | null>(null), [message, setMessage] = useState("");
+  const fields = useMemo<LessonField[]>(() => [{
+    id: "power",
+    label: captured ? `Neutralising prism · ${captured.base}` : "Neutralising prism",
+    choices: prismPowerChoices,
+  }], [captured]);
   const clearPending = lesson.clearPending;
   const interrupt = useCallback(() => { if (!capturedRef.current) clearPending(); }, [clearPending]);
   const runtime = useXRClinicRuntime({ active: active && !preview, editorOpen: lesson.mode !== "none", onInterrupt: interrupt,
@@ -164,7 +169,7 @@ export function KrimskyPracticeController({ active, preview = false, onComplete,
       : "Read the captured neutralising prism and record its power in Δ.");
   };
   const next = () => { if (!lesson.awarded.current) return; reset(); setIndex(value => (value + 1) % krimskyCases.length); };
-  const status = captured ? message || "Comparison captured · enter the prism power you read."
+  const status = captured ? `${message || "Comparison captured."} Recorded base: ${captured.base} · choose the matching prism-bar power.`
     : !runtime.tools.pupils.powered ? "Pick up the penlight and hold its trigger."
     : !setup.fixation ? "Ask the patient to look at the light."
     : !setup.examinerEye ? "Say which eye you are closing, or choose an examiner-eye view."

@@ -4,7 +4,7 @@ import { useRef } from "react";
 import { CLINIC_EYE_MIDPOINT } from "../interaction/clinicPatient";
 import type { Group } from "three";
 import { Box, Cylinder } from "./Models";
-import { XRSign as Sign } from "./XRClinicPanels";
+import { XRLabelPill, XRSign as Sign } from "./XRClinicPanels";
 import {
   SENSORY_DISTANCE_TARGET, SENSORY_MIRROR, SENSORY_NEAR_TARGET, SENSORY_SOCKETS, sensoryMirrorPath,
 } from "../interaction/xrSensoryEquipment";
@@ -12,9 +12,9 @@ import { type ConsultationToolId } from "../interaction/xrConsultationTools";
 import type { XRClinicRuntime } from "../interaction/useXRClinicRuntime";
 
 /** Original metre-scale geometry; the physical Worth target always displays the same four dots. */
-export function WorthTargetFace({ powered = true, point = false, mirror = false }: { powered?: boolean; point?: boolean; mirror?: boolean }) {
+export function WorthTargetFace({ powered = true, point = false, mirror = false, face = mirror ? "mirror" : "front" }: { powered?: boolean; point?: boolean; mirror?: boolean; face?: "front" | "back" | "mirror" }) {
   const faceZ = mirror ? .001 : -.001;
-  return <group userData={{ xrWorthFace: mirror ? "mirror" : "physical" }}>
+  return <group userData={{ xrWorthFace: face }}>
     <mesh><circleGeometry args={[.06, 32]} /><meshBasicMaterial color="#101c20" side={DoubleSide} /></mesh>
     {point && <mesh position={[0, 0, faceZ * 2]} userData={{ xrWorthDot: true }}><circleGeometry args={[.009, 24]} /><meshBasicMaterial color={powered ? "#f4f2dc" : "#394548"} side={DoubleSide} /></mesh>}
     {!point && ([
@@ -22,6 +22,33 @@ export function WorthTargetFace({ powered = true, point = false, mirror = false 
     ] as const).map(([x, y, color], index) => <mesh key={index} position={[x, y, faceZ]} userData={{ xrWorthDot: true }}>
       <circleGeometry args={[.009, 20]} /><meshBasicMaterial color={powered ? color : "#394548"} side={DoubleSide} />
     </mesh>)}
+  </group>;
+}
+
+function WorthPowerSwitch({ powered, face, onPowerChange, highlight = false }: { powered: boolean; face: "front" | "back"; onPowerChange?: (powered: boolean) => void; highlight?: boolean }) {
+  const outward = face === "front" ? -1 : 1;
+  const interactive = onPowerChange ? {
+    xrInstrumentControl: "worth", xrInteractiveSurface: true, xrButton: true, xrWidth: .052, xrHeight: .078,
+    xrLabel: powered ? "TARGET POWER ON" : "TARGET POWER OFF", xrWorthSwitchFace: face, xrAction: () => onPowerChange(!powered),
+  } : undefined;
+  const toggle = onPowerChange ? (event: { stopPropagation: () => void }) => { event.stopPropagation(); onPowerChange(!powered); } : undefined;
+  return <group position={[.079, .12, outward * .017]} userData={interactive} onClick={toggle}>
+    <mesh>
+      <boxGeometry args={[.040, .060, .008]} />
+      <meshStandardMaterial color="#f1c35e" emissive="#5b3d08" emissiveIntensity={.18} roughness={.44} metalness={.18} />
+    </mesh>
+    <XRLabelPill label="POWER" position={[0, .016, outward * .006]} rotation={[0, face === "front" ? Math.PI : 0, 0]}
+      width={.035} height={.015} background="#173a3e" foreground="#fff7d8" />
+    <mesh position={[0, -.010, outward * .008]} rotation={[Math.PI / 2, 0, 0]}>
+      <cylinderGeometry args={[.011, .011, .010, 28]} />
+      <meshStandardMaterial color={powered ? "#5ee0a8" : "#df665c"} emissive={powered ? "#176b50" : "#6e211d"} emissiveIntensity={.65} roughness={.32} metalness={.24} />
+    </mesh>
+    <XRLabelPill label={powered ? "ON" : "OFF"} position={[0, -.025, outward * .006]} rotation={[0, face === "front" ? Math.PI : 0, 0]}
+      width={.030} height={.013} background={powered ? "#176b50" : "#762f2b"} foreground="#ffffff" />
+    {highlight && <mesh position={[0, 0, outward * .014]} userData={{ xrInstructionalHighlight: true }} renderOrder={1160}>
+      <ringGeometry args={[.032, .039, 36]} />
+      <meshBasicMaterial color="#fff19a" side={DoubleSide} depthTest={false} depthWrite={false} />
+    </mesh>}
   </group>;
 }
 
@@ -53,8 +80,7 @@ function SensoryGlasses({ redGreen }: { redGreen: boolean }) {
       <mesh position={[0, 0, -.006]} castShadow><torusGeometry args={[.032, .002, 8, 32]} /><meshStandardMaterial color="#a8b6b0" roughness={.30} metalness={.72} /></mesh>
       <mesh position={[0, 0, -.004]} rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[.031, .031, .007, 36]} />
-        <meshPhysicalMaterial color={redGreen ? index === 0 ? "#d83d4b" : "#35b773" : "#9fded7"} roughness={.14}
-          transmission={.32} thickness={.01} transparent opacity={redGreen ? .74 : .62} side={DoubleSide} />
+        <meshStandardMaterial color={redGreen ? index === 0 ? "#d83d4b" : "#35b773" : "#9fded7"} roughness={.14} transparent opacity={redGreen ? .74 : .62} side={DoubleSide} />
       </mesh>
       <mesh position={[0, .046, 0]}><capsuleGeometry args={[.006, .006, 4, 12]} /><meshStandardMaterial color="#d39b42" roughness={.42} metalness={.42} /></mesh>
     </group>)}
@@ -79,33 +105,30 @@ function StereoBooklet() {
 }
 
 /** Fixed-power teaching prism. Local +X is the physical base axis used by the procedure engine. */
-function FourDioptrePrism() {
-  return <group userData={{ xrFourPrism: true, xrPrismPower: 4, xrPrismBaseAxis: [1, 0, 0] }}>
+function FourDioptrePrism({ base = "right" }: { base?: string }) {
+  const left = base === "left";
+  return <group userData={{ xrFourPrism: true, xrPrismPower: 4, xrPrismBaseAxis: [left ? -1 : 1, 0, 0] }}>
     <SensoryGrip position={[0, -.005, 0]} />
     <group position={[0, .10, 0]}>
-      <mesh rotation={[Math.PI / 2, 0, 0]} castShadow><cylinderGeometry args={[.044, .044, .018, 40]} /><meshPhysicalMaterial color="#b9e8e1" transmission={.55} transparent opacity={.62} roughness={.12} thickness={.015} /></mesh>
+      <mesh rotation={[Math.PI / 2, 0, 0]} castShadow><cylinderGeometry args={[.044, .044, .018, 40]} /><meshStandardMaterial color="#b9e8e1" transparent opacity={.62} roughness={.12} /></mesh>
       <mesh position={[0, 0, -.011]}><torusGeometry args={[.035, .004, 10, 40]} /><meshStandardMaterial color="#d8a94f" metalness={.35} roughness={.35} /></mesh>
-      <mesh position={[.052, 0, 0]} rotation={[0, 0, -Math.PI / 2]}><coneGeometry args={[.012, .035, 3]} /><meshStandardMaterial color="#f1c35e" /></mesh>
-      <Sign text={["4Δ", "BASE →"]} p={[0, -.058, .013]} size={[.105, .038]} bg="#173a3e" fg="#e8fff9" />
+      <mesh position={[left ? -.052 : .052, 0, 0]} rotation={[0, 0, left ? Math.PI / 2 : -Math.PI / 2]}><coneGeometry args={[.012, .035, 3]} /><meshStandardMaterial color="#f1c35e" /></mesh>
+      <XRLabelPill label={left ? "← BASE · 4Δ" : "4Δ · BASE →"} position={[0, -.058, .013]} width={.10} height={.026} />
     </group>
   </group>;
 }
 
-export function SensoryInstrumentModel({ id, powered, point, onPowerChange }: { id: ConsultationToolId; powered: boolean; point?: boolean; onPowerChange?: (powered: boolean) => void }) {
+export function SensoryInstrumentModel({ id, powered, point, base, onPowerChange, highlightPowerSwitch = false }: { id: ConsultationToolId; powered: boolean; point?: boolean; base?: string; onPowerChange?: (powered: boolean) => void; highlightPowerSwitch?: boolean }) {
   if (id === "worth") return <group>
     <SensoryGrip />
     <Box p={[0, .12, 0]} s={[.135, .135, .024]} c="#24383b" radius={.042} />
-    <group position={[0, .12, -.012]}><WorthTargetFace powered={powered} point={point} /></group>
-    <mesh position={[.045, powered ? .047 : .035, -.017]} rotation={[0, 0, Math.PI / 2]}
-      onClick={onPowerChange ? event => { event.stopPropagation(); onPowerChange(!powered); } : undefined}
-      userData={onPowerChange ? { xrInstrumentControl: "worth", xrInteractiveSurface: true, xrButton: true, xrWidth: .035, xrHeight: .045,
-        xrLabel: "TARGET SWITCH", xrAction: () => onPowerChange(!powered) } : undefined}>
-      <capsuleGeometry args={[.006, .014, 5, 14]} />
-      <meshStandardMaterial color={powered ? "#f0bd58" : "#4c5f5e"} emissive={powered ? "#6d4208" : "#000000"} emissiveIntensity={powered ? .28 : 0} roughness={.42} metalness={.42} />
-    </mesh>
+    <group position={[0, .12, -.012]}><WorthTargetFace powered={powered} point={point} face="front" /></group>
+    <group position={[0, .12, .012]} rotation={[0, Math.PI, 0]}><WorthTargetFace powered={powered} point={point} face="back" /></group>
+    <WorthPowerSwitch powered={powered} face="front" onPowerChange={onPowerChange} highlight={highlightPowerSwitch} />
+    <WorthPowerSwitch powered={powered} face="back" onPowerChange={onPowerChange} highlight={highlightPowerSwitch} />
   </group>;
   if (id === "stereo") return <StereoBooklet />;
-  if (id === "four-prism") return <FourDioptrePrism />;
+  if (id === "four-prism") return <FourDioptrePrism base={base} />;
   return <SensoryGlasses redGreen={id === "red-green"} />;
 }
 
@@ -149,11 +172,11 @@ export function SensoryClinicStation({ runtime, distanceLetter = false, active =
         {runtime.equipment.includes("worth") && <>
           <Cylinder p={[SENSORY_DISTANCE_TARGET[0], .68, SENSORY_DISTANCE_TARGET[2]]} h={1.3} radius={.012} c="#768e8c" />
           <Box p={[SENSORY_DISTANCE_TARGET[0], 1.35, SENSORY_DISTANCE_TARGET[2] - .015]} s={[.16, .02, .10]} c="#456e69" />
-          <Sign text={["WORTH DISTANCE DOCK", "FACE TARGET TOWARD MIRROR"]} p={[.68, 1.2, SENSORY_DISTANCE_TARGET[2] + .04]} size={[.29, .08]} bg="#173a3e" fg="#e8fff9" />
+          <Sign text={["DISTANCE TARGET DOCK", "PLACE COMPATIBLE TARGET HERE"]} p={[.68, 1.2, SENSORY_DISTANCE_TARGET[2] + .04]} size={[.34, .08]} bg="#173a3e" fg="#e8fff9" />
         </>}
       </group>
     </group> : null}
-    {([[0, .25, "PATIENT FITTING"], [.65, -.16, "DISTANCE DOCK"]] as const).filter(([, , label]) => label !== "DISTANCE DOCK" || runtime.equipment.includes("worth")).map(([x, z, label]) => <group key={label} position={[x, .012, z]} userData={active ? { xrTeleport: [x, 0, z] } : { xrPreviewPad: true }}>
+    {([[0, .25, "PATIENT FITTING"], [.65, -.16, "DISTANCE TARGET DOCK"]] as const).filter(([, , label]) => label !== "DISTANCE TARGET DOCK" || runtime.equipment.includes("worth")).map(([x, z, label]) => <group key={label} position={[x, .012, z]} userData={active ? { xrTeleport: [x, 0, z] } : { xrPreviewPad: true }}>
       <mesh rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[.14, .20, 32]} /><meshBasicMaterial color="#4fae9d" transparent opacity={.65} /></mesh>
       <Sign text={[label]} p={[0, .008, 0]} size={[.32, .07]} rotation={[-Math.PI / 2, 0, 0]} bg="#153b3c" fg="#e8fff9" />
     </group>)}

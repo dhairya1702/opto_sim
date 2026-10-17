@@ -138,7 +138,7 @@ export function WorthPracticeController({ active, preview = false, onComplete, o
     : !isPatientFitted(runtime.tools, "subjective") ? "Fit the trial frame with correction to the patient."
     : !isPatientFitted(runtime.tools, "red-green") ? "Fit red OD / green OS glasses to the patient."
     : !runtime.tools.worth.powered ? "Turn on the Worth target."
-    : !technique.facing ? "Face the illuminated target toward the patient or seat it in the distance dock."
+    : !technique.facing ? "Aim either illuminated face toward the patient or seat it in the distance dock."
     : !technique.endpoint ? `Reposition the target from ${Math.round(technique.distanceCm)} cm to the 40 cm stand or the tagged distance dock.`
     : technique.endpoint && fixationEndpoint !== technique.endpoint ? `Ask Arun to look at the ${technique.endpoint === "near" ? "near" : "mirrored distance"} target.`
     : `${conditionLabel} · ask count, colours and positions`) + ` · ${history}${restartNotice ? ` · ${restartNotice}` : ""}`;
@@ -182,6 +182,6 @@ export function WorthPracticeController({ active, preview = false, onComplete, o
     <PracticeLessonUI runtime={runtime} active={active} title="WORTH FOUR DOT" status={status} tools={["subjective", "red-green", "worth"]} actions={actions} directActions={directActions} fields={fields}
       lesson={lesson} entryReady={ready} ready={ready} onRecord={record} onReset={reset} onNext={next} onExit={onExit} onCancel={cancel}
       forceBoardVisible={Boolean(captured)}
-      help={["Fit correction, then the fixed red OD / green OS glasses.", "Turn on the Worth target.", "Near: face target to patient at about 40 cm or use stand.", "Distance: seat target in the simulated mirrored 6 m dock.", "Ask for count, colours and positions at each condition.", "Report captures survive release. Enter your own count and interpretation."]} />
+      help={["Fit correction, then the fixed red OD / green OS glasses.", "Use the free controller to press the target switch on either face.", "Near: aim either illuminated face toward the patient at about 40 cm or use the stand.", "Distance: seat either face in the simulated mirrored 6 m dock.", "Ask for count, colours and positions at each condition.", "Report captures survive release. Enter your own count and interpretation."]} />
   </>;
 }

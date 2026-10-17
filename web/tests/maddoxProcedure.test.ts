@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   MADDOX_PRISM_CELLS, MADDOX_PRISM_CELL_Y, MADDOX_TRIALS, armMaddoxReport, cancelMaddoxEntry,
-  captureMaddox, enterMaddox, interruptMaddox, maddoxBaseFromRoll, maddoxGuidedStep, maddoxGrooveCorrect,
+  captureMaddox, enterMaddox, interruptMaddox, maddoxBaseFromRoll, maddoxFittingGuideSocketIds, maddoxGuidedStep, maddoxGrooveCorrect,
   maddoxNearestCell, maddoxPatientReport, newMaddoxRun, sampleMaddox, submitMaddox, type MaddoxSpatialSample,
 } from "../interaction/maddoxProcedure";
 
@@ -105,13 +105,31 @@ describe("shared Maddox procedure", () => {
     expect(interrupted.records).toHaveLength(1); expect(interrupted.introduced20).toBe(false);
   });
 
-  it("derives all ten guided steps and completion from the same state", () => {
+  it("derives all nine guided steps and completion from the same state", () => {
     let run = newMaddoxRun();
-    expect(maddoxGuidedStep(run, sample({ correctionFitted: false })).index).toBe(0);
+    const first = maddoxGuidedStep(run, sample({ correctionFitted: false }));
+    expect(first.index).toBe(0);
+    expect(first.title).toBe("Fit the trial frame");
     expect(maddoxGuidedStep(run, sample({ rodFitted: false })).index).toBe(1);
+    const distanceTarget = maddoxGuidedStep(run, sample({ targetReady: false, targetPowered: false, targetSite: null }));
+    expect(distanceTarget.title).toBe("Dock the distance target");
+    expect(distanceTarget.lines[1]).toContain("DISTANCE TARGET DOCK beside Arun");
+    const distancePower = maddoxGuidedStep(run, sample({ targetPowered: false }));
+    expect(distancePower.title).toBe("Turn on the distance target");
+    expect(distancePower.lines[0]).toContain("highlighted POWER switch");
+    const nearTarget = maddoxGuidedStep({ ...run, trialIndex: 2 }, sample({ grooveDegrees: 0, targetReady: false, targetPowered: false, targetSite: null }));
+    expect(nearTarget.title).toBe("Position the near penlight");
+    expect(nearTarget.lines[1]).toContain("38–42 cm in front of his eyes");
     run = armMaddoxReport(run, sample());
-    expect(maddoxGuidedStep(run, sample()).index).toBe(6);
+    expect(maddoxGuidedStep(run, sample()).index).toBe(5);
     for (let i = 0; i < 4; i++) { run = captureTrial(run); run = enterMaddox(run, String(run.capture?.cell), run.capture?.base ?? ""); run = submitMaddox(run); }
     expect(maddoxGuidedStep(run, sample()).complete).toBe(true);
+  });
+
+  it("shows only the fitting guide required by the current setup step", () => {
+    expect(maddoxFittingGuideSocketIds(sample({ correctionFitted: false }), MADDOX_TRIALS[0])).toEqual(["sensory-correction"]);
+    expect(maddoxFittingGuideSocketIds(sample({ rodFitted: false }), MADDOX_TRIALS[0])).toEqual(["sensory-maddox-horizontal"]);
+    expect(maddoxFittingGuideSocketIds(sample({ grooveDegrees: 0 }), MADDOX_TRIALS[1])).toEqual(["sensory-maddox-vertical"]);
+    expect(maddoxFittingGuideSocketIds(sample(), MADDOX_TRIALS[0])).toEqual([]);
   });
 });

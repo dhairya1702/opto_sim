@@ -15,7 +15,7 @@ import {
   WebGLRenderer,
 } from "three";
 import { EyeSurface } from "../scene/EyeSurface";
-import { Box, ConsultingRoomShell, Cylinder, Refraction, Sign, SlitLamp } from "../scene/Models";
+import { Box, ConsultingRoomShell, Cylinder, Refraction, Sign } from "../scene/Models";
 import {
   XR_CLINIC_TOOL_IDS,
   XRClinicToolModel,
@@ -890,7 +890,6 @@ function XRWorld({ scenario, finding, debug, debugTool, sessionActive, resetToke
     <ConsultingRoomShell />
     <group position={[0, 0, -.8]}>
       <Refraction />
-      <SlitLamp />
     </group>
     <XRInstrumentCabinet position={[-1.3, 0, .85]} />
     <XRInstrumentKitSurface position={[-1.3, .96, .85]} />

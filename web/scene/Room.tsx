@@ -2,7 +2,7 @@ import { Component, Suspense, useEffect, useMemo, useState, type ReactNode } fro
 import { Canvas } from "@react-three/fiber";
 import type { WebGLRenderer } from "three";
 import { Edges } from "@react-three/drei";
-import { Box, ConsultingRoomShell, Patient, Refraction, Sign, SlitLamp, Trolley } from "./Models";
+import { Box, ConsultingRoomShell, Patient, Refraction, Sign, Trolley } from "./Models";
 import { Controller } from "../interaction/Controller";
 import { XRConsultationController, type ConsultationExam, type ConsultationPanel } from "../interaction/XRConsultationController";
 import type { ClinicalCase, Eye, StationId } from "../domain/types";
@@ -11,6 +11,8 @@ import { CASE_INDEPENDENT_CONSULTATION_EQUIPMENT, consultationToolDefinition, in
 import { ConsultationInstruments, DesktopHeldInstrument } from "./ConsultationInstruments";
 import { XRVoiceIndicator } from "./XRVoiceIndicator";
 import { useVoiceStatus } from "../voice/VoiceStatusContext";
+import { perfEnabled, perfRender } from "../perf/perfFlag";
+import { PerfFrameProbe } from "../perf/PerfFrameProbe";
 type Props = {
   active: boolean;
   caseData: ClinicalCase;
@@ -55,7 +57,6 @@ const bounds: Record<StationId, { p: [number, number, number]; s: [number, numbe
   patient: { p: [0, 0.92, -0.63], s: [0.85, 1.64, 0.93] },
   trolley: { p: [INSTRUMENT_KIT.x, .47, INSTRUMENT_KIT.z], s: [INSTRUMENT_KIT.depth + .08, .94, INSTRUMENT_KIT.width + .08] },
   refraction: { p: [-1.45, 0.64, -1.4], s: [0.91, 1.25, 1.26] },
-  slit: { p: [1.35, 1.2, -0.95], s: [0.75, 0.8, 0.65] },
   fundus: { p: [consultationToolDefinition("fundus").home[0], 1.09, consultationToolDefinition("fundus").home[2]], s: [0.18, 0.42, 0.16] },
   acuity: { p: [0.05, 1.84, -2.41], s: [0.69, 1, 0.03] },
 };
@@ -71,6 +72,7 @@ function Highlight({ id }: { id: StationId }) {
 }
 const registerStaticTool = () => undefined;
 export function ConsultationInterior({ held, xr = false }: { held?: ConsultationToolId; xr?: boolean; caseData?: ClinicalCase }) {
+  perfRender("ConsultationInterior");
   const desktopTools = useMemo(initialConsultationTools, []);
   const desktopEquipment = useMemo(
     () => CASE_INDEPENDENT_CONSULTATION_EQUIPMENT.filter(id => id !== held),
@@ -92,9 +94,6 @@ export function ConsultationInterior({ held, xr = false }: { held?: Consultation
         castsShadow={false} highlighted={[]} returnedAt={{}} register={registerStaticTool} />}
       <group userData={{ station: "refraction", examId: "subjective" }}>
         <Refraction portable={false} />
-      </group>
-      <group userData={{ station: "slit", examId: "anterior" }}>
-        <SlitLamp />
       </group>
       <group userData={{ station: "acuity" }}>
         <Box p={[0.05, 1.84, -2.445]} s={[0.72, 1.04, 0.08]} c="#273d42" />
@@ -147,6 +146,7 @@ export function Room(props: Props) {
             </div>
           }
         >
+          {perfEnabled && <PerfFrameProbe />}
           <ConsultationInterior held={props.held} xr={Boolean(props.xrActive)} caseData={props.caseData} />
           {(props.xrActive || props.xrPreview) && <XRVoiceIndicator status={voiceStatus} />}
           <Controller

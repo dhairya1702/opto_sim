@@ -88,10 +88,13 @@ export function BrucknerPracticeController({ active, preview = false, scenario, 
     { label: fixation ? "FIXATION GIVEN ✓" : "LOOK AT THE LIGHT", run: () => { setup.current.fixation = true; setFixation(true); }, active: fixation },
   ];
   const boardActions = [actions[0]];
+  const workingDistance = runtime.frameValid.current && runtime.tools.fundus.placement.kind === "held" && technique.distanceCm > 0
+    ? `${Math.round(technique.distanceCm)} CM ${technique.distanceReady ? "✓" : "· TARGET 90–110 CM"}`
+    : "— · TARGET 90–110 CM";
   const boardStatusLines = [
     `1 · FIXATION ${fixation ? "✓" : "—"}`,
     `2 · LARGE APERTURE ${runtime.scopeAperture === "large" ? "✓" : "—"}`,
-    `3 · WORKING DISTANCE ${technique.distanceReady ? "✓" : "—"}`,
+    `3 · WORKING DISTANCE ${workingDistance}`,
     `4 · BOTH PUPILS ILLUMINATED ${captured || technique.illuminated ? "✓" : "—"}`,
     `5 · B/Y SCOPE INSPECTION ${captured ? "✓" : "—"}`,
   ];

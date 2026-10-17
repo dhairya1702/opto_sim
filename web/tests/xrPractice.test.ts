@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { xrHirschbergPrompt, xrHirschbergTechnique } from "../interaction/xrPractice";
+import { XR_HIRSCHBERG_VIEW_TOLERANCE_DEG, xrHirschbergPrompt, xrHirschbergTechnique } from "../interaction/xrPractice";
 
 const aligned = {
   penlightPosition: [0, 1.35, -.3] as const,
@@ -30,6 +30,14 @@ describe("XR Hirschberg technique", () => {
   it("rejects a penlight or headset pointed away from the eyes", () => {
     expect(xrHirschbergTechnique({ ...aligned, penlightForward: [1, 0, 0] }).aimReady).toBe(false);
     expect(xrHirschbergTechnique({ ...aligned, viewerForward: [1, 0, 0] }).viewReady).toBe(false);
+  });
+
+  it("allows normal headset offset without requiring near-perfect eye-axis alignment", () => {
+    expect(XR_HIRSCHBERG_VIEW_TOLERANCE_DEG).toBe(20);
+    expect(xrHirschbergTechnique({
+      ...aligned,
+      viewerForward: [.2588, -.2342, -.9370],
+    }).viewReady).toBe(true);
   });
 
   it("keeps setup controls independently required", () => {

@@ -3,6 +3,7 @@ import { Box3, Object3D } from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MotilityPracticeController } from "../practice/xr/MotilityPracticeController";
 import { PracticeAttemptProvider, type PracticeAttemptKind } from "../practice/PracticeAttemptContext";
+import { wrapGuidedStepLines } from "../scene/XRGuidedStepBubble";
 import { clinic } from "./helpers/xrClinicHarness";
 
 let dispose: (() => Promise<void>) | undefined;
@@ -17,6 +18,12 @@ const adapter = (kind: PracticeAttemptKind) => ({ active }: { active: boolean })
 );
 
 describe("XR motility guided step bubble", () => {
+  it("wraps long coaching copy into readable lines instead of shrinking a single line", () => {
+    const wrapped = wrapGuidedStepLines(["Pick up the point target from the left instrument table. Place it on the Distance Target Dock beside Arun, then turn it on."]);
+    expect(wrapped.length).toBeGreaterThan(2);
+    expect(wrapped.every(line => line.length <= 44)).toBe(true);
+  });
+
   it("shows and advances a rear-wall step bubble in Guided Practice", async () => {
     const sim = await clinic({ renderAdapter: adapter("guided") }); dispose = sim.dispose;
     expect(sim.labels()).toContain("GUIDED · STEP 1 OF 6");

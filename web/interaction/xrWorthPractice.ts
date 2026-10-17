@@ -54,13 +54,13 @@ export function worthGuidedStep(state: WorthGuidedState): WorthGuidedStep {
       return guided("pick-up-target", 2, "Pick up the Worth target", ["Find the four-dot target on the instrument tray and use the side grip."]);
     if (state.condition.endpoint !== "near") {
       const correction = !state.condition.facing
-        ? "Turn the target face toward Arun."
+        ? "Turn either illuminated face toward Arun."
         : state.condition.distanceCm > 42 ? "Move the target closer to the 40 cm stand."
           : state.condition.distanceCm < 38 ? "Move the target farther from Arun to 40 cm." : "Centre the target on the near stand.";
       return guided("position-near", 3, "Position the near target", [correction, "Release it in the near stand or hold it at the valid endpoint."]);
     }
     if (!state.powered)
-      return guided("power-target", 4, "Switch the target on", ["Use the free-hand side switch, say ‘turn on the target’, or use the board control."]);
+      return guided("power-target", 4, "Switch the target on", ["Use your free hand to press the switch on either face, say ‘turn on the target’, or use the board control."]);
     if (state.fixationEndpoint !== "near")
       return guided("fixate-near", 5, "Establish near fixation", ["Ask Arun to look at the illuminated near target."]);
     if (state.captureEndpoint !== "near")
@@ -70,7 +70,7 @@ export function worthGuidedStep(state: WorthGuidedState): WorthGuidedStep {
 
   if (state.condition.endpoint !== "distance") {
     const correction = !state.condition.facing && state.targetHandled
-      ? "Seat the target facing the mirror; reverse it if the face points toward Arun."
+      ? "Seat either illuminated face in the distance dock."
       : "Move the same powered target to the tagged distance dock.";
     return guided("dock-distance", 8, "Place the distance target", [correction, "The mirror provides an illustrative simulated 6 m path."]);
   }

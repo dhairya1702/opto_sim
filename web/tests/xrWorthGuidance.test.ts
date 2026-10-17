@@ -19,7 +19,7 @@ describe("Worth Guided state coach", () => {
     expect(step({ correctionFitted: true, filtersFitted: true, targetHandled: true,
       condition: { distanceCm: 70, endpoint: null, facing: true } }).id).toBe("position-near");
     expect(step({ correctionFitted: true, filtersFitted: true, targetHandled: true,
-      condition: { distanceCm: 40, endpoint: null, facing: false } }).lines.join(" ")).toContain("Turn");
+      condition: { distanceCm: 40, endpoint: null, facing: false } }).lines.join(" ")).toContain("either illuminated face");
     const ready = nearSetup();
     expect(worthGuidedStep({ ...ready, powered: false }).id).toBe("power-target");
     expect(worthGuidedStep(ready).id).toBe("fixate-near");
@@ -30,6 +30,8 @@ describe("Worth Guided state coach", () => {
   it("requires distance placement, fresh fixation and capture before final completion", () => {
     const nearRecorded = { ...nearSetup(), nearRecorded: true };
     expect(worthGuidedStep(nearRecorded).id).toBe("dock-distance");
+    expect(worthGuidedStep({ ...nearRecorded, condition: { distanceCm: 600, endpoint: null, facing: false } }).lines.join(" ")).toContain("either illuminated face");
+    expect(worthGuidedStep({ ...nearRecorded, condition: { distanceCm: 600, endpoint: null, facing: false } }).lines.join(" ")).not.toContain("reverse");
     const distance = { ...nearRecorded, condition: { distanceCm: 600, endpoint: "distance" as const, facing: true } };
     expect(worthGuidedStep(distance).id).toBe("fixate-distance");
     expect(worthGuidedStep({ ...distance, fixationEndpoint: "distance" }).id).toBe("elicit-distance");

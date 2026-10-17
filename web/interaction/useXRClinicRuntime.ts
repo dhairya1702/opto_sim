@@ -14,6 +14,7 @@ import {
 } from "./xrConsultationTools";
 import { SENSORY_SURFACES, type SensoryWorkingPose } from "./xrSensoryEquipment";
 import { nextScopeAperture, SCOPE_SELECTOR_REACH_M, type ScopeAperture } from "./xrScopeEquipment";
+import { perfEvent, perfRender } from "../perf/perfFlag";
 export type XRClinicHand = "left" | "right";
 type Hand = XRClinicHand;
 export type XRClinicControllerSlot = ConsultationInputState & {
@@ -59,6 +60,8 @@ type Options = {
 };
 /** Shared physical clinic loop. It knows no case findings, lesson answers, or scoring. */
 export function useXRClinicRuntime(options: Options) {
+  // Counts renders of whichever lesson/consultation controller hosts the runtime.
+  perfRender("XRRuntimeHost");
   const { active, editorOpen = false, equipment = CONSULTATION_EQUIPMENT } = options;
   const { gl, scene } = useThree();
   const optionsRef = useRef(options); optionsRef.current = options;
@@ -631,6 +634,7 @@ export function useXRClinicRuntime(options: Options) {
           if (owned === "fundus") closeScopeView();
           hidePlacementMarkers();
           updateTools(result.state);
+          perfEvent(`place ${owned}`);
           pauseTechnique("release");
           if (result.returned) setReturnedAt(previous => ({ ...previous, [owned]: performance.now() }));
           setHandlingMessage(result.returned ? "Returned to its resting place." : "Instrument placed.");
@@ -653,6 +657,7 @@ export function useXRClinicRuntime(options: Options) {
         hidePlacementMarkers();
         updateTools(grabConsultationTool(toolsRef.current, id, slot.hand));
         optionsRef.current.onToolUsed?.(id, "pickup");
+        perfEvent(`pickup ${id}`);
         pauseTechnique(oldPlacement.kind === "held" ? "transfer" : "pickup");
         setHandlingMessage(`${consultationToolDefinition(id).label} · ${slot.hand} hand`);
       };
@@ -676,7 +681,7 @@ export function useXRClinicRuntime(options: Options) {
           ? { data: ancestorData(hit?.object ?? null), point: hit?.point.clone() ?? null }
           : null;
         if (slot.triggerRoute === "tool") {
-          if (id) optionsRef.current.onToolUsed?.(id, "activate");
+          if (id) { optionsRef.current.onToolUsed?.(id, "activate"); perfEvent(`trigger on ${id}`); }
           updateTools(powerConsultationTool(toolsRef.current, slot.hand, true));
         }
       };
@@ -686,7 +691,9 @@ export function useXRClinicRuntime(options: Options) {
         slot.pendingSelection = null;
         Object.assign(slot, releaseConsultationTrigger(slot));
         if (slot.hand) updateTools(powerConsultationTool(toolsRef.current, slot.hand, false));
+        if (route === "tool") perfEvent("trigger off");
         if (route !== "panel" || !activeRef.current || !slot.tracked) return;
+        perfEvent("panel press");
         const data = pending?.data ?? ancestorData(null);
         if (data.instrumentControl) {
           if (!slot.hand) return;

@@ -43,6 +43,8 @@ export function FourPrismPracticeController({ active, preview = false, onComplet
   const initialScenario = guided ? "normal" : fourPrismScenarioAt(deck.current, 0);
   const runRef = useRef(initialFourPrismRun(initialScenario));
   const [run, setRun] = useState(runRef.current);
+  const prismBaseRef = useRef<"left" | "right">("right");
+  const [prismBase, setPrismBaseState] = useState<"left" | "right">("right");
   const [techniqueReason, setTechniqueReason] = useState("");
   const fitSignature = useRef("");
   const alive = useRef(active && !preview);
@@ -61,8 +63,16 @@ export function FourPrismPracticeController({ active, preview = false, onComplet
       ? "Tracking was interrupted. Completed eye evidence was preserved; establish fixation again."
       : "The unfinished observation was cancelled."));
   }, [publish]);
+  const selectPrismBase = useCallback((base: "left" | "right") => {
+    if (prismBaseRef.current === base) return true;
+    prismBaseRef.current = base; setPrismBaseState(base);
+    publish(interruptFourPrismEye(runRef.current, false, `Prism base arrow ${base}.`));
+    return true;
+  }, [publish]);
   const runtime = useXRClinicRuntime({ active: active && !preview, editorOpen: lesson.mode !== "none",
     equipment: sensoryEquipment("four-prism"), placementSockets: sensorySockets("four-prism"), onInterrupt: interrupt,
+    onThumbstickStep: (id, step, _hand, axis) => id === "four-prism" && axis === "horizontal"
+      ? selectPrismBase(step < 0 ? "left" : "right") : false,
     onMenu: open => lesson.setMode(open ? "menu" : "none") });
 
   useEffect(() => { alive.current = active && !preview; }, [active, preview]);
@@ -72,7 +82,7 @@ export function FourPrismPracticeController({ active, preview = false, onComplet
     const held = runtime.workingPose("four-prism");
     const object = runtime.objects.current.get("four-prism");
     if (object) object.getWorldQuaternion(vectors.toolRotation);
-    vectors.base.set(1, 0, 0).applyQuaternion(vectors.toolRotation).normalize();
+    vectors.base.set(prismBaseRef.current === "left" ? -1 : 1, 0, 0).applyQuaternion(vectors.toolRotation).normalize();
     const position = held ? runtime.origin.toArray() as [number, number, number] : null;
     const forward = held ? runtime.direction.toArray() as [number, number, number] : [0, 0, -1] as [number, number, number];
     return { held: Boolean(held), position, forward, baseAxis: vectors.base.toArray() as [number, number, number] };
@@ -113,13 +123,14 @@ export function FourPrismPracticeController({ active, preview = false, onComplet
     if (guided && ["orient-od", "orient-os", "observe-od", "observe-os"].includes(next.phase)) {
       const error = fourPrismBaseAlignmentError(tool.baseAxis, next.expectedEye);
       setTechniqueReason(!tool.held ? "Pick up the dedicated 4Δ prism." : detectedEye && detectedEye !== next.expectedEye ? `Position before ${next.expectedEye} first.`
-        : detectedEye !== next.expectedEye ? `Centre the prism before ${next.expectedEye}.` : error > 20 * Math.PI / 180 ? `Rotate the base marking temporally for ${next.expectedEye}.`
+        : detectedEye !== next.expectedEye ? `Centre the prism before ${next.expectedEye}.` : error > 20 * Math.PI / 180 ? `Use thumbstick ${next.expectedEye === "OD" ? "left" : "right"}, or physically roll the base marking temporally for ${next.expectedEye}.`
           : !view ? "Use a frontal examiner view with both eyes visible." : "");
     } else if (techniqueReason) setTechniqueReason("");
   });
 
   const reset = useCallback(() => {
     publish(resetFourPrismRun(runRef.current)); lesson.reset(); runtime.resetClinic(); fitSignature.current = "";
+    prismBaseRef.current = "right"; setPrismBaseState("right");
     setTechniqueReason(""); completedNotified.current = false; eyes.forEach(eye => eye.position.set(0, 0, 0));
   }, [eyes, lesson.reset, publish, runtime.resetClinic]);
   useEffect(() => { if (!active || preview) reset(); }, [active, preview, reset]);
@@ -166,6 +177,7 @@ export function FourPrismPracticeController({ active, preview = false, onComplet
     deckIndex.current += 1;
     const scenario = fourPrismScenarioAt(deck.current, deckIndex.current);
     publish(initialFourPrismRun(scenario, runRef.current.attempt + 1, runRef.current.generation + 1));
+    prismBaseRef.current = "right"; setPrismBaseState("right");
     lesson.reset(); runtime.resetClinic(); fitSignature.current = ""; completedNotified.current = false;
   };
   const exit = () => { alive.current = false; publish(exitFourPrismRun(runRef.current)); eyes.forEach(eye => eye.position.set(0, 0, 0)); onExit(); };
@@ -182,14 +194,16 @@ export function FourPrismPracticeController({ active, preview = false, onComplet
 
   return <>
     <XRClinicRuntimeView cleanHands runtime={runtime} active={active && !preview} preview={preview} title="4Δ BASE-OUT · PRACTICE"
-      sensoryStation="four-prism" showWallInstructions={!guided} showInstructionalHighlights={guided} />
+      instruction="Held prism: thumbstick ←/→ changes base arrow · fixed 4Δ power"
+      sensoryStation="four-prism" showWallInstructions={!guided} showInstructionalHighlights={guided}
+      instrumentSettings={{ "four-prism": { base: prismBase } }} />
     {(active || preview) && guided && <XRGuidedStepBubble stepId={guidance.id} stepNumber={guidance.index + 1}
       total={FOUR_PRISM_GUIDED_STEP_COUNT} title={guidance.title} lines={guidance.lines} complete={guidance.complete} />}
     <PracticeLessonUI runtime={runtime} active={active && !preview} title="4Δ BASE-OUT" status={status} tools={["subjective", "four-prism"]}
       actions={actions} directActions={directActions} fields={fields} lesson={lesson} ready={ready} entryReady={entryReady}
       onRecord={record} onReset={reset} onNext={next} onExit={exit} onCancel={cancel} forceBoardVisible={Boolean(run.eyeCaptures.OD)}
       boardStatusLines={[...history, neutral]} help={guided ? ["Fit best distance correction and establish isolated-letter fixation.",
-        "Use the dedicated fixed 4Δ prism; point its base temporally for each eye.", "Observe OD continuously for 2400 ms, withdraw completely, then reverse orientation for OS.",
+        "Use the dedicated fixed 4Δ prism. Thumbstick left selects the left base arrow for OD; right selects the right base arrow for OS. Physical wrist roll also remains available.", "Observe OD continuously for 2400 ms, withdraw completely, then switch the base direction for OS.",
         "Record each eye's movement before interpreting. Movement and handling are illustrative, not calibrated."]
         : ["Complete the examination using the available neutral controls.", "Movement and handling are illustrative, not calibrated."]} />
   </>;

@@ -157,11 +157,7 @@ export function Examinations({
           }}
         >
           <ClipboardCheck size={17} />
-          {exam.id === "anterior"
-            ? "Use slit-lamp station"
-            : result
-              ? "Pick up kit & repeat"
-              : "Pick up instrument & examine"}
+          {result ? "Pick up kit & repeat" : "Pick up instrument & examine"}
         </button>
         <p className="small muted">Authored findings · no manual instrument technique assessed</p>
       </section>

@@ -5,12 +5,14 @@ import type { HirschbergPracticeFinding } from "../interaction/xrHirschbergPract
 import type { OpticScenario } from "./ClinicalPracticeStage";
 import { xrHirschbergPrompt } from "../interaction/xrPractice";
 import { usePracticeAttempt } from "./PracticeAttemptContext";
+import { perfRender } from "../perf/perfFlag";
 
 export function HirschbergVRStage({ scenario, finding, findingPosition, onClose, onDesktop, onComplete, onNext }: {
   scenario: OpticScenario; finding: HirschbergPracticeFinding;
   findingPosition: { current: number; total: number };
   onClose: () => void; onDesktop: () => void; onComplete: () => void; onNext: () => void;
 }) {
+  perfRender("HirschbergVRStage");
   const { settings } = usePracticeAttempt();
   const guided = settings?.kind !== "test";
   const [mirror, setMirror] = useState<HirschbergPracticeMirror | null>(null);

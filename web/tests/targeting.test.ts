@@ -10,11 +10,11 @@ const cube = (z: number) => {
 const ray = () => new Raycaster(new Vector3(0, 0, 0), new Vector3(0, 0, -1));
 it("resolves stable station metadata through nested instrument meshes", () => {
   const station = new Group();
-  station.userData.station = "slit";
+  station.userData.station = "refraction";
   const instrument = cube(-1);
   station.add(instrument);
   station.updateMatrixWorld(true);
-  expect(stationUnderRay(ray(), [station])).toBe("slit");
+  expect(stationUnderRay(ray(), [station])).toBe("refraction");
 });
 it("resolves a directly pickable near chart through its nested meshes", () => {
   const trolley = new Group();

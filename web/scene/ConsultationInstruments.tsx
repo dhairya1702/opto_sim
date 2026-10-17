@@ -7,11 +7,12 @@ import { XRScopeOptics, type FundusScopeView, type BrucknerScopeView } from "./X
 import { LibraryInstrumentModel, type ClinicInstrumentSettings } from "./LibraryClinicEquipment";
 import { SensoryInstrumentModel } from "./SensoryClinicEquipment";
 import type { OphthalmoscopeControl } from "../interaction/xrScopeEquipment";
-import { XRSign } from "./XRClinicPanels";
+import { XRLabelPill, XRSign } from "./XRClinicPanels";
 import { CONSULTATION_EQUIPMENT, PRISM_BAR_WORKING_Y, consultationToolDefinition, type ConsultationToolId, type ConsultationTools } from "../interaction/xrConsultationTools";
 import { INSTRUMENT_KIT_ROTATION_Y } from "../interaction/clinicLayout";
 import { krimskyPrismCellY, krimskyPrismPowerIndex } from "../interaction/xrKrimskyPractice";
 import { MADDOX_PRISM_CELLS, MADDOX_PRISM_CELL_Y } from "../interaction/maddoxProcedure";
+import { perfRender } from "../perf/perfFlag";
 
 /** One canonical model per instrument, shared by resting and held placement. */
 export function ConsultationInstrumentModel({ id, powered, fundusView, brucknerView, scopeControl, settings }: { settings?: ClinicInstrumentSettings; scopeControl?: OphthalmoscopeControl; id: ConsultationToolId; powered: boolean; fundusView?: FundusScopeView; brucknerView?: BrucknerScopeView }) {
@@ -22,17 +23,23 @@ export function ConsultationInstrumentModel({ id, powered, fundusView, brucknerV
   }, []);
   if (["maddox", "thorington", "trial-lens", "minus-lens-holder", "lens-flipper", "prism-flipper", "vergence-prism", "fixation", "npc-rule", "push-up-rule"].includes(id)) return <LibraryInstrumentModel id={id} setting={settings?.[id]} />;
   if (["worth", "red-green", "polarised", "stereo", "four-prism"].includes(id)) return <SensoryInstrumentModel id={id} powered={powered} point={settings?.[id]?.point}
-    onPowerChange={settings?.[id]?.onPowerChange} />;
+    base={settings?.[id]?.base} onPowerChange={settings?.[id]?.onPowerChange} highlightPowerSwitch={settings?.[id]?.highlightPowerSwitch} />;
   if (id === "prism") {
     const maddoxProfile = settings?.prism?.profile === "maddox";
     const selectedPower = settings?.prism?.power;
-    const selectedY = selectedPower === undefined ? PRISM_BAR_WORKING_Y : krimskyPrismCellY(selectedPower);
+    const maddoxIndex = selectedPower === undefined ? -1 : MADDOX_PRISM_CELLS.indexOf(selectedPower as typeof MADDOX_PRISM_CELLS[number]);
+    const selectedY = selectedPower === undefined ? PRISM_BAR_WORKING_Y
+      : maddoxProfile && maddoxIndex >= 0 ? MADDOX_PRISM_CELL_Y[maddoxIndex] : krimskyPrismCellY(selectedPower);
     const apertureY = PRISM_BAR_WORKING_Y;
     const barOffsetY = apertureY - selectedY;
-    const baseLabel = settings?.prism?.base === "BI" ? "← BASE IN · BI" : settings?.prism?.base === "BO" ? "BASE OUT · BO →" : "← BI · BO →";
-    return <group><group position={[0, maddoxProfile ? 0 : barOffsetY, 0]} userData={{ xrPrismSlidingBar: true }}><PrismBarModel profile={maddoxProfile ? "maddox" : "standard"} selectedIndex={selectedPower === undefined ? 4 : krimskyPrismPowerIndex(selectedPower)} />
-      {maddoxProfile && MADDOX_PRISM_CELLS.map((power, index) => <XRSign key={power} text={[`${power}Δ`]} p={[-.066, MADDOX_PRISM_CELL_Y[index], .024]} size={[.038, .018]} bg="#173a3e" fg="#e8fff9" />)}
+    const baseLabel = settings?.prism?.base === "BI" || settings?.prism?.base === "base-in" ? "← BASE IN · BI"
+      : settings?.prism?.base === "BO" || settings?.prism?.base === "base-out" ? "BASE OUT · BO →"
+        : settings?.prism?.base === "base-up" ? "↑ BASE UP · BU"
+          : settings?.prism?.base === "base-down" ? "BASE DOWN · BD ↓" : "←/→ BASE · ↑/↓ POWER";
+    return <group><group position={[0, barOffsetY, 0]} userData={{ xrPrismSlidingBar: true }}><PrismBarModel profile={maddoxProfile ? "maddox" : "standard"} selectedIndex={maddoxProfile ? Math.max(0, maddoxIndex) : selectedPower === undefined ? 4 : krimskyPrismPowerIndex(selectedPower)} />
     </group>{settings?.prism && !maddoxProfile && <XRSign text={[`${selectedPower ?? 0}Δ`, baseLabel]} p={[0, .045, .02]} size={[.14, .045]} bg="#173a3e" fg="#e8fff9"/>}
+    {maddoxProfile && selectedPower !== undefined && <XRLabelPill label={`${selectedPower}Δ · ${settings?.prism?.base ?? "BI"}`}
+      position={[-.002, .052, .026]} width={.105} height={.027} />}
     <mesh position={[0, apertureY, .026]} renderOrder={1160} userData={{ xrPrismWorkingCell: true, xrPrismPower: selectedPower, xrPrismAligned: settings?.prism?.aligned }}>
       <ringGeometry args={[.027, .030, 32]} /><meshBasicMaterial color={settings?.prism?.aligned ? "#71f5bd" : "#e5b55a"} side={DoubleSide} depthTest={false} depthWrite={false} />
     </mesh>
@@ -77,6 +84,7 @@ function InstrumentInstance({ id, state, highlighted, returnedAt, register, sele
   returnedAt?: number;
   register: (id: ConsultationToolId, object: Group | null) => void;
 }) {
+  perfRender("InstrumentInstance");
   const root = useRef<Group>(null);
   const materials = useRef<{ material: Material; opacity: number }[]>([]);
   const originalOpacity = useRef(new WeakMap<Material, number>());
@@ -148,6 +156,7 @@ export function ConsultationInstruments({ state, highlighted, returnedAt, regist
   returnedAt: Partial<Record<ConsultationToolId, number>>;
   register: (id: ConsultationToolId, object: Group | null) => void;
 }) {
+  perfRender("ConsultationInstruments");
   return <>
     {equipment.map(id => consultationToolDefinition(id)).map(tool => <InstrumentInstance key={tool.id} id={tool.id} state={state} highlighted={highlighted.includes(tool.id)} returnedAt={returnedAt[tool.id]} register={register} selectable={selectable.includes(tool.id)} castsShadow={castsShadow} fundusView={fundusView} brucknerView={brucknerView} scopeControl={scopeControl} settings={settings} />)}
     {equipment.map(id => consultationToolDefinition(id)).map(tool => <group key={`socket-${tool.id}`} position={[tool.home[0], tool.home[1] - tool.restHeight + .005, tool.home[2]]} rotation={[0, tool.homeYaw ?? INSTRUMENT_KIT_ROTATION_Y, 0]} userData={{ xrIgnoreRay: true }}>

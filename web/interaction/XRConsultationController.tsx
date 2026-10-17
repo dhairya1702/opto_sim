@@ -30,6 +30,7 @@ import { advanceScopeInspection, advanceScopeSweep, initialScopeInspection, init
 import { XRRetinoscopyReflex, type RetinoReflexVisual } from "../scene/XRRetinoscopyReflex";
 import type { FundusScopeView } from "../scene/XRScopeOptics";
 import { CLINIC_PATIENT_EYES as PUPIL_EYES, CLINIC_EYE_MIDPOINT as EYE_MIDPOINT } from "./clinicPatient";
+import { perfRender } from "../perf/perfFlag";
 
 export type ConsultationExam = "distance" | "pupils" | "cover" | "motility" | "objective" | "fundus";
 export type ConsultationPanel = "interview" | "notes" | "submission";
@@ -213,6 +214,7 @@ export function XRConsultationController({ active, preview = false, guided = fal
   onInteract: (id: StationId, examId?: string) => void;
   onProcedureComplete?: (exam: ConsultationExam, mode: string, observation: string, eye?: Eye) => boolean | void;
 }) {
+  perfRender("XRConsultationController");
   const { gl, scene } = useThree();
   const [menuOpen, setMenuOpen] = useState(false);
   const [utilityHelpOpen, setUtilityHelpOpen] = useState(false);

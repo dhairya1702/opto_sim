@@ -160,8 +160,8 @@ test("complete scripted encounter without credentials", async ({ page }) => {
         await page.getByRole("button", { name: new RegExp(`^${exam.name} `) }).click();
         await page.getByLabel("Tested eye").selectOption(eye);
         await page.getByLabel("Method / configuration").selectOption(mode.id);
-        await page.getByRole("button", { name: /^(Pick up instrument & examine|Pick up kit & repeat|Use slit-lamp station)$/ }).click();
-        if (exam.id !== "anterior") await page.getByRole("button", { name: "Examine Arun →", exact: true }).click();
+        await page.getByRole("button", { name: /^(Pick up instrument & examine|Pick up kit & repeat)$/ }).click();
+        await page.getByRole("button", { name: "Examine Arun →", exact: true }).click();
         if (exam.id === "motility") {
           await page.getByRole("button", { name: "Ask Arun to follow the target, head still" }).click();
           const viewport = page.getByRole("application", { name: /Manual fixation target/ });

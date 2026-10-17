@@ -402,24 +402,6 @@ const exams: ExamDefinition[] = [
     weight: 5,
   },
   {
-    id: "anterior",
-    name: "Anterior-segment assessment",
-    equipmentIds: ["slit"],
-    equipment: "Table-mounted slit lamp",
-    eyes: ["OD", "OS"],
-    modes: [{ id: "default", label: "Authored anterior-segment assessment" }],
-    scope:
-      "A fixed examination station. These findings do not establish normal fundus or peripheral retina.",
-    rationale: "Adds anterior ocular-health observations to the refractive assessment.",
-    findings: eyes(
-      f(
-        "Lids/lashes, conjunctiva, cornea, anterior chamber, iris and lens: authored findings within normal limits.",
-        "Simulated slit-lamp anterior assessment",
-      ),
-    ),
-    weight: 3,
-  },
-  {
     id: "fundus",
     name: "Fundus assessment",
     equipmentIds: ["fundus"],
@@ -436,7 +418,7 @@ const exams: ExamDefinition[] = [
         "Simulated undilated direct ophthalmoscopy",
       ), posteriorPole: "schematic-within-normal-limits" },
     ),
-    weight: 3,
+    weight: 6,
   },
 ];
 const criteria: Criterion[] = [
@@ -510,7 +492,7 @@ const criteria: Criterion[] = [
     dimension: "Management / communication",
     weight: 6,
     label: "Ocular-health review and follow-up",
-    rule: "Choose health review/follow-up with acquired anterior and fundus findings in both eyes.",
+    rule: "Choose health review/follow-up with acquired fundus findings in both eyes.",
     alternatives: ["Institution-approved review after appropriate ocular-health assessment"],
     feedback:
       "Integrate ocular-health findings and limitations. Exact recall and referral pathways require local review.",
@@ -555,7 +537,7 @@ export const clinicalCase: ClinicalCase = {
         label:
           "Ocular-health assessment is incomplete. The authored fundus view is limited, even when obtained.",
         kind: "exam",
-        requiredIds: ["anterior", "fundus"],
+        requiredIds: ["fundus"],
       },
     ],
   },
