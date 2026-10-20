@@ -11,13 +11,15 @@ import type { XRClinicRuntime, XRClinicHand } from "../interaction/useXRClinicRu
 import type { FundusScopeView, BrucknerScopeView } from "./XRScopeOptics";
 import { XRScopeView } from "./XRScopeView";
 import { perfRender } from "../perf/perfFlag";
-export function XRClinicRuntimeView({ runtime, active, preview = false, title = "VR CONSULTATION", instruction = "Explore freely · A/X · patient menu", showWallInstructions = true, showInstructionalHighlights = true, cleanHands = false, helperHand, helperReady = false, fundusView, brucknerView, sensoryStation, instrumentSettings, selectableEquipment, instructionalEquipment = [] }: {
+import { Html } from "@react-three/drei";
+export function XRClinicRuntimeView({ runtime, active, preview = false, title = "VR CONSULTATION", instruction = "Explore freely · A/X · patient menu", showWallInstructions = true, showInstructionalHighlights = true, cleanHands = false, helperHand, helperReady = false, fundusView, brucknerView, sensoryStation, sensoryFixationLetter = false, instrumentSettings, selectableEquipment, instructionalEquipment = [] }: {
   instrumentSettings?: ClinicInstrumentSettings;
   selectableEquipment?: readonly ConsultationToolId[];
   /** Existing canonical instruments to highlight in place during Guided coaching. */
   instructionalEquipment?: readonly ConsultationToolId[];
   runtime: XRClinicRuntime;
   sensoryStation?: "worth" | "stereo" | "four-prism";
+  sensoryFixationLetter?: boolean;
   active: boolean;
   preview?: boolean;
   title?: string;
@@ -34,13 +36,27 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
   perfRender("XRClinicRuntimeView");
   const { tools, slots, highlighted, returnedAt, registerTool, hoverMarker, pickupHints, handlingMessage } = runtime;
   const showGuides = active || preview;
+  const desktopHeld = runtime.inputMode === "desktop" ? toolInHand(tools, runtime.desktopActiveHand) : null;
   return <>
+    {active && runtime.inputMode === "desktop" && <Html fullscreen wrapperClass="desktop-clinic-html">
+      <div className="desktop-clinic-overlay" aria-hidden="true">
+        <span className="desktop-clinic-reticle" />
+        <div className="desktop-clinic-readout">
+          <b>{runtime.desktopActiveHand.toUpperCase()} HAND</b>
+          <span>{desktopHeld ? runtime.toolLabel(desktopHeld) : "Empty"}</span>
+          <span>{runtime.desktopAim.action}</span>
+          <small>WASD walk · mouse aim · E pick/place · click use · wheel/up/down adjust · left/right orient · Q switch hand</small>
+        </div>
+      </div>
+    </Html>}
     <XRScopeView active={active && !preview && runtime.scopeViewHand !== null} brucknerView={brucknerView} fundusView={fundusView} />
     {showGuides && showWallInstructions && <group userData={{ xrWallWelcome: true }}>
       <Sign text={active
-        ? [title, "Grip once · pick up / transfer · again · place", "Trigger · use · A/X · menu · free-hand B/Y · VR controls", instruction]
+        ? runtime.inputMode === "desktop"
+          ? [title, "E · pick up / place · Q · switch hand", "Click · use · wheel/up/down · adjust · left/right · orient", "Mirror panel · guidance, recording, reset and exit"]
+          : [title, "Grip once · pick up / transfer · again · place", "Trigger · use · A/X · menu · free-hand B/Y · VR controls", instruction]
         : ["DESKTOP VR PREVIEW", "WASD + mouse · inspect the clinic", "E / click · select tools", "Floor rings · headset destinations"]
-      } p={[-1.15, 1.72, -2.455]} size={[.72, .30]} bg="#153b3c" fg="#e8fff9" />
+      } p={[.05, 1.72, -2.455]} size={[.72, .30]} bg="#153b3c" fg="#e8fff9" />
     </group>}
     {showGuides && stations.filter(station => station.id !== "fundus").map(station => {
       const arrival = consultationXRArrival(station.id, station.position);
@@ -60,8 +76,8 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
       <Sign text={["EXTENDED INSTRUMENT KIT"]} p={[0, .008, 0]} size={[.46, .1]} rotation={[-Math.PI / 2, 0, 0]} bg="#153b3c" fg="#e8fff9" />
     </group>}
     {(active || preview) && <>
-      <SensoryClinicStation active={active} runtime={runtime} distanceLetter={sensoryStation === "four-prism"} showFittingGuides={showInstructionalHighlights} />
-      <ConsultationInstruments equipment={runtime.equipment} selectable={selectableEquipment} scopeControl={{ aperture: runtime.scopeAperture, cycle: runtime.cycleScopeAperture }} settings={instrumentSettings} fundusView={fundusView} brucknerView={brucknerView} state={tools} highlighted={[...new Set([...highlighted, ...instructionalEquipment])]} returnedAt={returnedAt} register={registerTool} />
+      <SensoryClinicStation active={active} runtime={runtime} distanceLetter={sensoryStation === "four-prism"} fixationLetter={sensoryFixationLetter} showFittingGuides={showInstructionalHighlights} />
+      <ConsultationInstruments equipment={runtime.equipment} selectable={selectableEquipment} scopeControl={{ aperture: runtime.scopeAperture, cycle: runtime.cycleScopeAperture }} settings={instrumentSettings} toolLabel={runtime.toolLabel} fundusView={fundusView} brucknerView={brucknerView} state={tools} highlighted={[...new Set([...highlighted, ...instructionalEquipment])]} returnedAt={returnedAt} register={registerTool} />
       {active && (["left", "right"] as const).map(hand => <group key={hand} visible={false}
         ref={object => { if (object) runtime.placementMarkers.current.set(hand, object); else runtime.placementMarkers.current.delete(hand); }}
         userData={{ xrIgnoreRay: true, xrPlacementPreview: hand }}>
@@ -88,7 +104,7 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
         const id = slot.hand ? toolInHand(tools, slot.hand) : null;
         const definition = id ? consultationToolDefinition(id) : null;
         const heldLabel = id && definition
-          ? `${id === "four-prism" ? "4Δ PRISM" : definition.label.toUpperCase()}${definition.illuminates ? tools[id].powered ? " · ON" : definition.powerMode === "persistent" ? " · SWITCH" : " · TRIGGER" : ""}`
+          ? `${id === "four-prism" ? "4Δ PRISM" : runtime.toolLabel(id).toUpperCase()}${definition.illuminates ? tools[id].powered ? " · ON" : definition.powerMode === "persistent" ? " · SWITCH" : " · TRIGGER" : ""}`
           : null;
         return <group key={index} userData={{ xrIgnoreRay: true }}>
           <primitive object={slot.grip}>
@@ -111,7 +127,7 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
           </primitive>
         </group>;
       })}
-      {showWallInstructions && handlingMessage && <Sign text={[handlingMessage]} p={[-1.15, 1.48, -2.45]} size={[.72, .08]} bg="#173a3e" fg="#e8fff9" />}
+      {showWallInstructions && handlingMessage && <Sign text={[handlingMessage]} p={[.05, 1.48, -2.45]} size={[.72, .08]} bg="#173a3e" fg="#e8fff9" />}
     </>}
   </>;
 }

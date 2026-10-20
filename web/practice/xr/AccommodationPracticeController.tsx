@@ -1,87 +1,131 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
-import { facilityDuration, facilityRemaining, facilityClearDelay } from "../../interaction/accommodativeFacility";
-import { accommodationEyes, newAccommodationFacility, flipAccommodationFacility, type AccommodationKind, type AccommodationTimedRun } from "../../interaction/xrAccommodationPractice";
-import { LIBRARY_SURFACES, libraryEquipment, librarySockets, libraryTool, libraryNear, libraryOpticPlacement, libraryDistance, librarySetupKey, libraryOcclusion, LIBRARY_TITLES } from "../../interaction/xrLibraryEquipment";
+import {
+  accommodativeFacilityEye, accommodativeFacilityGuidedStep, accommodativeFacilitySeconds,
+  establishFacilityFixation, facilityGeometryIssue, flipAccommodativeFacility,
+  interruptAccommodativeFacility, newAccommodativeFacilityRun, restartAccommodativeFacilityEye,
+  sampleAccommodativeFacility, startAccommodativeFacility, submitAccommodativeFacility,
+  type AccommodativeFacilityRun, type FacilitySpatialSample,
+} from "../../interaction/accommodativeFacilityProcedure";
+import { LIBRARY_SURFACES, LIBRARY_TITLES, libraryEquipment, libraryNear, libraryOcclusion, libraryOpticPlacement, librarySockets } from "../../interaction/xrLibraryEquipment";
 import { isPatientFitted } from "../../interaction/xrSensoryEquipment";
-import { freezeVergenceCapture, numericCaptureSubmission, type VergenceCapture } from "../../interaction/xrVergencePractice";
-import { useXRClinicRuntime } from "../../interaction/useXRClinicRuntime";
+import { consultationToolDefinition } from "../../interaction/xrConsultationTools";
+import { useXRClinicRuntime, type ClinicInputMode } from "../../interaction/useXRClinicRuntime";
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
 import { LibraryEquipmentTray, LibraryNearStand } from "../../scene/LibraryClinicEquipment";
 import { XRSign } from "../../scene/XRClinicPanels";
-import { PracticeLessonUI, usePracticeLesson, type BatchMirror, type LessonField } from "./PracticeLessonUI";
-export function AccommodationPracticeController({ kind, active, preview = false, onComplete, onExit, onMirror }: {
-  kind: AccommodationKind; active: boolean; preview?: boolean; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
+import { usePracticeAttempt } from "../PracticeAttemptContext";
+import { PracticeLessonUI, usePracticeLesson, type BatchMirror, type LessonAction, type LessonField } from "./PracticeLessonUI";
+
+export function AccommodationPracticeController({ active, preview = false, inputMode = "xr", onComplete, onExit, onMirror }: {
+  kind: "accommodative-facility"; active: boolean; preview?: boolean; inputMode?: ClinicInputMode;
+  onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
 }) {
-  const live = active && !preview, lesson = usePracticeLesson(onComplete);
-  const eyeIndex = useRef(0), setup = useRef({ fixation: false });
-  const timed = useRef<AccommodationTimedRun | null>(null), capture = useRef<VergenceCapture | null>(null), history = useRef<string[]>([]), generation = useRef(0), key = useRef("");
-  const eye = () => accommodationEyes(kind)[eyeIndex.current];
-  const [state, setState] = useState({ eye: eye(), distance: 0, ready: false, captured: false, report: "", side: "plus", cycles: 0, seconds: 60, history: [] as string[] });
-  const clearRun = useCallback(() => { if (capture.current) return; timed.current = null; lesson.clearPending(); }, [lesson.clearPending]);
-  const runtime = useXRClinicRuntime({ active: live, equipment: libraryEquipment(kind), placementSockets: librarySockets(kind), placementSurfaces: LIBRARY_SURFACES, editorOpen: lesson.mode !== "none",
-    onMenu: open => lesson.setMode(open ? "menu" : "none"), onInterrupt: reason => { if (["visibility", "transfer", "tracking", "procedure"].includes(reason)) clearRun(); },
-    onToolUsed: (id, action) => { if (id === "lens-flipper" && action === "activate") flip(); } });
-  const signature = () => { const cover = runtime.toolsRef.current.cover; return `${librarySetupKey(runtime.toolsRef.current, kind)}:${cover.revision}:${cover.placement.kind === "held" ? cover.placement.hand : cover.placement.socketId ?? "free"}`; };
-  const sample = () => {
-    const target = runtime.supportedWorkingPose("near", true), distance = libraryDistance(target);
-    const optic = runtime.supportedWorkingPose(libraryTool(kind), true);
-    return { distance: distance.distanceCm, ready: live && runtime.frameValid.current && isPatientFitted(runtime.toolsRef.current, "subjective") && setup.current.fixation
-      && libraryOcclusion(runtime.toolsRef.current, eye())
-      && libraryNear(target) && libraryOpticPlacement(optic, eye(), true) };
-  };
-  const publish = (spatial = sample()) => {
-    const current = timed.current, now = performance.now();
-    const report = capture.current ? capture.current.reports.join(" ") : !current ? "Start with the plus side at clear near fixation." : now - current.presented >= facilityClearDelay[current.side] ? "Clear; flip now." : "Patient is clearing the lens…";
-    const next = { eye: eye(), distance: spatial.distance, ready: spatial.ready, captured: Boolean(capture.current), report,
-      side: current?.side ?? "plus", cycles: current?.cycles ?? capture.current?.values.cycles ?? 0, seconds: current ? facilityRemaining(current.start, now) : capture.current ? 0 : 60, history: [...history.current] };
-    setState(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
-  };
-  const clock = useRef(0);
+  const live = active && !preview;
+  const { settings } = usePracticeAttempt();
+  const attemptKind = settings?.kind ?? "guided";
+  const completionSent = useRef(false);
+  const lesson = usePracticeLesson(() => { if (!completionSent.current) { completionSent.current = true; onComplete(); } });
+  const run = useRef<AccommodativeFacilityRun>(newAccommodativeFacilityRun());
+  const publishClock = useRef(0);
+  const [state, setState] = useState({ run: run.current, seconds: 60 });
+
+  function spatial(nowMs = performance.now()): FacilitySpatialSample {
+    const tools = runtime.toolsRef.current;
+    const flipper = tools["lens-flipper"];
+    const flipperHeld = flipper.placement.kind === "held";
+    return { nowMs, correctionFitted: isPatientFitted(tools, "subjective"),
+      targetReady: libraryNear(runtime.supportedWorkingPose("near", true)),
+      occlusionReady: libraryOcclusion(tools, accommodativeFacilityEye(run.current)),
+      flipperHeld, flipperAligned: flipperHeld && libraryOpticPlacement(runtime.supportedWorkingPose("lens-flipper", true), accommodativeFacilityEye(run.current), true),
+      visible: Boolean(runtime.objects.current.get("lens-flipper")?.visible), tracking: runtime.frameValid.current };
+  }
+  const publish = useCallback(() => {
+    const next = { run: run.current, seconds: accommodativeFacilitySeconds(run.current, performance.now()) };
+    setState(previous => previous.run === next.run && previous.seconds === next.seconds ? previous : next);
+  }, []);
+  const flip = useCallback(() => {
+    if (!live || lesson.awarded.current) return;
+    run.current = flipAccommodativeFacility(run.current, spatial()); publish();
+  }, [lesson.awarded, live, publish]);
+  const runtime = useXRClinicRuntime({ active: live, inputMode, equipment: libraryEquipment("accommodative-facility"),
+    placementSockets: librarySockets("accommodative-facility"), placementSurfaces: LIBRARY_SURFACES,
+    editorOpen: lesson.mode !== "none", onMenu: open => lesson.setMode(open ? "menu" : "none"),
+    onInterrupt: reason => { if (["visibility", "transfer", "tracking", "procedure", "pickup"].includes(reason)) run.current = interruptAccommodativeFacility(run.current, "The physical procedure was interrupted."); },
+    onToolUsed: (id, action) => { if (id === "lens-flipper" && action === "activate") flip(); },
+  });
   useFrame((_, dt) => {
-    const nextKey = signature();
-    if (key.current !== nextKey) { key.current = nextKey; generation.current++; capture.current = null; clearRun(); }
-    const spatial = sample();
-    if (!spatial.ready && !capture.current) clearRun();
-    if (spatial.ready && !capture.current) {
-      const current = timed.current;
-      if (current && performance.now() - current.start >= facilityDuration) capture.current = freezeVergenceCapture(generation.current, nextKey, eye(), { cycles: current.cycles }, spatial.distance, [`${eye()} · ${current.cycles} full ±2.00 D pairs in 60 seconds.`]);
-    }
-    clock.current += dt; if (clock.current >= .1) { clock.current = 0; publish(spatial); }
+    run.current = sampleAccommodativeFacility(run.current, spatial());
+    publishClock.current += dt; if (publishClock.current >= .1) { publishClock.current = 0; publish(); }
   });
   const reset = useCallback(() => {
-    generation.current++; capture.current = null; eyeIndex.current = 0; history.current = []; setup.current = { fixation: false }; clearRun(); lesson.reset(); runtime.resetClinic(); key.current = signature(); publish();
-  }, [clearRun, lesson.reset, runtime.resetClinic]);
+    run.current = newAccommodativeFacilityRun(completionSent.current); lesson.reset(); runtime.resetClinic(); publish();
+  }, [lesson.reset, publish, runtime.resetClinic]);
   useEffect(() => { if (!live) reset(); }, [live, reset]);
-  const start = () => { if (live && sample().ready && !timed.current && !capture.current && !lesson.awarded.current) { timed.current = newAccommodationFacility(performance.now()); publish(); } };
-  function flip() { if (!live || !timed.current || capture.current) return; timed.current = flipAccommodationFacility(timed.current, performance.now(), sample().ready); publish(); }
-  const cancel = () => { if (!lesson.awarded.current) { capture.current = null; clearRun(); publish(); } lesson.setMode("none"); };
-  const record = () => {
-    const observed = capture.current;
-    if (!live || !runtime.frameValid.current || !observed || observed.setup !== signature() || lesson.awarded.current) return;
-    const correct = numericCaptureSubmission(observed.values, lesson.entriesRef.current, .011);
-    if (correct === null) return;
-    if (!correct) { lesson.submit(true, false, "Check the captured full-cycle count."); return; }
-    history.current = [...history.current, `${observed.label}: ${Object.entries(lesson.entriesRef.current).map(([label, value]) => `${label} ${value}`).join(" · ")}`];
-    if (eyeIndex.current === accommodationEyes(kind).length - 1) { lesson.submit(true, true, "All required accommodation observations recorded."); publish(); return; }
-    eyeIndex.current++; generation.current++; capture.current = null; clearRun(); lesson.setMode("none"); publish();
+
+  const fitCorrection = () => {
+    if (!live || isPatientFitted(runtime.toolsRef.current, "subjective")) return;
+    const tool = runtime.toolsRef.current.subjective;
+    runtime.updateTools({ ...runtime.toolsRef.current, subjective: { ...tool, placement: { kind: "socket", position: [0, 1.5, -.511], rotation: [0, 0, 0, 1], socketId: "sensory-correction", fittingLayer: "correction" }, revision: (tool.revision ?? 0) + 1 } });
   };
-  const field = (id: string, label: string, min: number, max: number, unit: string, step: number): LessonField => ({ id, label, choices: [], number: { min, max, unit, step } });
-  const fields = [field("cycles", "Full plus/minus pairs in 60 seconds", 0, 100, " cpm", 1)];
-  const actions = [
-    { label: "ESTABLISH FIXATION", run: () => { if (!live || lesson.awarded.current) return; setup.current.fixation = true; publish(); } },
-    { label: "START 60-SECOND RUN", disabled: !state.ready || Boolean(timed.current || capture.current), run: start },
-    { label: "CLEAR / FLIP ±2 D", disabled: !state.ready || !timed.current || state.captured || performance.now() - (timed.current?.presented ?? Infinity) < facilityClearDelay[timed.current?.side ?? "plus"], run: flip },
-    { label: "RESTART CURRENT RUN", run: () => { if (!live || lesson.awarded.current) return; capture.current = null; clearRun(); publish(); } },
+  const placeTarget = () => {
+    if (!live) return;
+    const socket = librarySockets("accommodative-facility").find(candidate => candidate.id === "practice-near-stand");
+    if (!socket) return;
+    const tool = runtime.toolsRef.current.near;
+    runtime.updateTools({ ...runtime.toolsRef.current, near: { ...tool, placement: { kind: "socket", position: socket.position, rotation: socket.rotation, socketId: socket.id }, revision: (tool.revision ?? 0) + 1 } });
+  };
+  const prepareOcclusion = () => {
+    if (!live) return;
+    const eye = accommodativeFacilityEye(run.current), tool = runtime.toolsRef.current.cover;
+    if (eye === "OU") {
+      const definition = consultationToolDefinition("cover");
+      const rest = { kind: "socket" as const, position: definition.home, rotation: definition.restRotation };
+      runtime.updateTools({ ...runtime.toolsRef.current, cover: { ...tool, placement: rest, lastRest: rest, revision: (tool.revision ?? 0) + 1 } }); return;
+    }
+    const socket = librarySockets("accommodative-facility").find(candidate => candidate.id === `sensory-occlude-${eye === "OD" ? "OS" : "OD"}`);
+    if (!socket) return;
+    runtime.updateTools({ ...runtime.toolsRef.current, cover: { ...tool, placement: { kind: "socket", position: socket.position, rotation: socket.rotation, socketId: socket.id, fittingLayer: socket.fittingLayer }, revision: (tool.revision ?? 0) + 1 } });
+  };
+  const establish = () => { if (live) { run.current = establishFacilityFixation(run.current, spatial()); publish(); } };
+  const start = () => { if (live) { run.current = startAccommodativeFacility(run.current, spatial()); publish(); } };
+  const restart = () => { if (live) { run.current = restartAccommodativeFacilityEye(run.current); lesson.clearPending(); publish(); } };
+  const cancel = () => { if (!lesson.awarded.current) { run.current = restartAccommodativeFacilityEye(run.current); lesson.clearPending(); publish(); } lesson.setMode("none"); };
+  const record = () => {
+    if (!live || lesson.awarded.current) return;
+    const before = run.current, next = submitAccommodativeFacility(before, lesson.entriesRef.current.cycles ?? "");
+    run.current = next;
+    if (next.records.length === before.records.length) { lesson.submit(true, false, next.feedback); publish(); return; }
+    lesson.clearPending(); lesson.setMode("none");
+    if (next.phase === "complete") lesson.submit(true, true, "OD, OS, and OU accommodative facility recorded."); else lesson.progress(next.feedback);
+    publish();
+  };
+
+  const sample = spatial(), eye = accommodativeFacilityEye(state.run), coach = accommodativeFacilityGuidedStep(state.run, sample);
+  const entryReady = live && Boolean(state.run.capture);
+  const fields: LessonField[] = [{ id: "cycles", label: "Full plus/minus pairs in 60 seconds", choices: [], number: { min: 0, max: 100, unit: " cpm", step: 1 } }];
+  const actions: LessonAction[] = [
+    { label: "FIT NEAR CORRECTION", active: sample.correctionFitted, run: fitCorrection },
+    { label: "PLACE READABLE TARGET AT 40 CM", active: sample.targetReady, run: placeTarget },
+    { label: eye === "OD" ? "COVER OS · TEST OD" : eye === "OS" ? "COVER OD · TEST OS" : "REMOVE COVER · TEST OU", active: sample.occlusionReady, run: prepareOcclusion },
+    { label: "ESTABLISH FIXATION", active: state.run.fixation, run: establish },
+    { label: "START 60-SECOND RUN", disabled: Boolean(facilityGeometryIssue(sample)) || !state.run.fixation || state.run.phase === "running" || Boolean(state.run.capture), run: start },
+    { label: "CLEAR / FLIP ±2 D", disabled: state.run.phase !== "running", run: flip },
+    { label: "RESTART CURRENT RUN", run: restart },
   ];
-  const status = `${state.history.length}/${accommodationEyes(kind).length} records · ${state.eye} · ${state.seconds}s · ${state.cycles} cycles · ${state.side} · ${!state.ready && !state.captured ? "Fit correction and opposite-eye cover; align target and flipper." : state.report}`;
-  const ready = live && state.captured;
-  useEffect(() => { onMirror?.({ title: LIBRARY_TITLES[kind], findingPosition: { current: eyeIndex.current + 1, total: accommodationEyes(kind).length }, status, ready, entryReady: ready, fields, actions, lesson, reset, record, cancel, reportLines: state.history }); }, [onMirror, status, ready, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
+  const records = state.run.records.map(item => `${item.eye}: ${item.submittedCycles} full ±2.00 D pairs in 60 seconds`);
+  const status = `${state.run.records.length}/3 eyes · ${eye} · ${state.seconds}s · ${state.run.cycles} cycles · ${state.run.side} · ${state.run.feedback}`;
+  const report = state.run.phase === "running" ? state.run.feedback : state.run.capture ? `${state.run.capture.cycles} full cycles recorded.` : undefined;
+  useEffect(() => { onMirror?.({ title: LIBRARY_TITLES["accommodative-facility"], findingPosition: { current: Math.min(3, state.run.eyeIndex + 1), total: 3 }, status, ready: entryReady, entryReady, fields, actions, lesson, reset, record, cancel, reportLines: records, voiceReport: report });
+  }, [onMirror, status, entryReady, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
+
   return <>
-    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title={LIBRARY_TITLES[kind].toUpperCase()} instrumentSettings={{ "lens-flipper": { side: state.side } }} />
-    {(live || preview) && <><LibraryEquipmentTray active={live} equipment={runtime.equipment} /><LibraryNearStand /></>}
-    {live && state.ready && <XRSign text={["FICTIONAL PATIENT · REPORTED RESPONSE", state.report]} p={[.55, 1.75, -.10]} size={[.55, .20]} bg="#07151b" fg="#eefbf7" />}
-    <PracticeLessonUI runtime={runtime} active={live} title={LIBRARY_TITLES[kind]} status={status} tools={[libraryTool(kind)]} actions={actions} directActions={actions.slice(1)} fields={fields} lesson={lesson} ready={ready} entryReady={ready} onRecord={record} onReset={reset} onExit={onExit} onCancel={cancel}
-      help={["Fit correction; fit cover over the opposite eye for OD or OS.", "OU requires both eyes uncovered. Establish near fixation.", "Release the near card on its stand at 40 cm; hold the flipper before the eyes.", "Flip only after clear; one plus/minus pair is a cycle.", "Complete each eye in order; entries begin blank.", "Illustrative geometry and authored timing require clinician review."]} />
+    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="ACCOMMODATIVE FACILITY" instructionalEquipment={attemptKind === "guided" && coach.index === 3 ? ["lens-flipper"] : []} instrumentSettings={{ "lens-flipper": { side: state.run.side } }} />
+    {(live || preview) && <><LibraryEquipmentTray active={live} equipment={runtime.equipment} showFittingGuides={attemptKind === "guided"} /><LibraryNearStand /></>}
+    {live && report && <XRSign text={["FICTIONAL PATIENT · CURRENT RESPONSE", report]} p={[.55, 1.75, -.10]} size={[.58, .20]} bg="#07151b" fg="#eefbf7" />}
+    {(live || preview) && attemptKind === "guided" && <XRSign text={[`GUIDED STEP ${coach.index + 1} / 8 · ${coach.title}`, ...coach.lines]} p={[-.58, 1.74, -.08]} size={[.64, .23]} bg="#102329" fg="#eefbf7" />}
+    <PracticeLessonUI runtime={runtime} active={live} title={LIBRARY_TITLES["accommodative-facility"]} status={status} tools={["lens-flipper"]} actions={actions} directActions={actions.slice(3)} fields={fields} lesson={lesson} ready={entryReady} entryReady={entryReady} onRecord={record} onReset={reset} onExit={onExit} onCancel={cancel}
+      boardStatusLines={[`EYE ${state.run.eyeIndex + 1} / 3 · ${eye}`, state.run.capture ? "COUNT FROZEN · RECORD FULL PAIRS" : `${state.seconds} SECONDS · ${state.run.cycles} CYCLES`, attemptKind === "guided" ? coach.title : "Complete the physical sequence."]}
+      help={["Fit correction and prepare OD, OS, then OU in order.", "Place the readable near target at 40 cm and align the ±2.00 D flipper.", "Establish fixation and start with plus.", "Flip only after each clear report; one plus/minus pair is one cycle.", "The count freezes at 60 seconds and remains available after releasing the flipper.", "Illustrative geometry and authored timing require clinician review."]} />
   </>;
 }

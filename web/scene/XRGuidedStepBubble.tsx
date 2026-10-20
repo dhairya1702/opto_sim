@@ -37,7 +37,7 @@ export function XRGuidedStepBubble({ stepId, stepNumber, total, title, lines, co
   const accent = complete ? "#66ad98" : "#d5a95b";
   const badge = complete ? "#3f7568" : "#876c38";
   const wrappedLines = wrapGuidedStepLines(lines);
-  return <group ref={root} position={[-1.02, 1.84, -2.46]}
+  return <group ref={root} position={[.05, 1.84, -2.46]} scale={.88}
     userData={{ xrGuidedStepBubble: true, guidedStepId: stepId, guidedStepNumber: stepNumber }}>
     <Box p={[.38, -.356, -.004]} s={[.13, .13, .022]} c="#d7e3dd" r={[0, 0, Math.PI / 4]} radius={.018} />
     <Box p={[.38, -.337, .012]} s={[.09, .09, .016]} c="#fbf7ee" r={[0, 0, Math.PI / 4]} radius={.014} />

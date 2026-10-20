@@ -9,8 +9,13 @@ import { consultationToolDefinition, initialConsultationTools, grabConsultationT
 import { SENSORY_NEAR_TARGET } from "../interaction/xrSensoryEquipment";
 describe("remaining XR library sequences and geometry", () => {
   it("counts full timed pairs only after authored responses and before 60 seconds", () => {
-    let vergence = newVergenceFacility(0); expect(flipVergenceFacility(vergence, 849, true)).toBe(vergence); expect(flipVergenceFacility(vergence, 850, false)).toBe(vergence);
-    vergence = flipVergenceFacility(vergence, 850, true); expect(vergence.cycles).toBe(0); vergence = flipVergenceFacility(vergence, 1500, true); expect(vergence.cycles).toBe(1); expect(flipVergenceFacility(vergence, 60000, true)).toBe(vergence);
+    let vergence = newVergenceFacility(0);
+    vergence = flipVergenceFacility(vergence, 849, true); expect(vergence).toMatchObject({ side: "BI", cycles: 0, boCleared: false, lastFlip: "premature" });
+    expect(flipVergenceFacility(vergence, 850, false)).toBe(vergence);
+    vergence = flipVergenceFacility(vergence, 1499, true); expect(vergence).toMatchObject({ side: "BO", cycles: 0, boCleared: false, lastFlip: "unpaired" });
+    vergence = flipVergenceFacility(vergence, 2349, true); expect(vergence).toMatchObject({ side: "BI", cycles: 0, boCleared: true, lastFlip: "valid" });
+    vergence = flipVergenceFacility(vergence, 2999, true); expect(vergence).toMatchObject({ side: "BO", cycles: 1, boCleared: false, lastFlip: "valid" });
+    expect(flipVergenceFacility(vergence, 60000, true)).toBe(vergence);
     let accommodation = newAccommodationFacility(0); expect(flipAccommodationFacility(accommodation, 1499, true)).toBe(accommodation); accommodation = flipAccommodationFacility(accommodation, 1500, true); expect(accommodation.cycles).toBe(0); accommodation = flipAccommodationFacility(accommodation, 3300, true); expect(accommodation.cycles).toBe(1); expect(flipAccommodationFacility(accommodation, 60000, true)).toBe(accommodation);
   });
   it("keeps actual push-up distance and calculation and dedicated minus-lens eyes", () => {

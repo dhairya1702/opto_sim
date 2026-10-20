@@ -5,15 +5,15 @@ import { vergenceFindings, vergenceFacilityDelay, prismVergenceGaze, facilityVer
 import { LIBRARY_SURFACES, libraryEquipment, librarySockets, libraryTool, libraryNear, libraryOpticPlacement, libraryDistance, librarySetupKey, LIBRARY_TITLES } from "../../interaction/xrLibraryEquipment";
 import { isPatientFitted } from "../../interaction/xrSensoryEquipment";
 import { freezeVergenceCapture, markVergenceEndpoint, newVergenceRun, newVergenceFacility, flipVergenceFacility, vergencePatientReport, vergenceBases, numericCaptureSubmission, type VergenceRun, type VergenceCapture, type TimedFacility, type PrismVergenceKind } from "../../interaction/xrVergencePractice";
-import { useXRClinicRuntime } from "../../interaction/useXRClinicRuntime";
+import { useXRClinicRuntime, type ClinicInputMode } from "../../interaction/useXRClinicRuntime";
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
 import { LibraryEquipmentTray, LibraryNearStand } from "../../scene/LibraryClinicEquipment";
 import { XRSign } from "../../scene/XRClinicPanels";
 import { PracticeLessonUI, usePracticeLesson, type BatchMirror, type LessonField } from "./PracticeLessonUI";
 import { useClinicEyeMotion } from "./useClinicEyeMotion";
 type Kind = "facility";
-export function VergencePracticeController({ kind, active, preview = false, onComplete, onExit, onMirror }: {
-  kind: Kind; active: boolean; preview?: boolean; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
+export function VergencePracticeController({ kind, active, preview = false, inputMode = "xr", onComplete, onExit, onMirror }: {
+  kind: Kind; active: boolean; preview?: boolean; inputMode?: ClinicInputMode; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
 }) {
   const live = active && !preview, lesson = usePracticeLesson(onComplete), eyes = useClinicEyeMotion(live);
   const isPrism = kind !== "facility", near = true;
@@ -22,9 +22,9 @@ export function VergencePracticeController({ kind, active, preview = false, onCo
   const capture = useRef<VergenceCapture | null>(null), history = useRef<string[]>([]), key = useRef("");
   const [state, setState] = useState({ settings: setup.current, ready: false, distance: 0, report: "", phase: "", captured: false, seconds: 60, cycles: 0, side: "BO", history: [] as string[] });
   const clearRun = useCallback(() => { if (capture.current) return; run.current = newVergenceRun(); timed.current = null; lesson.clearPending(); }, [lesson.clearPending]);
-  const runtime = useXRClinicRuntime({ active: live, equipment: libraryEquipment(kind), placementSockets: librarySockets(kind), placementSurfaces: LIBRARY_SURFACES, editorOpen: lesson.mode !== "none",
+  const runtime = useXRClinicRuntime({ active: live, inputMode, equipment: libraryEquipment(kind), placementSockets: librarySockets(kind), placementSurfaces: LIBRARY_SURFACES, editorOpen: lesson.mode !== "none",
     onMenu: open => lesson.setMode(open ? "menu" : "none"), onInterrupt: reason => { if (["visibility", "transfer", "tracking", "procedure"].includes(reason)) clearRun(); },
-    onToolUsed: (id, action) => { if (id === "prism-flipper" && action === "activate") flip(); } });
+    onToolUsed: (id, action) => { if (inputMode === "desktop" && id === "prism-flipper" && action === "activate") flip(); } });
   const signature = () => librarySetupKey(runtime.toolsRef.current, kind);
   const sample = () => {
     const target = runtime.supportedWorkingPose("near", true);
@@ -36,7 +36,11 @@ export function VergencePracticeController({ kind, active, preview = false, onCo
   };
   const publish = (spatial = sample()) => {
     const current = timed.current, now = performance.now();
-    const report = capture.current ? capture.current.reports.join(" ") : kind === "facility" ? !current ? "Start the timed run with clear near fixation." : now - current.presented >= vergenceFacilityDelay[current.side as "BO" | "BI"] ? "Clear and single · flip." : "Patient is clearing the demand…" : vergencePatientReport(kind, setup.current.base, setup.current.power, run.current);
+    const report = capture.current ? capture.current.reports.join(" ") : kind === "facility" ? !current ? "Start the timed run with clear near fixation."
+      : now - current.presented >= vergenceFacilityDelay[current.side] ? "Clear and single · turn the flipper with your free hand."
+        : current.lastFlip === "premature" ? "Flipped too soon; the patient was still double. That side was not credited."
+          : current.lastFlip === "unpaired" ? "The preceding BO side was not cleared, so this pair was not counted."
+            : "Patient is clearing the demand…" : vergencePatientReport(kind, setup.current.base, setup.current.power, run.current);
     const next = { settings: { ...setup.current }, ready: spatial.ready, distance: spatial.distance, report, captured: Boolean(capture.current),
       phase: isPrism ? run.current.phase : "60-second timed run",
       seconds: current ? facilityRemaining(current.start, now) : capture.current ? 0 : 60, cycles: current?.cycles ?? capture.current?.values.cycles ?? 0, side: current?.side ?? "BO", history: [...history.current] };
@@ -75,6 +79,15 @@ export function VergencePracticeController({ kind, active, preview = false, onCo
     if (capture.current) { capture.current = null; clearRun(); }
     lesson.clearPending(); setup.current = { ...setup.current, ...values }; publish();
   };
+  const fitCorrection = () => {
+    if (!live || isPatientFitted(runtime.toolsRef.current, "subjective")) return;
+    const socket = librarySockets(kind).find(candidate => candidate.tool === "subjective" && candidate.id === "sensory-correction");
+    if (!socket) return;
+    const tool = runtime.toolsRef.current.subjective;
+    runtime.updateTools({ ...runtime.toolsRef.current, subjective: { ...tool,
+      placement: { kind: "socket", position: socket.position, rotation: socket.rotation, socketId: socket.id, fittingLayer: socket.fittingLayer },
+      revision: (tool.revision ?? 0) + 1 } });
+  };
   const mark = () => {
     if (!live || capture.current || lesson.awarded.current) return;
     const spatial = sample();
@@ -102,20 +115,23 @@ export function VergencePracticeController({ kind, active, preview = false, onCo
   };
   const fields: LessonField[] = kind === "facility" ? [{ id: "cycles", label: "Full cycles in 60 seconds", choices: [], number: { min: 0, max: 100, unit: " cpm" } }] : ([...(vergenceFindings[kind][setup.current.base]?.blur != null ? ["blur"] : []), "break", "recovery"]).map(id => ({ id, label: id, choices: [], number: { min: 0, max: 30, unit: "Δ" } }));
   const actions = [
+    { label: "FIT NEAR CORRECTION", run: fitCorrection, active: isPatientFitted(runtime.toolsRef.current, "subjective") },
     { label: "ESTABLISH FIXATION", run: () => change({ fixation: true }) },
     ...(isPrism ? vergenceBases(kind).map(base => ({ label: `BASE ${base}`, disabled: base !== vergenceBases(kind)[baseIndex.current], active: state.settings.base === base, run: () => { if (base === vergenceBases(kind)[baseIndex.current]) { clearRun(); change({ base, power: 0 }); } } })) : []),
     ...(isPrism ? [-1, 1].map(step => ({ label: `PRISM ${step > 0 ? "+" : "−"}1Δ`, disabled: !state.ready || !state.settings.base || state.captured, run: () => { if (sample().ready) change({ power: Math.max(0, Math.min(30, setup.current.power + step)) }); } })) : []),
-    ...(kind === "facility" ? [{ label: "START 60-SECOND RUN", disabled: !state.ready || Boolean(timed.current || capture.current), run: start }, { label: "CLEAR + SINGLE / FLIP", disabled: !state.ready || !timed.current || capture.current !== null || performance.now() - (timed.current?.presented ?? Infinity) < vergenceFacilityDelay[(timed.current?.side ?? "BO") as "BO" | "BI"], run: flip }] : [{ label: "MARK PATIENT ENDPOINT", disabled: !state.ready || state.captured, run: mark }]),
+    ...(kind === "facility" ? [{ label: "START 60-SECOND RUN", disabled: !state.ready || Boolean(timed.current || capture.current), run: start }] : [{ label: "MARK PATIENT ENDPOINT", disabled: !state.ready || state.captured, run: mark }]),
     { label: "RESTART CURRENT RUN", run: () => { if (!live || lesson.awarded.current) return; capture.current = null; clearRun(); setup.current.power = 0; publish(); } },
   ];
   const status = `${state.history.length}/${isPrism ? 2 : 1} records · ${kind === "facility" ? `${state.seconds}s · ${state.cycles} cycles · ${state.side}` : `${state.settings.power}Δ ${state.settings.base || "choose base"} · ${state.phase}`} · ` + (!state.ready && !state.captured ? "Fit correction, establish fixation and physically align target/instrument." : state.report);
   const ready = live && state.captured;
   useEffect(() => { onMirror?.({ title: LIBRARY_TITLES[kind], findingPosition: { current: baseIndex.current + 1, total: isPrism ? 2 : 1 }, status, ready, entryReady: ready, fields, actions, lesson, reset, record, cancel, reportLines: state.history }); }, [onMirror, status, ready, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
   return <>
-    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title={LIBRARY_TITLES[kind].toUpperCase()} sensoryStation={!near ? "four-prism" : undefined} instrumentSettings={{ "prism-flipper": { side: state.side }, prism: { power: state.settings.power, base: state.settings.base } }} />
+    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title={LIBRARY_TITLES[kind].toUpperCase()} sensoryStation={!near ? "four-prism" : undefined} instrumentSettings={{ "prism-flipper": {
+      side: state.side, onFlip: runtime.tools["prism-flipper"].placement.kind === "held" ? flip : undefined,
+    }, prism: { power: state.settings.power, base: state.settings.base } }} />
     {(live || preview) && <><LibraryEquipmentTray active={live} equipment={runtime.equipment} />{near && <LibraryNearStand />}</>}
     {live && state.ready && <XRSign text={["FICTIONAL PATIENT · REPORTED RESPONSE", state.report]} p={[.55, 1.75, -.10]} size={[.55, .20]} bg="#07151b" fg="#eefbf7" />}
-    <PracticeLessonUI runtime={runtime} active={live} title={LIBRARY_TITLES[kind]} status={status} tools={[libraryTool(kind)]} actions={actions} directActions={actions.filter(action => action.label.startsWith("PRISM") || action.label === "MARK PATIENT ENDPOINT" || action.label === "CLEAR + SINGLE / FLIP")} fields={fields} lesson={lesson} ready={ready} entryReady={ready} onRecord={record} onReset={reset} onExit={onExit} onCancel={cancel}
-      help={["Fit correction; establish the appropriate fixation target.", near ? "Keep the near target at 40 cm; use its stand to free a hand." : "Fixate the illustrative mirrored distance letter.", kind === "facility" ? "Hold the flipper before both eyes; trigger or button flips after clear." : "BI before BO, or BU before BD. Mark blur/break, then reduce to recovery.", "Capture the run, then put tools down and enter your findings.", "Physical geometry and eye motion are illustrative drafts."]} />
+    <PracticeLessonUI runtime={runtime} active={live} title={LIBRARY_TITLES[kind]} status={status} tools={[libraryTool(kind)]} actions={actions} directActions={actions.filter(action => action.label.startsWith("PRISM") || action.label === "MARK PATIENT ENDPOINT")} fields={fields} lesson={lesson} ready={ready} entryReady={ready} onRecord={record} onReset={reset} onExit={onExit} onCancel={cancel}
+      help={["Fit correction; establish the appropriate fixation target.", near ? "Keep the near target at 40 cm; use its stand to free a hand." : "Fixate the illustrative mirrored distance letter.", kind === "facility" ? "Keep the flipper before both eyes. Bring your free controller beside TURN and press/release its trigger after the patient clears each side." : "BI before BO, or BU before BD. Mark blur/break, then reduce to recovery.", "Capture the run, then put tools down and enter your findings.", "Physical geometry and eye motion are illustrative drafts."]} />
   </>;
 }

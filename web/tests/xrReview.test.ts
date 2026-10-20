@@ -37,6 +37,7 @@ describe("XR review regressions against mounted scene geometry", () => {
     let sign: Object3D | undefined;
     welcome!.traverse(object => { if (!sign && object instanceof Mesh) sign = object; });
     sign!.getWorldPosition(centre);
+    expect(centre.x).toBeCloseTo(.05);
     expect(centre.z).toBeLessThan(-2.4);
   });
   it("aligns the actual occluder head with its declared working point through both nested rotations", async () => {

@@ -131,6 +131,9 @@ export const HUMAN_IRIS_RADIUS_MM = 5.9;
 export const HUMAN_IRIS_ROTATION_ARM_MM = 11;
 export const CLINIC_COVER_ROTATION_ARM = CLINIC_IRIS_RADIUS * HUMAN_IRIS_ROTATION_ARM_MM / HUMAN_IRIS_RADIUS_MM;
 export const prismDioptresToRadians = (prism: number) => Math.atan(prism / 100);
+/** Practice-only display gain: movement is intentionally legible, not anatomically calibrated. */
+export const COVER_TEACHING_VISUAL_GAIN = 3;
+export const COVER_TEACHING_MAX_IRIS_FRACTION = .85;
 
 /**
  * Iris offset for a patient facing the examiner (OD on the examiner's left, -x), in the units of
@@ -143,4 +146,17 @@ export function coverIrisOffset(eye: CoverEye, pose: EyeDeviation, irisRadius = 
     temporal * Math.sin(prismDioptresToRadians(pose.h)) * arm,
     Math.sin(prismDioptresToRadians(pose.v)) * arm,
   ];
+}
+
+/**
+ * Amplified cover-test movement for the teaching scene. Direction, neutral and
+ * reversal are preserved while large deviations are capped inside the iris.
+ */
+export function coverTeachingIrisOffset(eye: CoverEye, pose: EyeDeviation, irisRadius = CLINIC_IRIS_RADIUS): [number, number] {
+  const [rawX, rawY] = coverIrisOffset(eye, pose, irisRadius);
+  const x = rawX * COVER_TEACHING_VISUAL_GAIN, y = rawY * COVER_TEACHING_VISUAL_GAIN;
+  const magnitude = Math.hypot(x, y), maximum = irisRadius * COVER_TEACHING_MAX_IRIS_FRACTION;
+  if (!magnitude || magnitude <= maximum) return [x, y];
+  const scale = maximum / magnitude;
+  return [x * scale, y * scale];
 }

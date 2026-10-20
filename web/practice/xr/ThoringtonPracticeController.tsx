@@ -8,7 +8,8 @@ import {
   type ThoringtonInterpretation, type ThoringtonReportedSide, type ThoringtonRun, type ThoringtonSpatialSample,
 } from "../../interaction/thoringtonProcedure";
 import { CLINIC_EYE_MIDPOINT } from "../../interaction/clinicPatient";
-import { useXRClinicRuntime } from "../../interaction/useXRClinicRuntime";
+import { useXRClinicRuntime, type ClinicInputMode } from "../../interaction/useXRClinicRuntime";
+import { desktopPenlightPose } from "../../interaction/desktopClinicInput";
 import { isPatientFitted } from "../../interaction/xrSensoryEquipment";
 import { LIBRARY_SURFACES, libraryEquipment, libraryRodFitted, libraryRodOrientation, librarySockets } from "../../interaction/xrLibraryEquipment";
 import { LibraryEquipmentTray, LibraryNearStand } from "../../scene/LibraryClinicEquipment";
@@ -23,8 +24,8 @@ const emptySample = (): ThoringtonSpatialSample => ({ correctionFitted: false, c
   penlightHeld: false, penlightPowered: false, penlightExaminerSide: false, penlightTowardPatient: false,
   apertureHit: false, fixationInstruction: false, tracking: false });
 
-export function ThoringtonPracticeController({ active, preview = false, onComplete, onExit, onMirror }: {
-  active: boolean; preview?: boolean; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
+export function ThoringtonPracticeController({ active, preview = false, inputMode = "xr", onComplete, onExit, onMirror }: {
+  active: boolean; preview?: boolean; inputMode?: ClinicInputMode; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
 }) {
   const { settings } = usePracticeAttempt();
   const guided = settings?.kind !== "test";
@@ -38,7 +39,8 @@ export function ThoringtonPracticeController({ active, preview = false, onComple
   const fixation = useRef(false);
   const setRun = useCallback((next: ThoringtonRun) => { runRef.current = next; setRunState(next); }, []);
   const publishSample = useCallback((next: ThoringtonSpatialSample) => { sampleRef.current = next; setSpatial(next); }, []);
-  const runtime = useXRClinicRuntime({ active: live, equipment: libraryEquipment("thorington"), placementSockets: librarySockets("thorington"), placementSurfaces: LIBRARY_SURFACES,
+  const runtime = useXRClinicRuntime({ active: live, inputMode, equipment: libraryEquipment("thorington"), placementSockets: librarySockets("thorington"), placementSurfaces: LIBRARY_SURFACES,
+    desktopHeldPose: id => id === "pupils" ? desktopPenlightPose([0, 1.425, -.117]) : null,
     editorOpen: lesson.mode !== "none", onMenu: open => lesson.setMode(open ? "menu" : "none"),
     onInterrupt: reason => {
       if (reason === "panel" || runRef.current.capture) return;
@@ -100,6 +102,15 @@ export function ThoringtonPracticeController({ active, preview = false, onComple
     const next = armThoringtonReport(runRef.current, nextSample); setRun(next);
     if (!next.reportInstruction) lesson.explain(next.feedback);
   };
+  const placeAtSocket = (id: "subjective" | "maddox" | "thorington", socketId: string) => {
+    if (!live) return;
+    const socket = librarySockets("thorington").find(candidate => candidate.tool === id && candidate.id === socketId);
+    if (!socket) return;
+    const tool = runtime.toolsRef.current[id];
+    runtime.updateTools({ ...runtime.toolsRef.current, [id]: { ...tool,
+      placement: { kind: "socket", position: socket.position, rotation: socket.rotation, socketId: socket.id, fittingLayer: socket.fittingLayer },
+      revision: (tool.revision ?? 0) + 1 } });
+  };
   const toolsDown = runtime.tools.thorington.placement.kind !== "held" && runtime.tools.pupils.placement.kind !== "held";
   const entryReady = live && Boolean(run.capture) && toolsDown;
   const record = () => {
@@ -125,8 +136,16 @@ export function ThoringtonPracticeController({ active, preview = false, onComple
     ? toolsDown ? "Captured; enter magnitude, raw side, and interpretation." : "Captured; put the card and penlight down before entry."
     : statusDetail}`;
   const guidance = thoringtonGuidedStep(run, spatial);
-  const actions = [{ label: run.reportInstruction ? "REPORTING INSTRUCTION GIVEN ✓" : "ASK NUMBER AND SIDE", run: ask,
-    active: run.reportInstruction, disabled: Boolean(run.capture) }];
+  const actions = [
+    { label: run.reportInstruction ? "REPORTING INSTRUCTION GIVEN ✓" : "ASK NUMBER AND SIDE", run: ask,
+      active: run.reportInstruction, disabled: Boolean(run.capture) },
+    { label: "FIT NEAR CORRECTION", run: () => placeAtSocket("subjective", "sensory-correction"), active: spatial.correctionFitted },
+    { label: `FIT MADDOX ROD · ${current.axis === "horizontal" ? "HORIZONTAL" : "VERTICAL"} GROOVES`,
+      run: () => placeAtSocket("maddox", current.axis === "horizontal" ? "sensory-maddox-horizontal" : "sensory-maddox-vertical"),
+      active: spatial.rodFitted && spatial.grooveDegrees === (current.axis === "horizontal" ? 0 : 90) },
+    { label: "SUPPORT THORINGTON CARD AT 40 CM", run: () => placeAtSocket("thorington", "library-thorington-near"),
+      active: spatial.cardHeldOrSupported && spatial.cardDistanceCm >= 38 && spatial.cardDistanceCm <= 42 },
+  ];
   const sideChoices: readonly ThoringtonReportedSide[] = current.axis === "horizontal" ? ["right", "left", "through"] : ["above", "below", "through"];
   const interpretationChoices: readonly ThoringtonInterpretation[] = current.axis === "horizontal"
     ? ["orthophoria", "esophoria", "exophoria"] : ["orthophoria", "left-hyperphoria", "right-hyperphoria"];

@@ -22,34 +22,35 @@ import { PushUpPracticeController } from "./PushUpPracticeController";
 import { MinusLensPracticeController } from "./MinusLensPracticeController";
 import { RelativeAccommodationPracticeController } from "./RelativeAccommodationPracticeController";
 import { perfRender } from "../../perf/perfFlag";
+import type { ClinicInputMode } from "../../interaction/useXRClinicRuntime";
 
 type BatchKind = LibraryKind | "krimsky" | "bruckner" | "motility" | "cover-uncover" | "alternate-cover" | "worth" | "stereopsis" | "four-prism";
 const titles: Record<BatchKind, string> = { ...LIBRARY_TITLES, worth: "Worth four dot", stereopsis: "Stereopsis", "four-prism": "4Δ base-out", krimsky: "Krimsky test", bruckner: "Bruckner test", motility: "Extraocular motilities", "cover-uncover": "Cover–uncover test", "alternate-cover": "Alternating cover + prism neutralisation" };
-export function PracticeBatchVRStage({ kind, scenario = "equal", motilityScenario = "full", onClose, onDesktop, onComplete, onNext = () => undefined }: {
-  kind: BatchKind; scenario?: BrucknerScenario; motilityScenario?: MotilityScenarioId; onClose: () => void; onDesktop: () => void; onComplete: () => void; onNext?: () => void;
+export function PracticeBatchVRStage({ kind, scenario = "equal", motilityScenario = "full", onClose, onDesktop, onComplete, onNext = () => undefined, inputMode = "xr" }: {
+  kind: BatchKind; scenario?: BrucknerScenario; motilityScenario?: MotilityScenarioId; onClose: () => void; onDesktop?: () => void; onComplete: () => void; onNext?: () => void; inputMode?: ClinicInputMode;
 }) {
   perfRender("PracticeBatchVRStage");
   const [mirror, setMirror] = useState<BatchMirror | null>(null);
   return <PracticeVRClinic title={titles[kind]} findingPosition={mirror?.findingPosition ?? { current: kind === "bruckner" ? ["equal", "od", "os"].indexOf(scenario) + 1 : 1, total: kind === "bruckner" ? 3 : 1 }}
-    onClose={onClose} onDesktop={onDesktop} mirror={mirror && <BatchLessonMirror mirror={mirror} />}>
-    {({ active, preview, exit }) => {
+    onClose={onClose} onDesktop={onDesktop} inputMode={inputMode} mirror={mirror && <BatchLessonMirror mirror={mirror} />}>
+    {({ active, preview, exit, inputMode: sessionInputMode }) => {
       const common = { active, preview, onComplete, onExit: exit, onMirror: setMirror };
-      return kind === "bruckner" ? <BrucknerPracticeController {...common} scenario={scenario} onNext={onNext} />
-        : kind === "worth" ? <WorthPracticeController {...common} />
-        : kind === "stereopsis" ? <StereoPracticeController {...common} />
-        : kind === "four-prism" ? <FourPrismPracticeController {...common} />
-        : kind === "maddox" || kind === "thorington" ? <PhoriaPracticeController {...common} kind={kind} />
-        : kind === "npc" ? <NPCPracticeController {...common} />
-        : kind === "horizontal-distance" ? <FusionalVergencePracticeController {...common} />
-        : kind === "vertical-distance" ? <VerticalFusionalVergencePracticeController {...common} />
-        : kind === "horizontal-near" ? <NearFusionalVergencePracticeController {...common} />
-        : kind === "facility" ? <VergencePracticeController {...common} kind={kind} />
-        : kind === "push-up" ? <PushUpPracticeController {...common} />
-        : kind === "minus-lens" ? <MinusLensPracticeController {...common} />
-        : kind === "relative" ? <RelativeAccommodationPracticeController {...common} />
-        : kind === "accommodative-facility" ? <AccommodationPracticeController {...common} kind={kind} />
-        : kind === "krimsky" ? <KrimskyPracticeController {...common} />
-        : kind === "motility" ? <MotilityPracticeController {...common} scenarioId={motilityScenario} onNext={onNext} /> : <CoverPracticeController {...common} kind={kind} />;
+      return kind === "bruckner" ? <BrucknerPracticeController {...common} inputMode={sessionInputMode} scenario={scenario} onNext={onNext} />
+        : kind === "worth" ? <WorthPracticeController {...common} inputMode={sessionInputMode} />
+        : kind === "stereopsis" ? <StereoPracticeController {...common} inputMode={sessionInputMode} />
+        : kind === "four-prism" ? <FourPrismPracticeController {...common} inputMode={sessionInputMode} />
+        : kind === "maddox" || kind === "thorington" ? <PhoriaPracticeController {...common} inputMode={sessionInputMode} kind={kind} />
+        : kind === "npc" ? <NPCPracticeController {...common} inputMode={sessionInputMode} />
+        : kind === "horizontal-distance" ? <FusionalVergencePracticeController {...common} inputMode={sessionInputMode} />
+        : kind === "vertical-distance" ? <VerticalFusionalVergencePracticeController {...common} inputMode={sessionInputMode} />
+        : kind === "horizontal-near" ? <NearFusionalVergencePracticeController {...common} inputMode={sessionInputMode} />
+        : kind === "facility" ? <VergencePracticeController {...common} inputMode={sessionInputMode} kind={kind} />
+        : kind === "push-up" ? <PushUpPracticeController {...common} inputMode={sessionInputMode} />
+        : kind === "minus-lens" ? <MinusLensPracticeController {...common} inputMode={sessionInputMode} />
+        : kind === "relative" ? <RelativeAccommodationPracticeController {...common} inputMode={sessionInputMode} />
+        : kind === "accommodative-facility" ? <AccommodationPracticeController {...common} inputMode={sessionInputMode} kind={kind} />
+        : kind === "krimsky" ? <KrimskyPracticeController {...common} inputMode={sessionInputMode} />
+        : kind === "motility" ? <MotilityPracticeController {...common} inputMode={sessionInputMode} scenarioId={motilityScenario} onNext={onNext} /> : <CoverPracticeController {...common} inputMode={sessionInputMode} kind={kind} />;
     }}
   </PracticeVRClinic>;
 }

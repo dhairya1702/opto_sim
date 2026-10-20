@@ -3,7 +3,8 @@ import { useFrame } from "@react-three/fiber";
 import { worthCases, worthDots } from "../../interaction/worth";
 import { captureWorthReport, recordWorthEndpoint, WORTH_GUIDED_STEP_COUNT, worthCaptureSubmission, worthComparisonComplete, worthGuidedStep, xrWorthTechnique,
   type WorthCapture, type WorthEndpoint, type WorthRecords } from "../../interaction/xrWorthPractice";
-import { useXRClinicRuntime } from "../../interaction/useXRClinicRuntime";
+import { useXRClinicRuntime, type ClinicInputMode } from "../../interaction/useXRClinicRuntime";
+import type { ConsultationToolId } from "../../interaction/xrConsultationTools";
 import { isPatientFitted, sensoryEquipment, sensoryFittingSignature, sensorySockets, sensoryTargetCondition } from "../../interaction/xrSensoryEquipment";
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
 import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
@@ -23,8 +24,8 @@ function ReportDots({ finding }: { finding: WorthCapture["finding"] }) {
   </mesh>)}</group>;
 }
 
-export function WorthPracticeController({ active, preview = false, onComplete, onExit, onMirror }: {
-  active: boolean; preview?: boolean; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
+export function WorthPracticeController({ active, preview = false, inputMode = "xr", onComplete, onExit, onMirror }: {
+  active: boolean; preview?: boolean; inputMode?: ClinicInputMode; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
 }) {
   const { settings: attemptSettings } = usePracticeAttempt();
   const guided = attemptSettings?.kind === "guided";
@@ -38,7 +39,7 @@ export function WorthPracticeController({ active, preview = false, onComplete, o
   const [restartNotice, setRestartNotice] = useState("");
   const clearPending = lesson.clearPending;
   const interrupt = useCallback(() => { if (!capturedRef.current) clearPending(); }, [clearPending]);
-  const runtime = useXRClinicRuntime({ active, equipment: sensoryEquipment("worth"), placementSockets: sensorySockets("worth"),
+  const runtime = useXRClinicRuntime({ active, inputMode, equipment: sensoryEquipment("worth"), placementSockets: sensorySockets("worth"),
     editorOpen: lesson.mode !== "none", onInterrupt: interrupt,
     onToolUsed: (id, action) => { if (id === "worth" && action === "activate") askFresh(); },
     onMenu: open => lesson.setMode(open ? "menu" : "none"),
@@ -145,6 +146,14 @@ export function WorthPracticeController({ active, preview = false, onComplete, o
   const requestedPower = !runtime.tools.worth.powered;
   const powerAction: LessonAction = { label: requestedPower ? "SWITCH TARGET ON" : "SWITCH TARGET OFF", active: runtime.tools.worth.powered, disabled: lesson.recorded,
     run: () => setPower(requestedPower) };
+  const placeAtSocket = (id: ConsultationToolId, socketId: string) => {
+    const socket = sensorySockets("worth").find(candidate => candidate.tool === id && candidate.id === socketId);
+    if (!socket) return;
+    const tool = runtime.toolsRef.current[id];
+    runtime.updateTools({ ...runtime.toolsRef.current, [id]: { ...tool,
+      placement: { kind: "socket", position: socket.position, rotation: socket.rotation, socketId: socket.id, fittingLayer: socket.fittingLayer },
+      revision: (tool.revision ?? 0) + 1 } });
+  };
   const fixationAction: LessonAction = { label: fixationEndpoint === technique.endpoint && fixationEndpoint !== null ? "LOOKING AT TARGET ✓" : "LOOK AT THE TARGET",
     active: fixationEndpoint === technique.endpoint && fixationEndpoint !== null,
     disabled: !technique.setupReady || !technique.endpoint || lesson.recorded, run: fixate };
@@ -154,6 +163,12 @@ export function WorthPracticeController({ active, preview = false, onComplete, o
     fixationAction,
     reportAction,
     { label: "NEW PATIENT PATTERN", run: next },
+    ...(inputMode === "desktop" ? [
+      { label: "FIT CORRECTION", active: isPatientFitted(runtime.tools, "subjective"), run: () => placeAtSocket("subjective", "sensory-correction") },
+      { label: "FIT RED / GREEN GLASSES", active: isPatientFitted(runtime.tools, "red-green"), run: () => placeAtSocket("red-green", "sensory-red-green") },
+      { label: "PLACE TARGET · NEAR 40 CM", active: technique.endpoint === "near", run: () => placeAtSocket("worth", "sensory-worth-near") },
+      { label: "PLACE TARGET · MIRRORED DISTANCE", active: technique.endpoint === "distance", run: () => placeAtSocket("worth", "sensory-worth-distance") },
+    ] : []),
   ];
   const ready = active && !preview && Boolean(captured?.endpoint && !records[captured.endpoint]);
   const guidance = worthGuidedStep({ correctionFitted: isPatientFitted(runtime.tools, "subjective"), filtersFitted: isPatientFitted(runtime.tools, "red-green"),

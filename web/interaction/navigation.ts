@@ -30,7 +30,7 @@ export const stations: {
     action: "Chart: assess visual acuity",
     description: "Distance, pinhole & near acuity",
     position: [0.15, 1.6, -1.65],
-    look: [0.15, 1.9, -2.44],
+    look: [-1.02, 1.9, -2.44],
   },
   {
     id: "refraction",

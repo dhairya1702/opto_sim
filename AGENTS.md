@@ -63,6 +63,7 @@ No backend is required. `main.py` is a small pre-existing Python entry point and
 | `web/interaction/xrViewer.ts` | Renderer adapter sampling actual headset eye cameras for shared scope-view checks; desktop single-camera fallback |
 | `web/scene/XRScopeView.tsx`, `XRScopeObservation.tsx` | Shared B/Y observation view without instructional overlays, with transparent incomplete fundus aiming and beam-driven Bruckner reflexes; technique credit remains separate |
 | `web/practice/xr/PhoriaPracticeController.tsx`, `VergencePracticeController.tsx`, `AccommodationPracticeController.tsx` | Shared-clinic XR adapters for the remaining phoria, near-facility, and accommodation modules |
+| `web/practice/xr/MinusLensPracticeController.tsx`, `web/interaction/minusLensProcedure.ts` | Dedicated monocular minus-lens XR holder/dial procedure, automatic sustained-blur capture, and independent endpoint/amplitude recording |
 | `web/practice/xr/NPCPracticeController.tsx`, `web/practice/NPCPracticeStage.tsx`, `web/interaction/npcProcedure.ts` | Dedicated desktop/XR RAF-style NPC rule, shared three-trial motion/capture engine, patient response, and independent recording |
 | `web/practice/xr/FusionalVergencePracticeController.tsx`, `web/practice/FusionalVergencePracticeStage.tsx`, `web/interaction/fusionalVergenceProcedure.ts` | Dedicated desktop/XR horizontal-distance rotary-prism procedure, continuous motion/capture engine, concealed fictional reports, and independent six-field recording |
 | `web/practice/xr/VerticalFusionalVergencePracticeController.tsx`, `web/practice/VerticalFusionalVergencePracticeStage.tsx`, `web/interaction/verticalFusionalVergenceProcedure.ts`, `web/interaction/rotaryPrismProcedure.ts` | Dedicated desktop/XR vertical-distance BU→BD rotary-prism procedure plus the shared continuous dial, motion-tolerance, dwell, and four-way physical-roll foundation used by distance vergence |
@@ -247,6 +248,8 @@ Visuals are currently original procedural geometry/code-generated assets. Check 
 - Avoid per-frame React state updates where refs or shader uniforms are sufficient.
 - Dispose of Three.js resources and remove global listeners/timers during cleanup.
 - Keep representative low-power trainee hardware and device-pixel-ratio limits in mind.
+- Avoid `meshPhysicalMaterial` `transmission`: each transmissive object in view adds a full-scene render per eye. Use `meshStandardMaterial` with `transparent`/`opacity` for lenses and prisms.
+- Developer frame logging (`web/perf/`, `server/perf.mjs`) requires both `PERF_LOG=1` on the server and `?perf=1` in the URL; see README "Performance logging". Keep `perfRender`/`perfCount`/`perfEvent` calls cheap, numeric, and free of learner or case data; the probe must stay lazy-loaded and the endpoint must stay 404 when disabled.
 
 ## Change safety
 

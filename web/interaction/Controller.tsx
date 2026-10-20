@@ -9,11 +9,15 @@ export function Controller({
   onTarget,
   onInteract,
   visit,
+  clinicControls = false,
+  pointerLock = false,
 }: {
   active: boolean;
   onTarget: (id: StationId | null, examId?: string) => void;
   onInteract: (id: StationId, examId?: string) => void;
   visit: { id: StationId; seq: number } | null;
+  clinicControls?: boolean;
+  pointerLock?: boolean;
 }) {
   const { camera, gl, scene } = useThree();
   const keys = useRef(new Set<string>());
@@ -71,20 +75,22 @@ export function Controller({
       !!e.target.closest("input,textarea,select,button,[role=dialog]");
     const keydown = (e: KeyboardEvent) => {
       if (!activeRef.current || editable(e)) return;
-      if (
-        ["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", "e"].includes(
-          e.key.toLowerCase(),
-        )
-      ) {
+      const navigationKeys = clinicControls ? ["w", "a", "s", "d"] : ["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", "e"];
+      if (navigationKeys.includes(e.key.toLowerCase())) {
         e.preventDefault();
         keys.current.add(e.key.toLowerCase());
       }
-      if (e.key.toLowerCase() === "e" && !e.repeat && target.current)
+      if (!clinicControls && e.key.toLowerCase() === "e" && !e.repeat && target.current)
         actionRef.current(target.current, examUnderRay(ray.current, scene.children));
     };
     const keyup = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
     const down = (e: PointerEvent) => {
       if (!activeRef.current || document.pointerLockElement === canvas) return;
+      if (pointerLock) {
+        canvas.focus();
+        void canvas.requestPointerLock();
+        return;
+      }
       input.current = { drag: true, moved: false, x: e.clientX, y: e.clientY };
       canvas.focus();
       canvas.setPointerCapture(e.pointerId);
@@ -113,9 +119,9 @@ export function Controller({
     const up = (e: PointerEvent) => {
       if (!activeRef.current) return;
       if (document.pointerLockElement === canvas) {
-        if (target.current)
+        if (!clinicControls && target.current)
           actionRef.current(target.current, examUnderRay(ray.current, scene.children));
-      } else if (!input.current.moved) {
+      } else if (!clinicControls && !input.current.moved) {
         const rect = canvas.getBoundingClientRect();
         const id = pick(
           new Vector2(
@@ -147,13 +153,13 @@ export function Controller({
       canvas.removeEventListener("pointerup", up);
       clear();
     };
-  }, [camera, gl, scene]);
+  }, [camera, clinicControls, gl, pointerLock, scene]);
   useFrame((_, dt) => {
     if (!active) return;
     camera.rotation.set(angles.current.pitch, angles.current.yaw, 0, "YXZ");
     const k = keys.current,
-      forward = Number(k.has("w") || k.has("arrowup")) - Number(k.has("s") || k.has("arrowdown")),
-      right = Number(k.has("d") || k.has("arrowright")) - Number(k.has("a") || k.has("arrowleft"));
+      forward = Number(k.has("w") || (!clinicControls && k.has("arrowup"))) - Number(k.has("s") || (!clinicControls && k.has("arrowdown"))),
+      right = Number(k.has("d") || (!clinicControls && k.has("arrowright"))) - Number(k.has("a") || (!clinicControls && k.has("arrowleft")));
     const movement = new Vector3(right, 0, -forward);
     if (movement.lengthSq()) {
       movement

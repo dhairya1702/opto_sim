@@ -20,6 +20,14 @@ export const practiceCoverProcedures = {
   ],
 } as const satisfies Record<PracticeCoverKind, readonly { position: CoverPosition; label: string; dwell: number }[]>;
 
+/** One attempt covers OD and OS once; each prism power is checked twice. */
+export const ALTERNATE_COVER_ATTEMPTS_PER_PRISM = 2;
+export const ALTERNATE_COVER_MOVES_PER_ATTEMPT = 2;
+export function alternateCoverAttemptNumber(sequenceIndex: number) {
+  return Math.min(ALTERNATE_COVER_ATTEMPTS_PER_PRISM,
+    Math.floor(Math.max(0, sequenceIndex) / ALTERNATE_COVER_MOVES_PER_ATTEMPT) + 1);
+}
+
 /**
  * Alternating-cover findings. `movement` is the refixation of OD when it is uncovered; horizontal
  * deviations move both eyes alike, vertical deviations move the eyes in opposite directions.
@@ -39,6 +47,23 @@ export const alternateDeviationChoices: readonly (readonly [AlternateDeviation, 
 ];
 export const alternateDeviationLabel = (deviation: string) => alternateDeviationChoices.find(([id]) => id === deviation)?.[1] ?? deviation;
 export const prismBaseLabel = (base: string) => base.replace("-", " ");
+
+/** Correct neutralising base for the selected eye in an authored alternating-cover scenario. */
+export function neutralizingPrismBase(scenario: typeof alternateCoverScenarios[number], eye: CoverEye): PrismBase {
+  if (scenario.deviation === "exo") return "base-in";
+  if (scenario.deviation === "eso") return "base-out";
+  if (scenario.deviation === "r-hypo") return eye === "OD" ? "base-up" : "base-down";
+  return eye === "OD" ? "base-down" : "base-up";
+}
+
+export type PrismTrialOutcome = "change-base" | "increase" | "reduce" | "neutral";
+/** Guided feedback after two complete OD/OS attempts at one prism setting. */
+export function prismTrialOutcome(scenario: typeof alternateCoverScenarios[number], base: string, amount: number, eye: CoverEye): PrismTrialOutcome {
+  if (base !== neutralizingPrismBase(scenario, eye)) return "change-base";
+  if (amount < scenario.amount) return "increase";
+  if (amount > scenario.amount) return "reduce";
+  return "neutral";
+}
 
 /** Interpretation of OD's refixation on uncovering. */
 export function deviationForMovement(movement: EyeMovement): AlternateDeviation | "none" {

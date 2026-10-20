@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Group, Mesh, MeshBasicMaterial } from "three";
-import { useXRClinicRuntime, type XRClinicInterruption } from "../../interaction/useXRClinicRuntime";
+import { useXRClinicRuntime, type ClinicInputMode, type XRClinicInterruption } from "../../interaction/useXRClinicRuntime";
 import { CLINIC_PATIENT_EYES, CLINIC_PUPIL_RADIUS } from "../../interaction/clinicPatient";
 import { BRUCKNER_REFLEX_VISUALS, brucknerReflexVisual, brucknerScenarios, type BrucknerScenario } from "../../interaction/brucknerPractice";
 import { BRUCKNER_GUIDED_STEP_COUNT, brucknerGuidedStep } from "../../interaction/opticGuidance";
@@ -15,8 +15,8 @@ import { PracticeLessonUI, usePracticeLesson, type BatchMirror, type LessonField
 const fields: LessonField[] = [{ id: "brightness", label: "Both red reflexes", choices: Object.entries(brucknerScenarios).map(([id, item]) => [id, item.label]) }];
 const empty = () => xrBrucknerTechnique({ origin: [0, 0, 0], forward: [0, 0, -1], scopeOpen: false,
   held: false, light: false, fixation: false, largeSpot: false });
-export function BrucknerPracticeController({ active, preview = false, scenario, onComplete, onNext, onExit, onMirror }: {
-  active: boolean; preview?: boolean; scenario: BrucknerScenario; onComplete: () => void; onNext: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
+export function BrucknerPracticeController({ active, preview = false, inputMode = "xr", scenario, onComplete, onNext, onExit, onMirror }: {
+  active: boolean; preview?: boolean; inputMode?: ClinicInputMode; scenario: BrucknerScenario; onComplete: () => void; onNext: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
 }) {
   const { settings } = usePracticeAttempt();
   const guided = settings?.kind === "guided";
@@ -37,7 +37,7 @@ export function BrucknerPracticeController({ active, preview = false, scenario, 
     lastReady.current = false; visual.visible = false; lesson.clearPending();
     eyepiece.active = false; eyepiece.ready = false;
   }, [visual, eyepiece, lesson.clearPending]);
-  const runtime = useXRClinicRuntime({ active: active && !preview, editorOpen: lesson.mode !== "none", scopeViewEnabled: true, onInterrupt: interrupt,
+  const runtime = useXRClinicRuntime({ active: active && !preview, inputMode, editorOpen: lesson.mode !== "none", scopeViewEnabled: true, onInterrupt: interrupt,
     onMenu: open => lesson.setMode(open ? "menu" : "none"), onSelection: selection => { if (selection.station === "patient") lesson.setMode("menu"); },
   });
   const sample = () => {
@@ -86,6 +86,11 @@ export function BrucknerPracticeController({ active, preview = false, scenario, 
   useEffect(() => { if (!active) reset(); }, [active, reset]);
   const actions = [
     { label: fixation ? "FIXATION GIVEN ✓" : "LOOK AT THE LIGHT", run: () => { setup.current.fixation = true; setFixation(true); }, active: fixation },
+    ...(inputMode === "desktop" ? [
+      { label: runtime.scopeAperture === "large" ? "LARGE APERTURE ✓" : "SELECT LARGE APERTURE", run: () => { if (runtime.scopeAperture !== "large") runtime.cycleScopeAperture(); }, active: runtime.scopeAperture === "large" },
+      { label: runtime.tools.fundus.powered ? "OPHTHALMOSCOPE ON ✓" : "SWITCH OPHTHALMOSCOPE ON", run: () => runtime.setToolPower("fundus", true), active: runtime.tools.fundus.powered },
+      { label: runtime.scopeViewHand ? "CLOSE SCOPE VIEW" : "OPEN SCOPE VIEW", run: () => { const placement = runtime.toolsRef.current.fundus.placement; if (placement.kind === "held") runtime.toggleScopeView(placement.hand); }, active: Boolean(runtime.scopeViewHand) },
+    ] : []),
   ];
   const boardActions = [actions[0]];
   const workingDistance = runtime.frameValid.current && runtime.tools.fundus.placement.kind === "held" && technique.distanceCm > 0

@@ -73,7 +73,7 @@ export function XRPracticeResultHUD({ result, active, onTryNewCase, nextCaseLabe
   const canTryNewCase = result.kind === "correct" && Boolean(onTryNewCase);
   const cardHeight = bodyHeight + .13 + (canTryNewCase ? .105 : 0);
   const top = cardHeight / 2;
-  return <group ref={root} userData={{ xrPracticeResultHUD: true, xrIgnoreRay: !canTryNewCase, xrPanel: canTryNewCase || undefined }}>
+  return <group ref={root} userData={{ xrPracticeResultHUD: true, xrIgnoreRay: !canTryNewCase, xrPanel: canTryNewCase || undefined, xrPriorityPanel: canTryNewCase || undefined }}>
     <group userData={{ xrPracticeResultCard: true, width: XR_RESULT_CARD_WIDTH, height: cardHeight }}>
       <XRRoundedPanel width={XR_RESULT_CARD_WIDTH} height={cardHeight} radius={.045} color={background} position={[0, 0, -.012]} />
     </group>

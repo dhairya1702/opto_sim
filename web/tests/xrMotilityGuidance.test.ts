@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { Box3, Object3D } from "three";
+import { Box3, Object3D, Vector3 } from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MotilityPracticeController } from "../practice/xr/MotilityPracticeController";
 import { PracticeAttemptProvider, type PracticeAttemptKind } from "../practice/PracticeAttemptContext";
@@ -30,13 +30,18 @@ describe("XR motility guided step bubble", () => {
     expect(sim.labels()).toContain("Pick up the penlight");
     expect(sim.labels()).not.toContain("CONSULTATION 01");
 
-    let bubble: Object3D | undefined, board: Object3D | undefined, welcome: Object3D | undefined;
+    let bubble: Object3D | undefined, board: Object3D | undefined, acuity: Object3D | undefined, welcome: Object3D | undefined;
     sim.state.scene.traverse(object => {
       if (object.userData.xrGuidedStepBubble) bubble = object;
       if (object.userData.xrPersistentFindings) board = object;
+      if (object.userData.station === "acuity") acuity = object;
       if (object.userData.xrWallWelcome) welcome = object;
     });
-    expect(bubble).toBeDefined(); expect(board).toBeDefined(); expect(welcome).toBeUndefined();
+    expect(bubble).toBeDefined(); expect(board).toBeDefined(); expect(acuity).toBeDefined(); expect(welcome).toBeUndefined();
+    expect(bubble!.position.x).toBeCloseTo(.05);
+    expect(bubble!.scale.toArray()).toEqual([.88, .88, .88]);
+    expect(new Box3().setFromObject(acuity!).getCenter(new Vector3()).x).toBeCloseTo(-1.02);
+    expect(board!.position.x).toBeCloseTo(1.25);
     const bubbleBounds = new Box3().setFromObject(bubble!);
     const boardBounds = new Box3().setFromObject(board!);
     expect(bubbleBounds.intersectsBox(boardBounds)).toBe(false);

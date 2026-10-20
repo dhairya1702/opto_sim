@@ -10,7 +10,7 @@ import {
 import { LIBRARY_SURFACES, libraryEquipment, librarySockets, LIBRARY_TITLES, libraryOpticPlacement } from "../../interaction/xrLibraryEquipment";
 import { isPatientFitted } from "../../interaction/xrSensoryEquipment";
 import { consultationToolDefinition, toolInHand } from "../../interaction/xrConsultationTools";
-import { useXRClinicRuntime } from "../../interaction/useXRClinicRuntime";
+import { useXRClinicRuntime, type ClinicInputMode } from "../../interaction/useXRClinicRuntime";
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
 import { LibraryEquipmentTray } from "../../scene/LibraryClinicEquipment";
 import { XRSign } from "../../scene/XRClinicPanels";
@@ -23,8 +23,8 @@ const fieldLabels: Record<(typeof fusionalRecordFieldIds)[number], string> = {
   "bo-blur": "BO blur", "bo-break": "BO break", "bo-recovery": "BO recovery",
 };
 
-export function FusionalVergencePracticeController({ active, preview = false, onComplete, onExit, onMirror }: {
-  active: boolean; preview?: boolean; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
+export function FusionalVergencePracticeController({ active, preview = false, inputMode = "xr", onComplete, onExit, onMirror }: {
+  active: boolean; preview?: boolean; inputMode?: ClinicInputMode; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
 }) {
   const live = active && !preview;
   const { settings } = usePracticeAttempt();
@@ -52,7 +52,7 @@ export function FusionalVergencePracticeController({ active, preview = false, on
     return true;
   }, [live]);
 
-  const runtime = useXRClinicRuntime({ active: live, equipment: libraryEquipment("horizontal-distance"), placementSockets: librarySockets("horizontal-distance"), placementSurfaces: LIBRARY_SURFACES,
+  const runtime = useXRClinicRuntime({ active: live, inputMode, equipment: libraryEquipment("horizontal-distance"), placementSockets: librarySockets("horizontal-distance"), placementSurfaces: LIBRARY_SURFACES,
     editorOpen: lesson.mode !== "none", onMenu: open => lesson.setMode(open ? "menu" : "none"),
     onInterrupt: reason => {
       if (["tracking", "visibility", "transfer", "procedure", "release"].includes(reason))

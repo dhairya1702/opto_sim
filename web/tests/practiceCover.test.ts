@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { advancePracticeCoverStep, alternateCoverScenarios, deviationForMovement, prismTrialNeutralizes } from "../interaction/practiceCover";
+import { ALTERNATE_COVER_ATTEMPTS_PER_PRISM, advancePracticeCoverStep, alternateCoverAttemptNumber, alternateCoverScenarios, deviationForMovement, neutralizingPrismBase, prismTrialNeutralizes, prismTrialOutcome } from "../interaction/practiceCover";
 
 describe("cover practice", () => {
   it("interprets OD's refixation on uncovering", () => {
@@ -16,6 +16,11 @@ describe("cover practice", () => {
     expect(state.index).toBe(1);
     state = advancePracticeCoverStep("alternate-cover", state.index, state.dwell, "away", .1);
     expect(state).toEqual({ index: 1, dwell: 0 });
+  });
+
+  it("groups each prism power into two complete OD/OS attempts", () => {
+    expect(ALTERNATE_COVER_ATTEMPTS_PER_PRISM).toBe(2);
+    expect([0, 1, 2, 3].map(alternateCoverAttemptNumber)).toEqual([1, 1, 2, 2]);
   });
 
   it("neutralises horizontal deviations with the right base before either eye", () => {
@@ -38,5 +43,17 @@ describe("cover practice", () => {
     expect(prismTrialNeutralizes(hyper, "base-down", 10, "OD")).toBe(true);
     expect(prismTrialNeutralizes(hyper, "base-up", 10, "OS")).toBe(true);
     expect(prismTrialNeutralizes(hyper, "base-up", 10, "OD")).toBe(false);
+  });
+
+  it("gives one actionable Guided outcome after each complete prism setting", () => {
+    const exo = alternateCoverScenarios[0];
+    expect(neutralizingPrismBase(exo, "OD")).toBe("base-in");
+    expect(prismTrialOutcome(exo, "base-out", 12, "OD")).toBe("change-base");
+    expect(prismTrialOutcome(exo, "base-in", 8, "OD")).toBe("increase");
+    expect(prismTrialOutcome(exo, "base-in", 14, "OD")).toBe("reduce");
+    expect(prismTrialOutcome(exo, "base-in", 12, "OD")).toBe("neutral");
+    const hypo = alternateCoverScenarios.find(item => item.id === "r-hypo8")!;
+    expect(neutralizingPrismBase(hypo, "OD")).toBe("base-up");
+    expect(neutralizingPrismBase(hypo, "OS")).toBe("base-down");
   });
 });

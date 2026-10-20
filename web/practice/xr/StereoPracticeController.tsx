@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { DoubleSide, Group } from "three";
-import { useXRClinicRuntime, type XRClinicInterruption } from "../../interaction/useXRClinicRuntime";
+import { useXRClinicRuntime, type ClinicInputMode, type XRClinicInterruption } from "../../interaction/useXRClinicRuntime";
 import { consultationToolDefinition } from "../../interaction/xrConsultationTools";
 import { sensoryEquipment, sensorySockets, isPatientFitted, sensoryFittingSignature } from "../../interaction/xrSensoryEquipment";
 import { stereoPracticeLevels, stereoTargets } from "../../interaction/stereoPractice";
@@ -21,8 +21,8 @@ import { usePracticeAttempt } from "../PracticeAttemptContext";
 const equipment = sensoryEquipment("stereo"), sockets = sensorySockets("stereo");
 const fields: LessonField[] = [{ id: "threshold", label: "Last correct threshold", choices: stereoPracticeLevels.map(level => [String(level), `${level} arcsec`]) }];
 
-export function StereoPracticeController({ active, preview = false, onComplete, onExit, onMirror }: {
-  active: boolean; preview?: boolean; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
+export function StereoPracticeController({ active, preview = false, inputMode = "xr", onComplete, onExit, onMirror }: {
+  active: boolean; preview?: boolean; inputMode?: ClinicInputMode; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
 }) {
   const { settings } = usePracticeAttempt();
   const guided = settings?.kind === "guided";
@@ -56,6 +56,7 @@ export function StereoPracticeController({ active, preview = false, onComplete, 
   }, [clearUnfinished]);
   const runtime = useXRClinicRuntime({
     active: active && !preview,
+    inputMode,
     equipment,
     placementSockets: sockets,
     editorOpen: lesson.mode !== "none",
@@ -204,6 +205,19 @@ export function StereoPracticeController({ active, preview = false, onComplete, 
     disabled: !spatial.ready || !run.reply || run.confirmed || lesson.recorded, run: () => mark(circle) }));
   const turnAction: LessonAction = { label: "TURN PAGE", disabled: !spatial.ready || !run.confirmed || Boolean(run.capture) || lesson.recorded, run: nextPage };
   const actions = [fixationAction, askAction, ...markActions, turnAction, { label: "PATIENT-REPORTED VIEW", run: () => lesson.setMode("settings"), disabled: !run.reply }];
+  const placeAtSocket = (id: "subjective" | "polarised" | "stereo", socketId: string) => {
+    const socket = sockets.find(candidate => candidate.tool === id && candidate.id === socketId);
+    if (!socket) return;
+    const tool = runtime.toolsRef.current[id];
+    runtime.updateTools({ ...runtime.toolsRef.current, [id]: { ...tool,
+      placement: { kind: "socket", position: socket.position, rotation: socket.rotation, socketId: socket.id, fittingLayer: socket.fittingLayer },
+      revision: (tool.revision ?? 0) + 1 } });
+  };
+  if (inputMode === "desktop") actions.push(
+    { label: "FIT NEAR CORRECTION", active: spatial.correction, run: () => placeAtSocket("subjective", "sensory-correction") },
+    { label: "FIT POLARISED GLASSES", active: spatial.filters, run: () => placeAtSocket("polarised", "sensory-polarised") },
+    { label: "SUPPORT BOOKLET AT 40 CM", active: spatial.supported && spatial.ready, run: () => placeAtSocket("stereo", "sensory-stereo-near") },
+  );
   const directActions = !spatial.ready ? [] : !run.fixation ? [fixationAction] : !run.reply ? [askAction]
     : !run.confirmed ? markActions : run.capture ? [] : [turnAction];
   const guidance = stereoGuidedStep({

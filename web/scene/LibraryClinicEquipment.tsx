@@ -1,4 +1,6 @@
-import { CatmullRomCurve3, DoubleSide, Path, Shape, Vector2, Vector3 } from "three";
+import { useRef } from "react";
+import { useFrame } from "@react-three/fiber";
+import { CatmullRomCurve3, DoubleSide, MathUtils, Path, Shape, Vector2, Vector3, type Group } from "three";
 import { Box, Cylinder } from "./Models";
 import { XRSign } from "./XRClinicPanels";
 import { LIBRARY_SOCKETS } from "../interaction/xrLibraryEquipment";
@@ -8,6 +10,7 @@ import type { ConsultationToolId } from "../interaction/xrConsultationTools";
 
 export type ClinicInstrumentSetting = {
   power?: number; base?: string; angle?: number; side?: string; point?: boolean;
+  fixationLetter?: boolean;
   distanceCm?: number;
   isolatedTarget?: boolean;
   highlightCarriage?: boolean;
@@ -19,6 +22,7 @@ export type ClinicInstrumentSetting = {
   anchorPower?: number; aligned?: boolean; reflexOffset?: number; showReflex?: boolean;
   powered?: boolean; onPowerChange?: (powered: boolean) => void;
   highlightPowerSwitch?: boolean;
+  onFlip?: () => void;
 };
 export type ClinicInstrumentSettings = Partial<Record<ConsultationToolId, ClinicInstrumentSetting>>;
 
@@ -90,24 +94,42 @@ function Lens({ x, material = "clear" }: { x: number; material?: "clear" | "red"
 }
 
 function FlipperModel({ id, setting }: { id: "lens-flipper" | "prism-flipper"; setting: ClinicInstrumentSetting }) {
+  const head = useRef<Group>(null);
   const label = id === "prism-flipper"
     ? setting.side === "BI" ? "3Δ BI" : "12Δ BO"
     : id === "lens-flipper"
       ? setting.side === "minus" ? "−2.00 D" : "+2.00 D"
       : "+2.00 D";
   const rimAccent = id === "prism-flipper" ? accent : setting.side === "minus" || (setting.power ?? 0) < 0 ? "#b04f61" : "#488da0";
+  useFrame((_, dt) => {
+    if (!head.current || id !== "prism-flipper") return;
+    const target = setting.side === "BI" ? Math.PI : 0;
+    head.current.rotation.y = MathUtils.damp(head.current.rotation.y, target, 16, dt);
+  });
   return <group>
     <MoldedHandle />
-    {[leftBridge, rightBridge].map((path, index) => <mesh key={index} castShadow receiveShadow>
-      <tubeGeometry args={[path, 16, .006, 10, false]} />
-      <meshStandardMaterial color={shell} roughness={.54} metalness={.11} />
-    </mesh>)}
-    <Lens x={-.065} material={id === "prism-flipper" ? "prism" : "clear"} />
-    <Lens x={.065} material={id === "prism-flipper" ? "prism" : "clear"} />
-    {[-.065, .065].map(x => <mesh key={x} position={[x, .10, .010]}>
-      <torusGeometry args={[.037, .0015, 6, 32]} />
-      <meshStandardMaterial color={rimAccent} roughness={.42} metalness={.34} />
-    </mesh>)}
+    <group ref={head}>
+      {[leftBridge, rightBridge].map((path, index) => <mesh key={index} castShadow receiveShadow>
+        <tubeGeometry args={[path, 16, .006, 10, false]} />
+        <meshStandardMaterial color={shell} roughness={.54} metalness={.11} />
+      </mesh>)}
+      <Lens x={-.065} material={id === "prism-flipper" ? "prism" : "clear"} />
+      <Lens x={.065} material={id === "prism-flipper" ? "prism" : "clear"} />
+      {[-.065, .065].map(x => <mesh key={x} position={[x, .10, .010]}>
+        <torusGeometry args={[.037, .0015, 6, 32]} />
+        <meshStandardMaterial color={rimAccent} roughness={.42} metalness={.34} />
+      </mesh>)}
+    </group>
+    {id === "prism-flipper" && setting.onFlip && <group position={[0, .058, .026]} userData={{
+      xrInstrumentControl: id, xrInteractiveSurface: true, xrButton: true, xrWidth: .052, xrHeight: .040,
+      xrLabel: "PRISM FLIP TURN", xrAction: setting.onFlip,
+    }}>
+      <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
+        <cylinderGeometry args={[.017, .017, .012, 24]} />
+        <meshStandardMaterial color="#e2aa4f" roughness={.42} metalness={.28} />
+      </mesh>
+      <XRSign text={["TURN"]} p={[0, .025, .001]} size={[.052, .017]} bg="#173a3e" fg="#f8d88d" />
+    </group>}
     <XRSign text={[label]} p={[0, .005, .014]} size={[.058, .017]} bg="#173a3e" fg="#e8fff9" />
   </group>;
 }

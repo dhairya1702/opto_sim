@@ -15,8 +15,18 @@ import {
 import { SENSORY_SURFACES, type SensoryWorkingPose } from "./xrSensoryEquipment";
 import { nextScopeAperture, SCOPE_SELECTOR_REACH_M, type ScopeAperture } from "./xrScopeEquipment";
 import { perfEvent, perfRender } from "../perf/perfFlag";
+import {
+  clearDesktopClinicTransient, desktopClinicAdjustmentStep, desktopClinicShortcut,
+  desktopAccommodationHeldPose, desktopAssistedSocketId, initialDesktopClinicInput, isEditableClinicTarget, setDesktopClinicActivation,
+  switchDesktopClinicHand, type DesktopClinicAim,
+} from "./desktopClinicInput";
 export type XRClinicHand = "left" | "right";
 type Hand = XRClinicHand;
+export type ClinicInputMode = "xr" | "desktop";
+export type DesktopClinicPose = Readonly<{
+  position: readonly [number, number, number];
+  rotation: readonly [number, number, number, number];
+}>;
 export type XRClinicControllerSlot = ConsultationInputState & {
   hand: Hand | null; source: XRInputSource | null; ray: Group; grip: Group;
   tracked: boolean; buttonDown: boolean; scopeButtonDown: boolean; candidate: ConsultationToolId | null;
@@ -30,15 +40,19 @@ function ancestorData(object: Object3D | null) {
   let teleport: [number, number, number] | undefined;
   let action: (() => void) | undefined;
   let instrumentControl: ConsultationToolId | undefined;
+  let consultationToolId: ConsultationToolId | undefined;
+  let priorityPanel = false;
   while (object) {
     station ??= object.userData.station as StationId | undefined;
     examId ??= object.userData.examId as string | undefined;
     teleport ??= object.userData.xrTeleport as [number, number, number] | undefined;
     action ??= object.userData.xrAction as (() => void) | undefined;
     instrumentControl ??= object.userData.xrInstrumentControl as ConsultationToolId | undefined;
+    consultationToolId ??= object.userData.consultationToolId as ConsultationToolId | undefined;
+    priorityPanel ||= Boolean(object.userData.xrPriorityPanel);
     object = object.parent;
   }
-  return { station, examId, teleport, action, instrumentControl };
+  return { station, examId, teleport, action, instrumentControl, consultationToolId, priorityPanel };
 }
 
 
@@ -46,10 +60,12 @@ export type XRClinicSelection = ReturnType<typeof ancestorData>;
 export type XRClinicInterruption = "procedure" | "configuration" | "panel" | "scope-view" | "tracking" | "visibility" | "pickup" | "transfer" | "release" | "reset" | "exit";
 type Options = {
   active: boolean;
+  inputMode?: ClinicInputMode;
   editorOpen?: boolean;
   panelModeEnabled?: boolean;
   scopeViewEnabled?: boolean;
   equipment?: readonly ConsultationToolId[];
+  equipmentLabels?: Partial<Record<ConsultationToolId, string>>;
   placementSurfaces?: readonly PlacementSurface[];
   placementSockets?: readonly PlacementSocket[];
   onInterrupt?: (reason: XRClinicInterruption) => void;
@@ -57,22 +73,27 @@ type Options = {
   onThumbstickStep?: (id: ConsultationToolId, step: -1 | 1, hand: XRClinicHand, axis: "horizontal" | "vertical") => boolean | void;
   onMenu?: (open: boolean) => void;
   onSelection?: (selection: XRClinicSelection) => void;
+  desktopHeldPose?: (id: ConsultationToolId) => DesktopClinicPose | null;
 };
 /** Shared physical clinic loop. It knows no case findings, lesson answers, or scoring. */
 export function useXRClinicRuntime(options: Options) {
   // Counts renders of whichever lesson/consultation controller hosts the runtime.
   perfRender("XRRuntimeHost");
-  const { active, editorOpen = false, equipment = CONSULTATION_EQUIPMENT } = options;
+  const { active, inputMode = "xr", editorOpen = false, equipment = CONSULTATION_EQUIPMENT } = options;
   const { gl, scene } = useThree();
   const optionsRef = useRef(options); optionsRef.current = options;
+  const toolLabel = useCallback((id: ConsultationToolId) => optionsRef.current.equipmentLabels?.[id] ?? consultationToolDefinition(id).label, []);
   const toolControls = useRef(new Map<ConsultationToolId, Group>());
   const findingsPanels = useRef(new Set<Group>());
   const slots = useMemo<ControllerSlot[]>(() => [0, 1].map(index => ({
     ...initialConsultationInput(), hand: null, source: null, tracked: false,
-    ray: gl.xr.getController(index),
-    grip: gl.xr.getControllerGrip(index),
+    ray: inputMode === "xr" ? gl.xr.getController(index) : new Group(),
+    grip: inputMode === "xr" ? gl.xr.getControllerGrip(index) : new Group(),
     buttonDown: false, scopeButtonDown: false, thumbstickY: 0, candidate: null, pendingSelection: null,
-  })), [gl]);
+  })), [gl, inputMode]);
+  if (inputMode === "desktop") {
+    slots[0].hand = "left"; slots[1].hand = "right";
+  }
   const [, refresh] = useState(0);
   const [tools, setTools] = useState(initialConsultationTools);
   const toolsRef = useRef(tools);
@@ -103,7 +124,7 @@ export function useXRClinicRuntime(options: Options) {
   const [returnedAt, setReturnedAt] = useState<Partial<Record<ConsultationToolId, number>>>({});
   const [handlingMessage, setHandlingMessage] = useState("");
   const endedSession = useRef<XRSession | null>(null);
-  const activeRef = useRef(active); activeRef.current = active && !(endedSession.current && (!gl.xr.getSession() || endedSession.current === gl.xr.getSession()));
+  const activeRef = useRef(active); activeRef.current = active && (inputMode === "desktop" || !(endedSession.current && (!gl.xr.getSession() || endedSession.current === gl.xr.getSession())));
   const pauseTechnique = useCallback((reason: XRClinicInterruption = "procedure") => optionsRef.current.onInterrupt?.(reason), []);
   const frameValid = useRef(false);
   const [scopeViewHand, setScopeViewHand] = useState<Hand | null>(null);
@@ -138,6 +159,12 @@ export function useXRClinicRuntime(options: Options) {
     pauseTechnique("configuration");
   }, [pauseTechnique]);
   const visualTime = useRef(0);
+  const desktopInput = useRef(initialDesktopClinicInput());
+  const desktopToolRoll = useRef(0);
+  const desktopPoseOverrides = useRef(new Map<ConsultationToolId, DesktopClinicPose>());
+  const [desktopActiveHand, setDesktopActiveHand] = useState<Hand>(desktopInput.current.activeHand);
+  const desktopAimRef = useRef<DesktopClinicAim>({ tool: null, action: "Aim at an instrument" });
+  const [desktopAim, setDesktopAim] = useState<DesktopClinicAim>(desktopAimRef.current);
   const hoverMarker = useRef<Group>(null);
   const workingOrigin = useMemo(() => new Vector3(), []);
   const baseSpace = useRef<XRReferenceSpace | null>(null);
@@ -188,6 +215,12 @@ export function useXRClinicRuntime(options: Options) {
     // Keep button edges latched: reset must not turn a held grip/trigger into a new action.
     slots.forEach(slot => { slot.triggerRoute = null; slot.panel = false; slot.thumbstickY = 0; slot.candidate = null; slot.pendingSelection = null; });
     updateTools(initialConsultationTools());
+    desktopInput.current = initialDesktopClinicInput();
+    desktopToolRoll.current = 0;
+    desktopPoseOverrides.current.clear();
+    setDesktopActiveHand(desktopInput.current.activeHand);
+    desktopAimRef.current = { tool: null, action: "Aim at an instrument" };
+    setDesktopAim(desktopAimRef.current);
     setHighlighted([]); setHandlingMessage("");
     pauseTechnique("reset");
   }, [closeScopeView, closeUtilityPanel, hidePlacementMarkers, pauseTechnique, slots, updateTools]);
@@ -257,12 +290,23 @@ export function useXRClinicRuntime(options: Options) {
   useFrame(({ camera }, dt, frame) => {
     if (!activeRef.current) { frameValid.current = false; return; }
     const reference = gl.xr.getReferenceSpace();
-    const visible = gl.xr.getSession()?.visibilityState === "visible";
+    const visible = inputMode === "desktop" ? document.visibilityState !== "hidden" : gl.xr.getSession()?.visibilityState === "visible";
     // A slow rendered frame is not tracking loss. Quest can occasionally exceed
     // 100 ms while compiling shaders or recovering performance; only current XR
     // poses/session visibility determine whether physical input is valid.
-    frameValid.current = Boolean(frame && reference && visible);
-    if (frameValid.current && frame && reference) {
+    frameValid.current = inputMode === "desktop" ? Boolean(visible) : Boolean(frame && reference && visible);
+    if (inputMode === "desktop") {
+      const cameraPosition = camera.getWorldPosition(samplePoint);
+      const cameraRotation = camera.getWorldQuaternion(sampleRotation);
+      for (const slot of slots) {
+        slot.tracked = true;
+        slot.ray.position.copy(cameraPosition); slot.ray.quaternion.copy(cameraRotation);
+        slot.grip.position.copy(cameraPosition);
+        workingOrigin.set(slot.hand === "left" ? -.18 : .18, -.18, -.42).applyQuaternion(cameraRotation);
+        slot.grip.position.add(workingOrigin); slot.grip.quaternion.copy(cameraRotation);
+        slot.grip.visible = true; slot.ray.visible = slot.hand === desktopInput.current.activeHand;
+      }
+    } else if (frameValid.current && frame && reference) {
       const pose = frame.getViewerPose(baseSpace.current ?? reference);
       const orientation = pose?.transform.orientation;
       if (pose) {
@@ -278,6 +322,7 @@ export function useXRClinicRuntime(options: Options) {
       if (pose && initialArrival.current) { initialArrival.current = false; recenterClinic(false); }
     }
     for (const slot of slots) {
+      if (inputMode === "desktop") continue;
       const wasTracked = slot.tracked;
       // A valid grip alone does not establish a current aim pose. Three.js retains
       // the last target-ray transform when that pose is unavailable.
@@ -354,12 +399,22 @@ export function useXRClinicRuntime(options: Options) {
         const slot = slots.find(candidate => candidate.hand === placement.hand);
         object.visible = Boolean(slot?.tracked);
         if (!slot?.tracked) continue;
-        slot.grip.getWorldPosition(object.position);
-        // WebXR grip pose describes the hand; target-ray pose describes where it points.
-        // Axial light tools must follow the aim pose, not the Quest grip-axis tilt.
-        const heldPose = definition.heldPose ?? (definition.illuminates && definition.powerMode !== "persistent" ? "ray" : "grip");
-        (heldPose === "ray" ? slot.ray : slot.grip).getWorldQuaternion(object.quaternion);
-        object.quaternion.multiply(quaternion.set(...definition.gripRotation));
+        const assistedPose = inputMode === "desktop" ? desktopPoseOverrides.current.get(id)
+          ?? optionsRef.current.desktopHeldPose?.(id)
+          ?? desktopAccommodationHeldPose(id,
+            toolsRef.current.cover.placement.kind === "socket" ? toolsRef.current.cover.placement.socketId : undefined,
+            desktopToolRoll.current) : null;
+        if (assistedPose) {
+          object.position.set(...assistedPose.position);
+          object.quaternion.set(...assistedPose.rotation);
+        } else {
+          slot.grip.getWorldPosition(object.position);
+          // WebXR grip pose describes the hand; target-ray pose describes where it points.
+          // Axial light tools must follow the aim pose, not the Quest grip-axis tilt.
+          const heldPose = definition.heldPose ?? (definition.illuminates && definition.powerMode !== "persistent" ? "ray" : "grip");
+          (heldPose === "ray" ? slot.ray : slot.grip).getWorldQuaternion(object.quaternion);
+          object.quaternion.multiply(quaternion.set(...definition.gripRotation));
+        }
       } else {
         object.visible = true;
         object.position.set(...placement.position);
@@ -416,9 +471,26 @@ export function useXRClinicRuntime(options: Options) {
       slot.candidate = hint?.reachable ? hint.id : null;
       if (slot.candidate) candidates.push(slot.candidate);
     }
+    if (inputMode === "desktop") {
+      const slot = slots.find(candidate => candidate.hand === desktopInput.current.activeHand);
+      const held = slot?.hand ? toolInHand(toolsRef.current, slot.hand) : null;
+      const hit = slot ? rayHit(slot) : null;
+      const aimed = ancestorData(hit?.object ?? null).consultationToolId ?? null;
+      const nextAim: DesktopClinicAim = held
+        ? { tool: held, action: `E · place ${toolLabel(held)}` }
+        : aimed ? { tool: aimed, action: `E · pick up ${toolLabel(aimed)}` }
+          : { tool: null, action: "Aim at an instrument" };
+      desktopAimRef.current = nextAim;
+      visualTime.current += dt;
+      if (visualTime.current >= .1) {
+        visualTime.current = 0;
+        setDesktopAim(previous => previous.tool === nextAim.tool && previous.action === nextAim.action ? previous : nextAim);
+        setHighlighted(aimed ? [aimed] : []);
+      }
+    }
     // Readouts and candidate feedback need not cause React renders at headset frequency.
-    visualTime.current += dt;
-    if (visualTime.current >= .1) {
+    if (inputMode === "xr") visualTime.current += dt;
+    if (inputMode === "xr" && visualTime.current >= .1) {
       visualTime.current = 0;
       const unique = [...new Set(candidates)];
       setHighlighted(previous => previous.join() === unique.join() ? previous : unique);
@@ -469,12 +541,18 @@ export function useXRClinicRuntime(options: Options) {
       }
       return true;
     });
-    // Nearby physical selectors take precedence over the distant UI overlays.
-    let nearest: Object3D | null = intersections[0]?.object ?? null;
-    while (nearest) {
-      if (nearest.userData.xrInstrumentControl) return intersections[0];
-      nearest = nearest.parent;
-    }
+    // Temporary result actions sit in front of an open findings board. Resolve
+    // that nearer modal overlay before the board-specific editor preference.
+    const priorityActionHit = intersections.find(hit => {
+      const data = ancestorData(hit.object);
+      return data.priorityPanel && data.action;
+    });
+    if (priorityActionHit) return priorityActionHit;
+    // A deliberately aimed nearby physical selector takes precedence over
+    // intervening placement previews or equipment; selectEnd still enforces
+    // free-hand ownership and physical reach before invoking it.
+    const instrumentControl = intersections.find(hit => ancestorData(hit.object).instrumentControl);
+    if (instrumentControl) return instrumentControl;
     if (editorOpen) {
       const editorHit = intersections.find(hit => {
         let object: Object3D | null = hit.object;
@@ -491,6 +569,130 @@ export function useXRClinicRuntime(options: Options) {
     });
     return toolControl ?? intersections[0];
   }
+
+  const desktopAdjustment = useCallback((step: -1 | 1, axis: "horizontal" | "vertical" = "vertical") => {
+    if (inputMode !== "desktop" || !activeRef.current || editorOpen) return false;
+    const hand = desktopInput.current.activeHand;
+    let id = toolInHand(toolsRef.current, hand);
+    if (!id) {
+      const pushUp = toolsRef.current["push-up-rule"].placement;
+      const npc = toolsRef.current["npc-rule"].placement;
+      if (pushUp.kind === "socket" && pushUp.socketId === "library-push-up-spectacle") id = "push-up-rule";
+      else if (npc.kind === "socket" && npc.socketId === "library-npc-spectacle") id = "npc-rule";
+    }
+    if (!id) return false;
+    if (axis === "horizontal" && id === "vergence-prism") {
+      desktopToolRoll.current += step;
+      return true;
+    }
+    return Boolean(optionsRef.current.onThumbstickStep?.(id, step, hand, axis));
+  }, [editorOpen, inputMode]);
+
+  const desktopReleasePose = useCallback((id: ConsultationToolId) => {
+    const sockets = optionsRef.current.placementSockets ?? [];
+    const preferred = desktopAssistedSocketId(id);
+    const socket = sockets.find(candidate => candidate.tool === id && candidate.id === preferred);
+    return socket ? { position: socket.position, rotation: socket.rotation } : undefined;
+  }, []);
+
+  const setDesktopHeldPose = useCallback((id: ConsultationToolId, pose: DesktopClinicPose | null) => {
+    if (pose) desktopPoseOverrides.current.set(id, pose);
+    else desktopPoseOverrides.current.delete(id);
+  }, []);
+
+  const desktopTogglePickup = useCallback(() => {
+    if (inputMode !== "desktop" || !activeRef.current || editorOpen) return;
+    const hand = desktopInput.current.activeHand;
+    const held = toolInHand(toolsRef.current, hand);
+    if (held) {
+      const result = releaseConsultationTool(toolsRef.current, hand, desktopReleasePose(held),
+        optionsRef.current.placementSurfaces ?? CONSULTATION_SURFACES,
+        optionsRef.current.placementSockets, optionsRef.current.equipment ?? CONSULTATION_EQUIPMENT);
+      updateTools(result.state);
+      desktopPoseOverrides.current.delete(held);
+      pauseTechnique("release");
+      if (result.returned) setReturnedAt(previous => ({ ...previous, [held]: performance.now() }));
+      setHandlingMessage(result.returned ? "Returned to its resting place." : "Instrument placed at the supported clinical anchor.");
+      return;
+    }
+    const id = desktopAimRef.current.tool;
+    if (!id || !(optionsRef.current.equipment ?? CONSULTATION_EQUIPMENT).includes(id)) {
+      setHandlingMessage("Aim the centre reticle at an available instrument, then press E.");
+      return;
+    }
+    const oldPlacement = toolsRef.current[id].placement;
+    desktopPoseOverrides.current.delete(id);
+    updateTools(grabConsultationTool(toolsRef.current, id, hand));
+    optionsRef.current.onToolUsed?.(id, "pickup");
+    pauseTechnique(oldPlacement.kind === "held" ? "transfer" : "pickup");
+    setHandlingMessage(`${toolLabel(id)} · ${hand} virtual hand`);
+  }, [desktopReleasePose, editorOpen, inputMode, pauseTechnique, updateTools]);
+
+  const desktopActivation = useCallback((pressed: boolean) => {
+    if (inputMode !== "desktop" || !activeRef.current) return;
+    const hand = desktopInput.current.activeHand;
+    const id = toolInHand(toolsRef.current, hand);
+    desktopInput.current = setDesktopClinicActivation(desktopInput.current, pressed && Boolean(id));
+    const slot = slots.find(candidate => candidate.hand === hand);
+    if (slot) slot.triggerDown = pressed && Boolean(id);
+    if (!id) return;
+    if (pressed) optionsRef.current.onToolUsed?.(id, "activate");
+    updateTools(powerConsultationTool(toolsRef.current, hand, pressed));
+  }, [inputMode, slots, updateTools]);
+
+  useEffect(() => {
+    if (inputMode !== "desktop" || !active) return;
+    const canvas = gl.domElement;
+    const keydown = (event: KeyboardEvent) => {
+      const shortcut = desktopClinicShortcut(event, isEditableClinicTarget(event.target));
+      if (!shortcut) return;
+      event.preventDefault();
+      if (shortcut === "switch-hand") {
+        desktopActivation(false);
+        desktopInput.current = switchDesktopClinicHand(desktopInput.current);
+        setDesktopActiveHand(desktopInput.current.activeHand);
+      } else if (shortcut === "pickup-place") desktopTogglePickup();
+      else {
+        const positive = shortcut.endsWith("positive");
+        const axis = shortcut.includes("horizontal") ? "horizontal" : "vertical";
+        desktopAdjustment(positive ? 1 : -1, axis);
+      }
+    };
+    const wheel = (event: WheelEvent) => {
+      if (isEditableClinicTarget(event.target) || editorOpen) return;
+      const step = desktopClinicAdjustmentStep(event.deltaY);
+      if (step && desktopAdjustment(step)) event.preventDefault();
+    };
+    const pointerDown = (event: PointerEvent) => {
+      if (event.button !== 0 || document.pointerLockElement !== canvas || editorOpen) return;
+      desktopActivation(true);
+    };
+    const pointerUp = (event: PointerEvent) => { if (event.button === 0) desktopActivation(false); };
+    const clear = () => {
+      desktopActivation(false);
+      desktopInput.current = clearDesktopClinicTransient(desktopInput.current);
+    };
+    const visibility = () => { clear(); if (document.visibilityState === "hidden") pauseTechnique("visibility"); };
+    window.addEventListener("keydown", keydown);
+    canvas.addEventListener("wheel", wheel, { passive: false });
+    canvas.addEventListener("pointerdown", pointerDown);
+    window.addEventListener("pointerup", pointerUp);
+    window.addEventListener("blur", clear);
+    document.addEventListener("visibilitychange", visibility);
+    document.addEventListener("pointerlockchange", clear);
+    return () => {
+      window.removeEventListener("keydown", keydown);
+      canvas.removeEventListener("wheel", wheel);
+      canvas.removeEventListener("pointerdown", pointerDown);
+      window.removeEventListener("pointerup", pointerUp);
+      window.removeEventListener("blur", clear);
+      document.removeEventListener("visibilitychange", visibility);
+      document.removeEventListener("pointerlockchange", clear);
+      clear();
+    };
+  }, [active, desktopActivation, desktopAdjustment, desktopTogglePickup, editorOpen, gl, inputMode, pauseTechnique]);
+
+  useEffect(() => { if (inputMode === "desktop" && editorOpen) desktopActivation(false); }, [desktopActivation, editorOpen, inputMode]);
 
   const teleport = useCallback((destination: [number, number, number]) => {
     if (!activeRef.current) return;
@@ -644,7 +846,7 @@ export function useXRClinicRuntime(options: Options) {
         const hint = pickupHintRef.current(slot);
         const id = hint?.reachable ? hint.id : null;
         if (!id) {
-          setHandlingMessage(hint ? `Move your hand beside the ${consultationToolDefinition(hint.id).label.toLowerCase()}, then release and squeeze the side grip.` : "Bring your hand beside an instrument, then squeeze the side grip.");
+          setHandlingMessage(hint ? `Move your hand beside the ${toolLabel(hint.id).toLowerCase()}, then release and squeeze the side grip.` : "Bring your hand beside an instrument, then squeeze the side grip.");
           return;
         }
         const oldPlacement = toolsRef.current[id].placement;
@@ -659,7 +861,7 @@ export function useXRClinicRuntime(options: Options) {
         optionsRef.current.onToolUsed?.(id, "pickup");
         perfEvent(`pickup ${id}`);
         pauseTechnique(oldPlacement.kind === "held" ? "transfer" : "pickup");
-        setHandlingMessage(`${consultationToolDefinition(id).label} · ${slot.hand} hand`);
+        setHandlingMessage(`${toolLabel(id)} · ${slot.hand} hand`);
       };
       const squeezeEnd = () => {
         // Relaxing the hand never releases ownership or interrupts technique.
@@ -673,12 +875,13 @@ export function useXRClinicRuntime(options: Options) {
         const hit = rayHitRef.current(slot);
         // A deliberately aimed physical selector is resolved as a control first;
         // selectEnd then enforces free-hand ownership and proximity.
-        const controlHit = Boolean(ancestorData(hit?.object ?? null).instrumentControl);
-        const pressed = pressConsultationTrigger(slot, Boolean(id) && !controlHit);
+        const hitData = ancestorData(hit?.object ?? null);
+        const controlHit = Boolean(hitData.instrumentControl);
+        const pressed = pressConsultationTrigger(slot, Boolean(id) && !controlHit && !hitData.priorityPanel);
         if (pressed === slot) return;
         Object.assign(slot, pressed);
         slot.pendingSelection = slot.triggerRoute === "panel"
-          ? { data: ancestorData(hit?.object ?? null), point: hit?.point.clone() ?? null }
+          ? { data: hitData, point: hit?.point.clone() ?? null }
           : null;
         if (slot.triggerRoute === "tool") {
           if (id) { optionsRef.current.onToolUsed?.(id, "activate"); perfEvent(`trigger on ${id}`); }
@@ -726,7 +929,10 @@ export function useXRClinicRuntime(options: Options) {
   return {
     tools, toolsRef, slots, objects, toolControls, findingsPanels, frameValid, scopeAperture, scopeApertureRef, cycleScopeAperture, scopeViewHand, scopeViewHandRef, closeScopeView, toggleScopeView, utilityOpen, closeUtilityPanel, toggleUtilityPanel, highlighted, pickupHints, returnedAt,
     handlingMessage, setHandlingMessage, hoverMarker, placementMarkers, registerTool, updateTools, stopLights, resetClinic, closePanels,
-    origin, direction, quaternion, workingPose, supportedWorkingPose, handStatus, pulseHand, teleport, recenterClinic, equipment, setToolPower,
+    origin, direction, quaternion, workingPose, supportedWorkingPose, handStatus, pulseHand, teleport, recenterClinic, equipment, toolLabel, setToolPower,
+    inputMode, desktopActiveHand, desktopAim, desktopTogglePickup, desktopAdjustment, setDesktopHeldPose,
   };
 }
-export type XRClinicRuntime = ReturnType<typeof useXRClinicRuntime>;
+export type ClinicRuntime = ReturnType<typeof useXRClinicRuntime>;
+/** Compatibility alias retained for existing XR-only lesson adapters. */
+export type XRClinicRuntime = ClinicRuntime;

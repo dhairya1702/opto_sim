@@ -9,7 +9,7 @@ import {
 import { LIBRARY_SURFACES, LIBRARY_TITLES, libraryEquipment, libraryOcclusion, librarySockets } from "../../interaction/xrLibraryEquipment";
 import { isPatientFitted } from "../../interaction/xrSensoryEquipment";
 import { consultationToolDefinition, toolInHand } from "../../interaction/xrConsultationTools";
-import { useXRClinicRuntime } from "../../interaction/useXRClinicRuntime";
+import { useXRClinicRuntime, type ClinicInputMode } from "../../interaction/useXRClinicRuntime";
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
 import { LibraryEquipmentTray } from "../../scene/LibraryClinicEquipment";
 import { XRSign } from "../../scene/XRClinicPanels";
@@ -17,8 +17,8 @@ import { usePracticeAttempt } from "../PracticeAttemptContext";
 import { PracticeLessonUI, usePracticeLesson, type BatchMirror, type LessonAction, type LessonField } from "./PracticeLessonUI";
 import { useClinicEyeMotion } from "./useClinicEyeMotion";
 
-export function PushUpPracticeController({ active, preview = false, onComplete, onExit, onMirror }: {
-  active: boolean; preview?: boolean; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
+export function PushUpPracticeController({ active, preview = false, inputMode = "xr", onComplete, onExit, onMirror }: {
+  active: boolean; preview?: boolean; inputMode?: ClinicInputMode; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
 }) {
   const live = active && !preview;
   const { settings } = usePracticeAttempt();
@@ -34,11 +34,16 @@ export function PushUpPracticeController({ active, preview = false, onComplete, 
   const eyes = useClinicEyeMotion(live);
   const [state, setState] = useState({ run: run.current, distance: 40 });
 
-  const runtime = useXRClinicRuntime({ active: live, equipment: libraryEquipment("push-up"), placementSockets: librarySockets("push-up"), placementSurfaces: LIBRARY_SURFACES,
+  const runtime = useXRClinicRuntime({ active: live, inputMode, equipment: libraryEquipment("push-up"), placementSockets: librarySockets("push-up"), placementSurfaces: LIBRARY_SURFACES,
     editorOpen: lesson.mode !== "none", onMenu: open => lesson.setMode(open ? "menu" : "none"),
     onInterrupt: reason => {
       if (["tracking", "visibility", "transfer", "procedure", "pickup"].includes(reason))
         run.current = interruptPushUp(run.current, "The physical procedure was interrupted.");
+    }, onThumbstickStep: (id, step) => {
+      if (id !== "push-up-rule" || run.current.capture || run.current.phase === "complete") return false;
+      const next = Math.round(Math.max(PUSH_UP_MIN_CM, Math.min(PUSH_UP_MAX_CM, distance.current + step)) * 10) / 10;
+      if (next === distance.current) return false;
+      distance.current = next; setState({ run: run.current, distance: next }); return true;
     } });
 
   const spatial = (nowMs = performance.now()): PushUpSpatialSample => {

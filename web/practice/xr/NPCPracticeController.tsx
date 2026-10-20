@@ -9,7 +9,7 @@ import {
 import { LIBRARY_SURFACES, libraryEquipment, librarySockets, LIBRARY_TITLES } from "../../interaction/xrLibraryEquipment";
 import { isPatientFitted } from "../../interaction/xrSensoryEquipment";
 import { consultationToolDefinition, toolInHand } from "../../interaction/xrConsultationTools";
-import { useXRClinicRuntime } from "../../interaction/useXRClinicRuntime";
+import { useXRClinicRuntime, type ClinicInputMode } from "../../interaction/useXRClinicRuntime";
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
 import { LibraryEquipmentTray } from "../../scene/LibraryClinicEquipment";
 import { XRSign } from "../../scene/XRClinicPanels";
@@ -17,8 +17,8 @@ import { usePracticeAttempt } from "../PracticeAttemptContext";
 import { PracticeLessonUI, usePracticeLesson, type BatchMirror, type LessonAction, type LessonField } from "./PracticeLessonUI";
 import { useClinicEyeMotion } from "./useClinicEyeMotion";
 
-export function NPCPracticeController({ active, preview = false, onComplete, onExit, onMirror }: {
-  active: boolean; preview?: boolean; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
+export function NPCPracticeController({ active, preview = false, inputMode = "xr", onComplete, onExit, onMirror }: {
+  active: boolean; preview?: boolean; inputMode?: ClinicInputMode; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
 }) {
   const live = active && !preview;
   const { settings } = usePracticeAttempt();
@@ -37,7 +37,13 @@ export function NPCPracticeController({ active, preview = false, onComplete, onE
   const temp = useMemo(() => new Vector3(), []);
   const [state, setState] = useState({ distance: 40, run: run.current, history: [] as string[] });
 
-  const runtime = useXRClinicRuntime({ active: live, equipment: libraryEquipment("npc"), placementSockets: librarySockets("npc"), placementSurfaces: LIBRARY_SURFACES,
+  const runtime = useXRClinicRuntime({ active: live, inputMode, equipment: libraryEquipment("npc"), placementSockets: librarySockets("npc"), placementSurfaces: LIBRARY_SURFACES,
+    onThumbstickStep: (id, step) => {
+      if (id !== "npc-rule" || run.current.released) return false;
+      const next = Math.round(Math.max(NPC_RULE_MIN_CM, Math.min(NPC_RULE_MAX_CM, distance.current + step * .5)) * 10) / 10;
+      if (next === distance.current) return false;
+      distance.current = next; run.current = sampleNPC(run.current, { ...spatial(), distanceCm: next }); publish(); return true;
+    },
     editorOpen: lesson.mode !== "none", onMenu: open => lesson.setMode(open ? "menu" : "none"),
     onInterrupt: reason => {
       if (["tracking", "visibility", "transfer", "procedure", "pickup"].includes(reason) && run.current.phase !== "setup")

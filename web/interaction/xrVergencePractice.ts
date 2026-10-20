@@ -20,11 +20,29 @@ export function markVergenceEndpoint(kind: PrismVergenceKind, base: string, powe
   const values = { ...run.values, [phase]: power };
   return { initialized: true, values, phase: phase === "blur" ? "break" : "recovery", complete: phase === "recovery" };
 }
-export type TimedFacility = { start: number; presented: number; side: string; cycles: number };
-export const newVergenceFacility = (now: number): TimedFacility => ({ start: now, presented: now, side: "BO", cycles: 0 });
+export type TimedFacility = {
+  start: number;
+  presented: number;
+  side: "BO" | "BI";
+  cycles: number;
+  boCleared: boolean;
+  lastFlip: "none" | "valid" | "premature" | "unpaired";
+};
+export const newVergenceFacility = (now: number): TimedFacility => ({
+  start: now, presented: now, side: "BO", cycles: 0, boCleared: false, lastFlip: "none",
+});
 export function flipVergenceFacility(run: TimedFacility, now: number, ready: boolean): TimedFacility {
-  if (!ready || now - run.start >= facilityDuration || now - run.presented < vergenceFacilityDelay[run.side as "BI" | "BO"]) return run;
-  return { ...run, presented: now, side: run.side === "BO" ? "BI" : "BO", cycles: run.cycles + (run.side === "BI" ? 1 : 0) };
+  if (!ready || now - run.start >= facilityDuration) return run;
+  const cleared = now - run.presented >= vergenceFacilityDelay[run.side];
+  const completesPair = run.side === "BI" && cleared && run.boCleared;
+  return {
+    ...run,
+    presented: now,
+    side: run.side === "BO" ? "BI" : "BO",
+    cycles: run.cycles + (completesPair ? 1 : 0),
+    boCleared: run.side === "BO" && cleared,
+    lastFlip: !cleared ? "premature" : run.side === "BI" && !run.boCleared ? "unpaired" : "valid",
+  };
 }
 export type VergenceCapture = Readonly<{ generation: number; setup: string; label: string; values: Readonly<Record<string, number>>; distanceCm: number; reports: readonly string[] }>;
 export function freezeVergenceCapture(generation: number, setup: string, label: string, values: Record<string, number>, distanceCm: number, reports: string[]): VergenceCapture {

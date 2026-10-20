@@ -6,7 +6,8 @@ import {
   captureMaddox, enterMaddox, interruptMaddox, maddoxFittingGuideSocketIds, maddoxGuidedStep,
   maddoxSetupIssue, newMaddoxRun, sampleMaddox, submitMaddox, type MaddoxBase, type MaddoxRun, type MaddoxSpatialSample,
 } from "../../interaction/maddoxProcedure";
-import { useXRClinicRuntime } from "../../interaction/useXRClinicRuntime";
+import { useXRClinicRuntime, type ClinicInputMode } from "../../interaction/useXRClinicRuntime";
+import { desktopPenlightPose } from "../../interaction/desktopClinicInput";
 import { PRISM_BAR_WORKING_Y } from "../../interaction/xrConsultationTools";
 import { CLINIC_PATIENT_EYES } from "../../interaction/clinicPatient";
 import { isPatientFitted, sensoryTargetCondition } from "../../interaction/xrSensoryEquipment";
@@ -23,8 +24,8 @@ const emptySample = (): MaddoxSpatialSample => ({ correctionFitted: false, rodFi
   prismAligned: false, cell: null, base: null, tracking: false });
 const initialPrismSetting = Object.freeze({ power: 20 as (typeof MADDOX_PRISM_CELLS)[number], base: "BI" as MaddoxBase });
 
-export function MaddoxPracticeController({ active, preview = false, onComplete, onExit, onMirror }: {
-  active: boolean; preview?: boolean; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
+export function MaddoxPracticeController({ active, preview = false, inputMode = "xr", onComplete, onExit, onMirror }: {
+  active: boolean; preview?: boolean; inputMode?: ClinicInputMode; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
 }) {
   const { settings } = usePracticeAttempt();
   const guided = settings?.kind !== "test";
@@ -57,7 +58,8 @@ export function MaddoxPracticeController({ active, preview = false, onComplete, 
     if (base === current.base) return false;
     setPrismSetting({ ...current, base }); return true;
   }, [setPrismSetting]);
-  const runtime = useXRClinicRuntime({ active: live, equipment: libraryEquipment("maddox"), placementSockets: librarySockets("maddox"), placementSurfaces: LIBRARY_SURFACES,
+  const runtime = useXRClinicRuntime({ active: live, inputMode, equipment: libraryEquipment("maddox"), placementSockets: librarySockets("maddox"), placementSurfaces: LIBRARY_SURFACES,
+    desktopHeldPose: id => id === "pupils" ? desktopPenlightPose([0, 1.5, -.18]) : null,
     editorOpen: lesson.mode !== "none", onMenu: open => lesson.setMode(open ? "menu" : "none"),
     onToolUsed: (id, action) => { if (id === "prism" && action === "activate") captureTrigger.current(); },
     onThumbstickStep: (id, step, _hand, axis) => id === "prism" && (axis === "horizontal" ? selectPrismBase(step) : stepPrismPower(step)),
@@ -139,6 +141,15 @@ export function MaddoxPracticeController({ active, preview = false, onComplete, 
     const nextSample = { ...physicalSample(), fixationInstruction: true };
     publishSample(nextSample); setRun(armMaddoxReport(runRef.current, nextSample));
   };
+  const placeAtSocket = (id: "subjective" | "maddox" | "worth", socketId: string, powered = false) => {
+    if (!live) return;
+    const socket = librarySockets("maddox").find(candidate => candidate.tool === id && candidate.id === socketId);
+    if (!socket) return;
+    const tool = runtime.toolsRef.current[id];
+    runtime.updateTools({ ...runtime.toolsRef.current, [id]: { ...tool, powered: powered || tool.powered,
+      placement: { kind: "socket", position: socket.position, rotation: socket.rotation, socketId: socket.id, fittingLayer: socket.fittingLayer },
+      revision: (tool.revision ?? 0) + 1 } });
+  };
   const capture = useCallback(() => {
     if (!live || runRef.current.capture || lesson.awarded.current) return;
     const nextSample = physicalSample(); publishSample(nextSample);
@@ -172,6 +183,12 @@ export function MaddoxPracticeController({ active, preview = false, onComplete, 
   const actions = [
     { label: run.reportInstruction ? "REPORTING INSTRUCTION GIVEN ✓" : "ASK STREAK / LIGHT RELATION", run: ask, active: run.reportInstruction, disabled: Boolean(run.capture) },
     { label: "PRISM TRIGGER · CAPTURE", run: capture, disabled: Boolean(run.capture) },
+    { label: "FIT CORRECTION", run: () => placeAtSocket("subjective", "sensory-correction"), active: spatial.correctionFitted },
+    { label: `FIT MADDOX ROD · ${trial.axis === "horizontal" ? "HORIZONTAL" : "VERTICAL"} GROOVES`,
+      run: () => placeAtSocket("maddox", trial.axis === "horizontal" ? "sensory-maddox-horizontal" : "sensory-maddox-vertical"),
+      active: spatial.rodFitted && spatial.grooveDegrees === (trial.axis === "horizontal" ? 0 : 90) },
+    ...(trial.site === "distance" ? [{ label: "DOCK + SWITCH ON DISTANCE POINT", run: () => placeAtSocket("worth", "sensory-worth-distance", true),
+      active: spatial.targetReady && spatial.targetPowered }] : []),
   ];
   const fields: LessonField[] = [
     { id: "power", label: "Captured prism power", choices: [], number: { min: 0, max: 20, unit: "Δ", step: 1 } },

@@ -12,12 +12,13 @@ import { type ConsultationToolId } from "../interaction/xrConsultationTools";
 import type { XRClinicRuntime } from "../interaction/useXRClinicRuntime";
 
 /** Original metre-scale geometry; the physical Worth target always displays the same four dots. */
-export function WorthTargetFace({ powered = true, point = false, mirror = false, face = mirror ? "mirror" : "front" }: { powered?: boolean; point?: boolean; mirror?: boolean; face?: "front" | "back" | "mirror" }) {
+export function WorthTargetFace({ powered = true, point = false, fixationLetter = false, mirror = false, face = mirror ? "mirror" : "front" }: { powered?: boolean; point?: boolean; fixationLetter?: boolean; mirror?: boolean; face?: "front" | "back" | "mirror" }) {
   const faceZ = mirror ? .001 : -.001;
   return <group userData={{ xrWorthFace: face }}>
     <mesh><circleGeometry args={[.06, 32]} /><meshBasicMaterial color="#101c20" side={DoubleSide} /></mesh>
-    {point && <mesh position={[0, 0, faceZ * 2]} userData={{ xrWorthDot: true }}><circleGeometry args={[.009, 24]} /><meshBasicMaterial color={powered ? "#f4f2dc" : "#394548"} side={DoubleSide} /></mesh>}
-    {!point && ([
+    {fixationLetter && <Sign text={["E"]} p={[0, 0, faceZ * 2]} size={[.072, .072]} bg={powered ? "#f4f2dc" : "#394548"} fg="#162d2c" />}
+    {!fixationLetter && point && <mesh position={[0, 0, faceZ * 2]} userData={{ xrWorthDot: true }}><circleGeometry args={[.009, 24]} /><meshBasicMaterial color={powered ? "#f4f2dc" : "#394548"} side={DoubleSide} /></mesh>}
+    {!fixationLetter && !point && ([
       [0, .031, "#ee4242"], [-.026, 0, "#36c36f"], [.026, 0, "#36c36f"], [0, -.031, "#f4f2dc"],
     ] as const).map(([x, y, color], index) => <mesh key={index} position={[x, y, faceZ]} userData={{ xrWorthDot: true }}>
       <circleGeometry args={[.009, 20]} /><meshBasicMaterial color={powered ? color : "#394548"} side={DoubleSide} />
@@ -118,12 +119,12 @@ function FourDioptrePrism({ base = "right" }: { base?: string }) {
   </group>;
 }
 
-export function SensoryInstrumentModel({ id, powered, point, base, onPowerChange, highlightPowerSwitch = false }: { id: ConsultationToolId; powered: boolean; point?: boolean; base?: string; onPowerChange?: (powered: boolean) => void; highlightPowerSwitch?: boolean }) {
+export function SensoryInstrumentModel({ id, powered, point, fixationLetter, base, onPowerChange, highlightPowerSwitch = false }: { id: ConsultationToolId; powered: boolean; point?: boolean; fixationLetter?: boolean; base?: string; onPowerChange?: (powered: boolean) => void; highlightPowerSwitch?: boolean }) {
   if (id === "worth") return <group>
     <SensoryGrip />
     <Box p={[0, .12, 0]} s={[.135, .135, .024]} c="#24383b" radius={.042} />
-    <group position={[0, .12, -.012]}><WorthTargetFace powered={powered} point={point} face="front" /></group>
-    <group position={[0, .12, .012]} rotation={[0, Math.PI, 0]}><WorthTargetFace powered={powered} point={point} face="back" /></group>
+    <group position={[0, .12, -.012]}><WorthTargetFace powered={powered} point={point} fixationLetter={fixationLetter} face="front" /></group>
+    <group position={[0, .12, .012]} rotation={[0, Math.PI, 0]}><WorthTargetFace powered={powered} point={point} fixationLetter={fixationLetter} face="back" /></group>
     <WorthPowerSwitch powered={powered} face="front" onPowerChange={onPowerChange} highlight={highlightPowerSwitch} />
     <WorthPowerSwitch powered={powered} face="back" onPowerChange={onPowerChange} highlight={highlightPowerSwitch} />
   </group>;
@@ -133,7 +134,7 @@ export function SensoryInstrumentModel({ id, powered, point, base, onPowerChange
 }
 
 /** Lightweight illustrative virtual image; one physical target retains all ownership. */
-function MirrorDisplay({ runtime, letter }: { runtime: XRClinicRuntime; letter: boolean }) {
+function MirrorDisplay({ runtime, letter, fixationLetter = false }: { runtime: XRClinicRuntime; letter: boolean; fixationLetter?: boolean }) {
   const image = useRef<Group>(null);
 
   useFrame(() => {
@@ -150,9 +151,9 @@ function MirrorDisplay({ runtime, letter }: { runtime: XRClinicRuntime; letter: 
     image.current.rotation.set(0, Math.PI, 0);
   });
   if (letter) return <Sign text={["E", "ILLUSTRATIVE ISOLATED LETTER"]} p={[.31, 1.5, SENSORY_MIRROR.center[2] - .027]} rotation={[0, Math.PI, 0]} size={[.28, .22]} bg="#f7f7e8" fg="#183335" />;
-  return <group ref={image} visible={false} userData={{ xrIgnoreRay: true }}><WorthTargetFace mirror point={runtime.equipment.includes("maddox")} /></group>;
+  return <group ref={image} visible={false} userData={{ xrIgnoreRay: true }}><WorthTargetFace mirror point={runtime.equipment.includes("maddox")} fixationLetter={fixationLetter} /></group>;
 }
-export function SensoryClinicStation({ runtime, distanceLetter = false, active = false, showFittingGuides = true }: { runtime: XRClinicRuntime; distanceLetter?: boolean; active?: boolean; showFittingGuides?: boolean }) {
+export function SensoryClinicStation({ runtime, distanceLetter = false, fixationLetter = false, active = false, showFittingGuides = true }: { runtime: XRClinicRuntime; distanceLetter?: boolean; fixationLetter?: boolean; active?: boolean; showFittingGuides?: boolean }) {
   const sensory = runtime.equipment.some(id => ["worth", "red-green", "polarised", "stereo", "four-prism"].includes(id));
   if (!sensory && !distanceLetter) return null;
   const near = runtime.equipment.some(id => id === "worth" || id === "stereo");
@@ -168,7 +169,7 @@ export function SensoryClinicStation({ runtime, distanceLetter = false, active =
         <Box p={[...SENSORY_MIRROR.center]} s={[SENSORY_MIRROR.width + .05, SENSORY_MIRROR.height + .05, .035]} c="#375f63" />
         <Box p={[SENSORY_MIRROR.center[0], SENSORY_MIRROR.center[1], SENSORY_MIRROR.center[2] - .019]} s={[SENSORY_MIRROR.width, SENSORY_MIRROR.height, .006]} c="#b2ced0" />
         <Sign text={["SIMULATED MIRRORED 6 M PATH", "ILLUSTRATIVE · NOT CALIBRATED OPTICS"]} p={[.32, 1.08, 2.274]} rotation={[0, Math.PI, 0]} size={[.9, .12]} bg="#173a3e" fg="#e8fff9" />
-        <MirrorDisplay runtime={runtime} letter={distanceLetter} />
+        <MirrorDisplay runtime={runtime} letter={distanceLetter} fixationLetter={fixationLetter} />
         {runtime.equipment.includes("worth") && <>
           <Cylinder p={[SENSORY_DISTANCE_TARGET[0], .68, SENSORY_DISTANCE_TARGET[2]]} h={1.3} radius={.012} c="#768e8c" />
           <Box p={[SENSORY_DISTANCE_TARGET[0], 1.35, SENSORY_DISTANCE_TARGET[2] - .015]} s={[.16, .02, .10]} c="#456e69" />

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  CLINIC_COVER_ROTATION_ARM, alternateCoverMovements, alternateCoverNeutralized, coverEyeTargets, coverIrisOffset,
+  CLINIC_COVER_ROTATION_ARM, COVER_TEACHING_MAX_IRIS_FRACTION, COVER_TEACHING_VISUAL_GAIN, alternateCoverMovements, alternateCoverNeutralized, coverEyeTargets, coverIrisOffset, coverTeachingIrisOffset,
   deviationFromLabel, prismFixationShift, settleCoverEyes, straightPoses,
   type CoverDeviationModel, type CoverEyePoses, type PrismPlacement,
 } from "../interaction/coverDeviation";
@@ -139,5 +139,16 @@ describe("sustained cover-test deviations", () => {
     const desktop = coverIrisOffset("OS", { h: 12, v: 0 }, EYE_SURFACE_IRIS_RADIUS)[0] / EYE_SURFACE_IRIS_RADIUS;
     const xr = coverIrisOffset("OS", { h: 12, v: 0 })[0] / CLINIC_IRIS_RADIUS;
     expect(desktop).toBeCloseTo(xr, 10);
+  });
+
+  it("amplifies cover movement for teaching while preserving direction, neutral and reversal", () => {
+    const raw4 = coverIrisOffset("OS", { h: -4, v: 0 })[0];
+    const shown4 = coverTeachingIrisOffset("OS", { h: -4, v: 0 })[0];
+    expect(shown4).toBeCloseTo(raw4 * COVER_TEACHING_VISUAL_GAIN, 10);
+    expect(shown4).toBeLessThan(0);
+    expect(coverTeachingIrisOffset("OS", { h: 4, v: 0 })[0]).toBeGreaterThan(0);
+    expect(coverTeachingIrisOffset("OS", { h: 0, v: 0 })).toEqual([0, 0]);
+    const capped = coverTeachingIrisOffset("OS", { h: 50, v: 0 })[0];
+    expect(capped).toBeCloseTo(CLINIC_IRIS_RADIUS * COVER_TEACHING_MAX_IRIS_FRACTION, 10);
   });
 });

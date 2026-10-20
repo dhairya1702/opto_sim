@@ -5,7 +5,8 @@ import { krimskyCases, krimskyEye, type KrimskyMethod } from "../../interaction/
 import { KRIMSKY_GUIDED_STEP_COUNT, krimskyGuidedStep } from "../../interaction/alignmentGuidance";
 import { CLINIC_PATIENT_EYES } from "../../interaction/clinicPatient";
 import { PRISM_BAR_WORKING_Y } from "../../interaction/xrConsultationTools";
-import { useXRClinicRuntime } from "../../interaction/useXRClinicRuntime";
+import { useXRClinicRuntime, type ClinicInputMode } from "../../interaction/useXRClinicRuntime";
+import { desktopPatientFacingPose, desktopPenlightPose } from "../../interaction/desktopClinicInput";
 import { captureKrimskyComparison, clinicKrimskyReflex, krimskyComparisonSubmission, KRIMSKY_PRISM_POWERS, stepKrimskyPrismPower, xrKrimskyTechnique, type ExaminerEye, type KrimskyComparison } from "../../interaction/xrKrimskyPractice";
 import { createXRViewerScratch, xrExaminerPose, xrViewerPoses } from "../../interaction/xrViewer";
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
@@ -17,8 +18,8 @@ import { usePracticeAttempt } from "../PracticeAttemptContext";
 
 const prismPowerChoices = KRIMSKY_PRISM_POWERS.map(power => [String(power), `${power}Δ`] as const);
 const initialSetup = () => ({ method: "standard" as KrimskyMethod, fixation: false, examinerEye: null as ExaminerEye | null, base: "", power: 0 });
-export function KrimskyPracticeController({ active, preview = false, onComplete, onExit, onMirror }: {
-  active: boolean; preview?: boolean; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
+export function KrimskyPracticeController({ active, preview = false, inputMode = "xr", onComplete, onExit, onMirror }: {
+  active: boolean; preview?: boolean; inputMode?: ClinicInputMode; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
 }) {
   const { settings: attemptSettings } = usePracticeAttempt();
   const guided = attemptSettings?.kind === "guided";
@@ -39,7 +40,9 @@ export function KrimskyPracticeController({ active, preview = false, onComplete,
   }], [captured]);
   const clearPending = lesson.clearPending;
   const interrupt = useCallback(() => { if (!capturedRef.current) clearPending(); }, [clearPending]);
-  const runtime = useXRClinicRuntime({ active: active && !preview, editorOpen: lesson.mode !== "none", onInterrupt: interrupt,
+  const runtime = useXRClinicRuntime({ active: active && !preview, inputMode, editorOpen: lesson.mode !== "none", onInterrupt: interrupt,
+    desktopHeldPose: id => id === "pupils" ? desktopPenlightPose([0, 1.5, -.073])
+      : id === "prism" ? desktopPatientFacingPose("prism", [...CLINIC_PATIENT_EYES[krimskyEye(setupRef.current.method)].slice(0, 2), -.48] as [number, number, number]) : null,
     onToolUsed: (id, action) => { if (id === "prism" && action === "activate") compare(); },
     onThumbstickStep: (id, step, _hand, axis) => id === "prism" && (axis === "horizontal" ? selectPrismBase(step) : stepPrism(step)),
     onMenu: open => lesson.setMode(open ? "menu" : "none"), onSelection: selection => { if (selection.station === "patient") lesson.setMode("menu"); },
@@ -180,6 +183,7 @@ export function KrimskyPracticeController({ active, preview = false, onComplete,
       : technique.neutral ? "Reflexes match · prism-hand trigger captures comparison." : "Reflexes remain asymmetric · adjust prism power and compare.");
   const actions: LessonAction[] = [
     { label: setup.fixation ? "FIXATION GIVEN ✓" : "LOOK AT THE LIGHT", active: setup.fixation, run: () => updateSetup({ ...setupRef.current, fixation: true }) },
+    ...(inputMode === "desktop" ? [{ label: runtime.tools.pupils.powered ? "PENLIGHT ON ✓" : "SWITCH PENLIGHT ON", run: () => runtime.setToolPower("pupils", true), active: runtime.tools.pupils.powered }] : []),
     { label: "METHOD SETTINGS", run: () => lesson.setMode("settings") },
     { label: "CLOSE RIGHT EYE · LEFT VIEW", active: setup.examinerEye === "left", run: () => selectExaminerEye("left") },
     { label: "CLOSE LEFT EYE · RIGHT VIEW", active: setup.examinerEye === "right", run: () => selectExaminerEye("right") },

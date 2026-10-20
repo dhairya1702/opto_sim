@@ -36,6 +36,8 @@ async function lesson(kind: LibraryKind, preview = false, attemptKind?: Practice
   const settle = () => sim.step(1 / 72, 90);
   const targetSwitch = () => { let control: typeof sim.state.scene | undefined; sim.tool("worth").traverse(object => { if (object.userData.xrInstrumentControl === "worth") control = object as typeof sim.state.scene; }); if (!control) throw new Error("Missing point-target switch"); return control; };
   const physicalTargetSwitch = async () => { const control = targetSwitch(), point = control.getWorldPosition(new Vector3()); await sim.at(0, [point.x, point.y, point.z + .025]); await sim.click(0, control); };
+  const prismTurnControl = () => { let control: typeof sim.state.scene | undefined; sim.tool("prism-flipper").traverse(object => { if (object.userData.xrLabel === "PRISM FLIP TURN") control = object as typeof sim.state.scene; }); if (!control) throw new Error("Missing prism-flipper turn control"); return control; };
+  const physicalPrismFlip = async () => { const control = prismTurnControl(), point = control.getWorldPosition(new Vector3()); await sim.at(0, point.toArray() as [number, number, number]); await sim.click(0, control); };
   const prismCell = async (power: number, base: "BI" | "BO" | "BU" | "BD") => {
     const match = mirror!.status.match(/prism (\d+)Δ/); const current = Number(match?.[1] ?? 20);
     let index = MADDOX_PRISM_CELLS.indexOf(current as typeof MADDOX_PRISM_CELLS[number]);
@@ -49,7 +51,7 @@ async function lesson(kind: LibraryKind, preview = false, attemptKind?: Practice
   const holdNearPenlight = async () => { await sim.pickup(0, "pupils"); sim.rays[0].rotation.set(0, 0, 0); sim.grips[0].rotation.set(0, 0, 0); await sim.at(0, [0, 1.5, .026]); await sim.event(0, "selectstart"); await sim.step(1 / 72, 12); };
   const prepare = async (cover?: "OD" | "OS") => { await fit("subjective"); if (cover) await fit("cover", `sensory-occlude-${cover}`); if (kind === "push-up") { await fit("push-up-rule", "library-push-up-spectacle"); await action("GIVE FIRST SUSTAINED BLUR INSTRUCTION"); return; } if (["horizontal-near", "facility", "minus-lens", "relative", "accommodative-facility"].includes(kind)) await fit("near"); if (kind === "horizontal-near") { await action("CONFIRM PREPARED NEAR TARGET AT 40 CM"); await action("GIVE BLUR / DOUBLE / RECOVERY INSTRUCTION"); } else if (kind !== "minus-lens" && kind !== "relative") await action("ESTABLISH FIXATION"); };
   const noTest = () => { expect(sim.record).not.toHaveBeenCalled(); expect(sim.encounter().results).toHaveLength(0); };
-  return { ...sim, mirror: () => mirror!, complete, leave, action, fit, enter, tick, settle, prepare, noTest, physicalTargetSwitch, prismCell, holdNearPenlight };
+  return { ...sim, mirror: () => mirror!, complete, leave, action, fit, enter, tick, settle, prepare, noTest, physicalTargetSwitch, physicalPrismFlip, prismTurnControl, prismCell, holdNearPenlight };
 }
 describe("mounted remaining shared-clinic XR modules", () => {
   it("shows the seven-step Push-up coach and highlights only in Guided mode", async () => {
@@ -455,17 +457,45 @@ describe("mounted remaining shared-clinic XR modules", () => {
     await sim.enter({ "trial-1-break": "5", "trial-1-recovery": "9", "trial-2-break": "5", "trial-2-recovery": "9", "trial-3-break": "5", "trial-3-recovery": "9", "detection-method": "objective-observation", "breaking-eye": "OS" });
     expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
   });
-  it.each(["facility", "accommodative-facility"] as const)("times %s with full pairs, invalidation, release recording and all required eyes", async kind => {
+  it.each(["facility", "accommodative-facility"] as const)("times %s with physical full pairs, invalidation, release recording and all required eyes", async kind => {
     const sim = await lesson(kind); await sim.prepare(kind === "accommodative-facility" ? "OS" : undefined);
-    const tool = kind === "facility" ? "prism-flipper" : "lens-flipper", flip = kind === "facility" ? "CLEAR + SINGLE / FLIP" : "CLEAR / FLIP ±2 D";
+    const tool = kind === "facility" ? "prism-flipper" : "lens-flipper";
     for (let eye = 0; eye < (kind === "facility" ? 1 : 3); eye++) {
       if (eye === 1) await sim.fit("cover", "sensory-occlude-OD"); if (eye === 2) { await sim.pickup(0, "cover"); await sim.at(0, [-1.31, .9775, .59]); await sim.putDown(0); }
-      await sim.pickup(1, tool); await sim.at(1, [0, 1.4, -.46]); await sim.action("START 60-SECOND RUN"); await sim.action(flip); expect(sim.mirror().status).toContain("0 cycles");
-      await sim.tick(kind === "facility" ? 850 : 1500); await sim.action(flip); await sim.tick(kind === "facility" ? 650 : 1800); await sim.action(flip); expect(sim.mirror().status).toContain("1 cycles");
+      await sim.pickup(1, tool); await sim.at(1, [0, 1.4, -.46]); await sim.action("START 60-SECOND RUN");
+      if (kind === "facility") {
+        expect(sim.mirror().actions.map(action => action.label)).not.toContain("CLEAR + SINGLE / FLIP");
+        const control = sim.prismTurnControl(), heldPosition = sim.tool("prism-flipper").getWorldPosition(new Vector3()).clone();
+        await sim.at(0, [1, 1, 1]); await sim.click(0, control);
+        expect(sim.mirror().status).toContain("BO"); expect(sim.haptics[0]).not.toHaveBeenCalled();
+        await sim.physicalPrismFlip();
+        expect(sim.mirror().status).toContain("BI"); expect(sim.mirror().status).toContain("0 cycles");
+        expect(sim.mirror().status).toContain("still double"); expect(sim.haptics[0]).toHaveBeenCalledTimes(1);
+        expect(sim.tool("prism-flipper").getWorldPosition(new Vector3()).distanceTo(heldPosition)).toBeLessThan(.001);
+        await sim.tick(650); await sim.physicalPrismFlip(); expect(sim.mirror().status).toContain("0 cycles");
+        await sim.tick(850); await sim.physicalPrismFlip(); await sim.tick(650); await sim.physicalPrismFlip(); expect(sim.mirror().status).toContain("1 cycles");
+      } else {
+        await sim.action("CLEAR / FLIP ±2 D"); expect(sim.mirror().status).toContain("0 cycles");
+        await sim.tick(1500); await sim.action("CLEAR / FLIP ±2 D"); await sim.tick(1800); await sim.action("CLEAR / FLIP ±2 D"); expect(sim.mirror().status).toContain("1 cycles");
+      }
       if (eye === 0) { sim.tracked[1] = false; await sim.step(); sim.tracked[1] = true; await sim.step(1 / 72, 12); expect(sim.mirror().status).toContain("0 cycles"); await sim.action("START 60-SECOND RUN"); }
       await sim.tick(60000); expect(sim.mirror().ready).toBe(true); await sim.putDown(1); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(true); await sim.enter({ cycles: eye === 0 ? "0" : "1" });
     }
     expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
+  });
+  it("requires physical near-target placement for vergence facility", async () => {
+    const sim = await lesson("facility");
+    expect(sim.mirror().actions.map(action => action.label)).not.toContain("SUPPORT NEAR TARGET AT 40 CM");
+    await sim.fit("subjective"); await sim.action("ESTABLISH FIXATION");
+    await sim.pickup(1, "prism-flipper"); await sim.at(1, [0, 1.4, -.46]);
+    expect(sim.mirror().actions.find(action => action.label === "START 60-SECOND RUN")?.disabled).toBe(true);
+    await sim.action("START 60-SECOND RUN"); await sim.tick(1000);
+    expect(sim.mirror().status).toContain("60s");
+    await sim.fit("near");
+    expect(sim.mirror().actions.find(action => action.label === "START 60-SECOND RUN")?.disabled).toBe(false);
+    await sim.action("START 60-SECOND RUN"); await sim.tick(1000);
+    expect(sim.mirror().status).toContain("59s");
+    sim.noTest();
   });
   it("completes push-up OD, OS and OU with fitted occlusion and independently calculated amplitudes", async () => {
     const sim = await lesson("push-up", false, "guided"); await sim.prepare("OS");

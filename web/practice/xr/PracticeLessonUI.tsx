@@ -102,7 +102,7 @@ export function PracticeLessonUI({ runtime, active, title, status, help, tools, 
   const boardActions = directActions ?? actions.slice(0, 2);
   const actionExtension = Math.max(0, boardActions.length - 1) * .10;
   const submit = () => {
-    if (!runtime.frameValid.current) { lesson.explain("Restore headset/controller tracking before submitting."); return; }
+    if (!runtime.frameValid.current) { lesson.explain("Restore clinic controls before submitting."); return; }
     if (!ready) { lesson.explain("Before submitting: " + status); return; }
     if (fields.some(field => !lesson.entriesRef.current[field.id])) { lesson.explain("Choose an answer for every observation field, including the other pages."); return; }
     onRecord();
@@ -117,7 +117,7 @@ export function PracticeLessonUI({ runtime, active, title, status, help, tools, 
         <XRPanelButton label="EXIT" position={[.24, .46, .02]} width={.22} onClick={onExit} />
       </> : <>
         <XRPanelButton label="PROCEDURE CONTROLS" position={[-.105, .46, .02]} width={.55} onClick={() => lesson.setMode("menu")} />
-        <XRPanelButton label="EXIT VR" position={[.28, .46, .02]} width={.18} onClick={onExit} />
+        <XRPanelButton label={runtime.inputMode === "desktop" ? "EXIT CLINIC" : "EXIT VR"} position={[.28, .46, .02]} width={.18} onClick={onExit} />
       </>}
       {visibleFields.map((field, fieldIndex) => {
         const previousRows = visibleFields.slice(0, fieldIndex).reduce((sum, item) => sum + fieldRows(item), 0);
@@ -158,14 +158,14 @@ export function PracticeLessonUI({ runtime, active, title, status, help, tools, 
       <XRPanelButton label="RECORD FINDING" position={[-.17, -.025 - Math.ceil(actions.length / 2) * .085, .025]} width={.32} onClick={() => lesson.setMode("record")} />
       <XRPanelButton label="HELP" position={[.17, -.025 - Math.ceil(actions.length / 2) * .085, .025]} width={.32} onClick={() => lesson.setMode("help")} />
       <XRPanelButton label="RESET ATTEMPT" position={[-.17, -.11 - Math.ceil(actions.length / 2) * .085, .025]} width={.32} onClick={onReset} />
-      <XRPanelButton label="EXIT VR" position={[.17, -.11 - Math.ceil(actions.length / 2) * .085, .025]} width={.32} onClick={onExit} />
+      <XRPanelButton label={runtime.inputMode === "desktop" ? "EXIT CLINIC" : "EXIT VR"} position={[.17, -.11 - Math.ceil(actions.length / 2) * .085, .025]} width={.32} onClick={onExit} />
       <XRPanelButton label="CLOSE" position={[0, -.195 - Math.ceil(actions.length / 2) * .085, .025]} width={.66} onClick={closePanels} />
     </XRHeadPanel>}
     {lesson.mode === "help" && <XRHeadPanel>
       <Box s={[.76, .72, .018]} c="#102329" radius={.012} />
       <XRSign text={[title, ...help, status]} p={[0, .055, .012]} size={[.70, .49]} bg="#102329" fg="#eefbf7" />
       <XRPanelButton label="CLOSE HELP" position={[-.17, -.26, .025]} width={.32} onClick={closePanels} />
-      <XRPanelButton label="EXIT VR" position={[.17, -.26, .025]} width={.32} onClick={onExit} />
+      <XRPanelButton label={runtime.inputMode === "desktop" ? "EXIT CLINIC" : "EXIT VR"} position={[.17, -.26, .025]} width={.32} onClick={onExit} />
     </XRHeadPanel>}
     {lesson.mode === "settings" && settings}
   </>;

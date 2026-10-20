@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Group, MeshBasicMaterial, Quaternion, Vector3 } from "three";
-import { useXRClinicRuntime, type XRClinicInterruption } from "../../interaction/useXRClinicRuntime";
+import { useXRClinicRuntime, type ClinicInputMode, type XRClinicInterruption } from "../../interaction/useXRClinicRuntime";
+import { desktopPenlightPose } from "../../interaction/desktopClinicInput";
 import { CLINIC_EYE_MIDPOINT, CLINIC_PATIENT_EYES } from "../../interaction/clinicPatient";
 import { emptyHirschbergTechnique, clinicHirschbergReflex, hirschbergSubmission, type HirschbergPracticeFinding } from "../../interaction/xrHirschbergPractice";
 import { HIRSCHBERG_GUIDED_STEP_COUNT, hirschbergGuidedStep } from "../../interaction/opticGuidance";
@@ -24,6 +25,7 @@ export const HIRSCHBERG_LANDMARKS = [
 ] as const;
 export type HirschbergPracticeMirror = {
   technique: XRHirschbergTechnique; held: boolean; light: boolean; fixation: boolean;
+  captured: boolean;
   direction: string; amount: string; checked: boolean; correct: boolean; help: boolean; recording: boolean;
   giveFixation: () => void; toggleHelp: () => void; openRecording: () => void;
   chooseDirection: (value: string) => void; chooseAmount: (value: string) => void;
@@ -55,8 +57,8 @@ function HirschbergReflexes({ scenario, visual }: { scenario: OpticScenario; vis
 }
 
 /** A lesson adapter over the shared clinic, with no consultation case/reducer dependency. */
-export function HirschbergPracticeController({ active, preview = false, scenario, finding, findingPosition, onComplete, onNext, onExit, onMirror }: {
-  active: boolean; preview?: boolean; scenario: OpticScenario; finding: HirschbergPracticeFinding;
+export function HirschbergPracticeController({ active, preview = false, inputMode = "xr", scenario, finding, findingPosition, onComplete, onNext, onExit, onMirror }: {
+  active: boolean; preview?: boolean; inputMode?: ClinicInputMode; scenario: OpticScenario; finding: HirschbergPracticeFinding;
   findingPosition: { current: number; total: number };
   onComplete: () => void; onNext: () => void; onExit: () => void;
   onMirror?: (mirror: HirschbergPracticeMirror) => void;
@@ -92,7 +94,8 @@ export function HirschbergPracticeController({ active, preview = false, scenario
     setTechnique(emptyHirschbergTechnique()); visual.lit = false;
     if (!awarded.current) { entries.current = { direction: "", amount: "" }; setDirection(""); setAmount(""); setChecked(false); }
   }, [visual, clearResult]);
-  const runtime = useXRClinicRuntime({ active: active && !preview, editorOpen: recording || menu || help,
+  const runtime = useXRClinicRuntime({ active: active && !preview, inputMode, editorOpen: recording || menu || help,
+    desktopHeldPose: id => id === "pupils" ? desktopPenlightPose([0, 1.5, -.073]) : null,
     onInterrupt: invalidation,
     onMenu: open => { setMenu(open); if (!open) { setRecording(false); setHelp(false); } },
     onSelection: selection => {
@@ -197,7 +200,7 @@ export function HirschbergPracticeController({ active, preview = false, scenario
     recorded: correct && checked,
   });
   const nextFinding = useCallback(() => { if (!awarded.current) return; clearAttempt(); onNext(); }, [clearAttempt, onNext]);
-  useEffect(() => { onMirror?.({ technique, held, light, fixation, direction, amount, checked, correct, help, recording,
+  useEffect(() => { onMirror?.({ technique, held, light, fixation, captured: Boolean(captured), direction, amount, checked, correct, help, recording,
     giveFixation, toggleHelp, openRecording, chooseDirection, chooseAmount, record, cancel, reset, next: nextFinding,
   }); }, [technique, held, light, fixation, direction, amount, checked, correct, help, recording, finding, active, captured, onMirror, nextFinding]);
   const findings = <>

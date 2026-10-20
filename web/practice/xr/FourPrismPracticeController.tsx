@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Quaternion, Vector3 } from "three";
-import { useXRClinicRuntime, type XRClinicInterruption } from "../../interaction/useXRClinicRuntime";
+import { useXRClinicRuntime, type ClinicInputMode, type XRClinicInterruption } from "../../interaction/useXRClinicRuntime";
+import { desktopPatientFacingPose } from "../../interaction/desktopClinicInput";
+import { CLINIC_PATIENT_EYES } from "../../interaction/clinicPatient";
 import { xrPracticeEyePlacement } from "../../interaction/xrPracticeBatch";
 import {
   FOUR_PRISM_GUIDED_STEP_COUNT, advanceFourPrismSample, cancelFourPrismRun, clinicFourPrismGaze,
@@ -32,8 +34,8 @@ const interpretationFields: LessonField[] = [{ id: "interpretation", label: "Fin
 ] }];
 const seed = () => globalThis.crypto?.getRandomValues ? globalThis.crypto.getRandomValues(new Uint32Array(1))[0] : Math.floor(Math.random() * 0x100000000);
 
-export function FourPrismPracticeController({ active, preview = false, onComplete, onExit, onMirror, scenarioSeed }: {
-  active: boolean; preview?: boolean; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void; scenarioSeed?: number;
+export function FourPrismPracticeController({ active, preview = false, inputMode = "xr", onComplete, onExit, onMirror, scenarioSeed }: {
+  active: boolean; preview?: boolean; inputMode?: ClinicInputMode; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void; scenarioSeed?: number;
 }) {
   const { settings } = usePracticeAttempt();
   const guided = settings?.kind !== "test";
@@ -69,7 +71,7 @@ export function FourPrismPracticeController({ active, preview = false, onComplet
     publish(interruptFourPrismEye(runRef.current, false, `Prism base arrow ${base}.`));
     return true;
   }, [publish]);
-  const runtime = useXRClinicRuntime({ active: active && !preview, editorOpen: lesson.mode !== "none",
+  const runtime = useXRClinicRuntime({ active: active && !preview, inputMode, editorOpen: lesson.mode !== "none",
     equipment: sensoryEquipment("four-prism"), placementSockets: sensorySockets("four-prism"), onInterrupt: interrupt,
     onThumbstickStep: (id, step, _hand, axis) => id === "four-prism" && axis === "horizontal"
       ? selectPrismBase(step < 0 ? "left" : "right") : false,
@@ -136,15 +138,34 @@ export function FourPrismPracticeController({ active, preview = false, onComplet
   useEffect(() => { if (!active || preview) reset(); }, [active, preview, reset]);
 
   const fixate = () => publish(establishFourPrismFixation(runRef.current));
+  const fitCorrection = () => {
+    const socket = sensorySockets("four-prism").find(candidate => candidate.tool === "subjective" && candidate.id === "sensory-correction");
+    if (!socket) return;
+    const tool = runtime.toolsRef.current.subjective;
+    runtime.updateTools({ ...runtime.toolsRef.current, subjective: { ...tool,
+      placement: { kind: "socket", position: socket.position, rotation: socket.rotation, socketId: socket.id, fittingLayer: socket.fittingLayer },
+      revision: (tool.revision ?? 0) + 1 } });
+  };
+  const positionDesktopPrism = () => {
+    const eye = runRef.current.expectedEye, anchor = CLINIC_PATIENT_EYES[eye];
+    selectPrismBase(eye === "OD" ? "left" : "right");
+    runtime.setDesktopHeldPose("four-prism", desktopPatientFacingPose("four-prism", [anchor[0], anchor[1], anchor[2] + .06]));
+  };
   const fixationAction: LessonAction = { label: "LOOK AT THE ISOLATED LETTER", disabled: !run.fitted || run.recorded,
     active: run.fixationSetupRevision === run.setupRevision, run: fixate };
   const withdrawAction: LessonAction = { label: "WITHDRAW PRISM", disabled: run.phase !== "withdraw",
-    run: () => lesson.explain("In VR, physically move the dedicated prism clear of both eyes.") };
+    run: () => inputMode === "desktop"
+      ? runtime.setDesktopHeldPose("four-prism", desktopPatientFacingPose("four-prism", [.4, 1.5, -.48]))
+      : lesson.explain("In VR, physically move the dedicated prism clear of both eyes.") };
   const repeatAction: LessonAction = { label: "REPEAT COMPARISON", disabled: !run.eyeCaptures.OD,
     run: () => { publish(repeatFourPrismComparison(runRef.current)); lesson.clearPending(); } };
   const clearFixationAction: LessonAction = { label: "CLEAR FIXATION", disabled: run.fixationSetupRevision === null || run.recorded,
     run: () => { publish(clearFourPrismFixation(runRef.current)); lesson.clearPending(); } };
-  const actions = [fixationAction, withdrawAction, repeatAction, clearFixationAction];
+  const actions = [fixationAction, withdrawAction, repeatAction, clearFixationAction,
+    ...(inputMode === "desktop" ? [
+      { label: "FIT DISTANCE CORRECTION", active: run.fitted, run: fitCorrection },
+      { label: `POSITION 4Δ BO BEFORE ${run.expectedEye}`, run: positionDesktopPrism },
+    ] : [])];
   const directActions = run.phase === "fixation" ? [fixationAction] : run.phase === "withdraw" ? [withdrawAction] : run.completedRun ? [] : run.eyeCaptures.OD ? [repeatAction] : [];
   const fields = run.completedRun ? interpretationFields : observationFields;
   const bilateralCaptured = Boolean(run.eyeCaptures.OD && run.eyeCaptures.OS);

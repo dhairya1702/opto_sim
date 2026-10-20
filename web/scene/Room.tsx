@@ -58,7 +58,7 @@ const bounds: Record<StationId, { p: [number, number, number]; s: [number, numbe
   trolley: { p: [INSTRUMENT_KIT.x, .47, INSTRUMENT_KIT.z], s: [INSTRUMENT_KIT.depth + .08, .94, INSTRUMENT_KIT.width + .08] },
   refraction: { p: [-1.45, 0.64, -1.4], s: [0.91, 1.25, 1.26] },
   fundus: { p: [consultationToolDefinition("fundus").home[0], 1.09, consultationToolDefinition("fundus").home[2]], s: [0.18, 0.42, 0.16] },
-  acuity: { p: [0.05, 1.84, -2.41], s: [0.69, 1, 0.03] },
+  acuity: { p: [-1.02, 1.84, -2.41], s: [0.69, 1, 0.03] },
 };
 function Highlight({ id }: { id: StationId }) {
   const b = bounds[id];
@@ -96,7 +96,7 @@ export function ConsultationInterior({ held, xr = false }: { held?: Consultation
         <Refraction portable={false} />
       </group>
       <group userData={{ station: "acuity" }}>
-        <Box p={[0.05, 1.84, -2.445]} s={[0.72, 1.04, 0.08]} c="#273d42" />
+        <Box p={[-1.02, 1.84, -2.445]} s={[0.72, 1.04, 0.08]} c="#273d42" />
         <Sign
           text={[
             "E",
@@ -107,7 +107,7 @@ export function ConsultationInterior({ held, xr = false }: { held?: Consultation
             "E D F C Z P",
             "SIMULATED DISPLAY",
           ]}
-          p={[0.05, 1.84, -2.398]}
+          p={[-1.02, 1.84, -2.398]}
           size={[0.65, 0.97]}
           bg="#f8faf3"
           fg="#24363b"
