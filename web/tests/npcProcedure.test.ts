@@ -88,6 +88,45 @@ describe("shared NPC procedure", () => {
     run = enterNPCRecord(run, "detection-method", "objective-observation"); run = enterNPCRecord(run, "breaking-eye", "OS"); expect(submitNPCRecord(run).record).toBeNull();
     run = enterNPCRecord(run, "detection-method", "patient-report"); run = submitNPCRecord(run); expect(run.record?.submittedBreaksCm).toEqual([6, 6, 6]); expect(submitNPCRecord(run)).toBe(run);
   });
+  it.each(["subjective", "objective"] as const)("guides each %s trial by its active phase, not the live start distance or earlier captures", caseId => {
+    let run = prepared(caseId), now = 0;
+    const finding = NPC_CASES[caseId];
+    for (let number = 1; number <= 3; number++) {
+      expect(npcGuidedStep(run, spatial(now, 35)).id).toBe("start");
+      expect(npcGuidedStep(run, spatial(now, 40)).id).toBe("stability");
+      run = sampleNPC(run, spatial(now, 40));
+      run = sampleNPC(run, spatial(now += 250, 40));
+      let result = move(run, 40, 35, now); run = result.run; now = result.now;
+      expect(run.phase).toBe("approach");
+      expect(npcGuidedStep(run, spatial(now, 35))).toMatchObject({ id: "approach", lines: expect.arrayContaining([`Trial ${number} of 3.`]) });
+      result = move(run, 35, finding.breakCm, now); run = result.run; now = result.now;
+      expect(npcGuidedStep(run, spatial(now, finding.breakCm)).id).toBe("break");
+      run = sampleNPC(run, spatial(now += 250, finding.breakCm));
+      if (caseId === "objective") run = markNPCObjectiveEndpoint(run, spatial(now, finding.breakCm));
+      expect(npcGuidedStep(run, spatial(now, finding.breakCm)).id).toBe("recovery");
+      run = sampleNPC(run, spatial(now += 10, finding.breakCm));
+      result = move(run, finding.breakCm, finding.recoveryCm, now); run = result.run; now = result.now;
+      expect(npcGuidedStep(run, spatial(now, finding.recoveryCm)).id).toBe("recovery");
+      run = sampleNPC(run, spatial(now += 250, finding.recoveryCm));
+      if (caseId === "objective") run = markNPCObjectiveEndpoint(run, spatial(now, finding.recoveryCm));
+      expect(run.captures).toHaveLength(number);
+      now += 500;
+    }
+    const releasedSample = spatial(now, finding.recoveryCm, { ruleDocked: false, ruleHeld: false });
+    expect(npcGuidedStep(run, releasedSample).id).toBe("record");
+    run = releaseNPCRule(run);
+    expect(npcGuidedStep(run, releasedSample).id).toBe("record");
+  });
+
+  it("requires the start distance again when an interrupted approach genuinely restarts", () => {
+    let run = prepared();
+    run = sampleNPC(run, spatial(0, 40)); run = sampleNPC(run, spatial(250, 40));
+    run = move(run, 40, 35, 250).run;
+    run = interruptNPCRun(run, "Tracking lost.");
+    expect(run.phase).toBe("start");
+    expect(npcGuidedStep(run, spatial(3000, 35)).id).toBe("start");
+  });
+
   it("derives one of ten guided steps and voice cannot create evidence", () => {
     const run = prepared("objective"), step = npcGuidedStep(run, spatial(0, 40)); expect(step.index).toBeGreaterThanOrEqual(0); expect(step.index).toBeLessThan(10);
     expect(npcVoiceReply(run, 5)).toContain("single"); expect(run.captures).toHaveLength(0);

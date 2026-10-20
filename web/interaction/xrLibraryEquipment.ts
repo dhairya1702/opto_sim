@@ -15,7 +15,7 @@ export function libraryEquipment(kind: LibraryKind): readonly ConsultationToolId
   if (kind === "maddox") return ["subjective", "maddox", "prism", "worth", "pupils"];
   if (kind === "thorington") return ["subjective", "maddox", "thorington", "pupils"];
   if (kind === "npc" || kind === "push-up") return kind === "npc" ? ["subjective", "npc-rule"] : ["subjective", "push-up-rule", "cover"];
-  if (kind === "horizontal-distance" || kind === "vertical-distance") return ["subjective", "vergence-prism"];
+  if (kind === "horizontal-distance" || kind === "vertical-distance") return ["subjective", "worth", "vergence-prism"];
   if (kind === "horizontal-near") return ["subjective", "near", "vergence-prism"];
   if (kind === "facility") return ["subjective", "near", libraryTool(kind)];
   if (kind === "minus-lens") return ["subjective", "near", "minus-lens-holder", "cover"];

@@ -326,23 +326,34 @@ export function reviseNPCSetup(run: NPCRun, reason: string): NPCRun {
 }
 
 export function npcGuidedStep(run: NPCRun, sample: NPCSpatialSample): NPCGuidedStep {
-  const geometryReady = !npcRuleGeometry(sample);
-  const currentCapture = run.captures.length === NPC_TRIAL_COUNT;
-  const checks = [
-    ["correction", "Fit near correction", "Fit Arun's appropriate near correction.", run.correctionFitted && sample.correctionFitted],
-    ["pickup", "Pick up the rule", "Pick up the RAF-style rule by its handle.", run.ruleHeld || run.ruleDocked || sample.ruleHeld || sample.ruleDocked],
-    ["dock", "Dock at spectacle plane", "Dock the patient end and align the upright rail on the binocular midline.", geometryReady],
-    ["start", "Set the start distance", "Set the target within 38–42 cm.", sample.distanceCm >= NPC_START_MIN_CM && sample.distanceCm <= NPC_START_MAX_CM],
-    ["instruction", "Give the patient instruction", "Ask Arun to keep the target clear and single and report sustained diplopia.", run.instructionArmed],
-    ["stability", "Establish starting fixation", "Hold valid starting fixation for 250 ms.", run.phase !== "start" && run.phase !== "setup"],
-    ["approach", "Move inward", "Move inward continuously at about 1–2 cm/s while preserving alignment.", Boolean(run.breakCapture) || run.captures.length > 0],
-    ["break", "Capture break", run.caseId === "subjective" ? "Hold at Arun's sustained diplopia report." : "Observe OS and explicitly mark its loss of fixation.", Boolean(run.breakCapture) || run.captures.length > 0],
-    ["recovery", "Move outward and capture recovery", "Reverse only after break, then move outward to recovery.", run.captures.length > 0],
-    ["record", "Release and record independently", "After three trials, release the rule and enter all findings without defaults.", Boolean(run.record)],
+  const steps = [
+    ["correction", "Fit near correction", "Fit Arun's appropriate near correction."],
+    ["pickup", "Pick up the rule", "Pick up the RAF-style rule by its handle."],
+    ["dock", "Dock at spectacle plane", "Dock the patient end and align the upright rail on the binocular midline."],
+    ["start", "Set the start distance", "Set the target within 38–42 cm."],
+    ["instruction", "Give the patient instruction", "Ask Arun to keep the target clear and single and report sustained diplopia."],
+    ["stability", "Establish starting fixation", "Hold valid starting fixation for 250 ms."],
+    ["approach", "Move inward", "Move inward continuously at about 1–2 cm/s while preserving alignment."],
+    ["break", "Capture break", run.caseId === "subjective" ? "Hold at Arun's sustained diplopia report." : "Observe OS and explicitly mark its loss of fixation."],
+    ["recovery", "Move outward and capture recovery", "Reverse only after break, then move outward to recovery."],
+    ["record", "Release and record independently", "After three trials, release the rule and enter all findings without defaults."],
   ] as const;
-  const index = run.phase === "complete" ? 9 : Math.max(0, checks.findIndex(check => !check[3]));
-  const step = checks[index];
-  return Object.freeze({ id: step[0], index, title: step[1], lines: Object.freeze([step[2], `Trial ${run.trialNumber} of ${NPC_TRIAL_COUNT}.`]), complete: Boolean(run.record) && currentCapture });
+  // Starting distance applies only before the current trial's inward approach.
+  // Completed trials must not stand in for the current trial's break/recovery.
+  const starting = run.phase === "setup" || run.phase === "start";
+  const recording = ["captured", "release", "entry", "complete"].includes(run.phase);
+  const index = recording ? 9
+    : !run.correctionFitted || !sample.correctionFitted ? 0
+    : !(run.ruleHeld || run.ruleDocked || sample.ruleHeld || sample.ruleDocked) ? 1
+    : npcRuleGeometry(sample) ? 2
+    : starting && (sample.distanceCm < NPC_START_MIN_CM || sample.distanceCm > NPC_START_MAX_CM) ? 3
+    : !run.instructionArmed ? 4
+    : starting ? 5
+    : run.phase === "approach" ? run.endpointStableSinceMs === null ? 6 : 7
+    : 8;
+  const step = steps[index];
+  return Object.freeze({ id: step[0], index, title: step[1], lines: Object.freeze([step[2], `Trial ${run.trialNumber} of ${NPC_TRIAL_COUNT}.`]),
+    complete: Boolean(run.record) && run.captures.length === NPC_TRIAL_COUNT });
 }
 
 export function npcVoiceInstruction(run: NPCRun) { return configureNPCRun(run, "give-instruction"); }

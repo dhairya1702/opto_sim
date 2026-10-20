@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { clinicalCase as c } from "../../cases/adultDistanceBlur";
 import type { StationId } from "../../domain/types";
-import { gazePositions } from "../../interaction/motility";
+import { motilityHRoutePositions } from "../../interaction/motility";
 import { acuityTarget } from "../../interaction/acuity";
 import { pupilTargets, type PupilEye } from "../../interaction/pupils";
 import { coverProcedure, coverTargets, type CoverPosition } from "../../interaction/cover";
@@ -9,6 +9,7 @@ import { grossNeutralLens, retinoscopyTargets, type RetinoscopyEye } from "../..
 import { stations } from "../../interaction/navigation";
 async function enter(page: Page) {
   await page.goto("/");
+  await page.getByRole("button", { name: /Test yourself with a patient/ }).click();
   await page.getByRole("button", { name: "Use click-based station mode" }).click();
 }
 async function openStation(page: Page, id: StationId) {
@@ -17,6 +18,24 @@ async function openStation(page: Page, id: StationId) {
 }
 async function close(page: Page) {
   await page.getByRole("button", { name: "Return to room", exact: true }).click();
+}
+async function completeManualMotility(page: Page) {
+  const viewport = page.getByRole("application", { name: /Manual fixation target/ });
+  const box = (await viewport.boundingBox())!;
+  const point = (x: number, y: number) => ({ x: box.x + box.width * (0.5 + x * 0.4), y: box.y + box.height * (0.5 - y * 0.4) });
+  let previous = motilityHRoutePositions[0];
+  let position = point(previous.x, previous.y);
+  await page.mouse.move(position.x, position.y); await page.mouse.down(); await page.waitForTimeout(850);
+  const seen = new Set([previous.id]);
+  for (const next of motilityHRoutePositions.slice(1)) {
+    for (let step = 1; step <= 20; step += 1) {
+      position = point(previous.x + (next.x - previous.x) * step / 20, previous.y + (next.y - previous.y) * step / 20);
+      await page.mouse.move(position.x, position.y); await page.waitForTimeout(40);
+    }
+    if (!seen.has(next.id)) { await page.waitForTimeout(850); seen.add(next.id); }
+    previous = next;
+  }
+  await page.mouse.up();
 }
 async function completeManualAcuity(page: Page, examId: "distance" | "pinhole" | "near", eye: "OD" | "OS") {
   await page.getByRole("button", { name: /Ask Arun to read/ }).click();
@@ -164,13 +183,9 @@ test("complete scripted encounter without credentials", async ({ page }) => {
         await page.getByRole("button", { name: "Examine Arun →", exact: true }).click();
         if (exam.id === "motility") {
           await page.getByRole("button", { name: "Ask Arun to follow the target, head still" }).click();
-          const viewport = page.getByRole("application", { name: /Manual fixation target/ });
-          const box = (await viewport.boundingBox())!;
-          for (const p of gazePositions) {
-            await page.mouse.click(box.x + box.width * (0.5 + p.x * 0.4), box.y + box.height * (0.5 - p.y * 0.4));
-            await expect(page.getByRole("list", { name: "Observed gaze positions" }).getByText(`✓ ${p.label}`, { exact: true })).toBeVisible();
-          }
-          await page.getByRole("button", { name: "Ask about double vision", exact: true }).click();
+          await page.getByRole("button", { name: "Switch penlight on" }).click();
+          await completeManualMotility(page);
+          await page.getByRole("button", { name: "Ask about double vision, pain, or discomfort", exact: true }).click();
           await page.getByLabel("What did you observe?").selectOption("full");
         } else if (["distance", "pinhole", "near"].includes(exam.id)) {
           await completeManualAcuity(page, exam.id as "distance" | "pinhole" | "near", eye as "OD" | "OS");

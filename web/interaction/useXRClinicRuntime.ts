@@ -38,7 +38,7 @@ function ancestorData(object: Object3D | null) {
   let station: StationId | undefined;
   let examId: string | undefined;
   let teleport: [number, number, number] | undefined;
-  let action: (() => void) | undefined;
+  let action: (() => boolean | void) | undefined;
   let instrumentControl: ConsultationToolId | undefined;
   let consultationToolId: ConsultationToolId | undefined;
   let priorityPanel = false;
@@ -912,8 +912,8 @@ export function useXRClinicRuntime(options: Options) {
           }
         }
         if (data.action) {
-          data.action();
-          if (data.instrumentControl && slot.hand) pulseHand(slot.hand, .35, 40);
+          const accepted = data.action();
+          if (accepted !== false && data.instrumentControl && slot.hand) pulseHand(slot.hand, .35, 40);
         }
         else if (data.teleport) { pauseTechnique(); teleport(data.teleport); }
         else optionsRef.current.onSelection?.(data);

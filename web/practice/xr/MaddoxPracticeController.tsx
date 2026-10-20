@@ -29,6 +29,7 @@ export function MaddoxPracticeController({ active, preview = false, inputMode = 
 }) {
   const { settings } = usePracticeAttempt();
   const guided = settings?.kind !== "test";
+  const feedbackKind = guided ? "guided" : "test";
   const live = active && !preview;
   const lesson = usePracticeLesson(onComplete);
   const runRef = useRef<MaddoxRun>(newMaddoxRun());
@@ -117,7 +118,7 @@ export function MaddoxPracticeController({ active, preview = false, inputMode = 
     if (clock.current < .05) return;
     clock.current = 0;
     const nextSample = physicalSample();
-    const nextRun = runRef.current.reportInstruction && !runRef.current.capture ? sampleMaddox(runRef.current, nextSample, performance.now()) : runRef.current;
+    const nextRun = runRef.current.reportInstruction && !runRef.current.capture ? sampleMaddox(runRef.current, nextSample, performance.now(), feedbackKind) : runRef.current;
     if (nextSample.prismAligned && nextSample.cell !== null) {
       const key = `${nextSample.cell}:${nextSample.base ?? "tilted"}`;
       if (key !== lastCell.current) {
@@ -153,10 +154,10 @@ export function MaddoxPracticeController({ active, preview = false, inputMode = 
   const capture = useCallback(() => {
     if (!live || runRef.current.capture || lesson.awarded.current) return;
     const nextSample = physicalSample(); publishSample(nextSample);
-    const next = captureMaddox(runRef.current, nextSample); setRun(next);
+    const next = captureMaddox(runRef.current, nextSample, feedbackKind); setRun(next);
     if (!next.capture) lesson.explain(next.feedback);
     else { lesson.clearPending(); lesson.progress("Coincidence captured. Put both tools down, then record power and base."); }
-  }, [lesson, live, physicalSample, publishSample, setRun]);
+  }, [feedbackKind, lesson, live, physicalSample, publishSample, setRun]);
   captureTrigger.current = capture;
 
   const toolsDown = runtime.tools.prism.placement.kind !== "held" && (run.capture?.site !== "near" || runtime.tools.pupils.placement.kind !== "held");
@@ -173,7 +174,7 @@ export function MaddoxPracticeController({ active, preview = false, inputMode = 
   const cancel = () => { if (!lesson.awarded.current) { setRun(cancelMaddoxEntry(runRef.current)); fixation.current = false; lesson.clearPending(); } lesson.setMode("none"); };
 
   const trial = MADDOX_TRIALS[run.trialIndex];
-  const issue = maddoxSetupIssue(spatial, trial);
+  const issue = maddoxSetupIssue(spatial, trial, feedbackKind);
   const procedureStatus = !run.reportInstruction ? issue || "Ask Arun to fixate and report the streak/light relationship."
     : run.report || issue || run.feedback || "Hold the selected prism cell steady.";
   const status = `${trial.site} · ${trial.axis} · ${Math.round(spatial.distanceCm)} cm · prism ${prismSetting.power}Δ ${prismSetting.base} · ${run.records.length}/4 records · ${run.capture ? toolsDown ? "Captured; enter power and base." : "Captured; put the tools down before entry." : procedureStatus}`;

@@ -1,8 +1,10 @@
+import { accommodativeFacilityBoardActions } from "../../interaction/practiceBoardActions";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import {
   accommodativeFacilityEye, accommodativeFacilityGuidedStep, accommodativeFacilitySeconds,
   establishFacilityFixation, facilityGeometryIssue, flipAccommodativeFacility,
+  facilityUsesAccessibilityShortcuts,
   interruptAccommodativeFacility, newAccommodativeFacilityRun, restartAccommodativeFacilityEye,
   sampleAccommodativeFacility, startAccommodativeFacility, submitAccommodativeFacility,
   type AccommodativeFacilityRun, type FacilitySpatialSample,
@@ -45,14 +47,20 @@ export function AccommodationPracticeController({ active, preview = false, input
     setState(previous => previous.run === next.run && previous.seconds === next.seconds ? previous : next);
   }, []);
   const flip = useCallback(() => {
-    if (!live || lesson.awarded.current) return;
-    run.current = flipAccommodativeFacility(run.current, spatial()); publish();
+    if (!live || lesson.awarded.current) return false;
+    const before = run.current;
+    run.current = flipAccommodativeFacility(before, spatial()); publish();
+    return run.current.side !== before.side;
   }, [lesson.awarded, live, publish]);
   const runtime = useXRClinicRuntime({ active: live, inputMode, equipment: libraryEquipment("accommodative-facility"),
     placementSockets: librarySockets("accommodative-facility"), placementSurfaces: LIBRARY_SURFACES,
     editorOpen: lesson.mode !== "none", onMenu: open => lesson.setMode(open ? "menu" : "none"),
-    onInterrupt: reason => { if (["visibility", "transfer", "tracking", "procedure", "pickup"].includes(reason)) run.current = interruptAccommodativeFacility(run.current, "The physical procedure was interrupted."); },
-    onToolUsed: (id, action) => { if (id === "lens-flipper" && action === "activate") flip(); },
+    onInterrupt: reason => { if (["visibility", "transfer", "tracking", "procedure", "configuration", "release"].includes(reason)) run.current = interruptAccommodativeFacility(run.current, "The physical procedure was interrupted."); },
+    onToolUsed: (id, action) => {
+      if (action === "pickup" && id !== "lens-flipper")
+        run.current = interruptAccommodativeFacility(run.current, "The physical setup changed.");
+      if (inputMode === "desktop" && id === "lens-flipper" && action === "activate") flip();
+    },
   });
   useFrame((_, dt) => {
     run.current = sampleAccommodativeFacility(run.current, spatial());
@@ -104,15 +112,23 @@ export function AccommodationPracticeController({ active, preview = false, input
   const sample = spatial(), eye = accommodativeFacilityEye(state.run), coach = accommodativeFacilityGuidedStep(state.run, sample);
   const entryReady = live && Boolean(state.run.capture);
   const fields: LessonField[] = [{ id: "cycles", label: "Full plus/minus pairs in 60 seconds", choices: [], number: { min: 0, max: 100, unit: " cpm", step: 1 } }];
-  const actions: LessonAction[] = [
+  const setupActions: LessonAction[] = [
     { label: "FIT NEAR CORRECTION", active: sample.correctionFitted, run: fitCorrection },
     { label: "PLACE READABLE TARGET AT 40 CM", active: sample.targetReady, run: placeTarget },
     { label: eye === "OD" ? "COVER OS · TEST OD" : eye === "OS" ? "COVER OD · TEST OS" : "REMOVE COVER · TEST OU", active: sample.occlusionReady, run: prepareOcclusion },
+  ];
+  const procedureActions: LessonAction[] = [
     { label: "ESTABLISH FIXATION", active: state.run.fixation, run: establish },
-    { label: "START 60-SECOND RUN", disabled: Boolean(facilityGeometryIssue(sample)) || !state.run.fixation || state.run.phase === "running" || Boolean(state.run.capture), run: start },
-    { label: "CLEAR / FLIP ±2 D", disabled: state.run.phase !== "running", run: flip },
+    { label: "START 60-SECOND RUN", disabled: Boolean(facilityGeometryIssue(sample)) || state.run.side !== "plus" || !state.run.fixation || state.run.phase === "running" || Boolean(state.run.capture), run: start },
     { label: "RESTART CURRENT RUN", run: restart },
   ];
+  const desktopFlip: LessonAction = { label: "CLEAR / FLIP ±2 D", disabled: state.run.phase !== "running", run: flip };
+  const actions: LessonAction[] = facilityUsesAccessibilityShortcuts(inputMode)
+    ? [...setupActions, ...procedureActions.slice(0, 2), desktopFlip, procedureActions[2]]
+    : procedureActions;
+  const directActions = accommodativeFacilityBoardActions(state.run, inputMode).map(id => ({
+    fixation: procedureActions[0], start: procedureActions[1], flip: desktopFlip,
+  })[id]);
   const records = state.run.records.map(item => `${item.eye}: ${item.submittedCycles} full ±2.00 D pairs in 60 seconds`);
   const status = `${state.run.records.length}/3 eyes · ${eye} · ${state.seconds}s · ${state.run.cycles} cycles · ${state.run.side} · ${state.run.feedback}`;
   const report = state.run.phase === "running" ? state.run.feedback : state.run.capture ? `${state.run.capture.cycles} full cycles recorded.` : undefined;
@@ -120,11 +136,14 @@ export function AccommodationPracticeController({ active, preview = false, input
   }, [onMirror, status, entryReady, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
 
   return <>
-    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="ACCOMMODATIVE FACILITY" instructionalEquipment={attemptKind === "guided" && coach.index === 3 ? ["lens-flipper"] : []} instrumentSettings={{ "lens-flipper": { side: state.run.side } }} />
+    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="ACCOMMODATIVE FACILITY" instructionalEquipment={attemptKind === "guided" && coach.index === 4 ? ["lens-flipper"] : []} instrumentSettings={{ "lens-flipper": {
+      side: state.run.side,
+      onFlip: inputMode === "xr" && runtime.tools["lens-flipper"].placement.kind === "held" ? flip : undefined,
+    } }} />
     {(live || preview) && <><LibraryEquipmentTray active={live} equipment={runtime.equipment} showFittingGuides={attemptKind === "guided"} /><LibraryNearStand /></>}
     {live && report && <XRSign text={["FICTIONAL PATIENT · CURRENT RESPONSE", report]} p={[.55, 1.75, -.10]} size={[.58, .20]} bg="#07151b" fg="#eefbf7" />}
     {(live || preview) && attemptKind === "guided" && <XRSign text={[`GUIDED STEP ${coach.index + 1} / 8 · ${coach.title}`, ...coach.lines]} p={[-.58, 1.74, -.08]} size={[.64, .23]} bg="#102329" fg="#eefbf7" />}
-    <PracticeLessonUI runtime={runtime} active={live} title={LIBRARY_TITLES["accommodative-facility"]} status={status} tools={["lens-flipper"]} actions={actions} directActions={actions.slice(3)} fields={fields} lesson={lesson} ready={entryReady} entryReady={entryReady} onRecord={record} onReset={reset} onExit={onExit} onCancel={cancel}
+    <PracticeLessonUI runtime={runtime} active={live} title={LIBRARY_TITLES["accommodative-facility"]} status={status} tools={["lens-flipper"]} actions={actions} directActions={directActions} fields={fields} lesson={lesson} ready={entryReady} entryReady={entryReady} onRecord={record} onReset={reset} onExit={onExit} onCancel={cancel}
       boardStatusLines={[`EYE ${state.run.eyeIndex + 1} / 3 · ${eye}`, state.run.capture ? "COUNT FROZEN · RECORD FULL PAIRS" : `${state.seconds} SECONDS · ${state.run.cycles} CYCLES`, attemptKind === "guided" ? coach.title : "Complete the physical sequence."]}
       help={["Fit correction and prepare OD, OS, then OU in order.", "Place the readable near target at 40 cm and align the ±2.00 D flipper.", "Establish fixation and start with plus.", "Flip only after each clear report; one plus/minus pair is one cycle.", "The count freezes at 60 seconds and remains available after releasing the flipper.", "Illustrative geometry and authored timing require clinician review."]} />
   </>;

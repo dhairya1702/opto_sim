@@ -152,13 +152,15 @@ export function submitPushUpRecord(run: PushUpRun, distanceEntry: string, amplit
 
 export function pushUpGuidedStep(run: PushUpRun, sample: PushUpSpatialSample): PushUpGuidedStep {
   const eye = pushUpEye(run);
+  if (run.capture || run.phase === "complete")
+    return { index: 6, title: run.phase === "complete" ? "Series complete" : `Record ${eye}`, lines: [run.feedback] };
   if (!sample.correctionFitted) return { index: 0, title: "Fit near correction", lines: ["Fit the appropriate correction in the trial frame."] };
   if (!sample.occlusionReady) return { index: 1, title: `Prepare ${eye}`, lines: [eye === "OD" ? "Cover OS to test OD." : eye === "OS" ? "Move the cover to OD to test OS." : "Remove the cover so both eyes are open."] };
   if (!sample.ruleDocked) return { index: 2, title: "Dock the ruler", lines: ["Pick up the Push-up ruler and dock its patient end at the spectacle plane."] };
   if (!run.instructionArmed) return { index: 3, title: "Give the instruction", lines: ["Ask the patient to read the line and report the first blur that remains blurred."] };
   if (run.phase === "start" || run.phase === "setup") return { index: 4, title: "Set the starting distance", lines: ["Slide the card to the highlighted 40 cm region and hold it briefly."] };
   if (run.phase === "approach" || run.phase === "confirming-blur") return { index: 5, title: "Move inward", lines: [run.feedback] };
-  return { index: 6, title: run.phase === "complete" ? "Series complete" : `Record ${eye}`, lines: [run.feedback] };
+  return { index: 6, title: `Record ${eye}`, lines: [run.feedback] };
 }
 
 export function pushUpDisclosure(kind: "guided" | "test") {

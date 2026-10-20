@@ -33,6 +33,29 @@ function bilateral(scenario: "normal" | "suppression" = "normal") {
 }
 
 describe("shared 4Δ base-out procedure", () => {
+  it("reuses unchanged tool and interruption state while preserving real transitions", () => {
+    const initial = initialFourPrismRun();
+    expect(handleFourPrismTool(initial, false)).toBe(initial);
+    const ready = prepared();
+    expect(handleFourPrismTool(ready, true, 1)).toBe(ready);
+    const revised = handleFourPrismTool(ready, true, 2);
+    expect(revised).not.toBe(ready); expect(revised.prismToolRevision).toBe(2);
+    const observing = advanceFourPrismSample(ready, sample(ready));
+    const released = handleFourPrismTool(observing, false, 1);
+    expect(released).toMatchObject({ dwellMs: 0, currentEye: null, phase: "orient-od" });
+    expect(handleFourPrismTool(released, false, 1)).toBe(released);
+    expect(interruptFourPrismEye(released, false)).toBe(released);
+    const lostFixation = interruptFourPrismEye(released, true, "Tracking lost.");
+    expect(lostFixation.fixationSetupRevision).toBeNull();
+    expect(interruptFourPrismEye(lostFixation, true, "Tracking lost.")).toBe(lostFixation);
+    let complete = bilateral();
+    complete = markFourPrismObservation(complete, "OD", "version-with-refixation");
+    complete = markFourPrismObservation(complete, "OS", "version-with-refixation");
+    complete = finalizeFourPrismRun(complete);
+    expect(handleFourPrismTool(complete, true, complete.prismToolRevision)).toBe(complete);
+    expect(handleFourPrismTool(complete, false, complete.prismToolRevision)).toBe(complete);
+  });
+
   it("exposes all nine guided phases without revealing a case answer", () => {
     expect(FOUR_PRISM_GUIDED_STEP_COUNT).toBe(9);
     let state = initialFourPrismRun();
@@ -106,6 +129,41 @@ describe("shared 4Δ base-out procedure", () => {
     state = finalizeFourPrismRun(state); expect(Object.isFrozen(state.completedRun)).toBe(true); expect(state.completedRun?.records[0].capture).toBe(odCapture);
     const retry = submitFourPrismInterpretation(state, "normal"); expect(retry.recorded).toBe(false); expect(retry.completedRun).toBe(state.completedRun);
     const done = submitFourPrismInterpretation(retry, "suppression"); expect(done.recorded).toBe(true); expect(submitFourPrismInterpretation(done, "suppression")).toBe(done);
+  });
+
+  it.each(["normal", "suppression"] as const)("requires both latest answers together for %s without repeating the physical observations", scenario => {
+    let state = bilateral(scenario);
+    const captures = state.eyeCaptures;
+    const correctOD = authoredFourPrismObservation(scenario, "OD");
+    const correctOS = authoredFourPrismObservation(scenario, "OS");
+    const wrong = scenario === "normal" ? "no-movement" : "version-with-refixation";
+    state = markFourPrismObservation(state, "OD", correctOD);
+    state = markFourPrismObservation(state, "OS", wrong);
+    state = finalizeFourPrismRun(state);
+    expect(state.eyeRecords.OD).toBeDefined(); expect(state.completedRun).toBeNull();
+    const previous = state;
+    state = markFourPrismObservation(state, "OD", wrong);
+    state = markFourPrismObservation(state, "OS", correctOS);
+    state = finalizeFourPrismRun(state);
+    expect(state.markings).toEqual({ OD: wrong, OS: correctOS });
+    expect(state.eyeRecords.OD).toBeUndefined(); expect(state.eyeRecords.OS).toBeDefined();
+    expect(previous.eyeRecords.OD).toBeDefined();
+    expect(state.completedRun).toBeNull(); expect(state.phase).toBe("record");
+    expect(state.notice).toContain("Both current entries");
+    expect(submitFourPrismInterpretation(state, scenario).recorded).toBe(false);
+    expect(state.eyeCaptures).toBe(captures);
+    // Also cover replacing a previously accepted OS answer with a wrong one.
+    state = markFourPrismObservation(state, "OD", correctOD);
+    state = markFourPrismObservation(state, "OS", wrong);
+    expect(finalizeFourPrismRun(state).completedRun).toBeNull();
+    expect(state.eyeRecords.OS).toBeUndefined();
+    state = markFourPrismObservation(state, "OS", correctOS);
+    const stale: FourPrismRunState = { ...state, markings: { ...state.markings, OD: wrong } };
+    expect(finalizeFourPrismRun(stale).completedRun).toBeNull();
+    state = finalizeFourPrismRun(state);
+    expect(state.completedRun?.records.map(record => record.learnerObservation)).toEqual([correctOD, correctOS]);
+    expect(state.eyeCaptures).toBe(captures);
+    expect(submitFourPrismInterpretation(state, scenario).recorded).toBe(true);
   });
 
   it("cleans cancellation, reset and exit generations without late completion", () => {

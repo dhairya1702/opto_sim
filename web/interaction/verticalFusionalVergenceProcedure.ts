@@ -64,7 +64,7 @@ export function verticalFusionalPrismGeometry(sample: Pick<VerticalFusionalSpati
 const setupIssue = (run: VerticalFusionalRun, sample: VerticalFusionalSpatialSample) => {
   if (!sample.visible || !sample.tracking) return "Restore prism, controller, and headset tracking.";
   if (!run.correctionFitted || !sample.correctionFitted) return "Fit Arun's appropriate distance correction.";
-  if (!run.targetEstablished || !sample.targetEstablished) return "Establish the prepared illustrative mirrored isolated target.";
+  if (!run.targetEstablished || !sample.targetEstablished) return "Place the isolated target in the distance dock behind Arun, switch it on, then confirm the mirrored target.";
   if (!run.instructionArmed) return "Tell Arun to report sustained diplopia and when the target becomes single again.";
   const geometry = verticalFusionalPrismGeometry(sample);
   if (geometry) return geometry;
@@ -241,7 +241,7 @@ export function verticalFusionalGuidedStep(run: VerticalFusionalRun, sample: Ver
   const geometryReady = !verticalFusionalPrismGeometry(sample);
   const checks = [
     ["correction", "Fit distance correction", "Fit Arun's appropriate distance correction.", run.correctionFitted && sample.correctionFitted],
-    ["target", "Establish the prepared target", "Use the illustrative mirrored isolated target prepared one line larger than the poorer eye's best-corrected acuity.", run.targetEstablished && sample.targetEstablished],
+    ["target", "Establish the prepared target", "Place the isolated target in the distance dock behind Arun and switch it on. Confirm the prepared mirrored isolated target.", run.targetEstablished && sample.targetEstablished],
     ["instruction", "Give the reporting instruction", "Ask only for sustained diplopia and recovery to single.", run.instructionArmed],
     ["pickup", "Pick up the rotary prism", "Hold its grip while the free hand operates the dial.", run.prismHeld || sample.prismHeld],
     ["align", "Align BU before OD", "Centre the patient-facing aperture before OD and physically roll to BU.", geometryReady],
@@ -251,7 +251,8 @@ export function verticalFusionalGuidedStep(run: VerticalFusionalRun, sample: Ver
     ["bd-run", "Roll to BD and repeat", "At zero, physically roll to BD, establish a fresh baseline, then repeat break and recovery.", Boolean(run.captures.BD)],
     ["record", "Release and record", "Physically release the prism and independently enter all four acquired fields.", Boolean(run.record)],
   ] as const;
-  const index = run.phase === "complete" ? 9 : Math.max(0, checks.findIndex(check => !check[3]));
+  const index = run.phase === "complete" || (run.captures.BU && run.captures.BD)
+    ? 9 : Math.max(0, checks.findIndex(check => !check[3]));
   const step = checks[index];
   return Object.freeze({ id: step[0], index, title: step[1], lines: Object.freeze([step[2]]), complete: Boolean(run.record) });
 }

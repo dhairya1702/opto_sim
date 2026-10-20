@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { ALTERNATE_COVER_GUIDED_STEP_COUNT, COVER_UNCOVER_GUIDED_STEP_COUNT, coverGuidedStep } from "../../interaction/alignmentGuidance";
-import { useXRClinicRuntime, type ClinicInputMode } from "../../interaction/useXRClinicRuntime";
+import { useXRClinicRuntime, type ClinicInputMode, type XRClinicInterruption } from "../../interaction/useXRClinicRuntime";
 import { desktopPatientFacingPose } from "../../interaction/desktopClinicInput";
 import { CONSULTATION_EQUIPMENT } from "../../interaction/xrConsultationTools";
 import { ALTERNATE_COVER_ATTEMPTS_PER_PRISM, alternateCoverAttemptNumber, coverScenarios, alternateCoverModel, alternateCoverScenarios, alternateDeviationChoices, alternateDeviationLabel, neutralizingPrismBase, practiceCoverProcedures, prismBaseLabel, prismTrialNeutralizes, prismTrialOutcome, type PracticeCoverKind } from "../../interaction/practiceCover";
@@ -55,7 +55,15 @@ export function CoverPracticeController({ active, preview = false, inputMode = "
     mode: "distance" as CoverEndpoint, targetEndpoint: null as CoverEndpoint | null, distance: 0, targetReady: false, held: false, prism: "", trial: false, message: "", at: "", progress: 0 });
   const fields = useMemo(() => fieldsFor(kind, readout.mode), [kind, readout.mode]);
   const lastTarget = useRef({ mode: "distance" as CoverEndpoint, ready: false, position: [0, 0, 0] });
-  const interrupt = useCallback(() => { progress.current.sequence.dwell = 0; progress.current.sequence.transit = 0; }, []);
+  // Release/pickup interrupts dwell, but must not erase elapsed uncovered time.
+  const interrupt = useCallback((reason: XRClinicInterruption) => {
+    const current = progress.current;
+    current.sequence.dwell = 0;
+    if (kind === "alternate-cover" && (!current.observed || current.trial) && (reason === "tracking" || reason === "visibility")) {
+      current.sequence = emptyPracticeCoverSequence(); current.pulseKey = "";
+      current.message = "Tracking interrupted. Start the alternate sequence again.";
+    }
+  }, [kind]);
   const runtime = useXRClinicRuntime({ active: active && !preview, inputMode, editorOpen: lesson.mode !== "none", onInterrupt: interrupt,
     equipment: COVER_EQUIPMENT,
     equipmentLabels: { worth: "Target" },
@@ -120,14 +128,17 @@ export function CoverPracticeController({ active, preview = false, inputMode = "
       current.message = "Keep the prism aligned before the same eye throughout the repeat.";
     }
     const trialValid = !current.trial || spatial.prism === current.trialEye;
-    if ((!current.observed || current.trial) && valid && trialValid) {
+    const sequenceReady = Boolean(active && runtime.frameValid.current && spatial.targetReady && setup.current.fixation && trialValid);
+    // Keep sampling alternating cover even with the paddle down. Unknown tracking
+    // or invalid setup resets unfinished progress rather than freezing its credit.
+    if ((!current.observed || current.trial) && (kind === "alternate-cover" || (valid && trialValid))) {
       const index = current.sequence.index;
-      if (spatial.position === practiceCoverProcedures[kind][index]?.position && current.pulseKey !== `${index}:${spatial.position}`) {
+      if (valid && trialValid && spatial.position === practiceCoverProcedures[kind][index]?.position && current.pulseKey !== `${index}:${spatial.position}`) {
         current.pulseKey = `${index}:${spatial.position}`;
         if (index === 0 && !current.trial) current.message = "";
       }
-      const next = advanceXRPracticeCover(kind, current.sequence, spatial.position, dt, true);
-      if (next.index < current.sequence.index) { current.pulseKey = ""; current.message = "Both eyes were uncovered too long. Start the alternate sequence again."; }
+      const next = advanceXRPracticeCover(kind, current.sequence, spatial.held ? spatial.position : "away", dt, sequenceReady);
+      if (next.index < current.sequence.index) { current.pulseKey = ""; current.message = sequenceReady ? "Both eyes were uncovered too long. Start the alternate sequence again." : "Setup interrupted. Start the alternate sequence again."; }
       current.sequence = next;
       if (next.index === practiceCoverProcedures[kind].length) {
         current.observed = true;

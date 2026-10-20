@@ -66,6 +66,7 @@ describe("consultation procedure interruption", () => {
     expect(advanceXRCoverState(paused.cover, "OS", .1)).toEqual({ index: 2, dwell: .1 });
     const resumed = observeTarget(paused.motility, { x: .8 * .35 * .65, y: 0, z: .35 }, .1, true);
     expect(resumed.seen).toEqual(["centre"]);
-    expect(resumed.dwell).toBeCloseTo(.1);
+    expect(resumed.dwell).toBe(0);
+    expect(resumed.recovery).toEqual({ returnTo: "centre", reason: "fixation" });
   });
 });

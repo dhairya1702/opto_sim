@@ -23,6 +23,18 @@ function capture(run: PushUpRun, threshold: number) {
 }
 
 describe("Push-up amplitude procedure", () => {
+  it("keeps frozen-eye recording after ruler removal and restores setup for each new eye", () => {
+    const released = valid(3000, 10, { ruleDocked: false, correctionFitted: false, occlusionReady: false });
+    let run = newPushUpRun();
+    for (const [index, eye] of ["OD", "OS", "OU"].entries()) {
+      run = capture(run, 10 + index);
+      expect(pushUpGuidedStep(run, released)).toMatchObject({ index: 6, title: `Record ${eye}` });
+      if (!run.capture) throw new Error("Expected completed push-up measurement");
+      run = submitPushUpRecord(run, String(run.capture.distanceCm), String(run.capture.amplitudeD));
+      expect(pushUpGuidedStep(run, released).index).toBe(index === 2 ? 6 : 0);
+    }
+    expect(pushUpGuidedStep(run, released).title).toBe("Series complete");
+  });
   it("requires correction, eye-specific occlusion, docking, instruction and a stable 40 cm start", () => {
     let run = newPushUpRun();
     expect(pushUpGuidedStep(run, valid(0, 40, { correctionFitted: false })).title).toBe("Fit near correction");

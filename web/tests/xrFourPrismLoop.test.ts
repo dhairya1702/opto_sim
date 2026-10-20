@@ -12,10 +12,10 @@ afterEach(async () => { await dispose?.(); dispose = undefined; vi.unstubAllGlob
 
 async function lesson(kind: PracticeAttemptKind = "guided", preview = false, scenarioSeed = 1) {
   let mirror: BatchMirror;
-  const complete = vi.fn(), leave = vi.fn();
+  const complete = vi.fn(), leave = vi.fn(), mirrorUpdates = vi.fn();
   const sim = await clinic({ renderAdapter: ({ active }) => createElement(PracticeAttemptProvider, {
     value: { settings: { kind, interaction: "vr", voice: "enabled" }, setSettings: vi.fn() },
-    children: createElement(FourPrismPracticeController, { active, preview, scenarioSeed, onComplete: complete, onExit: leave, onMirror: next => { mirror = next; } }),
+    children: createElement(FourPrismPracticeController, { active, preview, scenarioSeed, onComplete: complete, onExit: leave, onMirror: next => { mirror = next; mirrorUpdates(next); } }),
   }) });
   dispose = sim.dispose;
   const action = async (label: string) => {
@@ -47,7 +47,7 @@ async function lesson(kind: PracticeAttemptKind = "guided", preview = false, sce
     });
     await sim.step(1 / 72, 12);
   };
-  return { ...sim, mirror: () => mirror!, complete, leave, action, fit, orient, selectBase, prism, prepare, bilateral, observations };
+  return { ...sim, mirror: () => mirror!, mirrorUpdates, complete, leave, action, fit, orient, selectBase, prism, prepare, bilateral, observations };
 }
 
 describe("mounted shared-clinic 4Δ base-out Practice", () => {
@@ -79,6 +79,26 @@ describe("mounted shared-clinic 4Δ base-out Practice", () => {
     expect(sim.complete).not.toHaveBeenCalled(); expect(sim.mirror().lesson.feedback).not.toContain("normal");
     await act(async () => { sim.mirror().lesson.choose("interpretation", "normal"); sim.mirror().record(); sim.mirror().record(); });
     expect(sim.complete).toHaveBeenCalledTimes(1); expect(sim.record).not.toHaveBeenCalled();
+  });
+
+  it("bounds observation UI publications and stays idle while awaiting interpretation", async () => {
+    const sim = await lesson(); await sim.prepare(); await sim.prism("OD");
+    sim.mirrorUpdates.mockClear();
+    await sim.step(1 / 72, 72);
+    expect(sim.mirrorUpdates.mock.calls.length).toBeGreaterThanOrEqual(5);
+    expect(sim.mirrorUpdates.mock.calls.length).toBeLessThanOrEqual(12);
+    expect(sim.mirror().status).not.toContain("OD captured");
+    await sim.step(1 / 72, 101);
+    expect(sim.mirror().status).toContain("OD captured");
+    await sim.at(1, [.4, 1.4, -.492]); await sim.step(1 / 72, 3);
+    await sim.orient("OS"); await sim.prism("OS"); await sim.step(1 / 72, 175);
+    expect(sim.mirror().ready).toBe(true);
+    await sim.observations("normal");
+    expect(sim.mirror().fields.map(field => field.id)).toEqual(["interpretation"]);
+    sim.mirrorUpdates.mockClear(); await sim.step(1 / 72, 144);
+    expect(sim.mirrorUpdates).not.toHaveBeenCalled();
+    await act(async () => { sim.mirror().lesson.choose("interpretation", "normal"); sim.mirror().record(); });
+    expect(sim.complete).toHaveBeenCalledTimes(1);
   });
 
   it("switches the fixed prism's base arrow with the held-controller thumbstick", async () => {
@@ -113,6 +133,14 @@ describe("mounted shared-clinic 4Δ base-out Practice", () => {
     expect(sim.mirror().status).not.toMatch(/suppression|without refixation|no movement/i);
     await act(async () => { sim.mirror().lesson.choose("OD", "version-with-refixation"); sim.mirror().lesson.choose("OS", "version-with-refixation"); sim.mirror().record(); });
     expect(sim.mirror().lesson.feedback).not.toMatch(/without refixation|no movement|suppression/i);
+    await act(async () => { sim.mirror().lesson.choose("OD", "version-without-refixation"); sim.mirror().record(); });
+    expect(sim.mirror().fields.map(field => field.id)).toEqual(["OD", "OS"]);
+    await act(async () => {
+      sim.mirror().lesson.choose("OD", "version-with-refixation");
+      sim.mirror().lesson.choose("OS", "no-movement"); sim.mirror().record();
+    });
+    expect(sim.mirror().fields.map(field => field.id)).toEqual(["OD", "OS"]);
+    expect(sim.complete).not.toHaveBeenCalled();
     await sim.observations("suppression"); expect(sim.mirror().reportLines).toEqual(["OD · version without refixation", "OS · no movement"]);
     await sim.pickup(0, "subjective"); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(false); expect(sim.mirror().status).toContain("restarted");
     const eyes = sim.eyes("consultationGaze");

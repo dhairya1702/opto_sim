@@ -1,7 +1,9 @@
+import { relativeAccommodationBoardActions } from "../../interaction/practiceBoardActions";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Vector3 } from "three";
 import {
+  RELATIVE_HOLDER_MIN_D, RELATIVE_HOLDER_MAX_D,
   confirmRelativeAccommodationBaseline, confirmRelativeAccommodationInitialClear, giveRelativeAccommodationInstruction,
   interruptRelativeAccommodation, newRelativeAccommodationRun, relativeAccommodationDisclosure,
   relativeAccommodationGeometryIssue, relativeAccommodationGuidedStep, relativeAccommodationHasProgress,
@@ -107,7 +109,7 @@ export function RelativeAccommodationPracticeController({ active, preview = fals
             if (delta > Math.PI) delta -= Math.PI * 2;
             if (delta < -Math.PI) delta += Math.PI * 2;
             dialDrag.current.angle = angle;
-            dialDrag.current.remainderD += -delta / (Math.PI * 1.5) * 4.25;
+            dialDrag.current.remainderD += -delta / (Math.PI * 1.5) * (RELATIVE_HOLDER_MAX_D - RELATIVE_HOLDER_MIN_D);
             let changed = false;
             while (dialDrag.current.remainderD >= .25) {
               changed = applyStep("plus", { ...sample, nowMs: performance.now() }) || changed;
@@ -162,8 +164,8 @@ export function RelativeAccommodationPracticeController({ active, preview = fals
   };
 
   const fields: LessonField[] = [
-    { id: "nra", label: "NRA endpoint", choices: [], number: { min: 0, max: 5, step: .25, unit: " D" } },
-    { id: "pra", label: "PRA endpoint", choices: [], number: { min: -5, max: 0, step: .25, unit: " D" } },
+    { id: "nra", label: "NRA endpoint", choices: [], number: { min: 0, max: RELATIVE_HOLDER_MAX_D, step: .25, unit: " D" } },
+    { id: "pra", label: "PRA endpoint", choices: [], number: { min: RELATIVE_HOLDER_MIN_D, max: 0, step: .25, unit: " D" } },
   ];
   const sample = spatial();
   const coach = relativeAccommodationGuidedStep(state.run, sample);
@@ -175,11 +177,14 @@ export function RelativeAccommodationPracticeController({ active, preview = fals
     { label: "GIVE CLEAR / SINGLE / SUSTAINED BLUR INSTRUCTION", active: state.run.instructionArmed, disabled: blocked, run: instruct },
     { label: "CONFIRM INITIAL CLEAR AT 0.00 D", active: state.run.initialClearConfirmed, disabled: !state.run.instructionArmed || state.run.powerD !== 0 || blocked, run: confirmInitial },
     { label: "PATIENT REPORT · WHAT DO YOU SEE?", disabled: !state.run.instructionArmed, run: publish },
-    { label: "DIAL +0.25 D · ACCESSIBILITY", disabled: !state.run.initialClearConfirmed || Boolean(state.run.nraCapture) || state.run.powerD >= 2 || blocked, run: () => applyStep("plus") },
-    { label: "DIAL −0.25 D · ACCESSIBILITY", disabled: !state.run.initialClearConfirmed || state.run.powerD <= (state.run.baselineConfirmed ? -2.25 : 0) || Boolean(state.run.praCapture) || blocked, run: () => applyStep("minus") },
+    { label: "DIAL +0.25 D · ACCESSIBILITY", disabled: !state.run.initialClearConfirmed || Boolean(state.run.nraCapture) || state.run.powerD >= RELATIVE_HOLDER_MAX_D || blocked, run: () => applyStep("plus") },
+    { label: "DIAL −0.25 D · ACCESSIBILITY", disabled: !state.run.initialClearConfirmed || state.run.powerD <= (state.run.baselineConfirmed ? RELATIVE_HOLDER_MIN_D : 0) || Boolean(state.run.praCapture) || blocked, run: () => applyStep("minus") },
     { label: "CONFIRM CLEAR BASELINE AT 0.00 D", active: state.run.baselineConfirmed, disabled: !state.run.nraCapture || state.run.powerD !== 0 || state.run.baselineConfirmed || blocked, run: confirmBaseline },
     { label: "RESTART NRA / PRA", run: restart },
   ];
+  const directActions = relativeAccommodationBoardActions(state.run).map(id => ({
+    instruction: actions[2], initialClear: actions[3], report: actions[4], plus: actions[5], minus: actions[6], baseline: actions[7],
+  })[id]);
   const records = state.run.record ? [`NRA ${state.run.record.submittedNraD.toFixed(2)} D · PRA ${state.run.record.submittedPraD.toFixed(2)} D`] : [];
   const phaseLabel = attemptKind === "guided" ? state.run.phase.replaceAll("-", " ") : "procedure in progress";
   const status = `OU · accessible scale ${state.run.powerD >= 0 ? "+" : ""}${state.run.powerD.toFixed(2)} D · ${phaseLabel} · ${state.run.feedback}`;
@@ -199,7 +204,7 @@ export function RelativeAccommodationPracticeController({ active, preview = fals
     {live && voiceReport && <XRSign text={["FICTIONAL PATIENT · CURRENT RESPONSE", voiceReport]} p={[.55, 1.75, -.10]} size={[.58, .20]} bg="#07151b" fg="#eefbf7" />}
     {(live || preview) && disclosure.showCoach && <XRSign text={[`GUIDED STEP ${coach.index + 1} / 10 · ${coach.title}`, ...coach.lines]} p={[-.58, 1.74, -.08]} size={[.64, .24]} bg="#102329" fg="#eefbf7" />}
     <PracticeLessonUI runtime={runtime} active={live} title={LIBRARY_TITLES.relative} status={status} tools={["trial-lens"]}
-      actions={actions} directActions={actions.slice(2)} fields={fields} lesson={lesson} entryReady={entryReady} ready={entryReady}
+      actions={actions} directActions={directActions} fields={fields} lesson={lesson} entryReady={entryReady} ready={entryReady}
       onRecord={record} onReset={reset} onExit={onExit} onCancel={cancel}
       boardStatusLines={["BINOCULAR · OU", state.run.praCapture ? "BOTH ENDPOINTS FROZEN · RELEASE HOLDER AND RECORD" : `LENS SCALE ${state.run.powerD >= 0 ? "+" : ""}${state.run.powerD.toFixed(2)} D`, attemptKind === "guided" ? coach.title : "Complete the physical sequence."]}
       help={attemptKind === "guided" ? ["Fit near correction and release the readable target patient-facing on its 40 cm stand.", "Hold both clear apertures face-on over OD and OS; keep the other controller free for the physical dial.", "Give the clear/single and first-sustained-blur instruction, then confirm initial clarity at 0.00 D.", "Add plus in 0.25 D steps for NRA. The fictional sustained response freezes automatically.", "Remove all plus, explicitly confirm clear baseline at 0.00 D, then add minus for PRA.", "Release the holder and independently enter both signed endpoints. Geometry, timing, and responses are illustrative drafts pending clinical and device review."]

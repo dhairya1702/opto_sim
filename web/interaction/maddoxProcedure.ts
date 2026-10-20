@@ -93,7 +93,7 @@ const angularGap = (a: number, b: number) => {
 export const maddoxGrooveCorrect = (axis: MaddoxAxis, degrees: number | null) => degrees !== null
   && angularGap(degrees, axis === "horizontal" ? 0 : 90) <= MADDOX_ORIENTATION_TOLERANCE_DEG;
 
-export function maddoxSetupIssue(sample: MaddoxSpatialSample, trial: MaddoxTrial) {
+export function maddoxSetupIssue(sample: MaddoxSpatialSample, trial: MaddoxTrial, kind: "guided" | "test" = "test") {
   if (!sample.tracking) return "Restore headset, controller and instrument tracking.";
   if (!sample.correctionFitted) return "Fit the trial frame over both eyes.";
   if (!sample.rodFitted) return "Fit the Maddox rod before OD.";
@@ -109,7 +109,10 @@ export function maddoxSetupIssue(sample: MaddoxSpatialSample, trial: MaddoxTrial
   if (!sample.prismForward) return "Turn the prism bar's working face toward Arun.";
   if (sample.cell === null) return "Slide a labelled prism cell over OD.";
   if (!sample.prismAligned) return `Centre the ${sample.cell}Δ cell over OD.`;
-  if (sample.base !== trial.base) return sample.base === null ? `Roll the bar until its base arrow shows ${trial.base}.` : `Change the physical base from ${sample.base} to ${trial.base}.`;
+  if (sample.base !== trial.base) {
+    if (kind !== "guided") return "Prism setup is not ready. Reassess the base direction using the patient’s streak/light report.";
+    return sample.base === null ? `Roll the bar until its base arrow shows ${trial.base}.` : `Change the physical base from ${sample.base} to ${trial.base}.`;
+  }
   return "";
 }
 
@@ -137,33 +140,33 @@ export function armMaddoxReport(run: MaddoxRun, sample: MaddoxSpatialSample): Ma
   return Object.freeze({ ...run, phase: "introduction", reportInstruction: true, feedback: "Arun is ready to report the streak/light relationship." });
 }
 
-export function sampleMaddox(run: MaddoxRun, sample: MaddoxSpatialSample, nowMs: number): MaddoxRun {
+export function sampleMaddox(run: MaddoxRun, sample: MaddoxSpatialSample, nowMs: number, kind: "guided" | "test" = "test"): MaddoxRun {
   if (run.phase === "complete" || run.capture) return run;
   const trial = MADDOX_TRIALS[run.trialIndex];
   // The required base is mandatory for the 20Δ introduction. After that valid
   // opposite/wrong-axis rolls still produce the fictional report, but cannot capture.
   const issue = run.introduced20 && sample.base !== null
-    ? maddoxSetupIssue({ ...sample, base: trial.base }, trial)
-    : maddoxSetupIssue(sample, trial);
+    ? maddoxSetupIssue({ ...sample, base: trial.base }, trial, kind)
+    : maddoxSetupIssue(sample, trial, kind);
   if (issue) {
     if (run.introduced20 || run.stableCell !== null) return resetCurrent(run, issue);
     return Object.freeze({ ...run, phase: run.reportInstruction ? "introduction" : "setup", stableCell: null, stableBase: null, stableSinceMs: null, report: "", feedback: issue });
   }
   if (!run.reportInstruction) return Object.freeze({ ...run, phase: "instruction", feedback: "Ask Arun to fixate and report before introducing prism." });
   if (!run.introduced20 && sample.cell !== 20) return Object.freeze({ ...run, phase: "introduction", stableCell: null, stableBase: null, stableSinceMs: null, report: "", feedback: "Introduce and stably centre the 20Δ cell first." });
-  const introduced20 = run.introduced20 || sample.cell === 20;
   const same = run.stableCell === sample.cell && run.stableBase === sample.base;
   const stableSinceMs = same ? run.stableSinceMs : nowMs;
   const stable = stableSinceMs !== null && nowMs - stableSinceMs >= MADDOX_REPORT_DWELL_MS;
+  const introduced20 = run.introduced20 || (sample.cell === 20 && stable);
   const report = stable && sample.cell !== null ? maddoxPatientReport(trial, sample.cell, sample.base ?? trial.base) : same ? run.report : "";
-  return Object.freeze({ ...run, phase: "neutralisation", introduced20, stableCell: sample.cell, stableBase: sample.base, stableSinceMs, report,
+  return Object.freeze({ ...run, phase: introduced20 ? "neutralisation" : "introduction", introduced20, stableCell: sample.cell, stableBase: sample.base, stableSinceMs, report,
     feedback: stable ? report : `Hold the ${sample.cell}Δ cell steady for Arun's report.` });
 }
 
-export function captureMaddox(run: MaddoxRun, sample: MaddoxSpatialSample): MaddoxRun {
+export function captureMaddox(run: MaddoxRun, sample: MaddoxSpatialSample, kind: "guided" | "test" = "test"): MaddoxRun {
   if (run.capture || run.phase === "complete") return run;
   const trial = MADDOX_TRIALS[run.trialIndex];
-  const issue = maddoxSetupIssue(sample, trial);
+  const issue = maddoxSetupIssue(sample, trial, kind);
   if (issue) return Object.freeze({ ...run, feedback: issue });
   if (!run.introduced20) return Object.freeze({ ...run, feedback: "Introduce 20Δ before reducing the stepped bar." });
   if (sample.cell !== trial.neutral || sample.base !== trial.base || run.stableCell !== sample.cell || run.report !== "The streak passes through the light.") {
@@ -214,7 +217,7 @@ export function maddoxGuidedStep(run: MaddoxRun, sample: MaddoxSpatialSample): M
     ["capture", "Capture coincidence", ["Press the prism-hand trigger only when Arun reports coincidence."], Boolean(run.capture)],
     ["record", "Record independently", ["Put the tools down.", "Enter the captured prism power and base without a preselected answer."], run.records.length > run.trialIndex || run.phase === "complete"],
   ] as const;
-  const index = run.phase === "complete" ? checks.length - 1 : Math.max(0, checks.findIndex(check => !check[3]));
+  const index = run.capture || run.phase === "complete" ? checks.length - 1 : Math.max(0, checks.findIndex(check => !check[3]));
   const step = checks[index];
   return { id: `${trial.id}-${step[0]}`, index, title: step[1], lines: step[2], complete: run.phase === "complete" };
 }

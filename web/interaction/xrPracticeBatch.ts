@@ -85,13 +85,15 @@ export function xrPracticeNearFixation(point: ToolPoint) {
   return { distanceCm, ready: Math.abs(distanceCm - 40) <= 2 && Math.hypot(dx, dy) <= .08 && dz > 0 };
 }
 export type PracticeCoverSequence = { index: number; dwell: number; transit: number };
+// Forgiving controller-transfer tolerance for learners, not a clinical cutoff.
+export const ALTERNATE_COVER_EXPOSURE_ALLOWANCE_SECONDS = 1;
 export const emptyPracticeCoverSequence = (): PracticeCoverSequence => ({ index: 0, dwell: 0, transit: 0 });
 export function advanceXRPracticeCover(kind: PracticeCoverKind, state: PracticeCoverSequence, position: CoverPosition | null, dt: number, ready: boolean) {
-  if (!ready) return { ...state, dwell: 0, transit: 0 };
   if (state.index >= practiceCoverProcedures[kind].length) return state;
+  if (!ready) return kind === "alternate-cover" ? emptyPracticeCoverSequence() : { ...state, dwell: 0, transit: 0 };
   const transit = kind === "alternate-cover" && state.index > 0 && (position === "away" || position === null)
     ? state.transit + Math.max(0, Math.min(.1, dt)) : 0;
   // A hand must cross the nose. Sustained binocular exposure loses dissociation.
-  if (transit > .35) return emptyPracticeCoverSequence();
+  if (transit > ALTERNATE_COVER_EXPOSURE_ALLOWANCE_SECONDS) return emptyPracticeCoverSequence();
   return { ...advancePracticeCoverStep(kind, state.index, state.dwell, position, dt), transit };
 }

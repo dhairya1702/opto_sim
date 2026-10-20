@@ -2,19 +2,39 @@
 // touch, keyboard, or a future XR controller) only update this target pose.
 export type FixationTarget = { x: number; y: number; z: number };
 export const gazePositions = [
-  { id: "centre", label: "Centre", x: 0, y: 0 },
-  { id: "up", label: "Up", x: 0, y: 0.7 },
-  { id: "down", label: "Down", x: 0, y: -0.7 },
-  { id: "left", label: "Screen left", x: -0.8, y: 0 },
-  { id: "left-up", label: "Left + up", x: -0.8, y: 0.7 },
-  { id: "left-down", label: "Left + down", x: -0.8, y: -0.7 },
-  { id: "right", label: "Screen right", x: 0.8, y: 0 },
-  { id: "right-up", label: "Right + up", x: 0.8, y: 0.7 },
-  { id: "right-down", label: "Right + down", x: 0.8, y: -0.7 },
+  { id: "centre", label: "Primary gaze", x: 0, y: 0 },
+  { id: "up", label: "Up gaze", x: 0, y: 0.7 },
+  { id: "down", label: "Down gaze", x: 0, y: -0.7 },
+  // The learner faces the patient: screen left is the patient's right gaze.
+  { id: "left", label: "Right gaze", x: -0.8, y: 0 },
+  { id: "left-up", label: "Right and up gaze", x: -0.8, y: 0.7 },
+  { id: "left-down", label: "Right and down gaze", x: -0.8, y: -0.7 },
+  { id: "right", label: "Left gaze", x: 0.8, y: 0 },
+  { id: "right-up", label: "Left and up gaze", x: 0.8, y: 0.7 },
+  { id: "right-down", label: "Left and down gaze", x: 0.8, y: -0.7 },
 ] as const;
+export type GazePositionId = typeof gazePositions[number]["id"];
 export const MOTILITY_TARGET_RADIUS = 0.24;
 export const MOTILITY_DWELL_SECONDS = 0.7;
 export const MOTILITY_SPATIAL_GRACE_SECONDS = 0.2;
+export const MOTILITY_RECOVERY_DWELL_SECONDS = 0.3;
+// Illustrative interaction tolerances, not a calibrated clinical target speed.
+export const MOTILITY_MAX_NORMALIZED_SPEED = 3.2;
+export const MOTILITY_ROUTE_CORRIDOR = 0.22;
+export const MOTILITY_H_ROUTE: readonly GazePositionId[] = [
+  "centre", "left", "left-up", "left", "left-down", "left", "centre",
+  "up", "centre", "down", "centre",
+  "right", "right-up", "right", "right-down",
+];
+const MOTILITY_NEIGHBOURS: Readonly<Record<GazePositionId, readonly GazePositionId[]>> = {
+  centre: ["left", "right", "up", "down"],
+  up: ["centre"], down: ["centre"],
+  left: ["centre", "left-up", "left-down"],
+  "left-up": ["left"], "left-down": ["left"],
+  right: ["centre", "right-up", "right-down"],
+  "right-up": ["right"], "right-down": ["right"],
+};
+export const motilityHRoutePositions = MOTILITY_H_ROUTE.map(id => gazePositions.find(position => position.id === id)!);
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
 export function targetFromControls(x: number, y: number, z: number): FixationTarget {
   const distance = clamp(z, 0.3, 0.4);
@@ -103,21 +123,127 @@ export function scenarioGazeForEye(id: MotilityScenarioId, target: FixationTarge
   }
   return base;
 }
-export type MotilityCoverage = { seen: string[]; current: string | null; dwell: number; spatialGrace?: number };
-export function observeTarget(state: MotilityCoverage, target: FixationTarget, dt: number, active: boolean): MotilityCoverage {
+export type MotilityRecoveryReason = "route" | "speed" | "fixation";
+export type MotilityCoverage = {
+  seen: string[];
+  current: string | null;
+  dwell: number;
+  spatialGrace?: number;
+  anchor?: string | null;
+  transition?: Readonly<{ from: string; to: string }> | null;
+  recovery?: Readonly<{ returnTo: string; reason: MotilityRecoveryReason }> | null;
+  previous?: Readonly<{ x: number; y: number }> | null;
+  notice?: string;
+};
+export type MotilityObservationOptions = Readonly<{ assisted?: boolean }>;
+export const newMotilityCoverage = (): MotilityCoverage => ({
+  seen: [], current: null, dwell: 0, spatialGrace: 0, anchor: null,
+  transition: null, recovery: null, previous: null, notice: "",
+});
+const gazePosition = (id: string | null | undefined) => gazePositions.find(position => position.id === id);
+const neighbours = (id: string | null | undefined): readonly GazePositionId[] => {
+  const position = gazePosition(id);
+  return position ? MOTILITY_NEIGHBOURS[position.id] : [];
+};
+const recoveryNotice = (reason: MotilityRecoveryReason) => reason === "speed"
+  ? "Move the target more slowly, then return to the last confirmed point."
+  : reason === "fixation"
+    ? "Re-establish fixation at the last confirmed point."
+    : "Return to the last confirmed point.";
+function pointSegmentDistance(point: { x: number; y: number }, from: { x: number; y: number }, to: { x: number; y: number }) {
+  const dx = to.x - from.x, dy = to.y - from.y;
+  const lengthSquared = dx * dx + dy * dy;
+  const projection = lengthSquared ? ((point.x - from.x) * dx + (point.y - from.y) * dy) / lengthSquared : 0;
+  const bounded = clamp(projection, 0, 1);
+  return { distance: Math.hypot(point.x - (from.x + dx * bounded), point.y - (from.y + dy * bounded)), projection };
+}
+function recoverMotility(state: MotilityCoverage, reason: MotilityRecoveryReason): MotilityCoverage {
+  const anchor = gazePosition(state.anchor)?.id ?? (state.seen.includes("centre") ? "centre" : null);
+  return { ...state, current: null, dwell: 0, spatialGrace: 0, transition: null, previous: null,
+    recovery: anchor ? { returnTo: anchor, reason } : null,
+    notice: anchor ? recoveryNotice(reason) : "Begin at the starting point." };
+}
+export function interruptMotility(state: MotilityCoverage): MotilityCoverage {
+  if (state.seen.length === gazePositions.length)
+    return { ...state, current: null, dwell: 0, spatialGrace: 0, transition: null, recovery: null, previous: null, notice: "" };
+  return recoverMotility(state, "fixation");
+}
+export function motilityNextGazeIds(state: MotilityCoverage): readonly string[] {
+  if (state.recovery?.returnTo) return [state.recovery.returnTo];
+  if (state.transition?.to) return [state.transition.to];
+  if (!state.anchor) return ["centre"];
+  return neighbours(state.anchor);
+}
+function creditArrival(state: MotilityCoverage, destination: GazePositionId, dt: number, point: { x: number; y: number }): MotilityCoverage {
+  if (state.seen.includes(destination)) return { ...state, anchor: destination, transition: null, recovery: null,
+    current: destination, dwell: 0, spatialGrace: 0, previous: point, notice: "" };
+  const dwell = (state.current === destination ? state.dwell : 0) + clamp(dt, 0, 0.1);
+  if (dwell < MOTILITY_DWELL_SECONDS) return { ...state, current: destination, dwell, spatialGrace: 0, previous: point, notice: "Hold steady to observe this position." };
+  return { ...state, seen: [...state.seen, destination], anchor: destination, transition: null, recovery: null,
+    current: destination, dwell: MOTILITY_DWELL_SECONDS, spatialGrace: 0, previous: point, notice: "" };
+}
+export function observeTarget(state: MotilityCoverage, target: FixationTarget, dt: number, active: boolean, options: MotilityObservationOptions = {}): MotilityCoverage {
   const x = target.x / (target.z * 0.65), y = target.y / (target.z * 0.45);
-  if (!active) return { ...state, current: null, dwell: 0, spatialGrace: 0 };
+  const point = { x, y };
+  if (!active) return interruptMotility(state);
   const position = gazePositions.find(p => Math.hypot(p.x - x, p.y - y) < MOTILITY_TARGET_RADIUS);
-  if (!position) {
-    const spatialGrace = (state.spatialGrace ?? 0) + clamp(dt, 0, 0.1);
-    return state.current && spatialGrace < MOTILITY_SPATIAL_GRACE_SECONDS
-      ? { ...state, spatialGrace }
-      : { ...state, current: null, dwell: 0, spatialGrace: 0 };
+  if (state.recovery) {
+    if (position?.id !== state.recovery.returnTo) return { ...state, current: null, dwell: 0, spatialGrace: 0, previous: point,
+      notice: recoveryNotice(state.recovery.reason) };
+    const dwell = (state.current === position.id ? state.dwell : 0) + clamp(dt, 0, 0.1);
+    if (dwell < MOTILITY_RECOVERY_DWELL_SECONDS) return { ...state, current: position.id, dwell, previous: point,
+      notice: "Hold steady to restore the route." };
+    return { ...state, anchor: position.id, current: position.id, dwell: 0, spatialGrace: 0,
+      transition: null, recovery: null, previous: point, notice: "" };
   }
-  // Cap a frame's contribution: tab suspension must not complete an observation.
-  const dwell = (state.current === position.id ? state.dwell : 0) + clamp(dt, 0, 0.1);
-  const seen = dwell >= MOTILITY_DWELL_SECONDS && !state.seen.includes(position.id) ? [...state.seen, position.id] : state.seen;
-  return { seen, current: position.id, dwell, spatialGrace: 0 };
+  const anchor = gazePosition(state.anchor);
+  if (!anchor) {
+    if (position?.id !== "centre") {
+      const spatialGrace = state.current === "centre" ? (state.spatialGrace ?? 0) + clamp(dt, 0, 0.1) : 0;
+      if (state.current === "centre" && spatialGrace < MOTILITY_SPATIAL_GRACE_SECONDS)
+        return { ...state, spatialGrace, previous: point };
+      return { ...state, current: null, dwell: 0, spatialGrace: 0, previous: point, notice: "Begin at the starting point." };
+    }
+    return creditArrival({ ...state, transition: { from: "centre", to: "centre" } }, "centre", dt, point);
+  }
+  const frameDt = clamp(dt, 0, 0.1);
+  const movement = state.previous ? Math.hypot(point.x - state.previous.x, point.y - state.previous.y) : 0;
+  if (!options.assisted && state.previous && frameDt > 0 && movement > .035 && movement / frameDt > MOTILITY_MAX_NORMALIZED_SPEED)
+    return recoverMotility(state, "speed");
+  if (!state.transition && position?.id === anchor.id)
+    return { ...state, current: anchor.id, dwell: 0, spatialGrace: 0, previous: point, notice: "" };
+
+  let transition = state.transition;
+  if (!transition) {
+    const allowed = neighbours(anchor.id);
+    if (position && allowed.includes(position.id)) transition = { from: anchor.id, to: position.id };
+    else if (position) return recoverMotility(state, "route");
+    else {
+      const match = allowed.map(id => {
+        const destination = gazePosition(id)!;
+        return { id, ...pointSegmentDistance(point, anchor, destination) };
+      }).filter(candidate => candidate.projection >= 0 && candidate.projection <= 1 && candidate.distance <= MOTILITY_ROUTE_CORRIDOR)
+        .sort((a, b) => a.distance - b.distance)[0];
+      if (!match) return recoverMotility(state, "route");
+      transition = { from: anchor.id, to: match.id };
+    }
+  }
+
+  const from = gazePosition(transition.from), destination = gazePosition(transition.to);
+  if (!from || !destination) return recoverMotility(state, "route");
+  if (position?.id === from.id) return { ...state, anchor: from.id, transition: null, current: from.id,
+    dwell: 0, spatialGrace: 0, previous: point, notice: "" };
+  if (position && position.id !== destination.id) return recoverMotility(state, "route");
+  const segment = pointSegmentDistance(point, from, destination);
+  if (segment.distance > MOTILITY_ROUTE_CORRIDOR || segment.projection < 0 || segment.projection > 1.05)
+    return recoverMotility(state, "route");
+  if (position?.id === destination.id) return creditArrival({ ...state, transition }, destination.id, frameDt, point);
+  if (state.current === destination.id && state.dwell > 0) {
+    const spatialGrace = (state.spatialGrace ?? 0) + frameDt;
+    if (spatialGrace < MOTILITY_SPATIAL_GRACE_SECONDS)
+      return { ...state, transition, spatialGrace, previous: point };
+  }
+  return { ...state, transition, current: null, dwell: 0, spatialGrace: 0, previous: point, notice: "" };
 }
 
 export const motilityObservations = motilityScenarios.map(scenario => [scenario.id, scenario.label] as const);

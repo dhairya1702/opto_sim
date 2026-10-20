@@ -255,7 +255,7 @@ export function thoringtonGuidedStep(run: ThoringtonRun, sample: ThoringtonSpati
     ["capture", "Preserve the report", "The number and side are now immutable. Put the card and light down.", Boolean(run.capture)],
     ["record", "Transcribe and interpret", "Enter magnitude, raw side, and clinical interpretation without defaults.", run.records.length > run.trialIndex || run.phase === "complete"],
   ] as const;
-  const index = run.phase === "complete" ? checks.length - 1 : Math.max(0, checks.findIndex(check => !check[3]));
+  const index = run.capture || run.phase === "complete" ? checks.length - 1 : Math.max(0, checks.findIndex(check => !check[3]));
   const step = checks[index];
   return { id: `${THORINGTON_CASES[run.caseIndex].id}-${current.axis}-${step[0]}`, index, title: step[1],
     lines: [step[2], `Axis ${run.trialIndex + 1} of 2: ${current.axis}.`], complete: run.phase === "complete" };

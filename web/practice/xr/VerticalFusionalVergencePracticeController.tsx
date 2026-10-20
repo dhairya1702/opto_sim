@@ -9,7 +9,7 @@ import {
   type VerticalFusionalRun, type VerticalFusionalSpatialSample,
 } from "../../interaction/verticalFusionalVergenceProcedure";
 import { LIBRARY_SURFACES, libraryEquipment, librarySockets, LIBRARY_TITLES, libraryOpticPlacement } from "../../interaction/xrLibraryEquipment";
-import { isPatientFitted } from "../../interaction/xrSensoryEquipment";
+import { isPatientFitted, sensoryTargetCondition } from "../../interaction/xrSensoryEquipment";
 import { consultationToolDefinition, toolInHand } from "../../interaction/xrConsultationTools";
 import { useXRClinicRuntime, type ClinicInputMode } from "../../interaction/useXRClinicRuntime";
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
@@ -47,6 +47,7 @@ export function VerticalFusionalVergencePracticeController({ active, preview = f
   }, [live]);
 
   const runtime = useXRClinicRuntime({ active: live, inputMode, equipment: libraryEquipment("vertical-distance"), placementSockets: librarySockets("vertical-distance"), placementSurfaces: LIBRARY_SURFACES,
+    equipmentLabels: { worth: "Isolated distance target" },
     editorOpen: lesson.mode !== "none", onMenu: open => lesson.setMode(open ? "menu" : "none"),
     onInterrupt: reason => {
       if (["tracking", "visibility", "transfer", "procedure", "release"].includes(reason)) {
@@ -61,6 +62,11 @@ export function VerticalFusionalVergencePracticeController({ active, preview = f
     },
   });
 
+  const targetReady = () => {
+    const pose = runtime.supportedWorkingPose("worth", true);
+    return Boolean(pose && runtime.toolsRef.current.worth.powered
+      && sensoryTargetCondition(pose, runtime.toolsRef.current).endpoint === "distance");
+  };
   const spatial = (nowMs = performance.now()): VerticalFusionalSpatialSample => {
     const tool = runtime.toolsRef.current["vergence-prism"], held = tool.placement.kind === "held";
     const object = runtime.objects.current.get("vergence-prism"), pose = runtime.supportedWorkingPose("vergence-prism", true);
@@ -68,7 +74,7 @@ export function VerticalFusionalVergencePracticeController({ active, preview = f
     if (object && held) { object.getWorldQuaternion(quaternion); up.set(0, 1, 0).applyQuaternion(quaternion);
       base = verticalFusionalBaseFromRoll(Math.atan2(-up.x, up.y)); }
     return { nowMs, power: power.current, base, correctionFitted: isPatientFitted(runtime.toolsRef.current, "subjective"),
-      targetEstablished: targetEstablished.current, prismHeld: held, alignedOD: held && libraryOpticPlacement(pose, "OD"),
+      targetEstablished: targetEstablished.current && targetReady(), prismHeld: held, alignedOD: held && libraryOpticPlacement(pose, "OD"),
       patientFacing: Boolean(pose && pose.forward[2] < -Math.cos(Math.PI / 6)), tiltValid: base !== null,
       visible: Boolean(object?.visible), tracking: runtime.frameValid.current };
   };
@@ -81,6 +87,11 @@ export function VerticalFusionalVergencePracticeController({ active, preview = f
 
   useFrame((_, dt) => {
     const sample = spatial();
+    if (targetEstablished.current && !sample.targetEstablished && run.current.phase !== "captured" && !run.current.released && !run.current.record) {
+      targetEstablished.current = false;
+      run.current = reviseVerticalFusionalSetup(run.current, "Distance target was moved or switched off.", sample.correctionFitted, false);
+      lesson.clearPending();
+    }
     if (previousCorrection.current && !sample.correctionFitted && !run.current.record) {
       run.current = reviseVerticalFusionalSetup(run.current, "Distance correction was removed or changed.", false); lesson.clearPending();
     }
@@ -136,7 +147,7 @@ export function VerticalFusionalVergencePracticeController({ active, preview = f
     if (!isPatientFitted(runtime.toolsRef.current, "subjective")) runtime.updateTools({ ...runtime.toolsRef.current, subjective: { ...tool,
       placement: { kind: "socket", position: [0, 1.5, -.511], rotation: [0, 0, 0, 1], socketId: "sensory-correction", fittingLayer: "correction" }, revision: (tool.revision ?? 0) + 1 } });
   };
-  const establishTarget = () => { if (!live || targetEstablished.current) return; targetEstablished.current = true;
+  const establishTarget = () => { if (!live || !targetReady() || !isPatientFitted(runtime.toolsRef.current, "subjective") || targetEstablished.current) return; targetEstablished.current = true;
     run.current = configureVerticalFusionalRun(run.current, "establish-target"); publish(); };
   const instruct = () => { if (!live) return; run.current = configureVerticalFusionalRun(run.current, "give-instruction");
     run.current = sampleVerticalFusionalRun(run.current, spatial()); publish(); };
@@ -162,7 +173,8 @@ export function VerticalFusionalVergencePracticeController({ active, preview = f
   const entryReady = live && state.run.released && Boolean(state.run.captures.BU && state.run.captures.BD), entryFields = entryReady ? fields : [];
   const actions: LessonAction[] = [
     { label: "FIT DISTANCE CORRECTION", active: state.run.correctionFitted, run: fitCorrection },
-    { label: "ESTABLISH PREPARED MIRRORED TARGET", active: state.run.targetEstablished, disabled: !state.run.correctionFitted, run: establishTarget },
+    { label: "ESTABLISH PREPARED MIRRORED TARGET", active: state.run.targetEstablished && targetReady(), disabled: !state.run.correctionFitted || !targetReady(), run: establishTarget },
+    { label: "TOGGLE DISTANCE TARGET POWER", active: runtime.tools.worth.powered, run: () => { if (live) runtime.setToolPower("worth", !runtime.toolsRef.current.worth.powered); } },
     { label: "GIVE DOUBLE / RECOVERY INSTRUCTION", active: state.run.instructionArmed, disabled: !state.run.targetEstablished, run: instruct },
     { label: "PATIENT REPORT · WHAT DO YOU SEE?", disabled: !state.run.instructionArmed, run: publish },
     { label: "DIAL +0.1Δ · ACCESSIBILITY", disabled: !state.run.prismHeld || state.run.released, run: () => adjust(.1) },
@@ -178,8 +190,8 @@ export function VerticalFusionalVergencePracticeController({ active, preview = f
   }, [onMirror, status, entryReady, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
 
   return <>
-    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="VERTICAL DISTANCE VERGENCE" sensoryStation="four-prism"
-      showInstructionalHighlights={disclosure.showHighlights} instrumentSettings={{ "vergence-prism": { power: state.power, base: state.base ?? undefined,
+    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="VERTICAL DISTANCE VERGENCE" sensoryFixationLetter
+      showInstructionalHighlights={disclosure.showHighlights} instrumentSettings={{ worth: { fixationLetter: true, onPowerChange: powered => { if (live) runtime.setToolPower("worth", powered); } }, "vergence-prism": { power: state.power, base: state.base ?? undefined,
         highlightAperture: disclosure.showHighlights && coach.index === 4, highlightDial: disclosure.showHighlights && coach.index >= 5 && coach.index <= 8 } }} />
     {(live || preview) && <LibraryEquipmentTray active={live} equipment={runtime.equipment} showFittingGuides={disclosure.showHighlights} />}
     {live && voiceReport && <XRSign text={["FICTIONAL PATIENT · CURRENT RESPONSE", voiceReport]} p={[.55, 1.75, -.10]} size={[.58, .20]} bg="#07151b" fg="#eefbf7" />}

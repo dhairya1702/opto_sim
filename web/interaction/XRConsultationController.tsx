@@ -16,7 +16,7 @@ import {
 } from "./xrPupils";
 import { coverProcedure, type CoverPosition } from "./cover";
 import { advanceXRCoverState, initialXRCoverState, xrCoverComplete, xrCoverFixationMode, xrCoverPositionAt } from "./xrCover";
-import { gazePositions, MOTILITY_PATIENT_REPLY, observeTarget, type FixationTarget, type MotilityCoverage } from "./motility";
+import { gazePositions, interruptMotility, motilityNextGazeIds, MOTILITY_PATIENT_REPLY, newMotilityCoverage, observeTarget, type FixationTarget, type MotilityCoverage } from "./motility";
 import { xrMotilityTarget } from "./xrMotility";
 import {
   testVoiceEncounterActionTarget,
@@ -176,7 +176,6 @@ function XRMotilityPanel({ recordingOnly = false, following, light, distanceCm, 
   onCancel: () => void;
 }) {
   const complete = coverage.seen.length === gazePositions.length;
-  const current = gazePositions.find(position => position.id === coverage.current);
   const status = !following
     ? "Ask Arun to follow the light with his eyes."
     : !distanceReady
@@ -185,7 +184,7 @@ function XRMotilityPanel({ recordingOnly = false, following, light, distanceCm, 
         ? "Hold the target trigger to illuminate it."
         : complete
           ? "H-pattern complete · ask about symptoms."
-          : current ? `${current.label} · hold steady.` : "Move through centre and eight gaze positions.";
+          : coverage.notice || (coverage.current ? "Hold steady to observe this point." : "Follow the highlighted H route.");
   const ready = complete && symptomsAsked && Boolean(observation) && !light;
   if (recordingOnly) return <XRObservationPanel tool="Fixation target · both eyes" status={complete ? "Enter what you observed and ask about symptoms." : !following ? "Ask the patient to follow the target first." : "Movement observation is incomplete."} fields={[
     { label: "OBSERVATION", value: observation, enabled: complete && symptomsAsked, onChange: onObservation },
@@ -252,7 +251,7 @@ export function XRConsultationController({ active, preview = false, guided = fal
   coverModeRef.current = coverMode;
   const motilityProcedureActive = active && guided && panelExam === "motility";
   const [motilityFollowing, setMotilityFollowing] = useState(false);
-  const [motilityCoverage, setMotilityCoverage] = useState<MotilityCoverage>({ seen: [], current: null, dwell: 0 });
+  const [motilityCoverage, setMotilityCoverage] = useState<MotilityCoverage>(newMotilityCoverage);
   const motilityCoverageRef = useRef(motilityCoverage);
   const [motilityTarget, setMotilityTarget] = useState<FixationTarget>({ x: 0, y: 0, z: .35 });
   const [motilityDistance, setMotilityDistance] = useState(0);
@@ -368,7 +367,7 @@ export function XRConsultationController({ active, preview = false, guided = fal
 
 
   const resetMotility = useCallback(() => {
-    const coverage = { seen: [], current: null, dwell: 0 };
+    const coverage = newMotilityCoverage();
     motilityCoverageRef.current = coverage;
     setMotilityCoverage(coverage);
     setMotilityTarget({ x: 0, y: 0, z: .35 }); setMotilityDistance(0); setMotilityDistanceReady(false);
@@ -514,8 +513,8 @@ export function XRConsultationController({ active, preview = false, guided = fal
     if (!source || !workingPose(source) || !motilityFollowing || !toolsRef.current[source].powered) {
       setMotilityTarget(current => current.x || current.y || current.z !== .35 ? { x: 0, y: 0, z: .35 } : current);
       const previous = motilityCoverageRef.current;
-      if (previous.dwell || previous.current) {
-        const paused = { ...previous, current: null, dwell: 0, spatialGrace: 0 };
+      if (previous.dwell || previous.current || previous.transition) {
+        const paused = interruptMotility(previous);
         motilityCoverageRef.current = paused;
         setMotilityCoverage(paused);
       }
@@ -529,7 +528,9 @@ export function XRConsultationController({ active, preview = false, guided = fal
     const next = observeTarget(motilityCoverageRef.current, spatial.target, dt, motilityFollowing && toolsRef.current[source].powered && spatial.distanceReady);
     const previous = motilityCoverageRef.current;
     motilityCoverageRef.current = next;
-    if (next.current !== previous.current || next.seen.length !== previous.seen.length || Math.abs(next.dwell - previous.dwell) > .04) setMotilityCoverage(next);
+    if (next.current !== previous.current || next.seen.length !== previous.seen.length || Math.abs(next.dwell - previous.dwell) > .04
+      || next.notice !== previous.notice || next.anchor !== previous.anchor || next.transition?.to !== previous.transition?.to
+      || next.recovery?.returnTo !== previous.recovery?.returnTo) setMotilityCoverage(next);
   });
 
   useFrame((_, dt) => {
@@ -781,9 +782,10 @@ export function XRConsultationController({ active, preview = false, guided = fal
         const z = Math.max(.3, Math.min(.4, motilityTarget.z));
         const point: [number, number, number] = [position.x * z * .65, 1.5 + position.y * z * .45, EYE_MIDPOINT[2] + z];
         const seenPosition = motilityCoverage.seen.includes(position.id);
+        const nextPosition = motilityNextGazeIds(motilityCoverage).includes(position.id);
         return <mesh key={position.id} position={point}>
           <ringGeometry args={[.014, .02, 20]} />
-          <meshBasicMaterial color={seenPosition ? "#65c9b6" : "#8da8a3"} transparent opacity={seenPosition ? .78 : .36} side={DoubleSide} />
+          <meshBasicMaterial color={seenPosition ? "#65c9b6" : nextPosition ? "#f3c969" : "#8da8a3"} transparent opacity={seenPosition ? .78 : nextPosition ? .82 : .26} side={DoubleSide} />
         </mesh>;
       })}
 

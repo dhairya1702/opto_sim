@@ -65,6 +65,61 @@ function completeBoth() {
 }
 
 describe("horizontal distance fusional vergence procedure", () => {
+  it("guides BI increase, partial break capture, recovery, and zero reset in procedure order", () => {
+    const clock = { value: 0 };
+    let run = baseline(configured(), clock, "BI");
+    const coach = (power: number, base: FusionalBase = "BI") => fusionalGuidedStep(run, valid(clock.value, power, base));
+    expect(coach(0).id).toBe("bi-increase");
+    run = move(run, clock, 0, 7, "BI");
+    expect(run.phase).toBe("decrease-start");
+    expect(run.pendingBreak).not.toBeNull();
+    expect(run.captures.BI).toBeUndefined();
+    expect(coach(7)).toMatchObject({ id: "bi-recovery", title: "Reduce BI to recovery" });
+    run = sampleFusionalRun(run, valid(clock.value, 7, "BI"));
+    expect(run.phase).toBe("decrease");
+    run = move(run, clock, 7, 5, "BI");
+    expect(run.captures.BI).toBeUndefined();
+    expect(coach(5).id).toBe("bi-recovery");
+    run = move(run, clock, 5, 4, "BI");
+    expect(run.phase).toBe("zero-reset");
+    expect(run.captures.BI).toBeDefined();
+    expect(coach(4).id).toBe("bo-run");
+    run = move(run, clock, 4, 0, "BI");
+    expect(run.phase).toBe("bo-orient");
+    expect(coach(0).id).toBe("bo-run");
+    run = baseline(run, clock, "BO");
+    expect(run.phase).toBe("increase");
+    expect(coach(0, "BO").id).toBe("bo-run");
+  });
+
+  it("returns to BI baseline guidance when an unfinished recovery is interrupted", () => {
+    const clock = { value: 0 };
+    let run = baseline(configured(), clock, "BI");
+    run = move(run, clock, 0, 7, "BI");
+    run = interruptFusionalRun(run, "Tracking was lost.");
+    expect(run.pendingBreak).toBeNull();
+    expect(fusionalGuidedStep(run, valid(clock.value, 0)).id).toBe("baseline");
+    run = baseline(run, clock, "BI");
+    expect(fusionalGuidedStep(run, valid(clock.value, 0)).id).toBe("bi-increase");
+  });
+
+  it("keeps bilateral captures on release and recording guidance without live setup", () => {
+    let { run, clock } = completeBoth();
+    const putDown = valid(clock.value, 12, "BI", {
+      base: null,
+      prismHeld: false, alignedOD: false, patientFacing: false, tiltValid: false,
+      correctionFitted: false, targetEstablished: false, visible: false, tracking: false,
+    });
+    expect(fusionalGuidedStep(run, putDown)).toMatchObject({ id: "record", complete: false });
+    run = configureFusionalRun(run, "release-prism");
+    expect(fusionalGuidedStep(run, putDown).id).toBe("record");
+    const values = { "bi-blur": "X", "bi-break": "7", "bi-recovery": "4", "bo-blur": "9", "bo-break": "19", "bo-recovery": "12" };
+    for (const [id, value] of Object.entries(values)) run = enterFusionalRecord(run, id, value);
+    expect(fusionalGuidedStep(run, putDown).id).toBe("record");
+    run = submitFusionalRecord(run);
+    expect(fusionalGuidedStep(run, putDown)).toMatchObject({ id: "record", complete: true });
+  });
+
   it("preserves the concealed fictional BI X/7/4 and BO 9/19/12 pattern", () => {
     expect(FUSIONAL_DISTANCE_CASE.endpoints).toEqual({ BI: { blur: null, break: 7, recovery: 4 }, BO: { blur: 9, break: 19, recovery: 12 } });
     const { run } = completeBoth();

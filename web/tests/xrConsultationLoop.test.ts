@@ -6,7 +6,6 @@ import { stations, walkable } from "../interaction/navigation";
 import { ALL_CLINIC_TOOLS, CASE_INDEPENDENT_CONSULTATION_EQUIPMENT, CONSULTATION_TOOLS, consultationToolDefinition } from "../interaction/xrConsultationTools";
 import { INSTRUMENT_KIT } from "../interaction/clinicLayout";
 import { coverProcedure } from "../interaction/cover";
-import { gazePositions } from "../interaction/motility";
 import { clinic } from "./helpers/xrClinicHarness";
 
 let dispose: (() => Promise<void>) | undefined;
@@ -319,10 +318,7 @@ describe("free consultation responses", () => {
     await sim.pickup(0, "motility");
     await sim.click(1, sim.button("GIVE FOLLOWING INSTRUCTION"));
     await sim.event(0, "selectstart");
-    for (const gaze of gazePositions) {
-      await sim.at(0, [gaze.x * .35 * .65, 1.5 + gaze.y * .35 * .45, -.086]);
-      await sim.step(1 / 72, 54);
-    }
+    await sim.completeMotilityRoute();
     await sim.event(0, "selectend");
     await sim.click(1, sim.button("ASK DIPLOPIA / PAIN"));
     await sim.click(1, sim.button("OBSERVATION · CHOOSE"));
@@ -487,10 +483,7 @@ it("records instructed target observations through the free-roam drawer and reta
   await sim.pickup(0, "motility");
   await sim.instruct("follow-target", "Follow my light with your eyes");
   await sim.event(0, "selectstart");
-  for (const gaze of gazePositions) {
-    await sim.at(0, [gaze.x * .35 * .65, 1.5 + gaze.y * .35 * .45, -.086]);
-    await sim.step(1 / 72, 54);
-  }
+  await sim.completeMotilityRoute();
   await sim.event(0, "selectend");
   await sim.panel(1);
   await sim.click(1, sim.button("RECORD OBSERVATION"));

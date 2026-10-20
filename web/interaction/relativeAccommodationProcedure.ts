@@ -44,6 +44,9 @@ export type RelativeAccommodationRun = Readonly<{
 }>;
 export type RelativeAccommodationGuidedStep = Readonly<{ index: number; title: string; lines: readonly string[] }>;
 
+// Illustrative equipment range, independent of the fictional patient responses.
+export const RELATIVE_HOLDER_MIN_D = -5;
+export const RELATIVE_HOLDER_MAX_D = 5;
 export const RELATIVE_NRA_ENDPOINT_D = 2;
 export const RELATIVE_PRA_ENDPOINT_D = -2.25;
 export const RELATIVE_RESPONSE_MS = 1200;
@@ -103,11 +106,11 @@ export function stepRelativeAccommodationPower(run: RelativeAccommodationRun, di
   if (issue) return Object.freeze({ ...run, feedback: issue });
   if (!run.initialClearConfirmed) return Object.freeze({ ...run, feedback: "Confirm initial binocular clarity at 0.00 D before changing power." });
 
-  let minimum = 0, maximum = RELATIVE_NRA_ENDPOINT_D;
+  let minimum = 0, maximum = RELATIVE_HOLDER_MAX_D;
   if (run.nraCapture && !run.baselineConfirmed) {
     if (direction === "plus") return Object.freeze({ ...run, feedback: "Remove plus power toward 0.00 D before confirming baseline clarity." });
   } else if (run.baselineConfirmed) {
-    minimum = RELATIVE_PRA_ENDPOINT_D; maximum = 0;
+    minimum = RELATIVE_HOLDER_MIN_D; maximum = 0;
     if (direction === "plus") return Object.freeze({ ...run, feedback: "Continue adding minus in 0.25 D steps during PRA." });
   } else if (direction === "minus") {
     return Object.freeze({ ...run, feedback: "Continue adding plus in 0.25 D steps during NRA." });
@@ -119,8 +122,8 @@ export function stepRelativeAccommodationPower(run: RelativeAccommodationRun, di
     const limit = run.nraCapture && !run.baselineConfirmed ? "0.00 D baseline" : run.baselineConfirmed ? "PRA limit" : "NRA limit";
     return Object.freeze({ ...run, feedback: `The holder is already at the ${limit}.` });
   }
-  const nraEndpoint = !run.nraCapture && powerD === RELATIVE_NRA_ENDPOINT_D;
-  const praEndpoint = run.baselineConfirmed && powerD === RELATIVE_PRA_ENDPOINT_D;
+  const nraEndpoint = !run.nraCapture && powerD >= RELATIVE_NRA_ENDPOINT_D;
+  const praEndpoint = run.baselineConfirmed && powerD <= RELATIVE_PRA_ENDPOINT_D;
   return Object.freeze({ ...run, powerD, phase: nraEndpoint ? "confirming-nra" as const : praEndpoint ? "confirming-pra" as const
     : run.nraCapture && !run.baselineConfirmed ? powerD === 0 ? "baseline-clear" as const : "baseline" as const
     : run.baselineConfirmed ? "pra" as const : "nra" as const,
@@ -162,6 +165,12 @@ export function sampleRelativeAccommodation(run: RelativeAccommodationRun, sampl
   if (!run.instructionArmed) return Object.freeze({ ...run, feedback: "Ask the patient to keep the line clear and single and report the first sustained blur." });
   if (!run.initialClearConfirmed) return Object.freeze({ ...run, phase: "initial-clear" as const,
     feedback: "Confirm that the near line is initially clear and single at 0.00 D.", report: "The letters are clear and single." });
+  // Interruption preserves lens power, so an uncaptured endpoint must be able to
+  // start a fresh dwell without requiring another dial step.
+  if (run.phase === "nra" && !run.nraCapture && run.powerD >= RELATIVE_NRA_ENDPOINT_D)
+    run = Object.freeze({ ...run, phase: "confirming-nra" as const, blurSinceMs: sample.nowMs });
+  else if (run.phase === "pra" && run.nraCapture && run.baselineConfirmed && run.powerD <= RELATIVE_PRA_ENDPOINT_D)
+    run = Object.freeze({ ...run, phase: "confirming-pra" as const, blurSinceMs: sample.nowMs });
   if (run.phase !== "confirming-nra" && run.phase !== "confirming-pra") return run;
 
   const blurSinceMs = run.blurSinceMs ?? sample.nowMs;
@@ -197,16 +206,25 @@ export function submitRelativeAccommodationRecord(run: RelativeAccommodationRun,
 }
 
 export function relativeAccommodationGuidedStep(run: RelativeAccommodationRun, sample: RelativeAccommodationSpatialSample): RelativeAccommodationGuidedStep {
+  // Finished measurements remain ready to record after the holder is released.
+  if (run.praCapture || run.phase === "complete")
+    return { index: 9, title: run.phase === "complete" ? "Series complete" : "Record NRA and PRA", lines: [run.feedback] };
   if (!sample.correctionFitted) return { index: 0, title: "Fit near correction", lines: ["Fit the appropriate near correction in the trial frame."] };
   if (!sample.targetDocked) return { index: 1, title: "Prepare the near line", lines: ["Release the readable target on its 40 cm stand, facing the patient."] };
   if (!sample.holderHeld || !sample.holderAligned) return { index: 2, title: "Align the binocular holder", lines: ["Hold both clear apertures face-on over OD and OS. Keep the other controller free for the dial."] };
   if (!run.instructionArmed) return { index: 3, title: "Give the instruction", lines: ["Ask the patient to keep the line clear and single and report the first blur that remains blurred."] };
   if (!run.initialClearConfirmed) return { index: 4, title: "Confirm initial clarity", lines: ["At 0.00 D, confirm that the line is clear and single through both eyes."] };
-  if (!run.nraCapture) return { index: 5, title: "Measure NRA", lines: ["Turn the dial toward plus in 0.25 D steps.", run.feedback] };
-  if (run.powerD !== 0) return { index: 6, title: "Return to baseline", lines: ["Turn the dial back toward 0.00 D in 0.25 D steps.", run.feedback] };
-  if (!run.baselineConfirmed) return { index: 7, title: "Confirm clear baseline", lines: ["Confirm clear, single vision at the restored 0.00 D baseline."] };
-  if (!run.praCapture) return { index: 8, title: "Measure PRA", lines: ["Turn the dial toward minus in 0.25 D steps.", run.feedback] };
-  return { index: 9, title: run.phase === "complete" ? "Series complete" : "Record NRA and PRA", lines: [run.feedback] };
+  if (!run.nraCapture) return { index: 5, title: "Measure NRA", lines: [run.phase === "confirming-nra"
+    ? "Hold the power steady and maintain binocular alignment while sustained blur is confirmed."
+    : "Turn the dial toward plus in 0.25 D steps.", run.feedback] };
+  // Returning to zero belongs only to the transition between NRA and PRA.
+  if (!run.baselineConfirmed) {
+    if (run.powerD !== 0) return { index: 6, title: "Return to baseline", lines: ["Turn the dial back toward 0.00 D in 0.25 D steps.", run.feedback] };
+    return { index: 7, title: "Confirm clear baseline", lines: ["Confirm clear, single vision at the restored 0.00 D baseline."] };
+  }
+  return { index: 8, title: "Measure PRA", lines: [run.phase === "confirming-pra"
+    ? "Hold the power steady and maintain binocular alignment while sustained blur is confirmed."
+    : "Turn the dial toward minus in 0.25 D steps.", run.feedback] };
 }
 
 export function relativeAccommodationDisclosure(kind: "guided" | "test") {

@@ -34,7 +34,8 @@ describe("remaining XR library sequences and geometry", () => {
     for (const kind of Object.keys(LIBRARY_TITLES) as (keyof typeof LIBRARY_TITLES)[]) expect(librarySockets(kind).every(socket => libraryEquipment(kind).includes(socket.tool))).toBe(true);
   });
   it("stocks the rotary prism for dedicated distance and near procedures while preserving 6.5", () => {
-    expect(libraryEquipment("vertical-distance")).toEqual(["subjective", "vergence-prism"]);
+    expect(libraryEquipment("vertical-distance")).toEqual(["subjective", "worth", "vergence-prism"]);
+    expect(libraryEquipment("horizontal-distance")).toEqual(["subjective", "worth", "vergence-prism"]);
     expect(libraryEquipment("horizontal-near")).toEqual(["subjective", "near", "vergence-prism"]);
     expect(libraryEquipment("facility")).toEqual(["subjective", "near", "prism-flipper"]);
     expect(libraryEquipment("minus-lens")).toEqual(["subjective", "near", "minus-lens-holder", "cover"]);

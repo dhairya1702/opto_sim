@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { CatmullRomCurve3, DoubleSide, MathUtils, Path, Shape, Vector2, Vector3, type Group } from "three";
 import { Box, Cylinder } from "./Models";
@@ -6,6 +6,7 @@ import { XRSign } from "./XRClinicPanels";
 import { LIBRARY_SOCKETS } from "../interaction/xrLibraryEquipment";
 import { CLINIC_PATIENT_EYES } from "../interaction/clinicPatient";
 import { THORINGTON_CARD_APERTURE_RADIUS_M, THORINGTON_SCALE, thoringtonCardCoordinate } from "../interaction/thoringtonProcedure";
+import { RELATIVE_HOLDER_MIN_D, RELATIVE_HOLDER_MAX_D } from "../interaction/relativeAccommodationProcedure";
 import type { ConsultationToolId } from "../interaction/xrConsultationTools";
 
 export type ClinicInstrumentSetting = {
@@ -22,7 +23,7 @@ export type ClinicInstrumentSetting = {
   anchorPower?: number; aligned?: boolean; reflexOffset?: number; showReflex?: boolean;
   powered?: boolean; onPowerChange?: (powered: boolean) => void;
   highlightPowerSwitch?: boolean;
-  onFlip?: () => void;
+  onFlip?: () => boolean | void;
 };
 export type ClinicInstrumentSettings = Partial<Record<ConsultationToolId, ClinicInstrumentSetting>>;
 
@@ -95,6 +96,14 @@ function Lens({ x, material = "clear" }: { x: number; material?: "clear" | "red"
 
 function FlipperModel({ id, setting }: { id: "lens-flipper" | "prism-flipper"; setting: ClinicInstrumentSetting }) {
   const head = useRef<Group>(null);
+  const [reducedMotion, setReducedMotion] = useState(() => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches);
+  useEffect(() => {
+    if (typeof matchMedia !== "function") return;
+    const preference = matchMedia("(prefers-reduced-motion: reduce)");
+    const changed = () => setReducedMotion(preference.matches);
+    preference.addEventListener("change", changed);
+    return () => preference.removeEventListener("change", changed);
+  }, []);
   const label = id === "prism-flipper"
     ? setting.side === "BI" ? "3Δ BI" : "12Δ BO"
     : id === "lens-flipper"
@@ -102,13 +111,13 @@ function FlipperModel({ id, setting }: { id: "lens-flipper" | "prism-flipper"; s
       : "+2.00 D";
   const rimAccent = id === "prism-flipper" ? accent : setting.side === "minus" || (setting.power ?? 0) < 0 ? "#b04f61" : "#488da0";
   useFrame((_, dt) => {
-    if (!head.current || id !== "prism-flipper") return;
-    const target = setting.side === "BI" ? Math.PI : 0;
-    head.current.rotation.y = MathUtils.damp(head.current.rotation.y, target, 16, dt);
+    if (!head.current) return;
+    const target = setting.side === "BI" || setting.side === "minus" ? Math.PI : 0;
+    head.current.rotation.y = reducedMotion ? target : MathUtils.damp(head.current.rotation.y, target, 16, dt);
   });
   return <group>
     <MoldedHandle />
-    <group ref={head}>
+    <group ref={head} userData={{ xrFlipperHead: id }}>
       {[leftBridge, rightBridge].map((path, index) => <mesh key={index} castShadow receiveShadow>
         <tubeGeometry args={[path, 16, .006, 10, false]} />
         <meshStandardMaterial color={shell} roughness={.54} metalness={.11} />
@@ -119,10 +128,14 @@ function FlipperModel({ id, setting }: { id: "lens-flipper" | "prism-flipper"; s
         <torusGeometry args={[.037, .0015, 6, 32]} />
         <meshStandardMaterial color={rimAccent} roughness={.42} metalness={.34} />
       </mesh>)}
+      {id === "lens-flipper" && <>
+        <XRSign text={["+2.00 D"]} p={[0, .005, .014]} size={[.058, .017]} bg="#173a3e" fg="#e8fff9" />
+        <XRSign text={["−2.00 D"]} p={[0, .005, -.014]} rotation={[0, Math.PI, 0]} size={[.058, .017]} bg="#173a3e" fg="#e8fff9" />
+      </>}
     </group>
-    {id === "prism-flipper" && setting.onFlip && <group position={[0, .058, .026]} userData={{
+    {setting.onFlip && <group position={[0, .058, .026]} userData={{
       xrInstrumentControl: id, xrInteractiveSurface: true, xrButton: true, xrWidth: .052, xrHeight: .040,
-      xrLabel: "PRISM FLIP TURN", xrAction: setting.onFlip,
+      xrLabel: id === "prism-flipper" ? "PRISM FLIP TURN" : "LENS FLIP TURN", xrAction: setting.onFlip,
     }}>
       <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
         <cylinderGeometry args={[.017, .017, .012, 24]} />
@@ -130,13 +143,14 @@ function FlipperModel({ id, setting }: { id: "lens-flipper" | "prism-flipper"; s
       </mesh>
       <XRSign text={["TURN"]} p={[0, .025, .001]} size={[.052, .017]} bg="#173a3e" fg="#f8d88d" />
     </group>}
-    <XRSign text={[label]} p={[0, .005, .014]} size={[.058, .017]} bg="#173a3e" fg="#e8fff9" />
+    {id === "prism-flipper" && <XRSign text={[label]} p={[0, .005, .014]} size={[.058, .017]} bg="#173a3e" fg="#e8fff9" />}
   </group>;
 }
 
 function RelativeLensHolderModel({ power = 0, highlightAperture = false, highlightDial = false }: { power?: number; highlightAperture?: boolean; highlightDial?: boolean }) {
-  const bounded = Math.max(-2.25, Math.min(2, power));
-  const dialAngle = (2 - bounded) / 4.25 * Math.PI * 1.5;
+  const bounded = Math.max(RELATIVE_HOLDER_MIN_D, Math.min(RELATIVE_HOLDER_MAX_D, power));
+  const dialIntervals = (RELATIVE_HOLDER_MAX_D - RELATIVE_HOLDER_MIN_D) * 4;
+  const dialAngle = (RELATIVE_HOLDER_MAX_D - bounded) / (RELATIVE_HOLDER_MAX_D - RELATIVE_HOLDER_MIN_D) * Math.PI * 1.5;
   return <group>
     <MoldedHandle />
     {[new CatmullRomCurve3([new Vector3(0, .057, 0), new Vector3(-.022, .073, 0), new Vector3(-.048, .088, 0)]),
@@ -151,13 +165,13 @@ function RelativeLensHolderModel({ power = 0, highlightAperture = false, highlig
     </group>)}
     <group position={[.075, .035, .006]} userData={{ xrRelativeAccommodationDial: true }}>
       <mesh castShadow rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[.032, .032, .014, 40]} /><meshStandardMaterial color={darkMetal} roughness={.38} metalness={.48} /></mesh>
-      {Array.from({ length: 18 }, (_, index) => <group key={index} rotation={[0, 0, -index / 17 * Math.PI * 1.5]}>
+      {Array.from({ length: dialIntervals + 1 }, (_, index) => <group key={index} rotation={[0, 0, -index / dialIntervals * Math.PI * 1.5]}>
         <Box p={[0, .027, .010]} s={[index % 4 === 0 ? .003 : .0015, index % 4 === 0 ? .009 : .005, .002]} c={index % 4 === 0 ? accent : paper} />
       </group>)}
       <group rotation={[0, 0, -dialAngle]}><Box p={[0, .019, .018]} s={[.004, .033, .004]} c="#f1c45f" /></group>
       {highlightDial && <mesh position={[0, 0, .018]} userData={{ xrInstructionalHighlight: true }}><ringGeometry args={[.037, .044, 32]} /><meshBasicMaterial color="#8df5d3" side={DoubleSide} depthTest={false} /></mesh>}
     </group>
-    <XRSign text={[`${bounded >= 0 ? "+" : ""}${bounded.toFixed(2)} D`, "+2.00 → 0.00 → −2.25", "0.25 D STEPS"]} p={[-.050, .027, .014]} size={[.088, .050]} bg="#173a3e" fg="#e8fff9" />
+    <XRSign text={[`${bounded >= 0 ? "+" : ""}${bounded.toFixed(2)} D`, `RANGE ${RELATIVE_HOLDER_MIN_D.toFixed(2)} TO +${RELATIVE_HOLDER_MAX_D.toFixed(2)} D`, "0.25 D STEPS"]} p={[-.050, .027, .014]} size={[.088, .050]} bg="#173a3e" fg="#e8fff9" />
   </group>;
 }
 

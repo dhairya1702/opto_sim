@@ -36,11 +36,11 @@ export function motilityGuidedStep(state: MotilityGuidedState): MotilityGuidedSt
   };
   if (!state.seen.includes("centre")) return {
     id: "primary", index: 2, title: "Establish primary gaze",
-    lines: ["Hold the trigger to switch the penlight on.", "Centre it 30–40 cm away until CENTRE checks off."], complete: false,
+    lines: ["Hold the trigger to switch the penlight on.", "Hold at the highlighted starting point 30–40 cm away."], complete: false,
   };
   if (seenCount < 9) return {
     id: "pattern", index: 3, title: "Complete the H-pattern",
-    lines: [`${seenCount}/9 gaze positions checked.`, "Move slowly and hold at each highlighted point."], complete: false,
+    lines: [`${seenCount}/9 gaze positions checked.`, "Follow the highlighted H route; hold at each point."], complete: false,
   };
   if (!state.symptomsAsked) return {
     id: "symptoms", index: 4, title: "Ask about symptoms",

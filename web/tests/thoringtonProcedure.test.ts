@@ -30,6 +30,17 @@ function record(run: ThoringtonRun) {
 }
 
 describe("shared Modified Thorington procedure", () => {
+  it("keeps captured reports on transcription after release and requires setup for the next axis", () => {
+    const released = sample({ penlightHeld: false, penlightPowered: false, cardPresent: false, cardHeldOrSupported: false, correctionFitted: false });
+    let run = capture();
+    expect(thoringtonGuidedStep(run, released)).toMatchObject({ index: 9, title: "Transcribe and interpret" });
+    run = record(run);
+    expect(thoringtonGuidedStep(run, released).index).toBe(0);
+    run = capture(run);
+    expect(thoringtonGuidedStep(run, released).index).toBe(9);
+    run = record(run);
+    expect(thoringtonGuidedStep(run, released)).toMatchObject({ index: 9, complete: true });
+  });
   it("preserves both authored cases and horizontal-before-vertical order", () => {
     expect(THORINGTON_CASES.map(item => item.trials.map(value => [value.axis, value.signedCoordinate, value.reportedSide, value.interpretation]))).toEqual([
       [["horizontal", 6, "right", "esophoria"], ["vertical", 4, "above", "left-hyperphoria"]],

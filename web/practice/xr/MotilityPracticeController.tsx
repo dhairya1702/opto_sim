@@ -3,7 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import { CLINIC_EYE_MIDPOINT } from "../../interaction/clinicPatient";
 import { useXRClinicRuntime, type ClinicInputMode } from "../../interaction/useXRClinicRuntime";
 import { desktopPenlightPose } from "../../interaction/desktopClinicInput";
-import { gazePositions, observeTarget, motilityObservations, motilityScenario, motilityScenarios, scenarioGazeForEye, MOTILITY_DWELL_SECONDS, type MotilityCoverage, type MotilityScenarioId } from "../../interaction/motility";
+import { gazePositions, interruptMotility, motilityHRoutePositions, motilityNextGazeIds, newMotilityCoverage, observeTarget, motilityObservations, motilityScenario, motilityScenarios, scenarioGazeForEye, MOTILITY_DWELL_SECONDS, type MotilityCoverage, type MotilityScenarioId } from "../../interaction/motility";
 import { xrMotilityTarget } from "../../interaction/xrMotility";
 import { MOTILITY_GUIDED_STEP_COUNT, motilityGuidedStep } from "../../interaction/motilityGuidance";
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
@@ -13,8 +13,8 @@ import { useClinicEyeMotion } from "./useClinicEyeMotion";
 import { PracticeLessonUI, usePracticeLesson, type BatchMirror, type LessonField } from "./PracticeLessonUI";
 
 const fields: LessonField[] = [{ id: "observation", label: "Movement observation", choices: motilityObservations }];
-const initial = (): MotilityCoverage => ({ seen: [], current: null, dwell: 0, spatialGrace: 0 });
-const initialReadout = () => ({ count: 0, current: "", distance: 0, tracking: false, progress: 0 });
+const initial = newMotilityCoverage;
+const initialReadout = () => ({ count: 0, current: "", distance: 0, tracking: false, progress: 0, notice: "", next: [] as readonly string[] });
 export function MotilityPracticeController({ active, preview = false, inputMode = "xr", scenarioId = "full", onComplete, onNext, onExit, onMirror }: {
   active: boolean; preview?: boolean; inputMode?: ClinicInputMode; scenarioId?: MotilityScenarioId; onComplete: () => void; onNext?: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
 }) {
@@ -29,16 +29,16 @@ export function MotilityPracticeController({ active, preview = false, inputMode 
   const coverage = useRef(initial());
   const desktopGaze = useRef(0);
   const [readout, setReadout] = useState(initialReadout);
-  const interrupt = useCallback(() => { coverage.current = { ...coverage.current, current: null, dwell: 0, spatialGrace: 0 }; }, []);
+  const interrupt = useCallback(() => { coverage.current = interruptMotility(coverage.current); }, []);
   const desktopPose = () => {
-    const position = gazePositions[desktopGaze.current % gazePositions.length];
+    const position = motilityHRoutePositions[desktopGaze.current % motilityHRoutePositions.length];
     return desktopPenlightPose([position.x * .35 * .65, 1.5 + position.y * .35 * .45, CLINIC_EYE_MIDPOINT[2] + .35]);
   };
   const runtime = useXRClinicRuntime({ active: active && !preview, inputMode, editorOpen: lesson.mode !== "none", panelModeEnabled: false,
     desktopHeldPose: id => id === "pupils" ? desktopPose() : null,
     onThumbstickStep: (id, step) => {
       if (id !== "pupils") return false;
-      desktopGaze.current = (desktopGaze.current + step + gazePositions.length) % gazePositions.length;
+      desktopGaze.current = (desktopGaze.current + step + motilityHRoutePositions.length) % motilityHRoutePositions.length;
       runtime.setDesktopHeldPose("pupils", desktopPose()); return true;
     }, onInterrupt: interrupt });
   const eyes = useClinicEyeMotion(active);
@@ -50,7 +50,7 @@ export function MotilityPracticeController({ active, preview = false, inputMode 
   useFrame(({ clock: frameClock }, dt) => {
     const spatial = sample();
     const valid = Boolean(spatial?.distanceReady && followingRef.current && runtime.toolsRef.current.pupils.powered);
-    coverage.current = observeTarget(coverage.current, spatial?.target ?? { x: 0, y: 0, z: 1 }, dt, valid);
+    coverage.current = observeTarget(coverage.current, spatial?.target ?? { x: 0, y: 0, z: 1 }, dt, valid, { assisted: inputMode === "desktop" });
     eyes.forEach((eye, id) => {
       if (!valid || !spatial) { eye.position.set(0, 0, 0); return; }
       const gaze = scenarioGazeForEye(scenario.id, spatial.target, id, frameClock.elapsedTime);
@@ -65,6 +65,8 @@ export function MotilityPracticeController({ active, preview = false, inputMode 
         distance: Math.round(spatial?.distanceCm ?? 0),
         tracking: valid,
         progress: Math.min(100, Math.round(coverage.current.dwell / MOTILITY_DWELL_SECONDS * 100)),
+        notice: coverage.current.notice ?? "",
+        next: motilityNextGazeIds(coverage.current),
       };
       setReadout(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
     }
@@ -91,12 +93,12 @@ export function MotilityPracticeController({ active, preview = false, inputMode 
     { label: following ? "FOLLOWING ✓" : "FOLLOW LIGHT · HEAD STILL", run: () => { followingRef.current = true; setFollowing(true); }, active: following },
     { label: asked ? "SYMPTOMS ASKED ✓" : "ASK ABOUT SYMPTOMS", run: ask, disabled: readout.count !== gazePositions.length, active: asked },
     ...(inputMode === "desktop" ? [{ label: runtime.tools.pupils.powered ? "PENLIGHT ON ✓" : "SWITCH PENLIGHT ON", run: () => runtime.setToolPower("pupils", true), active: runtime.tools.pupils.powered },
-      { label: "MOVE TO NEXT GAZE", run: () => { desktopGaze.current = (desktopGaze.current + 1) % gazePositions.length; runtime.setDesktopHeldPose("pupils", desktopPose()); } }] : []),
+      { label: "MOVE TO NEXT GAZE", run: () => { desktopGaze.current = (desktopGaze.current + 1) % motilityHRoutePositions.length; runtime.setDesktopHeldPose("pupils", desktopPose()); } }] : []),
     ...(guideAvailable ? [{ label: guides ? "HIDE GAZE GUIDE" : "SHOW GAZE GUIDE", run: () => setGuides(value => !value), active: guides }] : []),
   ];
   const ready = active && readout.count === gazePositions.length && asked;
   const status = !following ? "Ask the patient to follow the light and keep the head still."
-    : readout.count < gazePositions.length ? `${readout.count}/9 gaze points · ${readout.distance} cm · ${readout.current || "hold the lit penlight at 30–40 cm"}`
+    : readout.count < gazePositions.length ? `${readout.count}/9 gaze points · ${readout.distance} cm · ${readout.notice || (readout.current ? "hold steady" : "follow the highlighted H route")}`
     : !asked ? "Nine gaze points observed · ask about symptoms."
       : `9/9 complete · Arun: ${scenario.patientReply} choose the movement observation and submit.`;
   const guidance = motilityGuidedStep({
@@ -126,12 +128,13 @@ export function MotilityPracticeController({ active, preview = false, inputMode 
     {active && guideAvailable && guides && gazePositions.map(position => {
       const seen = coverage.current.seen.includes(position.id);
       const current = readout.current === position.id && !seen;
+      const next = readout.next.includes(position.id);
       const progress = current ? readout.progress / 100 : 0;
       return <group key={position.id} position={[position.x * .35 * .65, 1.5 + position.y * .35 * .45, CLINIC_EYE_MIDPOINT[2] + .35]}
         userData={{ xrMotilityGazeGuide: position.id }}>
         <mesh scale={[.038, .027, 1]} userData={{ xrMotilityGuideRing: true }}>
           <ringGeometry args={[.78, 1, 48]} />
-          <meshBasicMaterial color={seen ? "#65c9b6" : current ? "#f3c969" : "#8da8a3"} transparent opacity={seen ? .9 : current ? .95 : .48} />
+          <meshBasicMaterial color={seen ? "#65c9b6" : current || next ? "#f3c969" : "#8da8a3"} transparent opacity={seen ? .9 : current || next ? .95 : .32} />
         </mesh>
         {current && progress > 0 && <mesh position={[0, 0, .001]} scale={[.038, .027, 1]} userData={{ xrMotilityGuideProgress: true }}>
           <ringGeometry args={[.54, .72, 48, 1, Math.PI / 2, Math.PI * 2 * progress]} />

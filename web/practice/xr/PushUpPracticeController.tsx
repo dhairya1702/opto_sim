@@ -1,3 +1,4 @@
+import { pushUpBoardActions } from "../../interaction/practiceBoardActions";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Vector3 } from "three";
@@ -16,6 +17,7 @@ import { XRSign } from "../../scene/XRClinicPanels";
 import { usePracticeAttempt } from "../PracticeAttemptContext";
 import { PracticeLessonUI, usePracticeLesson, type BatchMirror, type LessonAction, type LessonField } from "./PracticeLessonUI";
 import { useClinicEyeMotion } from "./useClinicEyeMotion";
+import { clinicNearEyeOffset } from "../../interaction/clinicNearEyeMotion";
 
 export function PushUpPracticeController({ active, preview = false, inputMode = "xr", onComplete, onExit, onMirror }: {
   active: boolean; preview?: boolean; inputMode?: ClinicInputMode; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
@@ -79,9 +81,9 @@ export function PushUpPracticeController({ active, preview = false, inputMode = 
     }
     run.current = samplePushUp(run.current, { ...sample, distanceCm: distance.current });
     const convergence = pushUpEye(run.current) === "OU" && run.current.instructionArmed
-      ? Math.max(0, Math.min(1, (40 - distance.current) / 35)) * .16 : 0;
+      ? Math.max(0, Math.min(1, (40 - distance.current) / 35)) : 0;
     eyes.forEach((eye, id) => {
-      const target = (id === "OD" ? 1 : -1) * convergence;
+      const target = clinicNearEyeOffset(id, convergence);
       const blend = 1 - Math.exp(-Math.min(dt, .1) * 7);
       eye.position.x += (target - eye.position.x) * blend;
       eye.position.y *= 1 - blend;
@@ -144,6 +146,7 @@ export function PushUpPracticeController({ active, preview = false, inputMode = 
     { label: "PATIENT REPORT · WHAT DO YOU SEE?", disabled: !state.run.instructionArmed, run: publish },
     { label: "RESTART CURRENT EYE", run: restart },
   ];
+  const directActions = pushUpBoardActions(state.run).map(id => ({ instruction: actions[2], report: actions[3] })[id]);
   const records = state.run.records.map(record => `${record.eye}: ${record.submittedDistanceCm.toFixed(1)} cm · ${record.submittedAmplitudeD.toFixed(2)} D`);
   const xrStatus = `${state.run.records.length}/3 eyes · ${eye} · ${state.run.phase.replaceAll("-", " ")} · ${state.run.feedback}`;
   const accessibleStatus = `${state.run.records.length}/3 eyes · ${eye} · accessible ruler reading ${state.distance.toFixed(1)} cm · ${state.run.feedback}`;
@@ -162,7 +165,7 @@ export function PushUpPracticeController({ active, preview = false, inputMode = 
     {live && voiceReport && <XRSign text={["FICTIONAL PATIENT · CURRENT RESPONSE", voiceReport]} p={[.55, 1.75, -.10]} size={[.58, .20]} bg="#07151b" fg="#eefbf7" />}
     {live && disclosure.showCoach && <XRSign text={[`GUIDED STEP ${coach.index + 1} / 7 · ${coach.title}`, ...coach.lines]} p={[-.58, 1.74, -.08]} size={[.62, .22]} bg="#102329" fg="#eefbf7" />}
     <PracticeLessonUI runtime={runtime} active={live} title={LIBRARY_TITLES["push-up"]} status={xrStatus} tools={["push-up-rule"]} actions={actions}
-      directActions={actions.slice(2)} fields={fields} lesson={lesson} entryReady={entryReady} ready={entryReady} onRecord={record} onReset={reset} onExit={onExit} onCancel={cancel}
+      directActions={directActions} fields={fields} lesson={lesson} entryReady={entryReady} ready={entryReady} onRecord={record} onReset={reset} onExit={onExit} onCancel={cancel}
       boardStatusLines={[`EYE ${state.run.eyeIndex + 1} / 3 · ${eye}`, state.run.capture ? "ENDPOINT FROZEN · READ THE MODELED SCALE" : attemptKind === "guided" ? coach.title : "Complete the physical sequence."]}
       help={attemptKind === "guided" ? ["Fit near correction and prepare the displayed eye's occlusion.", "Dock the ruler's patient end at the spectacle plane.", "Use the free controller trigger beside the carriage to slide the letter card.", "Begin within 38–42 cm, then move inward until sustained blur is reported and frozen.", "Read the modeled scale and independently enter distance and 100 ÷ distance.", "The geometry, timing and eye motion are illustrative drafts pending clinical and device review."]
         : ["Use the modeled centimetre scale and neutral patient reports.", "The physical geometry and eye movement are illustrative drafts."]} />

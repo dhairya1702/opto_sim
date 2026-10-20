@@ -58,6 +58,17 @@ const completeBoth = () => {
 };
 
 describe("vertical distance fusional vergence procedure", () => {
+  it("keeps bilateral captures on recording guidance after release, but not an unfinished BD run", () => {
+    const released = valid(100000, 2, "BD", { prismHeld: false, alignedOD: false, base: null, correctionFitted: false, targetEstablished: false });
+    expect(verticalFusionalGuidedStep(completeBU().run, released).index).not.toBe(9);
+    let { run } = completeBoth();
+    expect(verticalFusionalGuidedStep(run, released)).toMatchObject({ index: 9, title: "Release and record" });
+    run = configureVerticalFusionalRun(run, "release-prism");
+    expect(verticalFusionalGuidedStep(run, released).index).toBe(9);
+    for (const [id, value] of Object.entries({ "bu-break": "4", "bu-recovery": "2", "bd-break": "4", "bd-recovery": "2" }))
+      run = enterVerticalFusionalRecord(run, id, value);
+    expect(verticalFusionalGuidedStep(submitVerticalFusionalRecord(run), released)).toMatchObject({ index: 9, complete: true });
+  });
   it("preserves concealed BU 4/2 and BD 4/2 with no blur or X model", () => {
     expect(VERTICAL_FUSIONAL_CASE.endpoints).toEqual({ BU: { break: 4, recovery: 2 }, BD: { break: 4, recovery: 2 } });
     expect(verticalFusionalRecordFieldIds).toEqual(["bu-break", "bu-recovery", "bd-break", "bd-recovery"]);

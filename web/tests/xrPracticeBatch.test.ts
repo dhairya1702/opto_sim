@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { advanceXRPracticeCover, emptyPracticeCoverSequence, xrPracticeEyePlacement, xrPracticeCoverPosition, xrPracticeNearFixation, xrCoverGuideAnchors, xrCoverGuideTarget, xrBrucknerTechnique, xrBrucknerPrompt, PRACTICE_NEAR_SOCKET } from "../interaction/xrPracticeBatch";
+import { advanceXRPracticeCover, ALTERNATE_COVER_EXPOSURE_ALLOWANCE_SECONDS, emptyPracticeCoverSequence, xrPracticeEyePlacement, xrPracticeCoverPosition, xrPracticeNearFixation, xrCoverGuideAnchors, xrCoverGuideTarget, xrBrucknerTechnique, xrBrucknerPrompt, PRACTICE_NEAR_SOCKET } from "../interaction/xrPracticeBatch";
 import { initialConsultationTools, grabConsultationTool, releaseConsultationTool } from "../interaction/xrConsultationTools";
 
 describe("Practice batch spatial adapters", () => {
@@ -58,9 +58,19 @@ describe("Practice batch spatial adapters", () => {
     let state = { index: 1, dwell: .3, transit: 0 };
     state = advanceXRPracticeCover("alternate-cover", state, null, .1, true);
     expect(state.index).toBe(1); expect(state.dwell).toBe(0);
-    for (let i = 0; i < 3; i++) state = advanceXRPracticeCover("alternate-cover", state, "away", .1, true);
+    for (let i = 0; i < 10; i++) state = advanceXRPracticeCover("alternate-cover", state, "away", .1, true);
     expect(state).toEqual(emptyPracticeCoverSequence());
     expect(advanceXRPracticeCover("cover-uncover", { index: 1, dwell: 0, transit: 0 }, "away", 1, true).dwell).toBe(.1);
+  });
+  it("allows a full one-second transfer, then resets only unfinished alternating work", () => {
+    expect(ALTERNATE_COVER_EXPOSURE_ALLOWANCE_SECONDS).toBe(1);
+    const boundary = advanceXRPracticeCover("alternate-cover", { index: 2, dwell: .3, transit: .9 }, "away", .1, true);
+    expect(boundary).toEqual({ index: 2, dwell: 0, transit: 1 });
+    expect(advanceXRPracticeCover("alternate-cover", boundary, null, .01, true)).toEqual(emptyPracticeCoverSequence());
+    expect(advanceXRPracticeCover("alternate-cover", boundary, "OD", .1, true)).toEqual({ index: 2, dwell: .1, transit: 0 });
+    expect(advanceXRPracticeCover("alternate-cover", boundary, "OD", .1, false)).toEqual(emptyPracticeCoverSequence());
+    const complete = { index: 4, dwell: 0, transit: 0 };
+    expect(advanceXRPracticeCover("alternate-cover", complete, "away", .1, false)).toEqual(complete);
   });
   it("refuses dwell while technique is interrupted", () => {
     expect(advanceXRPracticeCover("cover-uncover", { index: 1, dwell: .3, transit: 0 }, "away", .1, false)).toEqual({ index: 1, dwell: 0, transit: 0 });

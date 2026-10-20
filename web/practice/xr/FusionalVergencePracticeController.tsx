@@ -8,7 +8,7 @@ import {
   type FusionalRun, type FusionalSpatialSample,
 } from "../../interaction/fusionalVergenceProcedure";
 import { LIBRARY_SURFACES, libraryEquipment, librarySockets, LIBRARY_TITLES, libraryOpticPlacement } from "../../interaction/xrLibraryEquipment";
-import { isPatientFitted } from "../../interaction/xrSensoryEquipment";
+import { isPatientFitted, sensoryTargetCondition } from "../../interaction/xrSensoryEquipment";
 import { consultationToolDefinition, toolInHand } from "../../interaction/xrConsultationTools";
 import { useXRClinicRuntime, type ClinicInputMode } from "../../interaction/useXRClinicRuntime";
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
@@ -53,6 +53,7 @@ export function FusionalVergencePracticeController({ active, preview = false, in
   }, [live]);
 
   const runtime = useXRClinicRuntime({ active: live, inputMode, equipment: libraryEquipment("horizontal-distance"), placementSockets: librarySockets("horizontal-distance"), placementSurfaces: LIBRARY_SURFACES,
+    equipmentLabels: { worth: "Isolated distance target" },
     editorOpen: lesson.mode !== "none", onMenu: open => lesson.setMode(open ? "menu" : "none"),
     onInterrupt: reason => {
       if (["tracking", "visibility", "transfer", "procedure", "release"].includes(reason))
@@ -65,6 +66,11 @@ export function FusionalVergencePracticeController({ active, preview = false, in
     },
   });
 
+  const targetReady = () => {
+    const pose = runtime.supportedWorkingPose("worth", true);
+    return Boolean(pose && runtime.toolsRef.current.worth.powered
+      && sensoryTargetCondition(pose, runtime.toolsRef.current).endpoint === "distance");
+  };
   const spatial = (nowMs = performance.now()): FusionalSpatialSample => {
     const tool = runtime.toolsRef.current["vergence-prism"];
     const held = tool.placement.kind === "held";
@@ -78,7 +84,7 @@ export function FusionalVergencePracticeController({ active, preview = false, in
     }
     const aligned = held && libraryOpticPlacement(pose, "OD");
     return { nowMs, power: power.current, base, correctionFitted: isPatientFitted(runtime.toolsRef.current, "subjective"),
-      targetEstablished: targetEstablished.current, prismHeld: held, alignedOD: aligned,
+      targetEstablished: targetEstablished.current && targetReady(), prismHeld: held, alignedOD: aligned,
       patientFacing: Boolean(pose && pose.forward[2] < -Math.cos(Math.PI / 6)), tiltValid: base !== null,
       visible: Boolean(object?.visible), tracking: runtime.frameValid.current };
   };
@@ -94,6 +100,11 @@ export function FusionalVergencePracticeController({ active, preview = false, in
 
   useFrame((_, dt) => {
     const sample = spatial();
+    if (targetEstablished.current && !sample.targetEstablished && run.current.phase !== "captured" && !run.current.released && !run.current.record) {
+      targetEstablished.current = false;
+      run.current = reviseFusionalSetup(run.current, "Distance target was moved or switched off.", sample.correctionFitted, false);
+      lesson.clearPending();
+    }
     if (previousCorrection.current && !sample.correctionFitted && !run.current.record) {
       run.current = reviseFusionalSetup(run.current, "Distance correction was removed or changed.", false); lesson.clearPending();
     }
@@ -159,7 +170,7 @@ export function FusionalVergencePracticeController({ active, preview = false, in
     if (!isPatientFitted(runtime.toolsRef.current, "subjective")) runtime.updateTools({ ...runtime.toolsRef.current, subjective: { ...tool,
       placement: { kind: "socket", position: [0, 1.5, -.511], rotation: [0, 0, 0, 1], socketId: "sensory-correction", fittingLayer: "correction" }, revision: (tool.revision ?? 0) + 1 } });
   };
-  const establishTarget = () => { if (!live || targetEstablished.current) return; targetEstablished.current = true; run.current = configureFusionalRun(run.current, "establish-target"); publish(); };
+  const establishTarget = () => { if (!live || !targetReady() || !isPatientFitted(runtime.toolsRef.current, "subjective") || targetEstablished.current) return; targetEstablished.current = true; run.current = configureFusionalRun(run.current, "establish-target"); publish(); };
   const instruct = () => { if (!live) return; run.current = configureFusionalRun(run.current, "give-instruction"); run.current = sampleFusionalRun(run.current, spatial()); publish(); };
   const report = () => publish();
   const cancel = () => { if (!live) return; run.current = cancelFusionalRun(run.current); power.current = 0; targetEstablished.current = false; lesson.clearPending(); lesson.setMode("none"); publish(); };
@@ -188,7 +199,8 @@ export function FusionalVergencePracticeController({ active, preview = false, in
   const entryFields = entryReady ? fields : [];
   const actions: LessonAction[] = [
     { label: "FIT DISTANCE CORRECTION", active: state.run.correctionFitted, run: fitCorrection },
-    { label: "ESTABLISH MIRRORED DISTANCE TARGET", active: state.run.targetEstablished, disabled: !state.run.correctionFitted, run: establishTarget },
+    { label: "ESTABLISH MIRRORED DISTANCE TARGET", active: state.run.targetEstablished && targetReady(), disabled: !state.run.correctionFitted || !targetReady(), run: establishTarget },
+    { label: "TOGGLE DISTANCE TARGET POWER", active: runtime.tools.worth.powered, run: () => { if (live) runtime.setToolPower("worth", !runtime.toolsRef.current.worth.powered); } },
     { label: "GIVE BLUR / DOUBLE / RECOVERY INSTRUCTION", active: state.run.instructionArmed, disabled: !state.run.targetEstablished, run: instruct },
     { label: "PATIENT REPORT · WHAT DO YOU SEE?", disabled: !state.run.instructionArmed, run: report },
     { label: "DIAL +0.1Δ · ACCESSIBILITY", disabled: !state.run.prismHeld || state.run.released, run: () => adjust(.1) },
@@ -204,9 +216,9 @@ export function FusionalVergencePracticeController({ active, preview = false, in
   }, [onMirror, status, entryReady, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
 
   return <>
-    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="HORIZONTAL DISTANCE VERGENCE" sensoryStation="four-prism"
+    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="HORIZONTAL DISTANCE VERGENCE" sensoryFixationLetter
       showInstructionalHighlights={disclosure.showHighlights}
-      instrumentSettings={{ "vergence-prism": { power: state.power, base: state.base ?? undefined,
+      instrumentSettings={{ worth: { fixationLetter: true, onPowerChange: powered => { if (live) runtime.setToolPower("worth", powered); } }, "vergence-prism": { power: state.power, base: state.base ?? undefined,
         highlightAperture: disclosure.showHighlights && coach.index === 4, highlightDial: disclosure.showHighlights && coach.index >= 5 && coach.index <= 8 } }} />
     {(live || preview) && <LibraryEquipmentTray active={live} equipment={runtime.equipment} showFittingGuides={disclosure.showHighlights} />}
     {live && voiceReport && <XRSign text={["FICTIONAL PATIENT · CURRENT RESPONSE", voiceReport]} p={[.55, 1.75, -.10]} size={[.58, .20]} bg="#07151b" fg="#eefbf7" />}

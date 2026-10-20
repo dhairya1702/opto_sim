@@ -11,7 +11,7 @@ import { coverProcedure } from "../../interaction/cover";
 import { clinicalCase } from "../../cases/adultDistanceBlur";
 import { newSession, reduceSession } from "../../domain/engine";
 import type { ConsultationExam } from "../../interaction/XRConsultationController";
-import { gazePositions } from "../../interaction/motility";
+import { motilityHRoutePositions } from "../../interaction/motility";
 import {
   invokeTestVoiceEncounterAction,
   invokeTestVoiceInstruction,
@@ -228,9 +228,23 @@ export async function clinic({ guided = false, selectedExamId, renderAdapter }: 
     if (!result) throw new Error(`Encounter action was not resolved: ${actionId}`);
     return result;
   };
+  const completeMotilityRoute = async (index = 0, z = -.086) => {
+    let previous = motilityHRoutePositions[0];
+    await at(index, [previous.x * .35 * .65, 1.5 + previous.y * .35 * .45, z]);
+    await step(1 / 72, 54);
+    for (const position of motilityHRoutePositions.slice(1)) {
+      for (let frameIndex = 1; frameIndex <= 20; frameIndex += 1) {
+        const x = previous.x + (position.x - previous.x) * frameIndex / 20;
+        const y = previous.y + (position.y - previous.y) * frameIndex / 20;
+        await at(index, [x * .35 * .65, 1.5 + y * .35 * .45, z]);
+      }
+      await step(1 / 72, 54);
+      previous = position;
+    }
+  };
   await step();
   return {
-    state: state!, rerender: render, viewerCamera, physicalViewer, viewerTracked, referenceOffsets, referenceRotations, grips, rays, tool, at, pickup, grip, putDown, event, step, panel, scope, thumbstick, axes, haptics, buttons, controls, click, labels, apertureWheel, cycleAperture, instruct, environment, tracked, rayTracked, session,
+    state: state!, rerender: render, viewerCamera, physicalViewer, viewerTracked, referenceOffsets, referenceRotations, grips, rays, tool, at, pickup, grip, putDown, event, step, panel, scope, thumbstick, axes, haptics, buttons, controls, click, labels, apertureWheel, cycleAperture, instruct, environment, completeMotilityRoute, tracked, rayTracked, session,
     interact, record, openPanel, exitVR, encounter: () => encounter,
     directRecord: (id: ConsultationToolId) => {
       const button = controls().find(object => object.userData.xrRecordTool === id);

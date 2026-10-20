@@ -148,14 +148,15 @@ export function submitMinusLensRecord(run: MinusLensRun, powerEntry: string, amp
 
 export function minusLensGuidedStep(run: MinusLensRun, sample: MinusLensSpatialSample): MinusLensGuidedStep {
   const eye = minusLensEye(run);
+  if (run.capture || run.phase === "complete")
+    return { index: 7, title: run.phase === "complete" ? "Series complete" : `Record ${eye}`, lines: [run.feedback] };
   if (!sample.correctionFitted) return { index: 0, title: "Fit near correction", lines: ["Fit the appropriate near correction in the trial frame."] };
   if (!sample.targetReady) return { index: 1, title: "Prepare the near line", lines: ["Release the readable near target on its 40 cm stand, facing the patient."] };
   if (!sample.occlusionReady) return { index: 2, title: `Prepare ${eye}`, lines: [eye === "OD" ? "Cover OS to test OD." : "Move the cover to OD to test OS."] };
   if (!sample.lensHeld || !sample.lensAligned) return { index: 3, title: "Align the lens holder", lines: [`Hold its single visible aperture over ${eye}. Keep the other controller free for the dial.`] };
   if (!run.instructionArmed) return { index: 4, title: "Give the instruction", lines: ["Ask the patient to report the first blur that remains blurred."] };
   if (!run.initialClearConfirmed) return { index: 5, title: "Confirm initial clarity", lines: ["At 0.00 D, confirm that the selected letter line is clear."] };
-  if (!run.capture) return { index: 6, title: "Add minus", lines: ["Turn the physical dial in 0.25 D steps while maintaining eye alignment.", run.feedback] };
-  return { index: 7, title: run.phase === "complete" ? "Series complete" : `Record ${eye}`, lines: [run.feedback] };
+  return { index: 6, title: "Add minus", lines: ["Turn the physical dial in 0.25 D steps while maintaining eye alignment.", run.feedback] };
 }
 
 export function minusLensDisclosure(kind: "guided" | "test") {

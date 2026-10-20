@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   MADDOX_PRISM_CELLS, MADDOX_PRISM_CELL_Y, MADDOX_TRIALS, armMaddoxReport, cancelMaddoxEntry,
   captureMaddox, enterMaddox, interruptMaddox, maddoxBaseFromRoll, maddoxFittingGuideSocketIds, maddoxGuidedStep, maddoxGrooveCorrect,
-  maddoxNearestCell, maddoxPatientReport, newMaddoxRun, sampleMaddox, submitMaddox, type MaddoxSpatialSample,
+  maddoxNearestCell, maddoxPatientReport, maddoxSetupIssue, newMaddoxRun, sampleMaddox, submitMaddox, type MaddoxSpatialSample,
 } from "../interaction/maddoxProcedure";
 
 const sample = (overrides: Partial<MaddoxSpatialSample> = {}): MaddoxSpatialSample => ({
@@ -23,6 +23,37 @@ function captureTrial(run = newMaddoxRun(), overrides: Partial<MaddoxSpatialSamp
 }
 
 describe("shared Maddox procedure", () => {
+  it.each(MADDOX_TRIALS)("conceals the required base in independent $id setup and capture feedback", trial => {
+    for (const base of [null, "BI", "BO", "BU", "BD"] as const) {
+      if (base === trial.base) continue;
+      const wrong = sample({ base, grooveDegrees: trial.grooveDegrees, targetSite: trial.site });
+      const run = armMaddoxReport({ ...newMaddoxRun(), trialIndex: MADDOX_TRIALS.indexOf(trial) }, wrong);
+      const neutral = maddoxSetupIssue(wrong, trial, "test");
+      expect(neutral).toContain("Reassess the base direction");
+      expect(neutral).not.toMatch(/\b(BI|BO|BU|BD)\b/);
+      expect(maddoxSetupIssue(wrong, trial)).toBe(neutral);
+      expect(sampleMaddox(run, wrong, 0, "test").feedback).toBe(neutral);
+      expect(captureMaddox(run, wrong, "test").feedback).toBe(neutral);
+      const guided = maddoxSetupIssue(wrong, trial, "guided");
+      expect(guided).toContain(trial.base);
+      expect(sampleMaddox(run, wrong, 0, "guided").feedback).toBe(guided);
+      expect(captureMaddox(run, wrong, "guided").feedback).toBe(guided);
+      expect(captureMaddox(run, wrong, "test").capture).toBeNull();
+    }
+  });
+
+  it("keeps captured observations on recording after putting tools down, without skipping the next trial", () => {
+    const released = sample({ prismHeld: false, prismAligned: false, correctionFitted: false, targetReady: false, targetPowered: false });
+    let run = newMaddoxRun();
+    for (let index = 0; index < 4; index++) {
+      run = captureTrial(run);
+      expect(maddoxGuidedStep(run, released)).toMatchObject({ index: 8, title: "Record independently" });
+      if (!run.capture) throw new Error("Expected captured Maddox observation");
+      run = submitMaddox(enterMaddox(run, String(run.capture.cell), run.capture.base));
+      expect(maddoxGuidedStep(run, released).index).toBe(index === 3 ? 8 : 0);
+    }
+    expect(maddoxGuidedStep(run, released).complete).toBe(true);
+  });
   it("preserves the four authored findings in order", () => {
     expect(MADDOX_TRIALS.map(({ site, axis, neutral, base }) => [site, axis, neutral, base])).toEqual([
       ["distance", "horizontal", 6, "BI"], ["distance", "vertical", 4, "BU"],
@@ -72,6 +103,44 @@ describe("shared Maddox procedure", () => {
     expect(captureMaddox(run, { ...ready, cell: 6 }).capture).toBeNull();
     run = sampleMaddox(run, { ...ready, cell: 6 }, 1050);
     expect(captureMaddox(run, { ...ready, cell: 6 }).capture).not.toBeNull();
+  });
+
+  it.each(["guided", "test"] as const)("rejects a fleeting 20Δ introduction and requires a fresh continuous hold in %s", kind => {
+    const ready = sample();
+    let run = armMaddoxReport(newMaddoxRun(), ready);
+    run = sampleMaddox(run, ready, 0, kind);
+    run = sampleMaddox(run, ready, 249, kind);
+    expect(run.introduced20).toBe(false);
+    expect(run.phase).toBe("introduction");
+    run = sampleMaddox(run, sample({ cell: 6 }), 250, kind);
+    run = sampleMaddox(run, sample({ cell: 6 }), 600, kind);
+    expect(run.introduced20).toBe(false);
+    expect(run.stableSinceMs).toBeNull();
+    expect(run.feedback).toContain("20Δ cell first");
+    expect(captureMaddox(run, sample({ cell: 6 }), kind).capture).toBeNull();
+    run = sampleMaddox(run, ready, 700, kind);
+    run = sampleMaddox(run, ready, 949, kind);
+    expect(run.introduced20).toBe(false);
+    run = sampleMaddox(run, ready, 950, kind);
+    expect(run.introduced20).toBe(true);
+    expect(run.phase).toBe("neutralisation");
+    run = sampleMaddox(run, sample({ cell: 6 }), 1000, kind);
+    run = sampleMaddox(run, sample({ cell: 6 }), 1250, kind);
+    expect(captureMaddox(run, sample({ cell: 6 }), kind).capture).not.toBeNull();
+  });
+
+  it.each([{ prismAligned: false }, { tracking: false }, { base: "BO" as const }])("discards an unfinished introduction on invalid setup %j", invalid => {
+    let run = armMaddoxReport(newMaddoxRun(), sample());
+    run = sampleMaddox(run, sample(), 0);
+    run = sampleMaddox(run, sample(invalid), 200);
+    expect(run.introduced20).toBe(false);
+    expect(run.stableSinceMs).toBeNull();
+    run = armMaddoxReport(run, sample());
+    run = sampleMaddox(run, sample(), 250);
+    run = sampleMaddox(run, sample(), 499);
+    expect(run.introduced20).toBe(false);
+    run = sampleMaddox(run, sample(), 500);
+    expect(run.introduced20).toBe(true);
   });
 
   it("keeps capture immutable, grades power and base independently, and completes once", () => {

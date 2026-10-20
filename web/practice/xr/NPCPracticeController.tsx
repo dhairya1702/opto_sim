@@ -16,6 +16,7 @@ import { XRSign } from "../../scene/XRClinicPanels";
 import { usePracticeAttempt } from "../PracticeAttemptContext";
 import { PracticeLessonUI, usePracticeLesson, type BatchMirror, type LessonAction, type LessonField } from "./PracticeLessonUI";
 import { useClinicEyeMotion } from "./useClinicEyeMotion";
+import { clinicNearEyeOffset } from "../../interaction/clinicNearEyeMotion";
 
 export function NPCPracticeController({ active, preview = false, inputMode = "xr", onComplete, onExit, onMirror }: {
   active: boolean; preview?: boolean; inputMode?: ClinicInputMode; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
@@ -92,10 +93,9 @@ export function NPCPracticeController({ active, preview = false, inputMode = "xr
     run.current = sampleNPC(run.current, { ...sample, distanceCm: distance.current });
     const eyeState = npcEyeState(run.current, distance.current);
     eyes.forEach((eye, id) => {
-      const convergence = (id === "OD" ? 1 : -1) * eyeState.converging * .16;
-      const drift = id === "OS" && eyeState.osDrifted ? -.42 : 0;
+      const target = clinicNearEyeOffset(id, eyeState.converging, eyeState.osDrifted);
       const blend = 1 - Math.exp(-Math.min(dt, .1) * 7);
-      eye.position.x += ((convergence + drift) - eye.position.x) * blend;
+      eye.position.x += (target - eye.position.x) * blend;
       eye.position.y *= 1 - blend;
     });
     clock.current += dt;

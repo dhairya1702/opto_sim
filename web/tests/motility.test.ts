@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { gazeForEye, gazePositions, motilityRecordedObservation, motilityScenarios, observeTarget, scenarioGazeForEye, targetFromControls, type MotilityCoverage } from "../interaction/motility";
+import { gazeForEye, gazePositions, motilityHRoutePositions, motilityNextGazeIds, motilityRecordedObservation, motilityScenarios, newMotilityCoverage, observeTarget, scenarioGazeForEye, targetFromControls, type MotilityCoverage } from "../interaction/motility";
 import { accumulateAlignedTime, acuityTarget, isAcuityToolAligned } from "../interaction/acuity";
 describe("manual fixation", () => {
+  const at = (state: MotilityCoverage, x: number, y: number, dt = .1, active = true) => observeTarget(state, targetFromControls(x, y, .35), dt, active);
+  const hold = (state: MotilityCoverage, x: number, y: number, frames = 8) => {
+    for (let index = 0; index < frames; index++) state = at(state, x, y);
+    return state;
+  };
+  const move = (state: MotilityCoverage, from: { x: number; y: number }, to: { x: number; y: number }) => {
+    for (let index = 1; index <= 8; index++) state = at(state, from.x + (to.x - from.x) * index / 8, from.y + (to.y - from.y) * index / 8, .05);
+    return state;
+  };
   it("converges symmetrically at centre and more at a nearer distance", () => {
     const far = targetFromControls(0, 0, 0.4), near = targetFromControls(0, 0, 0.3);
     expect(gazeForEye(far, -0.032).yaw).toBeCloseTo(-gazeForEye(far, 0.032).yaw);
@@ -19,7 +28,7 @@ describe("manual fixation", () => {
     }
   });
   it("requires sustained observation, tolerates brief spatial jitter, and never grants idle coverage", () => {
-    const empty: MotilityCoverage = { seen: [], current: null, dwell: 0 };
+    const empty = newMotilityCoverage();
     const centre = targetFromControls(0, 0, 0.35);
     expect(observeTarget(empty, centre, 30, false).seen).toEqual([]);
     expect(observeTarget(empty, centre, 30, true).seen).toEqual([]);
@@ -36,17 +45,55 @@ describe("manual fixation", () => {
     state = observeTarget(state, targetFromControls(0.4, 0.4, 0.35), 0.1, true);
     state = observeTarget(state, targetFromControls(0.4, 0.4, 0.35), 0.1, true);
     expect(state.dwell).toBe(0);
-    for (const p of gazePositions) {
-      for (let i = 0; i < 10; i++) state = observeTarget(state, targetFromControls(p.x, p.y, 0.35), 0.1, true);
+    let previous = motilityHRoutePositions[0];
+    state = hold(newMotilityCoverage(), previous.x, previous.y);
+    for (const position of motilityHRoutePositions.slice(1)) {
+      state = move(state, previous, position);
+      state = hold(state, position.x, position.y);
+      previous = position;
     }
     expect(state.seen).toHaveLength(9);
     for (let i = 0; i < 10; i++) state = observeTarget(state, centre, 0.1, true);
     expect(state.seen).toHaveLength(9);
   });
   it("uses forgiving, non-overlapping gaze zones", () => {
-    const empty: MotilityCoverage = { seen: [], current: null, dwell: 0 };
-    expect(observeTarget(empty, targetFromControls(0.2, 0.7, 0.35), 0.1, true).current).toBe("up");
-    expect(observeTarget(empty, targetFromControls(0.25, 0.7, 0.35), 0.1, true).current).toBeNull();
+    const centred = hold(newMotilityCoverage(), 0, 0);
+    expect(observeTarget(centred, targetFromControls(0.2, 0.7, 0.35), 0.1, true, { assisted: true }).current).toBe("up");
+    expect(observeTarget(centred, targetFromControls(0.25, 0.7, 0.35), 0.1, true, { assisted: true }).current).toBeNull();
+  });
+  it("credits only adjacent continuous H transitions and locally repairs a route break", () => {
+    let state = hold(newMotilityCoverage(), 0, 0);
+    expect(state.seen).toEqual(["centre"]);
+    expect(motilityNextGazeIds(state)).toEqual(["left", "right", "up", "down"]);
+    state = move(state, { x: 0, y: 0 }, { x: -.8, y: 0 });
+    state = hold(state, -.8, 0);
+    expect(state.seen).toEqual(["centre", "left"]);
+    for (let index = 1; index <= 8; index++) state = at(state, -.8 + 1.6 * index / 8, .7 * index / 8, .1);
+    expect(state.seen).toEqual(["centre", "left"]);
+    expect(state.recovery).toEqual({ returnTo: "left", reason: "route" });
+    state = hold(state, -.8, 0, 4);
+    expect(state.recovery).toBeNull();
+    expect(state.seen).toEqual(["centre", "left"]);
+    state = move(state, { x: -.8, y: 0 }, { x: -.8, y: .7 });
+    state = hold(state, -.8, .7);
+    expect(state.seen).toEqual(["centre", "left", "left-up"]);
+  });
+  it("rejects an abrupt jump and requires fixation recovery without erasing completed points", () => {
+    let state = hold(newMotilityCoverage(), 0, 0);
+    state = at(state, -.8, 0, .05);
+    expect(state.recovery).toEqual({ returnTo: "centre", reason: "speed" });
+    expect(state.seen).toEqual(["centre"]);
+    state = at(state, 0, 0, .1);
+    state = at(state, 0, 0, .1);
+    state = at(state, 0, 0, .1);
+    expect(state.recovery).toBeNull();
+    state = observeTarget(state, targetFromControls(0, 0, .35), .1, false);
+    expect(state.recovery).toEqual({ returnTo: "centre", reason: "fixation" });
+    expect(state.seen).toEqual(["centre"]);
+  });
+  it("uses patient-relative direction names only for accessible descriptions", () => {
+    expect(gazePositions.find(position => position.id === "left")?.label).toBe("Right gaze");
+    expect(gazePositions.find(position => position.id === "right")?.label).toBe("Left gaze");
   });
   it("authors five distinct draft findings with matching records and symptom replies", () => {
     expect(motilityScenarios.map(scenario => scenario.id)).toEqual([

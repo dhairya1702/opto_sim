@@ -63,6 +63,17 @@ function completeBoth() {
 }
 
 describe("horizontal near fusional vergence procedure", () => {
+  it("keeps bilateral captures on recording guidance after release, but not an unfinished BO run", () => {
+    const released = valid(100000, 11, "BO", { prismHeld: false, alignedOD: false, base: null, correctionFitted: false, targetEstablished: false });
+    expect(nearFusionalGuidedStep(completeBI().run, released).index).not.toBe(9);
+    let { run } = completeBoth();
+    expect(nearFusionalGuidedStep(run, released)).toMatchObject({ index: 9, title: "Release and record" });
+    run = configureNearFusionalRun(run, "release-prism");
+    expect(nearFusionalGuidedStep(run, released).index).toBe(9);
+    for (const [id, value] of Object.entries({ "bi-blur": "13", "bi-break": "21", "bi-recovery": "13", "bo-blur": "17", "bo-break": "21", "bo-recovery": "11" }))
+      run = enterNearFusionalRecord(run, id, value);
+    expect(nearFusionalGuidedStep(submitNearFusionalRecord(run), released)).toMatchObject({ index: 9, complete: true });
+  });
   it("preserves the concealed fictional BI 13/21/13 and BO 17/21/11 pattern", () => {
     expect(NEAR_FUSIONAL_CASE.endpoints).toEqual({ BI: { blur: 13, break: 21, recovery: 13 }, BO: { blur: 17, break: 21, recovery: 11 } });
     const { run } = completeBoth();

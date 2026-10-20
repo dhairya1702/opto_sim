@@ -1,7 +1,7 @@
 import { Component, useEffect, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { EyeSurface } from "./EyeSurface";
-import { gazePositions, motilityObservations, motilityRecordedObservation, motilityScenario, motilityScenarios, observeTarget, targetFromControls, type MotilityCoverage, type MotilityScenarioId } from "../interaction/motility";
+import { gazePositions, motilityNextGazeIds, newMotilityCoverage, motilityObservations, motilityRecordedObservation, motilityScenario, motilityScenarios, observeTarget, targetFromControls, type MotilityCoverage, type MotilityScenarioId } from "../interaction/motility";
 import { TestVoiceControl } from "../voice/TestVoiceControl";
 import { PracticeVoiceControl } from "../voice/PracticeVoiceControl";
 import type { PracticeAttemptKind } from "../practice/PracticeAttemptContext";
@@ -56,7 +56,8 @@ export function MotilityExamination({ onComplete, onCancel, practiceAttempt, sce
   const [checked, setChecked] = useState(false);
   const [failed, setFailed] = useState(false);
   const renderedAt = useRef(0);
-  const [coverage, setCoverage] = useState<MotilityCoverage>({ seen: [], current: null, dwell: 0 });
+  const assistedInput = useRef(false);
+  const [coverage, setCoverage] = useState<MotilityCoverage>(newMotilityCoverage);
   const reduced = useRef(matchMedia("(prefers-reduced-motion: reduce)").matches);
   const done = useRef(false);
   const scenario = motilityScenario(scenarioId);
@@ -82,7 +83,7 @@ export function MotilityExamination({ onComplete, onCancel, practiceAttempt, sce
       if (frame === previousFrame) return;
       const dt = previousFrame ? (frame - previousFrame) / 1000 : 0;
       previousFrame = frame;
-      setCoverage(s => observeTarget(s, pose.current, dt, true));
+      setCoverage(s => observeTarget(s, pose.current, dt, true, { assisted: assistedInput.current }));
     }, 50);
     return () => clearInterval(timer);
   }, [following, light, failed]);
@@ -93,7 +94,7 @@ export function MotilityExamination({ onComplete, onCancel, practiceAttempt, sce
     pose.current = targetFromControls(0, 0, control.z);
     setControl(current => ({ ...current, x: 0, y: 0 }));
     setFollowing(false); setAsked(false); setObservation(""); setChecked(false);
-    setCoverage({ seen: [], current: null, dwell: 0 }); done.current = false;
+    setCoverage(newMotilityCoverage()); done.current = false;
   }, [scenario.id, control.z]);
   const ready = light && coverage.seen.length === gazePositions.length && asked && !!observation && !failed;
   const correct = observation === scenario.id;
@@ -105,20 +106,21 @@ export function MotilityExamination({ onComplete, onCancel, practiceAttempt, sce
   return (
     <dialog ref={dialog} className="examination-stage motility-stage" aria-labelledby="motility-title" onCancel={e => { e.preventDefault(); onCancel(); }}>
       <header><div><p className="eyebrow">MANUAL EXAMINATION · BOTH EYES</p><h1 id="motility-title">Extraocular motilities</h1></div>{findingPosition && <div className="clinical-stage-distance"><span>Finding</span><strong>{findingPosition.current}/{findingPosition.total}</strong></div>}{practiceAttempt ? <PracticeVoiceControl /> : <TestVoiceControl />}<button className="secondary" onClick={onCancel}>Cancel</button></header>
-      {practiceAttempt === "guided" && <div className="motility-guided-step" role="status"><b>Next step</b>{!following ? "Ask the patient to follow the target while keeping the head still." : !light ? "Switch the penlight on." : coverage.seen.length < gazePositions.length ? `Move to the highlighted position and hold steady · ${coverage.seen.length} of ${gazePositions.length} observed.` : !asked ? "Ask about double vision, pain, or discomfort." : !observation ? "Choose the observation that matches what you saw." : "Record the finding."}</div>}
+      {practiceAttempt === "guided" && <div className="motility-guided-step" role="status"><b>Next step</b>{!following ? "Ask the patient to follow the target while keeping the head still." : !light ? "Switch the penlight on." : coverage.seen.length < gazePositions.length ? coverage.notice || `Follow the highlighted H route and hold each point · ${coverage.seen.length} of ${gazePositions.length} observed.` : !asked ? "Ask about double vision, pain, or discomfort." : !observation ? "Choose the observation that matches what you saw." : "Record the finding."}</div>}
       <div className="motility-instructions">
         <p>Hold the target at 30–40 cm. Keep Arun’s head still, establish primary position, then move through all eight cardinal directions. Watch both eyes and hold each marked position.</p>
         <button className="primary" disabled={following} onClick={() => setFollowing(true)}>{following ? "Arun is following the target" : "Ask Arun to follow the target, head still"}</button>
         <p className="small" aria-live="polite">{following ? 'Arun: “Okay, I’ll follow it with my eyes.”' : "Explain the examination before moving the target."}</p>
       </div>
       <div ref={viewport} className={`eye-viewport motility-viewport ${grabbed ? "is-grabbed" : ""}`} tabIndex={0} role="application" aria-label="Manual fixation target. Drag to move, arrow keys to adjust, Page Up and Page Down to change distance."
-        onPointerDown={e => { if (e.button !== 0) return; e.currentTarget.focus(); e.currentTarget.setPointerCapture(e.pointerId); setGrabbed(true); movePointer(e); }}
+        onPointerDown={e => { if (e.button !== 0) return; assistedInput.current = false; e.currentTarget.focus(); e.currentTarget.setPointerCapture(e.pointerId); setGrabbed(true); movePointer(e); }}
         onPointerMove={e => { if (e.currentTarget.hasPointerCapture(e.pointerId)) movePointer(e); }}
         onPointerUp={e => { if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId); setGrabbed(false); }}
         onPointerCancel={() => setGrabbed(false)} onLostPointerCapture={() => setGrabbed(false)}
         onKeyDown={e => {
           if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "PageUp", "PageDown"].includes(e.key)) return;
           e.preventDefault(); e.stopPropagation();
+          assistedInput.current = true;
           update(control.x + (e.key === "ArrowLeft" ? -0.1 : e.key === "ArrowRight" ? 0.1 : 0), control.y + (e.key === "ArrowUp" ? 0.1 : e.key === "ArrowDown" ? -0.1 : 0), Math.max(0.3, Math.min(0.4, control.z + (e.key === "PageUp" ? -0.05 : e.key === "PageDown" ? 0.05 : 0))));
         }}>
         <ViewBoundary onFailure={() => setFailed(true)}>
@@ -132,7 +134,7 @@ export function MotilityExamination({ onComplete, onCancel, practiceAttempt, sce
         </ViewBoundary>
         <div className="gaze-overlay" aria-hidden="true">
           {guides && <svg className="gaze-path" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M18 22 V78 M18 50 H82 M82 22 V78 M50 22 V78" /></svg>}
-          {guides && gazePositions.map(p => <span key={p.id} className={`gaze-stop ${coverage.seen.includes(p.id) ? "seen" : ""} ${coverage.current === p.id ? "observing" : ""}`} style={{ left: `${50 + p.x * 40}%`, top: `${50 - p.y * 40}%` }}>{coverage.seen.includes(p.id) ? "✓" : "·"}</span>)}
+          {guides && gazePositions.map(p => <span key={p.id} className={`gaze-stop ${coverage.seen.includes(p.id) ? "seen" : ""} ${coverage.current === p.id ? "observing" : ""} ${motilityNextGazeIds(coverage).includes(p.id) ? "next" : ""}`} style={{ left: `${50 + p.x * 40}%`, top: `${50 - p.y * 40}%` }}>{coverage.seen.includes(p.id) ? "✓" : "·"}</span>)}
         </div>
         <div className="hand-readout motility-hand-readout" aria-hidden="true"><span><b>R</b>Hold + move penlight</span><span><b>L</b>Gesture “head still” · no patient contact</span></div>
         <span className="visual-label">Drag to move your penlight · arrow keys for fine movement · enlarged eye view</span>
@@ -142,10 +144,10 @@ export function MotilityExamination({ onComplete, onCancel, practiceAttempt, sce
           <label>Target distance: {Math.round(control.z * 100)} cm<input aria-label="Target distance" type="range" min="30" max="40" step="5" value={Math.round(control.z * 100)} onChange={e => update(control.x, control.y, Number(e.target.value) / 100)} /></label>
           <button className={light ? "primary" : "secondary"} onClick={() => setLight(value => !value)}>{light ? "Penlight on" : "Switch penlight on"}</button>
           {practiceAttempt !== "test" && <label className="check-row"><input type="checkbox" checked={guides} onChange={e => setGuides(e.target.checked)} />Show H-pattern guides</label>}
-          <button className="secondary" onClick={() => update(0, 0)}>Centre target</button>
+          <button className="secondary" onClick={() => update(0, 0)}>Return target to start</button>
         </div>
-        <ul className="gaze-checklist" aria-label="Observed gaze positions">{gazePositions.map(p => <li key={p.id} className={coverage.seen.includes(p.id) ? "seen" : ""}>{coverage.seen.includes(p.id) ? "✓" : "○"} {p.label}</li>)}</ul>
-        <p role="status">{coverage.seen.length} / {gazePositions.length} positions observed{coverage.current && !coverage.seen.includes(coverage.current) ? " · hold steady…" : ""}</p>
+        <ul className="gaze-checklist sr-only" aria-label="Observed gaze positions">{gazePositions.map(p => <li key={p.id}>{coverage.seen.includes(p.id) ? "✓" : "○"} {p.label}</li>)}</ul>
+        <p role="status">{coverage.seen.length} / {gazePositions.length} positions observed{coverage.notice ? ` · ${coverage.notice}` : coverage.current && !coverage.seen.includes(coverage.current) ? " · hold steady…" : ""}</p>
         <div className="motility-review">
           <button className="secondary" disabled={!following || coverage.seen.length < gazePositions.length} onClick={() => setAsked(true)}>Ask about double vision, pain, or discomfort</button>
           {asked && <p>Arun: “<span data-voice-report>{scenario.patientReply}</span>”</p>}

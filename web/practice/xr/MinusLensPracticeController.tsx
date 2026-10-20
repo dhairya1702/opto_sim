@@ -1,3 +1,4 @@
+import { minusLensBoardActions } from "../../interaction/practiceBoardActions";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Vector3 } from "three";
@@ -166,6 +167,9 @@ export function MinusLensPracticeController({ active, preview = false, inputMode
     { label: "DIAL REMOVE 0.25 D · ACCESSIBILITY", disabled: !state.run.initialClearConfirmed || state.run.powerD >= 0 || Boolean(state.run.capture), run: () => applyStep("remove") },
     { label: "RESTART CURRENT EYE", run: restart },
   ];
+  const directActions = minusLensBoardActions(state.run).map(id => ({
+    instruction: actions[2], initialClear: actions[3], report: actions[4], add: actions[5], remove: actions[6],
+  })[id]);
   const records = state.run.records.map(item => `${item.eye}: ${item.submittedPowerD.toFixed(2)} D added · ${item.submittedAmplitudeD.toFixed(2)} D amplitude`);
   const status = `${state.run.records.length}/2 eyes · ${eye} · accessible scale ${state.run.powerD.toFixed(2)} D · ${attemptKind === "guided" ? state.run.phase.replaceAll("-", " ") : "procedure in progress"} · ${state.run.feedback}`;
   const voiceReport = minusLensPatientReport(state.run) || undefined;
@@ -184,7 +188,7 @@ export function MinusLensPracticeController({ active, preview = false, inputMode
     {live && voiceReport && <XRSign text={["FICTIONAL PATIENT · CURRENT RESPONSE", voiceReport]} p={[.55, 1.75, -.10]} size={[.58, .20]} bg="#07151b" fg="#eefbf7" />}
     {(live || preview) && disclosure.showCoach && <XRSign text={[`GUIDED STEP ${coach.index + 1} / 8 · ${coach.title}`, ...coach.lines]} p={[-.58, 1.74, -.08]} size={[.62, .23]} bg="#102329" fg="#eefbf7" />}
     <PracticeLessonUI runtime={runtime} active={live} title={LIBRARY_TITLES["minus-lens"]} status={status} tools={["minus-lens-holder"]}
-      actions={actions} directActions={actions.slice(2)} fields={fields} lesson={lesson} entryReady={entryReady} ready={entryReady}
+      actions={actions} directActions={directActions} fields={fields} lesson={lesson} entryReady={entryReady} ready={entryReady}
       onRecord={record} onReset={reset} onExit={onExit} onCancel={cancel}
       boardStatusLines={[`EYE ${state.run.eyeIndex + 1} / 2 · ${eye}`, state.run.capture ? "ENDPOINT FROZEN · RECORD BOTH VALUES" : `LENS SCALE ${state.run.powerD.toFixed(2)} D`, attemptKind === "guided" ? coach.title : "Complete the physical sequence."]}
       help={attemptKind === "guided" ? ["Fit near correction, release the readable near target at 40 cm, and cover the opposite eye.", "Hold the monocular aperture over the tested eye and use the free controller beside its dial.", "Give the sustained-blur instruction and confirm the line is clear at 0.00 D.", "Turn the dial in 0.25 D steps. The fictional sustained response freezes automatically after the modeled delay.", "Independently enter the raw added-minus endpoint and the amplitude calculated as minus added + 2.50 D.", "Repeat for OS. Geometry, timing, and responses are illustrative drafts pending clinical and device review."]

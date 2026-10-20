@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { act } from "@react-three/fiber";
-import { Quaternion, Vector3 } from "three";
+import { Mesh, Quaternion, Vector3 } from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { clinic } from "./helpers/xrClinicHarness";
 import { PhoriaPracticeController } from "../practice/xr/PhoriaPracticeController";
@@ -19,6 +19,34 @@ import { consultationToolDefinition, type ConsultationToolId } from "../interact
 import { maddoxTrials } from "../interaction/maddoxPractice";
 import { MADDOX_PRISM_CELLS } from "../interaction/maddoxProcedure";
 import { PracticeAttemptProvider, type PracticeAttemptKind } from "../practice/PracticeAttemptContext";
+
+/** Check actual rendered mesh vertices and ancestor transforms, not procedure values. */
+function expectNearEyesWithinSclera(sim: Awaited<ReturnType<typeof lesson>>, osOutward = false, converging = true) {
+  sim.state.scene.updateMatrixWorld(true);
+  for (const gaze of sim.eyes("consultationGaze")) {
+    const eye = gaze.userData.consultationGaze;
+    expect(Math.sign(gaze.position.x)).toBe(converging ? (eye === "OD" || osOutward ? 1 : -1) : 0);
+    if (converging) expect(Math.abs(gaze.position.x)).toBeGreaterThan(.005);
+    if (!gaze.parent) throw new Error("Canonical eye is missing its anchor");
+    const anchor = gaze.parent.getWorldPosition(new Vector3());
+    const sclera: Mesh[] = [];
+    sim.state.scene.traverse(object => {
+      if (object instanceof Mesh && object.geometry.type === "SphereGeometry"
+        && object.scale.x === .025 && object.scale.y === .011 && object.scale.z === .013
+        && Math.abs(object.getWorldPosition(new Vector3()).x - anchor.x) < .001) sclera.push(object);
+    });
+    expect(sclera).toHaveLength(1);
+    gaze.traverse(object => {
+      if (!(object instanceof Mesh)) return;
+      const vertices = object.geometry.getAttribute("position");
+      for (let index = 0; index < vertices.count; index++) {
+        const point = sclera[0].worldToLocal(object.localToWorld(new Vector3().fromBufferAttribute(vertices, index)));
+        expect(point.x ** 2 + point.y ** 2).toBeLessThanOrEqual(1);
+      }
+    });
+  }
+}
+
 let dispose: (() => Promise<void>) | undefined;
 afterEach(async () => { await dispose?.(); dispose = undefined; vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 async function lesson(kind: LibraryKind, preview = false, attemptKind?: PracticeAttemptKind) {
@@ -29,6 +57,16 @@ async function lesson(kind: LibraryKind, preview = false, attemptKind?: Practice
     const controller = kind === "maddox" || kind === "thorington" ? createElement(PhoriaPracticeController, { ...common, kind }) : kind === "npc" ? createElement(NPCPracticeController, common) : kind === "push-up" ? createElement(PushUpPracticeController, common) : kind === "minus-lens" ? createElement(MinusLensPracticeController, common) : kind === "relative" ? createElement(RelativeAccommodationPracticeController, common) : kind === "horizontal-distance" ? createElement(FusionalVergencePracticeController, common) : kind === "vertical-distance" ? createElement(VerticalFusionalVergencePracticeController, common) : kind === "horizontal-near" ? createElement(NearFusionalVergencePracticeController, common) : kind === "accommodative-facility" ? createElement(AccommodationPracticeController, { ...common, kind }) : createElement(VergencePracticeController, { ...common, kind });
     return attemptKind ? createElement(PracticeAttemptProvider, { value: { settings: { kind: attemptKind, interaction: "vr", voice: "enabled" }, setSettings: vi.fn() }, children: controller }) : controller;
   } }); dispose = sim.dispose;
+  const boardActionLabels = () => {
+    const labels: string[] = [];
+    sim.state.scene.traverse(root => {
+      if (!root.userData.xrPersistentFindings) return;
+      root.traverse(object => {
+        if (object.userData.xrButton && object.position.y >= .565) labels.push(object.userData.xrLabel as string);
+      });
+    });
+    return labels;
+  };
   const action = async (label: string) => { const item = mirror!.actions.find(a => a.label === label); if (!item) throw new Error(`Missing ${label}: ${mirror!.actions.map(a => a.label).join(", ")}`); await act(async () => item.run()); await sim.step(1 / 72, 12); };
   const fit = async (id: ConsultationToolId, socketId?: string) => { const socket = librarySockets(kind).find(s => s.tool === id && (!socketId || s.id === socketId))!; await sim.pickup(0, id); const rotation = new Quaternion(...socket.rotation).multiply(new Quaternion(...consultationToolDefinition(id).gripRotation).invert()); sim.grips[0].quaternion.copy(rotation); sim.rays[0].quaternion.copy(rotation); await sim.at(0, socket.position); await sim.putDown(0); await sim.step(1 / 72, 12); sim.grips[0].quaternion.identity(); sim.rays[0].quaternion.identity(); };
   const enter = async (values: Record<string, string>) => { await act(async () => { for (const [id, value] of Object.entries(values)) mirror!.lesson.choose(id, value); }); await act(async () => mirror!.record()); await sim.step(1 / 72, 12); };
@@ -38,6 +76,8 @@ async function lesson(kind: LibraryKind, preview = false, attemptKind?: Practice
   const physicalTargetSwitch = async () => { const control = targetSwitch(), point = control.getWorldPosition(new Vector3()); await sim.at(0, [point.x, point.y, point.z + .025]); await sim.click(0, control); };
   const prismTurnControl = () => { let control: typeof sim.state.scene | undefined; sim.tool("prism-flipper").traverse(object => { if (object.userData.xrLabel === "PRISM FLIP TURN") control = object as typeof sim.state.scene; }); if (!control) throw new Error("Missing prism-flipper turn control"); return control; };
   const physicalPrismFlip = async () => { const control = prismTurnControl(), point = control.getWorldPosition(new Vector3()); await sim.at(0, point.toArray() as [number, number, number]); await sim.click(0, control); };
+  const lensTurnControl = () => { let control: typeof sim.state.scene | undefined; sim.tool("lens-flipper").traverse(object => { if (object.userData.xrLabel === "LENS FLIP TURN") control = object as typeof sim.state.scene; }); if (!control) throw new Error("Missing lens-flipper turn control"); return control; };
+  const physicalLensFlip = async () => { const control = lensTurnControl(), point = control.getWorldPosition(new Vector3()); await sim.at(0, point.toArray() as [number, number, number]); await sim.click(0, control); };
   const prismCell = async (power: number, base: "BI" | "BO" | "BU" | "BD") => {
     const match = mirror!.status.match(/prism (\d+)Δ/); const current = Number(match?.[1] ?? 20);
     let index = MADDOX_PRISM_CELLS.indexOf(current as typeof MADDOX_PRISM_CELLS[number]);
@@ -51,7 +91,7 @@ async function lesson(kind: LibraryKind, preview = false, attemptKind?: Practice
   const holdNearPenlight = async () => { await sim.pickup(0, "pupils"); sim.rays[0].rotation.set(0, 0, 0); sim.grips[0].rotation.set(0, 0, 0); await sim.at(0, [0, 1.5, .026]); await sim.event(0, "selectstart"); await sim.step(1 / 72, 12); };
   const prepare = async (cover?: "OD" | "OS") => { await fit("subjective"); if (cover) await fit("cover", `sensory-occlude-${cover}`); if (kind === "push-up") { await fit("push-up-rule", "library-push-up-spectacle"); await action("GIVE FIRST SUSTAINED BLUR INSTRUCTION"); return; } if (["horizontal-near", "facility", "minus-lens", "relative", "accommodative-facility"].includes(kind)) await fit("near"); if (kind === "horizontal-near") { await action("CONFIRM PREPARED NEAR TARGET AT 40 CM"); await action("GIVE BLUR / DOUBLE / RECOVERY INSTRUCTION"); } else if (kind !== "minus-lens" && kind !== "relative") await action("ESTABLISH FIXATION"); };
   const noTest = () => { expect(sim.record).not.toHaveBeenCalled(); expect(sim.encounter().results).toHaveLength(0); };
-  return { ...sim, mirror: () => mirror!, complete, leave, action, fit, enter, tick, settle, prepare, noTest, physicalTargetSwitch, physicalPrismFlip, prismTurnControl, prismCell, holdNearPenlight };
+  return { ...sim, boardActionLabels, mirror: () => mirror!, complete, leave, action, fit, enter, tick, settle, prepare, noTest, physicalTargetSwitch, physicalPrismFlip, prismTurnControl, physicalLensFlip, lensTurnControl, prismCell, holdNearPenlight };
 }
 describe("mounted remaining shared-clinic XR modules", () => {
   it("shows the seven-step Push-up coach and highlights only in Guided mode", async () => {
@@ -114,6 +154,22 @@ describe("mounted remaining shared-clinic XR modules", () => {
     let testHighlights = 0; test.state.scene.traverse(object => { if (object.userData.xrInstructionalHighlight) testHighlights++; });
     expect(testHighlights).toBe(0);
   });
+  it.each(["guided", "test"] as const)("keeps wrong-base Maddox feedback appropriate for %s attempts", async kind => {
+    const sim = await lesson("maddox", false, kind);
+    await sim.fit("subjective"); await sim.fit("maddox", "sensory-maddox-horizontal");
+    await sim.fit("worth", "sensory-worth-distance"); await sim.physicalTargetSwitch();
+    await sim.pickup(1, "prism"); await sim.prismCell(20, "BO");
+    const expected = kind === "guided" ? "Change the physical base from BO to BI." : "Reassess the base direction";
+    await sim.action("ASK STREAK / LIGHT RELATION"); await sim.tick(260);
+    expect(sim.mirror().status).toContain(expected);
+    await sim.action("PRISM TRIGGER · CAPTURE");
+    expect(JSON.stringify(sim.mirror().lesson.feedback)).toContain(expected);
+    if (kind === "test") {
+      expect(JSON.stringify(sim.mirror().lesson.feedback)).not.toMatch(/\b(BI|BO|BU|BD)\b/);
+      expect(sim.mirror().status).not.toContain("to BI");
+    }
+    expect(sim.mirror().ready).toBe(false); expect(sim.complete).not.toHaveBeenCalled(); sim.noTest();
+  });
   it("completes all four Maddox trials with physical distance/near target, starting prism and independent recording", async () => {
     const sim = await lesson("maddox"); await sim.fit("subjective"); await sim.fit("maddox", "sensory-maddox-horizontal"); await sim.fit("worth", "sensory-worth-distance");
     expect(sim.labels()).toContain("TRIAL 1/4 · DISTANCE · HORIZONTAL");
@@ -137,6 +193,7 @@ describe("mounted remaining shared-clinic XR modules", () => {
       await sim.event(1, "selectstart"); await sim.event(1, "selectend"); await sim.putDown(1);
       if (trial.site === "near") { await sim.event(0, "selectend"); await sim.putDown(0); }
       expect(sim.mirror().ready, sim.mirror().status).toBe(true); expect(sim.mirror().lesson.entries).toEqual({});
+      expect(sim.labels().join(" ")).toContain("Record independently");
       await sim.enter({ power: "", base: "" }); expect(sim.complete).not.toHaveBeenCalled(); await sim.enter({ power: String(trial.neutral), base: trial.base });
       if (i < 3) await sim.pickup(1, "prism");
     }
@@ -150,6 +207,7 @@ describe("mounted remaining shared-clinic XR modules", () => {
       await sim.action("ASK NUMBER AND SIDE"); await sim.tick(1); await sim.tick(260);
       expect(sim.mirror().voiceReport, sim.mirror().status).toContain(i ? "4, above" : "6, right");
       await sim.event(1, "selectend"); await sim.putDown(1); await sim.step(1 / 72, 12); expect(sim.mirror().ready, sim.mirror().status).toBe(true);
+      expect(sim.labels().join(" ")).toContain("Transcribe and interpret");
       await sim.enter({ magnitude: i ? "4" : "6", side: i ? "above" : "right", interpretation: i ? "left-hyperphoria" : "esophoria" });
     }
     expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
@@ -212,6 +270,43 @@ describe("mounted remaining shared-clinic XR modules", () => {
     await sim.step(1 / 72, 12);
     expect(sim.mirror().actions[0].active).toBe(false);
   });
+  it.each(["horizontal-distance", "vertical-distance"] as const)("requires a powered, docked mirrored target for %s and clears unfinished work when it is lost", async kind => {
+    const sim = await lesson(kind, false, "guided");
+    const establish = kind === "horizontal-distance" ? "ESTABLISH MIRRORED DISTANCE TARGET" : "ESTABLISH PREPARED MIRRORED TARGET";
+    const instruction = kind === "horizontal-distance" ? "GIVE BLUR / DOUBLE / RECOVERY INSTRUCTION" : "GIVE DOUBLE / RECOVERY INSTRUCTION";
+    const targetAction = () => sim.mirror().actions.find(action => action.label === establish)!;
+    let image: typeof sim.state.scene | undefined;
+    sim.state.scene.traverse(object => { if (object.userData.xrWorthFace === "mirror") image = object.parent as typeof sim.state.scene; });
+    expect(image).toBeDefined();
+    expect(image!.visible).toBe(false);
+    await sim.fit("subjective");
+    expect(targetAction().disabled).toBe(true);
+    await sim.action(establish); // A direct callback cannot bypass physical setup.
+    expect(targetAction().active).toBe(false);
+    await sim.fit("worth", "sensory-worth-near"); await sim.physicalTargetSwitch();
+    expect(targetAction().disabled).toBe(true);
+    expect(image!.visible).toBe(false);
+    await sim.fit("worth", "sensory-worth-distance");
+    expect(image!.visible).toBe(true);
+    expect(targetAction().disabled).toBe(false);
+    await sim.action(establish); await sim.action(instruction);
+    expect(targetAction().active).toBe(true);
+    await sim.action("TOGGLE DISTANCE TARGET POWER");
+    expect(image!.visible).toBe(false);
+    expect(targetAction().active).toBe(false);
+    expect(targetAction().disabled).toBe(true);
+    expect(sim.mirror().status).toContain("switch it on");
+    expect(sim.mirror().reportLines).toEqual([]);
+    expect(sim.mirror().ready).toBe(false);
+    await sim.physicalTargetSwitch(); await sim.action(establish);
+    expect(image!.visible).toBe(true);
+    expect(targetAction().active).toBe(true);
+    await sim.pickup(0, "worth"); await sim.step(1 / 72, 12);
+    expect(image!.visible).toBe(false);
+    expect(targetAction().active).toBe(false);
+    expect(sim.mirror().ready).toBe(false);
+    sim.noTest();
+  });
   it("stocks the dedicated rotary prism and keeps its ten-step coach out of independent Test", async () => {
     const guided = await lesson("horizontal-distance", true, "guided");
     expect(guided.tool("vergence-prism")).toBeDefined();
@@ -224,7 +319,7 @@ describe("mounted remaining shared-clinic XR modules", () => {
   });
   it("uses the free-hand trigger beside the rotary dial and pulses haptics at integer demand", async () => {
     const sim = await lesson("horizontal-distance", false, "guided");
-    await sim.fit("subjective"); await sim.action("ESTABLISH MIRRORED DISTANCE TARGET"); await sim.action("GIVE BLUR / DOUBLE / RECOVERY INSTRUCTION");
+    await sim.fit("subjective"); await sim.fit("worth", "sensory-worth-distance"); await sim.physicalTargetSwitch(); await sim.action("ESTABLISH MIRRORED DISTANCE TARGET"); await sim.action("GIVE BLUR / DOUBLE / RECOVERY INSTRUCTION");
     await sim.pickup(1, "vergence-prism"); await sim.at(1, [-.048, 1.4, -.481]); await sim.tick(260);
     expect(sim.mirror().fields).toEqual([]);
     const prism = sim.tool("vergence-prism");
@@ -238,7 +333,7 @@ describe("mounted remaining shared-clinic XR modules", () => {
   });
   it("resets unfinished rotary motion on tracking, teleportation, transfer, and correction revision without evidence", async () => {
     const sim = await lesson("horizontal-distance", false, "guided");
-    await sim.fit("subjective"); await sim.action("ESTABLISH MIRRORED DISTANCE TARGET"); await sim.action("GIVE BLUR / DOUBLE / RECOVERY INSTRUCTION");
+    await sim.fit("subjective"); await sim.fit("worth", "sensory-worth-distance"); await sim.physicalTargetSwitch(); await sim.action("ESTABLISH MIRRORED DISTANCE TARGET"); await sim.action("GIVE BLUR / DOUBLE / RECOVERY INSTRUCTION");
     await sim.pickup(1, "vergence-prism"); await sim.at(1, [-.048, 1.4, -.481]); await sim.tick(260);
     const plus = sim.mirror().actions.find(action => action.label === "DIAL +0.1Δ · ACCESSIBILITY")!;
     await act(async () => { for (let i = 0; i < 5; i++) plus.run(); }); await sim.tick(500);
@@ -261,7 +356,7 @@ describe("mounted remaining shared-clinic XR modules", () => {
   });
   it("completes subjective BI then BO automatically, survives panel use, releases, and records six blank fields once", async () => {
     const sim = await lesson("horizontal-distance", false, "guided");
-    await sim.fit("subjective"); await sim.action("ESTABLISH MIRRORED DISTANCE TARGET"); await sim.action("GIVE BLUR / DOUBLE / RECOVERY INSTRUCTION");
+    await sim.fit("subjective"); await sim.fit("worth", "sensory-worth-distance"); await sim.physicalTargetSwitch(); await sim.action("ESTABLISH MIRRORED DISTANCE TARGET"); await sim.action("GIVE BLUR / DOUBLE / RECOVERY INSTRUCTION");
     await sim.pickup(1, "vergence-prism"); await sim.at(1, [-.048, 1.4, -.481]); await sim.tick(260);
     let current = 0;
     const moveTo = async (target: number) => {
@@ -274,19 +369,33 @@ describe("mounted remaining shared-clinic XR modules", () => {
       }
       await sim.tick(260);
     };
+    expect(sim.labels().join(" ")).toContain("Increase BI demand");
     await moveTo(7); expect(sim.mirror().voiceReport).toContain("double");
+    expect(sim.labels().join(" ")).toContain("Reduce BI to recovery");
+    expect(sim.labels().join(" ")).not.toContain("Increase BI demand");
+    await moveTo(5);
+    expect(sim.mirror().reportLines).toEqual([]);
+    expect(sim.labels().join(" ")).toContain("Reduce BI to recovery");
     await moveTo(4); expect(sim.mirror().reportLines).toEqual(["BI: X / 7 / 4Δ"]);
+    expect(sim.labels().join(" ")).toContain("Reset and complete BO");
+    await sim.action("TOGGLE DISTANCE TARGET POWER");
+    expect(sim.mirror().reportLines).toEqual(["BI: X / 7 / 4Δ"]);
+    await sim.physicalTargetSwitch(); await sim.action("ESTABLISH MIRRORED DISTANCE TARGET");
     await moveTo(0); await sim.tick(260);
     sim.rays[1].rotation.z = Math.PI; sim.grips[1].rotation.z = Math.PI;
     await sim.at(1, [-.048, 1.6, -.481]); await sim.tick(260);
     await moveTo(9); expect(sim.mirror().voiceReport).toContain("blurred");
     await moveTo(19); expect(sim.mirror().voiceReport).toContain("double");
     await moveTo(12); expect(sim.mirror().reportLines).toHaveLength(2);
+    expect(sim.labels().join(" ")).toContain("Release and record");
+    await sim.action("TOGGLE DISTANCE TARGET POWER");
+    expect(sim.mirror().reportLines).toHaveLength(2);
     await sim.panel(0); await sim.panel(0); expect(sim.mirror().reportLines).toHaveLength(2);
     await sim.putDown(1); await sim.step(1 / 72, 12);
     expect(sim.mirror().ready, sim.mirror().status).toBe(true);
     expect(sim.mirror().fields).toHaveLength(6);
     expect(sim.mirror().lesson.entries).toEqual({});
+    expect(sim.labels().join(" ")).toContain("Release and record");
     await sim.enter({ "bi-blur": "X", "bi-break": "7", "bi-recovery": "4", "bo-blur": "9", "bo-break": "19", "bo-recovery": "12" });
     expect(sim.complete).toHaveBeenCalledTimes(1); await act(async () => sim.mirror().record()); expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
   }, 15000);
@@ -332,6 +441,7 @@ describe("mounted remaining shared-clinic XR modules", () => {
     await sim.panel(0); await sim.panel(0); expect(sim.mirror().reportLines).toHaveLength(2);
     expect(sim.mirror().fields).toEqual([]); await sim.putDown(1); await sim.step(1 / 72, 12);
     expect(sim.mirror().ready, sim.mirror().status).toBe(true); expect(sim.mirror().fields).toHaveLength(6); expect(sim.mirror().lesson.entries).toEqual({});
+    expect(sim.labels().join(" ")).toContain("Release and record");
     await sim.enter({ "bi-blur": "13", "bi-break": "21", "bi-recovery": "13", "bo-blur": "17", "bo-break": "21", "bo-recovery": "11" });
     expect(sim.complete).toHaveBeenCalledTimes(1); await act(async () => sim.mirror().record()); expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
   }, 20000);
@@ -348,7 +458,7 @@ describe("mounted remaining shared-clinic XR modules", () => {
   });
   it("uses vertical physical roll plus the free-hand rotary dial and integer haptics", async () => {
     const sim = await lesson("vertical-distance", false, "guided");
-    await sim.fit("subjective"); await sim.action("ESTABLISH PREPARED MIRRORED TARGET"); await sim.action("GIVE DOUBLE / RECOVERY INSTRUCTION");
+    await sim.fit("subjective"); await sim.fit("worth", "sensory-worth-distance"); await sim.physicalTargetSwitch(); await sim.action("ESTABLISH PREPARED MIRRORED TARGET"); await sim.action("GIVE DOUBLE / RECOVERY INSTRUCTION");
     await sim.pickup(1, "vergence-prism"); await sim.at(1, [.052, 1.5, -.481]); await sim.tick(260);
     expect(sim.mirror().status).toContain("physically roll BU/BD");
     sim.rays[1].rotation.z = Math.PI / 2; sim.grips[1].rotation.z = Math.PI / 2; await sim.at(1, [.052, 1.5, -.481]); await sim.tick(260);
@@ -361,7 +471,7 @@ describe("mounted remaining shared-clinic XR modules", () => {
   });
   it("completes automatic BU then BD runs, survives panel use, releases, and records four blank fields once", async () => {
     const sim = await lesson("vertical-distance", false, "guided");
-    await sim.fit("subjective"); await sim.action("ESTABLISH PREPARED MIRRORED TARGET"); await sim.action("GIVE DOUBLE / RECOVERY INSTRUCTION");
+    await sim.fit("subjective"); await sim.fit("worth", "sensory-worth-distance"); await sim.physicalTargetSwitch(); await sim.action("ESTABLISH PREPARED MIRRORED TARGET"); await sim.action("GIVE DOUBLE / RECOVERY INSTRUCTION");
     sim.rays[1].rotation.z = Math.PI / 2; sim.grips[1].rotation.z = Math.PI / 2;
     await sim.pickup(1, "vergence-prism"); await sim.at(1, [.052, 1.5, -.481]); await sim.tick(260);
     let current = 0;
@@ -376,13 +486,19 @@ describe("mounted remaining shared-clinic XR modules", () => {
     };
     await moveTo(4); expect(sim.mirror().voiceReport).toContain("double");
     await moveTo(2); expect(sim.mirror().reportLines).toEqual(["BU: 4 / 2Δ"]);
+    await sim.action("TOGGLE DISTANCE TARGET POWER");
+    expect(sim.mirror().reportLines).toEqual(["BU: 4 / 2Δ"]);
+    await sim.physicalTargetSwitch(); await sim.action("ESTABLISH PREPARED MIRRORED TARGET");
     await moveTo(0); await sim.tick(260);
     sim.rays[1].rotation.z = -Math.PI / 2; sim.grips[1].rotation.z = -Math.PI / 2;
     await sim.at(1, [-.148, 1.5, -.481]); await sim.tick(260);
     await moveTo(4); await moveTo(2); expect(sim.mirror().reportLines).toEqual(["BU: 4 / 2Δ", "BD: 4 / 2Δ"]);
+    await sim.action("TOGGLE DISTANCE TARGET POWER");
+    expect(sim.mirror().reportLines).toHaveLength(2);
     await sim.panel(0); await sim.panel(0); expect(sim.mirror().reportLines).toHaveLength(2);
     expect(sim.mirror().fields).toEqual([]); await sim.putDown(1); await sim.step(1 / 72, 12);
     expect(sim.mirror().ready, sim.mirror().status).toBe(true); expect(sim.mirror().fields).toHaveLength(4); expect(sim.mirror().lesson.entries).toEqual({});
+    expect(sim.labels().join(" ")).toContain("Release and record");
     await sim.enter({ "bu-break": "4", "bu-recovery": "2", "bd-break": "4", "bd-recovery": "2" });
     expect(sim.complete).toHaveBeenCalledTimes(1); await act(async () => sim.mirror().record()); expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
   });
@@ -390,7 +506,7 @@ describe("mounted remaining shared-clinic XR modules", () => {
     const preview = await lesson("vertical-distance", true, "guided"); expect(preview.mirror().reportLines).toEqual([]); preview.noTest();
     await dispose?.(); dispose = undefined;
     const sim = await lesson("vertical-distance", false, "guided");
-    await sim.fit("subjective"); await sim.action("ESTABLISH PREPARED MIRRORED TARGET"); await sim.action("GIVE DOUBLE / RECOVERY INSTRUCTION");
+    await sim.fit("subjective"); await sim.fit("worth", "sensory-worth-distance"); await sim.physicalTargetSwitch(); await sim.action("ESTABLISH PREPARED MIRRORED TARGET"); await sim.action("GIVE DOUBLE / RECOVERY INSTRUCTION");
     sim.rays[1].rotation.z = Math.PI / 2; sim.grips[1].rotation.z = Math.PI / 2;
     await sim.pickup(1, "vergence-prism"); await sim.at(1, [.052, 1.5, -.481]); await sim.tick(260);
     const plus = sim.mirror().actions.find(action => action.label === "DIAL +0.1Δ · ACCESSIBILITY")!;
@@ -416,6 +532,13 @@ describe("mounted remaining shared-clinic XR modules", () => {
     expect(sim.mirror().actions.map(action => action.label)).toContain("GIVE CLEAR / SINGLE INSTRUCTION");
     await sim.action("GIVE CLEAR / SINGLE INSTRUCTION"); expect(sim.mirror().status).toContain("40.0 cm");
     expect(sim.labels().join(" ")).toContain("GUIDED STEP"); sim.noTest();
+    await sim.at(1, [0, 1.545, -.111]); await sim.event(1, "selectstart"); await sim.tick(260);
+    for (let cm = 39.5; cm >= 35; cm -= .5) {
+      await sim.at(1, [0, 1.545, -.511 + cm / 100]); await sim.tick(250);
+    }
+    expect(sim.mirror().status).toContain("approach");
+    expect(sim.labels().join(" ")).toContain("GUIDED STEP 7 / 10 · Move inward");
+    expect(sim.labels().join(" ")).not.toContain("Set the start distance");
   });
   it("keeps NPC Test free of coaching and fitting highlights", async () => {
     const sim = await lesson("npc", true, "test");
@@ -443,45 +566,100 @@ describe("mounted remaining shared-clinic XR modules", () => {
   });
   it("completes the concealed objective-first NPC Test with explicit OS endpoint marks", async () => {
     const sim = await lesson("npc", false, "test"); await sim.fit("subjective"); await sim.fit("npc-rule", "library-npc-spectacle"); await sim.action("GIVE CLEAR / SINGLE INSTRUCTION");
+    expectNearEyesWithinSclera(sim, false, false);
     const carriage = async (cm: number) => { await sim.at(1, [0, 1.545, -.511 + cm / 100]); await sim.tick(250); };
     await sim.at(1, [0, 1.545, -.111]); await sim.event(1, "selectstart"); await sim.tick(260);
     for (let trial = 0; trial < 3; trial++) {
-      for (let cm = 39.5; cm >= 5; cm -= .5) await carriage(cm);
-      await sim.tick(260); expect(sim.mirror().voiceReport).toContain("single"); await sim.action("MARK OBSERVED ENDPOINT");
+      for (let cm = 39.5; cm >= 5; cm -= .5) {
+        await carriage(cm);
+        if (cm === 10) { await sim.settle(); expectNearEyesWithinSclera(sim); }
+      }
+      await sim.tick(260); await sim.settle(); expectNearEyesWithinSclera(sim, true);
+      expect(sim.mirror().voiceReport).toContain("single"); await sim.action("MARK OBSERVED ENDPOINT");
       for (let cm = 5.5; cm <= 9; cm += .5) await carriage(cm);
-      await sim.tick(260); await sim.action("MARK OBSERVED ENDPOINT");
+      await sim.tick(260); await sim.settle(); expectNearEyesWithinSclera(sim);
+      await sim.action("MARK OBSERVED ENDPOINT");
       if (trial < 2) { await sim.at(1, [0, 1.545, -.111]); await sim.tick(260); }
     }
     expect(sim.mirror().reportLines, sim.mirror().status).toHaveLength(3); expect(sim.mirror().status).not.toContain("objective");
     await sim.event(1, "selectend"); await sim.action("REMOVE / RELEASE RULE");
     await sim.enter({ "trial-1-break": "5", "trial-1-recovery": "9", "trial-2-break": "5", "trial-2-recovery": "9", "trial-3-break": "5", "trial-3-recovery": "9", "detection-method": "objective-observation", "breaking-eye": "OS" });
     expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
-  });
-  it.each(["facility", "accommodative-facility"] as const)("times %s with physical full pairs, invalidation, release recording and all required eyes", async kind => {
-    const sim = await lesson(kind); await sim.prepare(kind === "accommodative-facility" ? "OS" : undefined);
-    const tool = kind === "facility" ? "prism-flipper" : "lens-flipper";
-    for (let eye = 0; eye < (kind === "facility" ? 1 : 3); eye++) {
-      if (eye === 1) await sim.fit("cover", "sensory-occlude-OD"); if (eye === 2) { await sim.pickup(0, "cover"); await sim.at(0, [-1.31, .9775, .59]); await sim.putDown(0); }
-      await sim.pickup(1, tool); await sim.at(1, [0, 1.4, -.46]); await sim.action("START 60-SECOND RUN");
-      if (kind === "facility") {
-        expect(sim.mirror().actions.map(action => action.label)).not.toContain("CLEAR + SINGLE / FLIP");
-        const control = sim.prismTurnControl(), heldPosition = sim.tool("prism-flipper").getWorldPosition(new Vector3()).clone();
-        await sim.at(0, [1, 1, 1]); await sim.click(0, control);
-        expect(sim.mirror().status).toContain("BO"); expect(sim.haptics[0]).not.toHaveBeenCalled();
-        await sim.physicalPrismFlip();
-        expect(sim.mirror().status).toContain("BI"); expect(sim.mirror().status).toContain("0 cycles");
-        expect(sim.mirror().status).toContain("still double"); expect(sim.haptics[0]).toHaveBeenCalledTimes(1);
-        expect(sim.tool("prism-flipper").getWorldPosition(new Vector3()).distanceTo(heldPosition)).toBeLessThan(.001);
-        await sim.tick(650); await sim.physicalPrismFlip(); expect(sim.mirror().status).toContain("0 cycles");
-        await sim.tick(850); await sim.physicalPrismFlip(); await sim.tick(650); await sim.physicalPrismFlip(); expect(sim.mirror().status).toContain("1 cycles");
-      } else {
-        await sim.action("CLEAR / FLIP ±2 D"); expect(sim.mirror().status).toContain("0 cycles");
-        await sim.tick(1500); await sim.action("CLEAR / FLIP ±2 D"); await sim.tick(1800); await sim.action("CLEAR / FLIP ±2 D"); expect(sim.mirror().status).toContain("1 cycles");
-      }
-      if (eye === 0) { sim.tracked[1] = false; await sim.step(); sim.tracked[1] = true; await sim.step(1 / 72, 12); expect(sim.mirror().status).toContain("0 cycles"); await sim.action("START 60-SECOND RUN"); }
-      await sim.tick(60000); expect(sim.mirror().ready).toBe(true); await sim.putDown(1); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(true); await sim.enter({ cycles: eye === 0 ? "0" : "1" });
-    }
+  }, 15000);
+  it("times vergence facility with physical full pairs, invalidation and release recording", async () => {
+    const sim = await lesson("facility"); await sim.prepare();
+    await sim.pickup(1, "prism-flipper"); await sim.at(1, [0, 1.4, -.46]); await sim.action("START 60-SECOND RUN");
+    expect(sim.mirror().actions.map(action => action.label)).not.toContain("CLEAR + SINGLE / FLIP");
+    const control = sim.prismTurnControl(), heldPosition = sim.tool("prism-flipper").getWorldPosition(new Vector3()).clone();
+    await sim.at(0, [1, 1, 1]); await sim.click(0, control);
+    expect(sim.mirror().status).toContain("BO"); expect(sim.haptics[0]).not.toHaveBeenCalled();
+    await sim.physicalPrismFlip();
+    expect(sim.mirror().status).toContain("BI"); expect(sim.mirror().status).toContain("0 cycles");
+    expect(sim.mirror().status).toContain("still double"); expect(sim.haptics[0]).toHaveBeenCalledTimes(1);
+    expect(sim.tool("prism-flipper").getWorldPosition(new Vector3()).distanceTo(heldPosition)).toBeLessThan(.001);
+    await sim.tick(650); await sim.physicalPrismFlip(); expect(sim.mirror().status).toContain("0 cycles");
+    await sim.tick(850); await sim.physicalPrismFlip(); await sim.tick(650); await sim.physicalPrismFlip(); expect(sim.mirror().status).toContain("1 cycles");
+    sim.tracked[1] = false; await sim.step(); sim.tracked[1] = true; await sim.step(1 / 72, 12);
+    expect(sim.mirror().status).toContain("0 cycles"); await sim.action("START 60-SECOND RUN");
+    await sim.tick(60000); expect(sim.mirror().ready).toBe(true); await sim.putDown(1); await sim.step(1 / 72, 12);
+    expect(sim.mirror().ready).toBe(true); await sim.enter({ cycles: "0" });
     expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
+  });
+
+  it("performs accommodative facility physically for OD, OS and OU with free-hand turns", async () => {
+    const sim = await lesson("accommodative-facility", false, "guided");
+    expect(sim.mirror().actions.map(action => action.label)).toEqual([
+      "ESTABLISH FIXATION", "START 60-SECOND RUN", "RESTART CURRENT RUN",
+    ]);
+    await sim.fit("subjective"); await sim.fit("near"); await sim.fit("cover", "sensory-occlude-OS");
+    await sim.action("ESTABLISH FIXATION");
+    await sim.pickup(1, "lens-flipper"); await sim.at(1, [0, 1.4, -.46]);
+    const control = sim.lensTurnControl();
+    expect(sim.boardActionLabels()).toEqual(["START 60-SECOND RUN"]);
+    await sim.action("START 60-SECOND RUN");
+    expect(sim.boardActionLabels()).toEqual([]);
+    const heldPosition = sim.tool("lens-flipper").getWorldPosition(new Vector3()).clone();
+    await sim.at(0, [1, 1, 1]); await sim.click(0, control);
+    await sim.click(1, control);
+    expect(sim.mirror().status).toContain("plus"); expect(sim.haptics[0]).not.toHaveBeenCalled(); expect(sim.haptics[1]).not.toHaveBeenCalled();
+    await sim.physicalLensFlip();
+    expect(sim.mirror().status).toContain("minus"); expect(sim.mirror().status).toContain("before the patient cleared");
+    expect(sim.haptics[0]).toHaveBeenCalledTimes(1);
+    expect(sim.tool("lens-flipper").getWorldPosition(new Vector3()).distanceTo(heldPosition)).toBeLessThan(.001);
+    let head: typeof sim.state.scene | undefined;
+    sim.tool("lens-flipper").traverse(object => { if (object.userData.xrFlipperHead === "lens-flipper") head = object as typeof sim.state.scene; });
+    expect(head?.rotation.y).toBeCloseTo(Math.PI);
+    await sim.tick(1800); await sim.physicalLensFlip();
+    expect(sim.mirror().status).toContain("not credited"); expect(sim.mirror().status).toContain("0 cycles");
+    await sim.tick(1500); await sim.physicalLensFlip(); await sim.tick(1800); await sim.physicalLensFlip();
+    expect(sim.mirror().status).toContain("1 cycles"); expect(sim.haptics[0]).toHaveBeenCalledTimes(4);
+    await sim.tick(60000); expect(sim.mirror().ready).toBe(true);
+    await sim.putDown(1); await sim.step(1 / 72, 12);
+    expect(sim.labels().join(" ")).toContain("Record the frozen count");
+    expect(sim.boardActionLabels()).toEqual([]);
+    await sim.enter({ cycles: "1" }); await sim.pickup(1, "lens-flipper");
+
+    await sim.fit("cover", "sensory-occlude-OD");
+    expect(sim.mirror().status).toContain("OS"); expect(sim.mirror().status).toContain("60s");
+    expect(sim.boardActionLabels()).toEqual(["ESTABLISH FIXATION"]);
+    await sim.action("ESTABLISH FIXATION"); await sim.at(1, [0, 1.4, -.46]); await sim.action("START 60-SECOND RUN");
+    await sim.tick(1500); await sim.physicalLensFlip(); await sim.tick(1800); await sim.physicalLensFlip();
+    await sim.tick(60000); await sim.enter({ cycles: "1" });
+
+    await sim.pickup(0, "cover");
+    const coverHome = consultationToolDefinition("cover").home;
+    await sim.at(0, coverHome); await sim.putDown(0); await sim.step(1 / 72, 12);
+    expect(sim.mirror().status).toContain("OU");
+    await sim.action("ESTABLISH FIXATION"); await sim.at(1, [0, 1.4, -.46]); await sim.action("START 60-SECOND RUN");
+    await sim.tick(1500); await sim.physicalLensFlip(); await sim.tick(1800); await sim.physicalLensFlip();
+    await sim.tick(60000); await sim.enter({ cycles: "1" });
+    expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
+  });
+
+  it("keeps accommodative-facility setup and flip shortcuts only in desktop mode", async () => {
+    const xr = await lesson("accommodative-facility");
+    expect(xr.mirror().actions.map(action => action.label)).toEqual(["ESTABLISH FIXATION", "START 60-SECOND RUN", "RESTART CURRENT RUN"]);
+    xr.noTest();
   });
   it("requires physical near-target placement for vergence facility", async () => {
     const sim = await lesson("facility");
@@ -502,11 +680,15 @@ describe("mounted remaining shared-clinic XR modules", () => {
     for (let i = 0; i < 3; i++) {
       if (i === 1) { await sim.fit("cover", "sensory-occlude-OD"); await sim.action("GIVE FIRST SUSTAINED BLUR INSTRUCTION"); }
       if (i === 2) { await sim.action("REMOVE COVER · TEST OU"); await sim.action("GIVE FIRST SUSTAINED BLUR INSTRUCTION"); }
+      expect(sim.boardActionLabels()).toEqual(["PATIENT REPORT · WHAT DO YOU SEE?"]);
       const cm = [10, 11, 12][i];
       await sim.event(1, "selectstart"); await sim.at(1, [0, 1.545, -.111]); await sim.tick(260);
       for (let distance = 38; distance > cm; distance -= 2) await sim.at(1, [0, 1.545, -.511 + Math.max(cm, distance) / 100]);
       await sim.at(1, [0, 1.545, -.511 + cm / 100]); await sim.tick(500); await sim.event(1, "selectend");
       expect(sim.mirror().ready, sim.mirror().status).toBe(true);
+      await sim.settle(); expectNearEyesWithinSclera(sim, false, i === 2);
+      expect(sim.labels().join(" ")).toContain(`Record ${["OD", "OS", "OU"][i]}`);
+      expect(sim.boardActionLabels()).toEqual([]);
       await sim.enter({ distance: String(cm), amplitude: (100 / cm).toFixed(2) });
     }
     expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
@@ -517,10 +699,17 @@ describe("mounted remaining shared-clinic XR modules", () => {
       if (i) await sim.fit("cover", "sensory-occlude-OD");
       if (!i) await sim.pickup(1, "minus-lens-holder");
       await sim.at(1, [i ? .048 : -.048, 1.4, -.46]);
-      await sim.action("GIVE FIRST SUSTAINED BLUR INSTRUCTION"); await sim.action("CONFIRM LINE CLEAR AT 0.00 D");
+      expect(sim.boardActionLabels()).toEqual(["GIVE FIRST SUSTAINED BLUR INSTRUCTION"]);
+      await sim.action("GIVE FIRST SUSTAINED BLUR INSTRUCTION");
+      expect(sim.boardActionLabels()).toEqual(["CONFIRM LINE CLEAR AT 0.00 D"]);
+      await sim.action("CONFIRM LINE CLEAR AT 0.00 D");
+      expect(sim.boardActionLabels()).toEqual(["PATIENT REPORT · WHAT DO YOU SEE?", "DIAL ADD −0.25 D · ACCESSIBILITY", "DIAL REMOVE 0.25 D · ACCESSIBILITY"]);
       for (let step = 0; step < 16; step++) await sim.action("DIAL ADD −0.25 D · ACCESSIBILITY");
       expect(sim.mirror().ready).toBe(false); await sim.tick(1200); expect(sim.mirror().ready, sim.mirror().status).toBe(true);
-      await sim.putDown(1); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(true); await sim.enter({ power: "-4", amplitude: "6.5" });
+      await sim.putDown(1); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(true);
+      expect(sim.labels().join(" ")).toContain(`Record ${i ? "OS" : "OD"}`);
+      expect(sim.boardActionLabels()).toEqual([]);
+      await sim.enter({ power: "-4", amplitude: "6.5" });
       if (i === 0) await sim.pickup(1, "minus-lens-holder");
     }
     expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
@@ -538,14 +727,53 @@ describe("mounted remaining shared-clinic XR modules", () => {
     await sim.event(0, "selectend"); sim.noTest();
   });
   it("requires NRA, restored clear baseline and PRA in order", async () => {
-    const sim = await lesson("relative"); await sim.prepare(); await sim.pickup(1, "trial-lens"); await sim.at(1, [0, 1.4, -.46]);
-    await sim.action("GIVE CLEAR / SINGLE / SUSTAINED BLUR INSTRUCTION"); await sim.action("CONFIRM INITIAL CLEAR AT 0.00 D");
+    const sim = await lesson("relative", false, "guided"); await sim.prepare(); await sim.pickup(1, "trial-lens"); await sim.at(1, [0, 1.4, -.46]);
+    expect(sim.boardActionLabels()).toEqual(["GIVE CLEAR / SINGLE / SUSTAINED BLUR INSTRUCTION"]);
+    expect(sim.mirror().actions).toHaveLength(9);
+    await sim.action("GIVE CLEAR / SINGLE / SUSTAINED BLUR INSTRUCTION");
+    expect(sim.boardActionLabels()).toEqual(["CONFIRM INITIAL CLEAR AT 0.00 D"]);
+    await sim.action("CONFIRM INITIAL CLEAR AT 0.00 D");
+    expect(sim.boardActionLabels()).toEqual(["PATIENT REPORT · WHAT DO YOU SEE?", "DIAL +0.25 D · ACCESSIBILITY"]);
     for (let i = 0; i < 8; i++) await sim.action("DIAL +0.25 D · ACCESSIBILITY");
-    await sim.tick(1200); expect(sim.mirror().ready).toBe(false); await sim.action("CONFIRM CLEAR BASELINE AT 0.00 D"); expect(sim.mirror().status).toContain("Remove all plus");
-    for (let i = 0; i < 8; i++) await sim.action("DIAL −0.25 D · ACCESSIBILITY"); await sim.action("CONFIRM CLEAR BASELINE AT 0.00 D");
-    for (let i = 0; i < 9; i++) await sim.action("DIAL −0.25 D · ACCESSIBILITY"); await sim.tick(1200); expect(sim.mirror().ready).toBe(true);
+    await sim.tick(1200); expect(sim.mirror().ready).toBe(false);
+    expect(sim.boardActionLabels()).toEqual(["DIAL −0.25 D · ACCESSIBILITY"]);
+    await sim.action("CONFIRM CLEAR BASELINE AT 0.00 D"); expect(sim.mirror().status).toContain("Remove all plus");
+    for (let i = 0; i < 8; i++) await sim.action("DIAL −0.25 D · ACCESSIBILITY");
+    expect(sim.boardActionLabels()).toEqual(["CONFIRM CLEAR BASELINE AT 0.00 D"]);
+    await sim.action("CONFIRM CLEAR BASELINE AT 0.00 D");
+    expect(sim.boardActionLabels()).toEqual(["PATIENT REPORT · WHAT DO YOU SEE?", "DIAL −0.25 D · ACCESSIBILITY"]);
+    for (let i = 0; i < 9; i++) {
+      await sim.action("DIAL −0.25 D · ACCESSIBILITY");
+      expect(sim.labels().join(" ")).toContain("GUIDED STEP 9 / 10 · Measure PRA");
+      expect(sim.labels().join(" ")).not.toContain("Return to baseline");
+    }
+    expect(sim.labels().join(" ")).toContain("Hold the power steady");
+    await sim.tick(1200); expect(sim.mirror().ready).toBe(true);
     await sim.putDown(1); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(true);
+    expect(sim.labels().join(" ")).toContain("GUIDED STEP 10 / 10 · Record NRA and PRA");
+    expect(sim.boardActionLabels()).toEqual([]);
     await sim.enter({ nra: "2", pra: "-2.25" }); expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
+  });
+  it.each(["guided", "test"] as const)("keeps the NRA/PRA dial and rendered scale beyond patient endpoints in %s", async kind => {
+    const sim = await lesson("relative", false, kind); await sim.prepare();
+    await sim.pickup(1, "trial-lens"); await sim.at(1, [0, 1.4, -.46]);
+    expect(sim.labels().join(" ")).not.toContain("+2.00 → 0.00 → −2.25");
+    expect(sim.boardActionLabels()).toEqual(["GIVE CLEAR / SINGLE / SUSTAINED BLUR INSTRUCTION"]);
+    await sim.action("GIVE CLEAR / SINGLE / SUSTAINED BLUR INSTRUCTION"); await sim.action("CONFIRM INITIAL CLEAR AT 0.00 D");
+    expect(sim.boardActionLabels()).toEqual(["PATIENT REPORT · WHAT DO YOU SEE?", "DIAL +0.25 D · ACCESSIBILITY"]);
+    for (let i = 0; i < 8; i++) await sim.action("DIAL +0.25 D · ACCESSIBILITY");
+    expect(sim.mirror().actions.find(action => action.label === "DIAL +0.25 D · ACCESSIBILITY")?.disabled).toBe(false);
+    await sim.action("DIAL +0.25 D · ACCESSIBILITY");
+    expect(sim.labels()).toContain("+2.25 D"); expect(sim.mirror().voiceReport).toContain("blurred");
+    await sim.tick(1200);
+    for (let i = 0; i < 9; i++) await sim.action("DIAL −0.25 D · ACCESSIBILITY");
+    await sim.action("CONFIRM CLEAR BASELINE AT 0.00 D");
+    for (let i = 0; i < 9; i++) await sim.action("DIAL −0.25 D · ACCESSIBILITY");
+    expect(sim.mirror().actions.find(action => action.label === "DIAL −0.25 D · ACCESSIBILITY")?.disabled).toBe(false);
+    await sim.action("DIAL −0.25 D · ACCESSIBILITY");
+    expect(sim.labels()).toContain("-2.50 D"); expect(sim.mirror().voiceReport).toContain("blurred");
+    await sim.tick(1200); expect(sim.mirror().ready).toBe(true);
+    await sim.enter({ nra: "2.25", pra: "-2.5" }); expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
   });
   it("operates the NRA/PRA power dial with the free controller while the holder remains face-on", async () => {
     const sim = await lesson("relative", false, "guided"); await sim.prepare(); await sim.pickup(1, "trial-lens"); await sim.at(1, [0, 1.4, -.46]);
@@ -555,7 +783,7 @@ describe("mounted remaining shared-clinic XR modules", () => {
     await sim.at(0, start.toArray() as [number, number, number]); await sim.event(0, "selectstart"); await sim.step();
     const turn = holder.localToWorld(new Vector3(.045, .075, .006));
     await sim.at(0, turn.toArray() as [number, number, number]); await sim.step(1 / 72, 12);
-    expect(sim.mirror().status).toMatch(/scale \+0\.(25|50|75) D/); expect(sim.haptics[0]).toHaveBeenCalled();
+    expect(sim.mirror().status).toMatch(/scale \+1\.(00|25|50) D/); expect(sim.haptics[0]).toHaveBeenCalled();
     await sim.event(0, "selectend"); sim.noTest();
   });
 

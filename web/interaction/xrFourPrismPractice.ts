@@ -81,9 +81,10 @@ export function clearFourPrismFixation(state: FourPrismRunState) {
 export function handleFourPrismTool(state: FourPrismRunState, held: boolean, prismToolRevision = state.prismToolRevision) {
   if (!state.active || state.recorded) return state;
   const prismHandled = state.prismHandled || held;
-  if (state.completedRun) return freezeState({ ...state, prismHandled, prismToolRevision });
-  if (!held) return interruptFourPrismEye(freezeState({ ...state, prismHandled, prismToolRevision }), false);
-  return freezeState({ ...state, prismHandled, prismToolRevision, phase: validFixation(state) && state.phase === "pickup" ? "orient-od" : state.phase });
+  const phase = !state.completedRun && held && validFixation(state) && state.phase === "pickup" ? "orient-od" : state.phase;
+  const next = prismHandled === state.prismHandled && prismToolRevision === state.prismToolRevision && phase === state.phase
+    ? state : freezeState({ ...state, prismHandled, prismToolRevision, phase });
+  return state.completedRun || held ? next : interruptFourPrismEye(next, false);
 }
 export function fourPrismTemporalBaseAxis(eye: PrismEye): ToolPoint { return eye === "OD" ? [-1, 0, 0] : [1, 0, 0]; }
 export function fourPrismBaseAlignmentError(baseAxis: ToolPoint, eye: PrismEye) {
@@ -133,10 +134,12 @@ export function advanceFourPrismSample(state: FourPrismRunState, sample: FourPri
 }
 export function interruptFourPrismEye(state: FourPrismRunState, clearFixation: boolean, notice = "") {
   if (!state.active || state.completedRun) return state;
-  const base = freezeState({ ...state, currentEye: null, dwellMs: 0,
-    phase: state.phase === "observe-od" ? "orient-od" : state.phase === "observe-os" ? "orient-os" : state.phase, notice });
-  if (!clearFixation || base.fixationSetupRevision === null) return base;
-  return freezeState({ ...base, fixationSetupRevision: null, phase: base.fitted ? "fixation" : "fitting" });
+  const fixationSetupRevision = clearFixation ? null : state.fixationSetupRevision;
+  const phase = clearFixation && state.fixationSetupRevision !== null ? state.fitted ? "fixation" : "fitting"
+    : state.phase === "observe-od" ? "orient-od" : state.phase === "observe-os" ? "orient-os" : state.phase;
+  if (state.currentEye === null && state.dwellMs === 0 && state.phase === phase
+    && state.notice === notice && state.fixationSetupRevision === fixationSetupRevision) return state;
+  return freezeState({ ...state, currentEye: null, dwellMs: 0, phase, notice, fixationSetupRevision });
 }
 export function confirmFourPrismWithdrawal(state: FourPrismRunState, position: ToolPoint | null, forward: ToolPoint) {
   if (!state.active || state.phase !== "withdraw" || !state.eyeCaptures.OD || !position || xrPracticeCoverPosition(position, forward) !== "away") return state;
@@ -146,13 +149,21 @@ export function markFourPrismObservation(state: FourPrismRunState, eye: PrismEye
   if (!state.active || state.recorded || !state.eyeCaptures.OD || !state.eyeCaptures.OS || state.completedRun) return state;
   const capture = state.eyeCaptures[eye]; if (!capture) return state;
   const correct = capture.authoredObservation === observation, markings = immutable({ ...state.markings, [eye]: observation });
-  if (!correct) return freezeState({ ...state, markings, notice: `${eye} entry does not match the movement you observed. Review that eye and try again.` });
+  if (!correct) {
+    const eyeRecords = { ...state.eyeRecords };
+    delete eyeRecords[eye];
+    return freezeState({ ...state, markings, eyeRecords: immutable(eyeRecords),
+      notice: `${eye} entry does not match the movement you observed. Review that eye and try again.` });
+  }
   const eyeRecords = immutable({ ...state.eyeRecords, [eye]: immutable({ capture, learnerObservation: observation, transcriptionCorrect: true }) });
   return freezeState({ ...state, markings, eyeRecords, notice: `${eye} observation confirmed.` });
 }
 export function finalizeFourPrismRun(state: FourPrismRunState) {
   const od = state.eyeRecords.OD, os = state.eyeRecords.OS;
-  if (!state.active || state.completedRun || !od || !os || !state.withdrawalConfirmed || state.dwellMs !== 0
+  if (!state.active || state.completedRun) return state;
+  if (!od || !os || state.markings.OD !== od.learnerObservation || state.markings.OS !== os.learnerObservation)
+    return freezeState({ ...state, notice: "Both current entries must match the movements you observed. Review OD and OS and try again." });
+  if (!state.withdrawalConfirmed || state.dwellMs !== 0
     || od.capture.setupRevision !== state.setupRevision || os.capture.setupRevision !== state.setupRevision) return state;
   const completedRun = immutable({ records: Object.freeze([od, os]) as readonly [FourPrismEyeRecord, FourPrismEyeRecord], scenario: state.scenario,
     attempt: state.attempt, generation: state.generation, setupRevision: state.setupRevision, withdrawalConfirmed: true as const, noEyeUnfinished: true as const });

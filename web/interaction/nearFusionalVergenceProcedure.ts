@@ -335,7 +335,8 @@ export function nearFusionalGuidedStep(run: NearFusionalRun, sample: NearFusiona
     ["bo-run", "Roll to BO and repeat", "At zero, physically roll to BO, establish a fresh baseline, then repeat the full run.", Boolean(run.captures.BO)],
     ["record", "Release and record", "Physically release the prism and independently enter all six acquired fields.", Boolean(run.record)],
   ] as const;
-  const index = run.phase === "complete" ? 9 : Math.max(0, checks.findIndex(check => !check[3]));
+  const index = run.phase === "complete" || (run.captures.BI && run.captures.BO)
+    ? 9 : Math.max(0, checks.findIndex(check => !check[3]));
   const step = checks[index];
   return Object.freeze({ id: step[0], index, title: step[1], lines: Object.freeze([step[2]]), complete: Boolean(run.record) });
 }

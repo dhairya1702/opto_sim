@@ -47,16 +47,30 @@ export function FourPrismPracticeController({ active, preview = false, inputMode
   const [run, setRun] = useState(runRef.current);
   const prismBaseRef = useRef<"left" | "right">("right");
   const [prismBase, setPrismBaseState] = useState<"left" | "right">("right");
-  const [techniqueReason, setTechniqueReason] = useState("");
+  const [techniqueReason, setTechniqueReasonState] = useState("");
+  const techniqueReasonRef = useRef("");
+  const setTechniqueReason = useCallback((next: string) => {
+    if (next === techniqueReasonRef.current) return;
+    techniqueReasonRef.current = next; setTechniqueReasonState(next);
+  }, []);
+  const uiElapsedMs = useRef(0);
   const fitSignature = useRef("");
   const alive = useRef(active && !preview);
   const completedNotified = useRef(false);
   const eyes = useClinicEyeMotion(active);
   const { gl, camera } = useThree();
   const vectors = useMemo(() => ({ viewer: new Vector3(), viewerForward: new Vector3(), rotation: new Quaternion(), base: new Vector3(), toolRotation: new Quaternion() }), []);
-  const publish = useCallback((next: FourPrismRunState) => {
-    if (next === runRef.current) return false;
-    runRef.current = next; setRun(next); return true;
+  const publish = useCallback((next: FourPrismRunState, frameSample = false) => {
+    const previous = runRef.current;
+    if (next === previous) return false;
+    runRef.current = next;
+    // Keep exact dwell and animation in the ref; refresh the counter at 10 Hz.
+    // Phase, capture, tool and feedback changes still publish immediately.
+    if (frameSample && next.dwellMs !== previous.dwellMs && next.phase === previous.phase
+      && next.currentEye === previous.currentEye && next.notice === previous.notice
+      && next.eyeCaptures === previous.eyeCaptures && next.prismHandled === previous.prismHandled
+      && next.prismToolRevision === previous.prismToolRevision && uiElapsedMs.current < 100) return false;
+    uiElapsedMs.current = 0; setRun(next); return true;
   }, []);
   const interrupt = useCallback((reason: XRClinicInterruption = "procedure") => {
     if (!alive.current || runRef.current.completedRun) return;
@@ -92,6 +106,7 @@ export function FourPrismPracticeController({ active, preview = false, inputMode
 
   useFrame((_, dt) => {
     if (!alive.current) return;
+    uiElapsedMs.current += dt * 1000;
     const fitted = isPatientFitted(runtime.toolsRef.current, "subjective");
     const signature = sensoryFittingSignature(runtime.toolsRef.current, ["subjective"]);
     if (signature !== fitSignature.current) {
@@ -118,7 +133,7 @@ export function FourPrismPracticeController({ active, preview = false, inputMode
       const placement = runtime.toolsRef.current["four-prism"].placement;
       if (placement.kind === "held") runtime.pulseHand(placement.hand, .32, 45);
     }
-    publish(next);
+    publish(next, true);
     const motionEye = next.currentEye;
     const gaze = motionEye ? clinicFourPrismGaze(motionEye, next.scenario, next.dwellMs) : { od: 0, os: 0 };
     eyes.forEach((eye, id) => eye.position.set(id === "OD" ? gaze.od : gaze.os, 0, 0));
@@ -127,14 +142,14 @@ export function FourPrismPracticeController({ active, preview = false, inputMode
       setTechniqueReason(!tool.held ? "Pick up the dedicated 4Δ prism." : detectedEye && detectedEye !== next.expectedEye ? `Position before ${next.expectedEye} first.`
         : detectedEye !== next.expectedEye ? `Centre the prism before ${next.expectedEye}.` : error > 20 * Math.PI / 180 ? `Use thumbstick ${next.expectedEye === "OD" ? "left" : "right"}, or physically roll the base marking temporally for ${next.expectedEye}.`
           : !view ? "Use a frontal examiner view with both eyes visible." : "");
-    } else if (techniqueReason) setTechniqueReason("");
+    } else setTechniqueReason("");
   });
 
   const reset = useCallback(() => {
     publish(resetFourPrismRun(runRef.current)); lesson.reset(); runtime.resetClinic(); fitSignature.current = "";
     prismBaseRef.current = "right"; setPrismBaseState("right");
     setTechniqueReason(""); completedNotified.current = false; eyes.forEach(eye => eye.position.set(0, 0, 0));
-  }, [eyes, lesson.reset, publish, runtime.resetClinic]);
+  }, [eyes, lesson.reset, publish, runtime.resetClinic, setTechniqueReason]);
   useEffect(() => { if (!active || preview) reset(); }, [active, preview, reset]);
 
   const fixate = () => publish(establishFourPrismFixation(runRef.current));

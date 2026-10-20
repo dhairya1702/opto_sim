@@ -145,7 +145,7 @@ export function fusionalPrismGeometry(sample: Pick<FusionalSpatialSample, "prism
 const setupIssue = (run: FusionalRun, sample: FusionalSpatialSample) => {
   if (!sample.visible || !sample.tracking) return "Restore prism, controller, and headset tracking.";
   if (!run.correctionFitted || !sample.correctionFitted) return "Fit Arun's appropriate distance correction.";
-  if (!run.targetEstablished || !sample.targetEstablished) return "Establish the illustrative mirrored 6 m isolated target.";
+  if (!run.targetEstablished || !sample.targetEstablished) return "Place the isolated target in the distance dock behind Arun, switch it on, then confirm the mirrored target.";
   if (!run.instructionArmed) return "Tell Arun to report first sustained blur, sustained diplopia, and when the target is single again.";
   const geometry = fusionalPrismGeometry(sample);
   if (geometry) return geometry;
@@ -294,11 +294,11 @@ export function interruptFusionalRun(run: FusionalRun, reason: string) {
   return resetUnfinishedBase(run, reason);
 }
 
-export function reviseFusionalSetup(run: FusionalRun, reason: string, correctionStillFitted = true): FusionalRun {
+export function reviseFusionalSetup(run: FusionalRun, reason: string, correctionStillFitted = true, targetStillEstablished = true): FusionalRun {
   if (run.phase === "complete" || run.record) return run;
   const preserveBI = run.captures.BI;
   return Object.freeze({ ...newFusionalRun(run.completionAwarded), correctionFitted: correctionStillFitted && run.correctionFitted,
-    targetEstablished: run.targetEstablished, instructionArmed: run.instructionArmed, setupRevision: run.setupRevision + 1,
+    targetEstablished: targetStillEstablished && run.targetEstablished, instructionArmed: run.instructionArmed, setupRevision: run.setupRevision + 1,
     base: preserveBI ? "BO" : "BI", phase: preserveBI ? "baseline" : "baseline", captures: freezeCaptures(preserveBI ? { BI: preserveBI } : {}),
     feedback: `${reason} The unrecorded ${preserveBI ? "BO" : "BI"} run was cleared${preserveBI ? "; completed BI is preserved" : ""}.`,
     eventNonce: run.eventNonce + 1 });
@@ -341,19 +341,21 @@ export function cancelFusionalRun(run: FusionalRun) {
 
 export function fusionalGuidedStep(run: FusionalRun, sample: FusionalSpatialSample): FusionalGuidedStep {
   const geometryReady = !fusionalPrismGeometry(sample);
+  const biRecovering = run.base === "BI" && (run.phase === "decrease-start" || run.phase === "decrease") && Boolean(run.pendingBreak);
   const checks = [
     ["correction", "Fit distance correction", "Fit Arun's appropriate distance correction.", run.correctionFitted && sample.correctionFitted],
-    ["target", "Establish the target", "Use the illustrative mirrored 6 m isolated target.", run.targetEstablished && sample.targetEstablished],
+    ["target", "Establish the target", "Place the isolated target in the distance dock behind Arun and switch it on. Confirm the simulated mirrored 6 m target.", run.targetEstablished && sample.targetEstablished],
     ["instruction", "Give the reporting instruction", "Ask for first sustained blur, diplopia, and recovery to single.", run.instructionArmed],
     ["pickup", "Pick up the rotary prism", "Hold its grip while the free hand operates the dial.", run.prismHeld || sample.prismHeld],
     ["align", "Align before OD", "Centre the patient-facing aperture before OD in the required orientation.", geometryReady],
     ["baseline", "Hold zero baseline", "Hold valid zero-demand fixation for 250 ms.", run.phase !== "setup" && run.phase !== "baseline"],
-    ["bi-increase", "Increase BI demand", "Increase continuously at about 1–2Δ/s; reports capture automatically.", Boolean(run.captures.BI) || run.base === "BO"],
+    ["bi-increase", "Increase BI demand", "Increase continuously at about 1–2Δ/s; reports capture automatically.", biRecovering || Boolean(run.captures.BI) || run.base === "BO"],
     ["bi-recovery", "Reduce BI to recovery", "After diplopia, reduce smoothly until Arun reports single.", Boolean(run.captures.BI)],
     ["bo-run", "Reset and complete BO", "Return to zero, confirm re-fusion, reorient BO, then repeat the full run.", Boolean(run.captures.BO)],
     ["record", "Release and record", "Release the prism and independently enter all six acquired fields.", Boolean(run.record)],
   ] as const;
-  const index = run.phase === "complete" ? 9 : Math.max(0, checks.findIndex(check => !check[3]));
+  // Acquired bilateral observations no longer depend on live instrument alignment.
+  const index = run.record || (run.captures.BI && run.captures.BO) ? 9 : Math.max(0, checks.findIndex(check => !check[3]));
   const step = checks[index];
   return Object.freeze({ id: step[0], index, title: step[1], lines: Object.freeze([step[2]]), complete: Boolean(run.record) });
 }

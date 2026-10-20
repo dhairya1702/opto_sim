@@ -1624,6 +1624,7 @@ kbd {
 .gaze-stop { position: absolute; transform: translate(-50%, -50%); width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid #c4d7cc88; border-radius: 50%; color: white; background: #16262b88; }
 .gaze-stop.seen { border-color: #8dddbb; color: #8dddbb; }
 .gaze-stop.observing { box-shadow: 0 0 0 5px #c4d7cc22; }
+.gaze-stop.next { border-color: #f3c969; color: #f3c969; box-shadow: 0 0 0 4px #f3c96922; }
 .motility-hand-readout { bottom: 44px; }
 .motility-controls { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
 .motility-controls > label:first-child { flex: 1; min-width: 180px; }

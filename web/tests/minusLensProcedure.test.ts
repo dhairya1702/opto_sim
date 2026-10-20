@@ -25,6 +25,17 @@ function capture(run = newMinusLensRun(), start = 0) {
 }
 
 describe("dedicated minus-lens procedure", () => {
+  it("keeps captured-eye recording and final completion ahead of live holder setup", () => {
+    const released = valid(1300, { lensHeld: false, lensAligned: false, correctionFitted: false, targetReady: false, occlusionReady: false });
+    let run = capture();
+    expect(minusLensGuidedStep(run, released)).toMatchObject({ index: 7, title: "Record OD" });
+    run = submitMinusLensRecord(run, "-4", "6.5");
+    expect(minusLensGuidedStep(run, released).index).toBe(0);
+    run = capture(run, 2000);
+    expect(minusLensGuidedStep(run, released).title).toBe("Record OS");
+    run = submitMinusLensRecord(run, "-4", "6.5");
+    expect(minusLensGuidedStep(run, released).title).toBe("Series complete");
+  });
   it("requires OD setup, instruction and eye-specific initial clarity before changing power", () => {
     let run = newMinusLensRun();
     expect(minusLensEye(run)).toBe("OD");

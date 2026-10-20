@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { gazePositions, observeTarget, targetFromControls, type MotilityCoverage } from "../interaction/motility";
+import { gazePositions, motilityHRoutePositions, newMotilityCoverage, observeTarget, targetFromControls, type MotilityCoverage } from "../interaction/motility";
 import { xrMotilityTarget } from "../interaction/xrMotility";
 
 const eyeMidpoint = [0, 1.5, -.57] as const;
@@ -21,12 +21,20 @@ describe("XR ocular motility", () => {
   });
 
   it("feeds spatial checkpoints into the shared nine-position coverage logic", () => {
-    let coverage: MotilityCoverage = { seen: [], current: null, dwell: 0 };
-    for (const position of gazePositions) {
-      const relative = targetFromControls(position.x, position.y, .35);
+    let coverage: MotilityCoverage = newMotilityCoverage();
+    let previous = motilityHRoutePositions[0];
+    const sample = (x: number, y: number, dt: number) => {
+      const relative = targetFromControls(x, y, .35);
       const world = [relative.x, eyeMidpoint[1] + relative.y, eyeMidpoint[2] + relative.z] as const;
       const spatial = xrMotilityTarget(world, eyeMidpoint);
-      for (let index = 0; index < 7; index += 1) coverage = observeTarget(coverage, spatial.target, .1, spatial.distanceReady);
+      coverage = observeTarget(coverage, spatial.target, dt, spatial.distanceReady);
+    };
+    for (let index = 0; index < 8; index += 1) sample(previous.x, previous.y, .1);
+    for (const position of motilityHRoutePositions.slice(1)) {
+      for (let index = 1; index <= 8; index += 1)
+        sample(previous.x + (position.x - previous.x) * index / 8, previous.y + (position.y - previous.y) * index / 8, .05);
+      for (let index = 0; index < 8; index += 1) sample(position.x, position.y, .1);
+      previous = position;
     }
     expect(coverage.seen).toHaveLength(gazePositions.length);
   });
