@@ -10,6 +10,9 @@ export type AlignmentGuidedStep = {
 
 export const KRIMSKY_GUIDED_STEP_COUNT = 7;
 export type KrimskyGuidedState = {
+  viewingIssue?: { title: string; lines: string[] } | null;
+  requiredEye?: "OD" | "OS";
+  baseSelected?: boolean;
   penlightHeld: boolean;
   fixation: boolean;
   examinerEyeSelected: boolean;
@@ -18,6 +21,7 @@ export type KrimskyGuidedState = {
   neutral: boolean;
   comparisonCaptured: boolean;
   powerEntered: boolean;
+  baseEntered?: boolean;
   recorded: boolean;
 };
 
@@ -28,15 +32,15 @@ export function krimskyGuidedStep(state: KrimskyGuidedState): AlignmentGuidedSte
     lines: ["Your neutralising prism is recorded.", "Review the feedback or try the next finding."], complete: true,
   };
   if (state.comparisonCaptured) return {
-    id: "record", index: 6, title: "Record the prism power",
-    lines: state.powerEntered
-      ? ["The captured power is entered.", "Press SUBMIT / CHECK on the findings board."]
-      : ["Enter the power from the captured prism cell.", "Then submit your independent reading."],
+    id: "record", index: 6, title: "Record power and base",
+    lines: state.powerEntered && state.baseEntered
+      ? ["Power and base are entered.", "Press SUBMIT on the findings board."]
+      : ["Enter the prism power and choose BI or BO from your completed comparison.", "Then submit your independent reading."],
     complete: false,
   };
   if (!state.penlightHeld) return {
     id: "tool", index: 0, title: "Pick up the penlight",
-    lines: ["Find it on the left instrument trolley.", "Squeeze the side grip once beside its handle."], complete: false,
+    lines: ["Squeeze the side grip once beside its handle."], complete: false,
   };
   if (!state.fixation) return {
     id: "instruct", index: 1, title: "Instruct Arun",
@@ -46,17 +50,25 @@ export function krimskyGuidedStep(state: KrimskyGuidedState): AlignmentGuidedSte
     id: "view", index: 2, title: "Select the examiner-eye view",
     lines: ["Say which eye you are closing or use the control.", "Use one monocular view for the full comparison."], complete: false,
   };
+  if (state.viewingIssue) return {
+    id: "setup", index: state.prismHeld ? 4 : 3,
+    title: state.viewingIssue.title, lines: state.viewingIssue.lines, complete: false,
+  };
   if (!state.prismHeld) return {
     id: "prism", index: 3, title: "Observe, then pick up the prism bar",
     lines: ["Observe the initial corneal reflex positions with no prism before either eye.", "Then pick up the prism bar with your free hand."], complete: false,
   };
   if (!state.prismAligned) return {
     id: "neutralise", index: 4, title: "Align the selected prism cell",
-    lines: ["Move the gold-ringed cell over the required eye.", "The ring turns green and pulses when alignment is accepted."], complete: false,
+    lines: [`Move the gold-ringed cell over ${state.requiredEye ?? "the required eye"}.`, "Green confirms prism placement; keep the light and view aligned too."], complete: false,
+  };
+  if (state.baseSelected === false) return {
+    id: "neutralise", index: 4, title: "Select the prism direction",
+    lines: ["On the prism hand: thumbstick left selects BI; right selects BO.", "Choose the base, then use up/down to change power."], complete: false,
   };
   if (!state.neutral) return {
     id: "neutralise", index: 4, title: "Set the prism direction and power",
-    lines: ["Place the prism before the required eye. Thumbstick left/right selects BI/BO.", "Use thumbstick up/down to change power until the reflex positions match."], complete: false,
+    lines: ["Keep the prism aligned. Thumbstick left/right selects BI/BO; up/down changes power.", "Return the stick to centre between steps. Adjust until the reflexes match."], complete: false,
   };
   return {
     id: "capture", index: 5, title: "Capture the comparison",
@@ -111,7 +123,7 @@ export function coverGuidedStep(state: CoverGuidedState): AlignmentGuidedStep {
       lines: ["Carry the target to the dock behind Arun.", "Release it into the highlighted socket for the simulated 6 m mirror path."], complete: false,
     } : {
       id: "target-distance", index: 0, title: "Pick up the target",
-      lines: ["Find the target on the extended instrument kit.", "Squeeze the side grip once beside its handle."], complete: false,
+      lines: ["Squeeze the side grip once beside its handle."], complete: false,
     };
     if (distanceRecorded && state.targetEndpoint !== "near") return {
       id: "position-near", index: 8, title: "Move the target to near",
@@ -136,7 +148,7 @@ export function coverGuidedStep(state: CoverGuidedState): AlignmentGuidedStep {
     };
     if (!state.occluderHeld) return {
       id: distanceRecorded ? "tool-near" : "tool-distance", index: distanceRecorded ? 10 : 4,
-      title: "Pick up the occluder", lines: ["Find the cover paddle on the trolley.", "Squeeze the side grip once beside its handle."], complete: false,
+      title: "Pick up the occluder", lines: ["Squeeze the side grip once beside its handle."], complete: false,
     };
     if (!state.observed) {
       const done = Math.min(state.sequenceIndex, state.sequenceTotal);
@@ -154,8 +166,8 @@ export function coverGuidedStep(state: CoverGuidedState): AlignmentGuidedStep {
     return {
       id: distanceRecorded ? "record-near" : "record-distance", index: distanceRecorded ? 12 : 7,
       title: `Record the ${endpoint} finding`,
-      lines: distanceRecorded ? ["Press SUBMIT / CHECK to record the near finding and finish."]
-        : ["Press SUBMIT / CHECK to freeze the distance finding.", "Then move the same target to the 40 cm stand."], complete: false,
+      lines: distanceRecorded ? ["Press SUBMIT to record the near finding and finish."]
+        : ["Press SUBMIT to freeze the distance finding.", "Then move the same target to the 40 cm stand."], complete: false,
     };
   }
   const distanceRecorded = Boolean(state.distanceRecorded);
@@ -170,7 +182,7 @@ export function coverGuidedStep(state: CoverGuidedState): AlignmentGuidedStep {
     lines: ["Carry the target to the dock behind Arun.", "Release it into the highlighted socket for the simulated 6 m mirror path."], complete: false,
   } : {
     id: "target-distance", index: 0, title: "Pick up the target",
-    lines: ["Find the target on the extended instrument kit.", "Squeeze the side grip once beside its handle."], complete: false,
+    lines: ["Squeeze the side grip once beside its handle."], complete: false,
   };
   if (distanceRecorded && state.targetEndpoint !== "near") return {
     id: "position-near", index: 10, title: "Move the target to near",
@@ -195,7 +207,7 @@ export function coverGuidedStep(state: CoverGuidedState): AlignmentGuidedStep {
   };
   if (!state.occluderHeld) return {
     id: distanceRecorded ? "tool-near" : "tool-distance", index: distanceRecorded ? 12 : 4,
-    title: "Pick up the occluder", lines: ["Find the cover paddle on the trolley.", "Keep one hand available for the prism after the first sequence."], complete: false,
+    title: "Pick up the occluder", lines: ["Keep one hand available for the prism after the first sequence."], complete: false,
   };
   if (!state.observed) {
     const done = Math.min(state.sequenceIndex, state.sequenceTotal);
@@ -234,7 +246,7 @@ export function coverGuidedStep(state: CoverGuidedState): AlignmentGuidedStep {
   };
   return {
     id: distanceRecorded ? "record-near" : "record-distance", index: distanceRecorded ? 15 : 9, title: `Record the ${endpoint} prism endpoint`,
-    lines: distanceRecorded ? ["Press SUBMIT / CHECK to freeze the near endpoint and finish."]
-      : ["Press SUBMIT / CHECK to freeze the distance endpoint.", "Then move the same target to the 40 cm stand."], complete: false,
+    lines: distanceRecorded ? ["Press SUBMIT to freeze the near endpoint and finish."]
+      : ["Press SUBMIT to freeze the distance endpoint.", "Then move the same target to the 40 cm stand."], complete: false,
   };
 }

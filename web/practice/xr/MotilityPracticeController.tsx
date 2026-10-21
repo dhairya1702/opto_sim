@@ -23,7 +23,6 @@ export function MotilityPracticeController({ active, preview = false, inputMode 
   const guideAvailable = settings?.kind !== "test";
   const lesson = usePracticeLesson(onComplete);
   const scenario = motilityScenario(scenarioId);
-  const [guides, setGuides] = useState(guideAvailable);
   const [following, setFollowing] = useState(false), [asked, setAsked] = useState(false);
   const followingRef = useRef(false), askedRef = useRef(false);
   const coverage = useRef(initial());
@@ -73,18 +72,18 @@ export function MotilityPracticeController({ active, preview = false, inputMode 
   });
   const reset = useCallback(() => {
     lesson.reset(); coverage.current = initial(); followingRef.current = false; askedRef.current = false;
-    setFollowing(false); setAsked(false); setGuides(guideAvailable); setReadout(initialReadout());
+    setFollowing(false); setAsked(false); setReadout(initialReadout());
     desktopGaze.current = 0; runtime.resetClinic(); eyes.forEach(eye => eye.position.set(0, 0, 0));
-  }, [lesson.reset, runtime.resetClinic, eyes, guideAvailable]);
+  }, [lesson.reset, runtime.resetClinic, eyes]);
   useEffect(() => { if (!active) reset(); }, [active, reset]);
   const previousScenario = useRef(scenario.id);
   useEffect(() => {
     if (previousScenario.current === scenario.id) return;
     previousScenario.current = scenario.id;
     lesson.reset(); coverage.current = initial(); followingRef.current = false; askedRef.current = false;
-    setFollowing(false); setAsked(false); setGuides(guideAvailable); setReadout(initialReadout());
+    setFollowing(false); setAsked(false); setReadout(initialReadout());
     eyes.forEach(eye => eye.position.set(0, 0, 0));
-  }, [scenario.id, lesson.reset, eyes, guideAvailable]);
+  }, [scenario.id, lesson.reset, eyes]);
   const ask = () => {
     if (coverage.current.seen.length !== gazePositions.length || !followingRef.current) return;
     askedRef.current = true; setAsked(true);
@@ -94,7 +93,6 @@ export function MotilityPracticeController({ active, preview = false, inputMode 
     { label: asked ? "SYMPTOMS ASKED ✓" : "ASK ABOUT SYMPTOMS", run: ask, disabled: readout.count !== gazePositions.length, active: asked },
     ...(inputMode === "desktop" ? [{ label: runtime.tools.pupils.powered ? "PENLIGHT ON ✓" : "SWITCH PENLIGHT ON", run: () => runtime.setToolPower("pupils", true), active: runtime.tools.pupils.powered },
       { label: "MOVE TO NEXT GAZE", run: () => { desktopGaze.current = (desktopGaze.current + 1) % motilityHRoutePositions.length; runtime.setDesktopHeldPose("pupils", desktopPose()); } }] : []),
-    ...(guideAvailable ? [{ label: guides ? "HIDE GAZE GUIDE" : "SHOW GAZE GUIDE", run: () => setGuides(value => !value), active: guides }] : []),
   ];
   const ready = active && readout.count === gazePositions.length && asked;
   const status = !following ? "Ask the patient to follow the light and keep the head still."
@@ -119,13 +117,13 @@ export function MotilityPracticeController({ active, preview = false, inputMode 
   };
   useEffect(() => { onMirror?.({ title: "Motility", findingPosition: { current: motilityScenarios.findIndex(item => item.id === scenario.id) + 1, total: motilityScenarios.length },
     reportLines: asked ? [scenario.patientReply] : undefined, status, ready, entryReady: ready, fields, actions, lesson, reset, record, next: onNext }); },
-    [onMirror, status, ready, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, following, asked, guides, scenario, onNext]);
+    [onMirror, status, ready, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, following, asked, scenario, onNext]);
   return <>
     <XRClinicRuntimeView cleanHands runtime={runtime} active={active && !preview} preview={preview}
       title="MOTILITY · PRACTICE" showWallInstructions={!guided} />
     {(active || preview) && guided && <XRGuidedStepBubble stepId={guidance.id} stepNumber={guidance.index + 1}
       total={MOTILITY_GUIDED_STEP_COUNT} title={guidance.title} lines={guidance.lines} complete={guidance.complete} />}
-    {active && guideAvailable && guides && gazePositions.map(position => {
+    {active && !preview && guideAvailable && runtime.tools.pupils.placement.kind === "held" && gazePositions.map(position => {
       const seen = coverage.current.seen.includes(position.id);
       const current = readout.current === position.id && !seen;
       const next = readout.next.includes(position.id);
@@ -134,13 +132,13 @@ export function MotilityPracticeController({ active, preview = false, inputMode 
         userData={{ xrMotilityGazeGuide: position.id }}>
         <mesh scale={[.038, .027, 1]} userData={{ xrMotilityGuideRing: true }}>
           <ringGeometry args={[.78, 1, 48]} />
-          <meshBasicMaterial color={seen ? "#65c9b6" : current || next ? "#f3c969" : "#8da8a3"} transparent opacity={seen ? .9 : current || next ? .95 : .32} />
+          <meshBasicMaterial color={current || next ? "#f3c969" : seen ? "#65c9b6" : "#8da8a3"} transparent opacity={seen ? .9 : current || next ? .95 : .32} />
         </mesh>
         {current && progress > 0 && <mesh position={[0, 0, .001]} scale={[.038, .027, 1]} userData={{ xrMotilityGuideProgress: true }}>
           <ringGeometry args={[.54, .72, 48, 1, Math.PI / 2, Math.PI * 2 * progress]} />
           <meshBasicMaterial color="#fff0a8" />
         </mesh>}
-        <mesh position={[0, 0, .001]}><circleGeometry args={[.005, 20]} /><meshBasicMaterial color={seen ? "#dffff7" : current ? "#fff6c9" : "#c5d8d4"} /></mesh>
+        <mesh position={[0, 0, .001]}><circleGeometry args={[.005, 20]} /><meshBasicMaterial color={current || next ? "#fff6c9" : seen ? "#dffff7" : "#c5d8d4"} /></mesh>
       </group>;
     })}
     <PracticeLessonUI runtime={runtime} active={active} title="MOTILITY" status={status} tools={["pupils"]} actions={actions} directActions={actions} forceBoardVisible wallOnly fields={fields} lesson={lesson}

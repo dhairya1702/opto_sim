@@ -14,7 +14,7 @@ import {
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
 import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
 import { Box } from "../../scene/Models";
-import { XRHeadPanel, XRPanelButton, XRSign } from "../../scene/XRClinicPanels";
+import { XRSign } from "../../scene/XRClinicPanels";
 import { PracticeLessonUI, usePracticeLesson, type BatchMirror, type LessonAction, type LessonField } from "./PracticeLessonUI";
 import { usePracticeAttempt } from "../PracticeAttemptContext";
 
@@ -154,7 +154,9 @@ export function StereoPracticeController({ active, preview = false, inputMode = 
     }
     publish(next);
     const result = next.records.at(-1);
-    setMessage(next.capture ? `Patient said ${result?.reportedCircle}; correct circle ${result?.targetCircle}. Two consecutive errors reached—record the last correct threshold.`
+    const completion = next.records.slice(-2).length === 2 && next.records.slice(-2).every(record => !record.derivedCorrect)
+      ? "Two consecutive errors reached" : "Comparison complete";
+    setMessage(next.capture ? `Patient said ${result?.reportedCircle}; correct circle ${result?.targetCircle}. ${completion}—record the last correct threshold.`
       : `Patient said ${result?.reportedCircle}; correct circle ${result?.targetCircle}. Automatically marked ${result?.classification}. Turn one page to continue.`);
   };
   const nextPage = () => {
@@ -185,6 +187,8 @@ export function StereoPracticeController({ active, preview = false, inputMode = 
   const ready = active && !preview && entryReady && spatial.correction && spatial.filters;
   const voiceReport = run.reply ? `The ${stereoCircleNames[run.reply.selected]} circle looks raised.` : undefined;
   const history = run.records.map(record => `${record.level} arcsec · patient said ${record.reportedCircle} · correct circle ${record.targetCircle} · ${record.classification}`);
+  const readingLines = run.records.map(record => `${record.level}″ · ${record.reportedCircle[0]?.toUpperCase()} / ${record.targetCircle[0]?.toUpperCase()} · ${record.classification}`);
+  const boardReadings = run.capture ? ["Level · said / key · result", ...readingLines] : readingLines.slice(-1);
   const key = stereoCircleNames[run.reply?.target ?? stereoTargets[run.page] ?? 0];
   const status = !spatial.correction ? "Near correction is not fitted."
     : !spatial.filters ? "Polarised glasses are not fitted over the correction."
@@ -192,11 +196,11 @@ export function StereoPracticeController({ active, preview = false, inputMode = 
         : !spatial.facing ? "The booklet must face Arun."
           : !spatial.ready ? `${spatial.distanceCm} cm · position the booklet within 38–42 cm.`
             : run.capture ? `Comparison captured · ${run.records.length} pages confirmed. Choose the last correct threshold.`
-              : !run.fixation ? `Page ${run.page + 1} of 6 · ask Arun to look at the circles.`
-                : !run.reply ? `Page ${run.page + 1} of 6 · ask which circle is raised.`
+              : !run.fixation ? "Ask Arun to look at the circles."
+                : !run.reply ? "Ask which circle is raised."
                   : !run.markedCircle ? `Arun: ${voiceReport} Mark the circle he named.`
                     : !run.confirmed ? `Correct circle · ${key}. Recording Arun's response…`
-                      : `Page ${run.page + 1} confirmed · turn one page.`;
+                      : "Response confirmed · turn one page.";
   const fullStatus = `${status}${message ? ` · ${message}` : ""}${restartNotice ? ` · ${restartNotice}` : ""}`;
 
   const fixationAction: LessonAction = { label: "LOOK AT THE CIRCLES", active: Boolean(run.fixation), disabled: !spatial.ready || Boolean(run.capture) || lesson.recorded, run: fixate };
@@ -204,7 +208,7 @@ export function StereoPracticeController({ active, preview = false, inputMode = 
   const markActions: LessonAction[] = stereoCircleNames.map(circle => ({ label: circle.toUpperCase(), active: run.markedCircle === circle,
     disabled: !spatial.ready || !run.reply || run.confirmed || lesson.recorded, run: () => mark(circle) }));
   const turnAction: LessonAction = { label: "TURN PAGE", disabled: !spatial.ready || !run.confirmed || Boolean(run.capture) || lesson.recorded, run: nextPage };
-  const actions = [fixationAction, askAction, ...markActions, turnAction, { label: "PATIENT-REPORTED VIEW", run: () => lesson.setMode("settings"), disabled: !run.reply }];
+  const actions = [fixationAction, askAction, ...markActions, turnAction];
   const placeAtSocket = (id: "subjective" | "polarised" | "stereo", socketId: string) => {
     const socket = sockets.find(candidate => candidate.tool === id && candidate.id === socketId);
     if (!socket) return;
@@ -236,16 +240,6 @@ export function StereoPracticeController({ active, preview = false, inputMode = 
     onMirror?.({ title: "Stereopsis", voiceReport, reportLines: history, status: fullStatus, ready, entryReady, fields, actions, lesson, reset, record, cancel });
   }, [onMirror, voiceReport, history.join("|"), fullStatus, ready, entryReady, run, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded]);
 
-  const reportPanel = <XRHeadPanel>
-    <Box s={[.76, .70, .018]} c="#102329" radius={.012} />
-    <XRSign text={["FICTIONAL PATIENT-REPORTED VIEW", voiceReport ?? "No current report.",
-      "Enlarged illustration · not calibrated stereoscopic optics."]} p={[0, .14, .012]} size={[.70, .24]} bg="#102329" fg="#eefbf7" />
-    {stereoCircleNames.map((circle, index) => <group key={circle} position={[(index - 1) * .14, -.08, .027]}>
-      <mesh position={[0, run.reply?.selected === index ? .025 : 0, 0]}><circleGeometry args={[.032, 24]} /><meshBasicMaterial color={run.reply?.selected === index ? "#94d3b6" : "#e8e2d4"} side={DoubleSide} /></mesh>
-    </group>)}
-    <XRPanelButton label="CLOSE REPORT" position={[-.18, -.27, .025]} width={.34} onClick={() => lesson.setMode("none")} />
-    <XRPanelButton label="EXIT VR" position={[.18, -.27, .025]} width={.34} onClick={exit} />
-  </XRHeadPanel>;
   const book = consultationToolDefinition("stereo");
   const pageTurnEnabled = active && !preview && spatial.ready && run.confirmed && !run.capture && !lesson.recorded;
   return <>
@@ -257,7 +251,7 @@ export function StereoPracticeController({ active, preview = false, inputMode = 
     <group ref={pageRoot} userData={{ xrInteractiveSurface: "stereo", xrToolControls: "stereo" }}>
       <group position={book.workingPoint} rotation={[0, Math.PI, 0]}>
         {Array.from({ length: stereoPracticeLevels.length - run.page }, (_, index) => <Box key={index} p={[index * .0008, index * -.0007, .003 - index * .0006]} s={[.23, .115, .0005]} c={index % 2 ? "#d9d3c3" : "#efeada"} />)}
-        <XRSign text={[`PAGE ${run.page + 1} OF 6`, `${stereoPracticeLevels[run.page]} arcsec`]} p={[0, .035, .008]} size={[.22, .032]} bg="#efeada" fg="#284b47" />
+        <XRSign text={[`${stereoPracticeLevels[run.page]} arcsec`]} p={[0, .035, .008]} size={[.22, .032]} bg="#efeada" fg="#284b47" />
         {stereoCircleNames.map((circle, index) => <group key={circle} position={[(index - 1) * .07, -.01, .009]} userData={{ xrStereoPatientCircle: circle }}>
           <mesh><circleGeometry args={[.024, 32]} /><meshBasicMaterial color="#f8f4e9" side={DoubleSide} /></mesh>
           <mesh position={[0, 0, .001]}><ringGeometry args={[.016, .019, 32]} /><meshBasicMaterial color="#2d5450" side={DoubleSide} /></mesh>
@@ -265,31 +259,28 @@ export function StereoPracticeController({ active, preview = false, inputMode = 
       </group>
       <group position={book.workingPoint}>
         <Box p={[0, 0, .014]} s={[.23, .115, .001]} c="#efeada" />
-        <XRSign text={["EXAMINER SIDE", `CORRECT CIRCLE · ${key.toUpperCase()}`, "RECORD PATIENT ANSWER BELOW"]} p={[0, .038, .016]} size={[.20, .044]} bg="#efeada" fg="#284b47" />
+        <XRSign text={["EXAMINER SIDE"]} p={[-.035, .038, .016]} size={[.12, .024]} bg="#efeada" fg="#284b47" />
         <group position={[.092, .037, .018]} userData={{ xrButton: true, xrWidth: .055, xrHeight: .045, xrLabel: "BOOKLET TURN PAGE",
           xrInstrumentControl: "stereo", xrAction: pageTurnEnabled ? nextPage : undefined }}>
           <Box s={[.05, .04, .009]} c={pageTurnEnabled ? "#1f7061" : "#9aa39e"} radius={.006} />
           <XRSign text={["TURN"]} p={[0, 0, .006]} size={[.044, .026]} bg={pageTurnEnabled ? "#1f7061" : "#9aa39e"} fg="#ffffff" />
         </group>
-        {stereoCircleNames.map((circle, index) => <group key={circle} position={[(1 - index) * .07, -.018, .016]}
-          userData={{ xrButton: true, xrWidth: .05, xrLabel: `BOOKLET ${circle.toUpperCase()}`, xrAction: active && !preview && spatial.ready && run.reply && !run.confirmed ? () => mark(circle) : undefined }}>
-          <mesh><circleGeometry args={[.021, 32]} /><meshBasicMaterial color={run.markedCircle === circle ? "#94d3b6" : "#f8f4e9"} /></mesh>
-          <mesh position={[0, 0, .001]}><ringGeometry args={[.013, .016, 32]} /><meshBasicMaterial color="#2d5450" /></mesh>
+        {stereoCircleNames.map((circle, index) => <group key={circle} position={[(1 - index) * .07, -.018, circle === key ? .024 : .016]}
+          userData={{ xrStereoExaminerCircle: circle, xrStereoRaised: circle === key }}>
+          {circle === key ? <mesh scale={[1, 1, .4]}>
+            <sphereGeometry args={[.021, 24, 16]} /><meshStandardMaterial color="#f8f4e9" roughness={.65} />
+          </mesh> : <mesh><circleGeometry args={[.021, 32]} /><meshBasicMaterial color="#f8f4e9" /></mesh>}
+          <mesh position={[0, 0, circle === key ? .009 : .001]}><ringGeometry args={[.013, .016, 32]} /><meshBasicMaterial color="#2d5450" /></mesh>
           <XRSign text={[circle.toUpperCase()]} p={[0, -.031, .001]} size={[.064, .012]} bg="#efeada" fg="#284b47" />
         </group>)}
       </group>
     </group>
-    {active && run.reply && <group position={[.65, 1.66, -.18]} userData={{ xrIgnoreRay: true }}>
-      <Box s={[.55, .35, .012]} c="#07151b" />
-      <XRSign text={["FICTIONAL PATIENT-REPORTED VIEW", "ENLARGED ILLUSTRATION", "NOT CALIBRATED STEREOSCOPIC OPTICS", voiceReport ?? ""]} p={[0, .09, .012]} size={[.52, .15]} bg="#07151b" fg="#eefbf7" />
-      {stereoCircleNames.map((circle, index) => <mesh key={circle} position={[(index - 1) * .12, run.reply?.selected === index ? -.055 : -.08, .018]}>
-        <circleGeometry args={[.033, 24]} /><meshBasicMaterial color={run.reply?.selected === index ? "#94d3b6" : "#e8e2d4"} />
-      </mesh>)}
-    </group>}
     <PracticeLessonUI runtime={runtime} active={active && !preview} title="STEREOPSIS" status={fullStatus} tools={["subjective", "polarised", "stereo"]}
       actions={actions} directActions={directActions} fields={fields} lesson={lesson} entryReady={entryReady} ready={ready}
-      onRecord={record} onCancel={cancel} onReset={reset} onExit={exit} settings={reportPanel}
-      forceBoardVisible={Boolean(run.reply || run.capture)} boardStatusLines={[`PAGE ${run.page + 1} OF 6`, ...history.slice(-3), status]}
+      onRecord={record} onCancel={cancel} onReset={reset} onExit={exit}
+      boardReport={run.reply && !run.capture ? <XRSign transparentBackground text={[voiceReport ?? ""]}
+        p={[0, 0, .012]} size={[.70, .12]} bg="#102329" fg="#eefbf7" /> : undefined}
+      forceBoardVisible={Boolean(run.reply || run.capture)} boardFindingLines={boardReadings} boardStatusLines={boardReadings}
       help={guided ? ["Fit near correction and polarised glasses as separate layers.", "Face the booklet to Arun within 38–42 cm.",
         "Establish fixation for every page, ask, then select the circle Arun named.", "The simulator compares his answer with the correct circle automatically; then turn one page.",
         "Two consecutive errors end the run; record the last correct threshold independently.", "This is an educational approximation, not calibrated stereo optics."]

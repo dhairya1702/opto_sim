@@ -7,6 +7,7 @@ import { BRUCKNER_REFLEX_VISUALS, brucknerReflexVisual, brucknerScenarios, type 
 import { BRUCKNER_GUIDED_STEP_COUNT, brucknerGuidedStep } from "../../interaction/opticGuidance";
 import { xrBrucknerTechnique, xrBrucknerPrompt } from "../../interaction/xrPracticeBatch";
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
+import { XRWorkingDistanceLabel } from "../../scene/XRWorkingDistanceLabel";
 import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
 import type { BrucknerScopeView } from "../../scene/XRScopeOptics";
 import { usePracticeAttempt } from "../PracticeAttemptContext";
@@ -130,6 +131,7 @@ export function BrucknerPracticeController({ active, preview = false, inputMode 
   return <>
     <XRClinicRuntimeView cleanHands runtime={runtime} active={active && !preview} preview={preview}
       title="BRUCKNER · PRACTICE" brucknerView={visual} showWallInstructions={!guided} />
+    {active && !preview && guided && <XRWorkingDistanceLabel runtime={runtime} tool="fundus" distanceCm={technique.distanceCm} ready={technique.distanceReady} />}
     {(active || preview) && guided && <XRGuidedStepBubble stepId={guidance.id} stepNumber={guidance.index + 1}
       total={BRUCKNER_GUIDED_STEP_COUNT} title={guidance.title} lines={guidance.lines} complete={guidance.complete} />}
     {active && <group ref={reflexes} visible={false} userData={{ xrBrucknerReflexes: true, xrIgnoreRay: true }}>
@@ -141,7 +143,7 @@ export function BrucknerPracticeController({ active, preview = false, inputMode 
     </group>}
     <PracticeLessonUI runtime={runtime} active={active} title="BRUCKNER" status={status} tools={["fundus"]} actions={actions} fields={fields} lesson={lesson}
       entryReady={captured} ready={active && !preview && captured} onRecord={record} onReset={reset} onNext={next} onExit={onExit} onCancel={() => { interrupt(); lesson.setMode("none"); }}
-      directActions={boardActions} forceBoardVisible boardStatusLines={boardStatusLines}
+      directActions={boardActions} forceBoardVisible recordingOnlyBoard={guided} boardStatusLines={guided ? undefined : boardStatusLines}
       help={["Pick the ophthalmoscope; hold the trigger.", "Use the free hand to select the large gold circle on the rear aperture wheel.", "Place the light about 1 metre from the patient and aim between both pupils.", "Press B/Y on the instrument hand to open the enlarged view of both pupils; press again to close.", "Compare the red reflex brightness in both pupils. Scope mode does not change your physical working distance."]} />
   </>;
 }

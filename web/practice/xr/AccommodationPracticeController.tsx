@@ -1,3 +1,4 @@
+import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
 import { accommodativeFacilityBoardActions } from "../../interaction/practiceBoardActions";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
@@ -142,9 +143,9 @@ export function AccommodationPracticeController({ active, preview = false, input
     } }} />
     {(live || preview) && <><LibraryEquipmentTray active={live} equipment={runtime.equipment} showFittingGuides={attemptKind === "guided"} /><LibraryNearStand /></>}
     {live && report && <XRSign text={["FICTIONAL PATIENT · CURRENT RESPONSE", report]} p={[.55, 1.75, -.10]} size={[.58, .20]} bg="#07151b" fg="#eefbf7" />}
-    {(live || preview) && attemptKind === "guided" && <XRSign text={[`GUIDED STEP ${coach.index + 1} / 8 · ${coach.title}`, ...coach.lines]} p={[-.58, 1.74, -.08]} size={[.64, .23]} bg="#102329" fg="#eefbf7" />}
+    {(live || preview) && attemptKind === "guided" && <XRGuidedStepBubble stepId={String(coach.index)} title={coach.title} lines={coach.lines} />}
     <PracticeLessonUI runtime={runtime} active={live} title={LIBRARY_TITLES["accommodative-facility"]} status={status} tools={["lens-flipper"]} actions={actions} directActions={directActions} fields={fields} lesson={lesson} ready={entryReady} entryReady={entryReady} onRecord={record} onReset={reset} onExit={onExit} onCancel={cancel}
-      boardStatusLines={[`EYE ${state.run.eyeIndex + 1} / 3 · ${eye}`, state.run.capture ? "COUNT FROZEN · RECORD FULL PAIRS" : `${state.seconds} SECONDS · ${state.run.cycles} CYCLES`, attemptKind === "guided" ? coach.title : "Complete the physical sequence."]}
+      boardFindingLines={[`EYE ${state.run.eyeIndex + 1} / 3 · ${eye}`, `${state.seconds} SECONDS · ${state.run.cycles} CYCLES`]} boardStatusLines={[`EYE ${state.run.eyeIndex + 1} / 3 · ${eye}`, state.run.capture ? "COUNT FROZEN · RECORD FULL PAIRS" : `${state.seconds} SECONDS · ${state.run.cycles} CYCLES`, attemptKind === "guided" ? coach.title : "Complete the physical sequence."]}
       help={["Fit correction and prepare OD, OS, then OU in order.", "Place the readable near target at 40 cm and align the ±2.00 D flipper.", "Establish fixation and start with plus.", "Flip only after each clear report; one plus/minus pair is one cycle.", "The count freezes at 60 seconds and remains available after releasing the flipper.", "Illustrative geometry and authored timing require clinician review."]} />
   </>;
 }

@@ -1,3 +1,4 @@
+import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Quaternion, Vector3 } from "three";
@@ -253,11 +254,11 @@ export function NearFusionalVergencePracticeController({ active, preview = false
         highlightAperture: disclosure.showHighlights && coach.index === 4, highlightDial: disclosure.showHighlights && coach.index >= 5 && coach.index <= 8 } }} />
     {(live || preview) && <><LibraryEquipmentTray active={live} equipment={runtime.equipment} showFittingGuides={disclosure.showHighlights} /><LibraryNearStand /></>}
     {live && voiceReport && <XRSign text={["FICTIONAL PATIENT · CURRENT RESPONSE", voiceReport]} p={[.55, 1.75, -.10]} size={[.58, .20]} bg="#07151b" fg="#eefbf7" />}
-    {(live || preview) && disclosure.showCoach && <XRSign text={[`GUIDED STEP ${coach.index + 1} / 10 · ${coach.title}`, ...coach.lines]} p={[-.58, 1.74, -.08]} size={[.62, .22]} bg="#102329" fg="#eefbf7" />}
+    {(live || preview) && disclosure.showCoach && <XRGuidedStepBubble stepId={String(coach.index)} title={coach.title} lines={coach.lines} />}
     <PracticeLessonUI runtime={runtime} active={live} title={LIBRARY_TITLES["horizontal-near"]} status={status} tools={["near", "vergence-prism"]}
       actions={actions} directActions={actions.filter(action => action.label.includes("INSTRUCTION") || action.label.includes("REPORT") || action.label.includes("RELEASE"))}
       fields={entryFields} lesson={lesson} entryReady={entryReady} ready={entryReady} onRecord={record} onReset={reset} onExit={onExit} onCancel={cancel}
-      boardStatusLines={[`BASES ${capturedCount} / 2`, `TARGET ${state.targetDistanceCm.toFixed(1)} CM · SCALE ${state.power.toFixed(1)}Δ`, attemptKind === "guided" ? coach.title : "Complete the required sequence."]}
+      boardFindingLines={[`BASES ${capturedCount} / 2`, `TARGET ${state.targetDistanceCm.toFixed(1)} CM · SCALE ${state.power.toFixed(1)}Δ`]} boardStatusLines={[`BASES ${capturedCount} / 2`, `TARGET ${state.targetDistanceCm.toFixed(1)} CM · SCALE ${state.power.toFixed(1)}Δ`, attemptKind === "guided" ? coach.title : "Complete the required sequence."]}
       help={attemptKind === "guided" ? ["Fit near correction and release the prepared isolated near target onto its 38–42 cm stand.", "Hold the dedicated rotary prism before OD. Physical roll selects BI or BO.", "Use free-hand trigger movement around the dial; thumbstick and panel steps are accessibility fallbacks.", "Hold zero baseline for 250 ms, change about 1–2Δ/s, reduce after diplopia, and return to zero before BO.", "Release the prism, then enter six blank fields independently. Geometry and responses remain draft assumptions."] : ["Use the modeled scale, neutral controller prompts, and the same physical procedure gates.", "No endpoint powers or corrective interpretation are shown before capture."]} />
   </>;
 }

@@ -1,3 +1,4 @@
+import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
 import { relativeAccommodationBoardActions } from "../../interaction/practiceBoardActions";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
@@ -202,11 +203,11 @@ export function RelativeAccommodationPracticeController({ active, preview = fals
         highlightDial: disclosure.showHighlights && coach.index >= 5 && coach.index <= 8 } }} />
     {(live || preview) && <><LibraryEquipmentTray active={live} equipment={runtime.equipment} showFittingGuides={disclosure.showHighlights} /><LibraryNearStand /></>}
     {live && voiceReport && <XRSign text={["FICTIONAL PATIENT · CURRENT RESPONSE", voiceReport]} p={[.55, 1.75, -.10]} size={[.58, .20]} bg="#07151b" fg="#eefbf7" />}
-    {(live || preview) && disclosure.showCoach && <XRSign text={[`GUIDED STEP ${coach.index + 1} / 10 · ${coach.title}`, ...coach.lines]} p={[-.58, 1.74, -.08]} size={[.64, .24]} bg="#102329" fg="#eefbf7" />}
+    {(live || preview) && disclosure.showCoach && <XRGuidedStepBubble stepId={String(coach.index)} title={coach.title} lines={coach.lines} />}
     <PracticeLessonUI runtime={runtime} active={live} title={LIBRARY_TITLES.relative} status={status} tools={["trial-lens"]}
       actions={actions} directActions={directActions} fields={fields} lesson={lesson} entryReady={entryReady} ready={entryReady}
       onRecord={record} onReset={reset} onExit={onExit} onCancel={cancel}
-      boardStatusLines={["BINOCULAR · OU", state.run.praCapture ? "BOTH ENDPOINTS FROZEN · RELEASE HOLDER AND RECORD" : `LENS SCALE ${state.run.powerD >= 0 ? "+" : ""}${state.run.powerD.toFixed(2)} D`, attemptKind === "guided" ? coach.title : "Complete the physical sequence."]}
+      boardFindingLines={["BINOCULAR · OU", `LENS SCALE ${state.run.powerD >= 0 ? "+" : ""}${state.run.powerD.toFixed(2)} D`]} boardStatusLines={["BINOCULAR · OU", state.run.praCapture ? "BOTH ENDPOINTS FROZEN · RELEASE HOLDER AND RECORD" : `LENS SCALE ${state.run.powerD >= 0 ? "+" : ""}${state.run.powerD.toFixed(2)} D`, attemptKind === "guided" ? coach.title : "Complete the physical sequence."]}
       help={attemptKind === "guided" ? ["Fit near correction and release the readable target patient-facing on its 40 cm stand.", "Hold both clear apertures face-on over OD and OS; keep the other controller free for the physical dial.", "Give the clear/single and first-sustained-blur instruction, then confirm initial clarity at 0.00 D.", "Add plus in 0.25 D steps for NRA. The fictional sustained response freezes automatically.", "Remove all plus, explicitly confirm clear baseline at 0.00 D, then add minus for PRA.", "Release the holder and independently enter both signed endpoints. Geometry, timing, and responses are illustrative drafts pending clinical and device review."]
         : ["Use the supported readable near line, binocular holder, modeled scale, and neutral patient reports.", "The physical geometry and response timing are illustrative drafts."]} />
   </>;

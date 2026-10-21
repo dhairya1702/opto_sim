@@ -50,7 +50,6 @@ export function XRCoverGuide({ target, current, progress }: {
   return <group ref={root} userData={{ xrIgnoreRay: true, xrCoverGuide: true, xrPaddlePlacementGuide: true, coverGuideTarget: target.position, coverGuideEye: target.eye }}>
     <group position={awayStep ? anchors.away[target.eye] : anchors.cover[target.eye]}
       userData={awayStep ? { coverGuideAway: target.eye } : { coverGuideRing: target.eye }}>
-      <XRSign text={["MOVE PADDLE"]} p={[0, .058, .002]} size={[.18, .04]} bg="#173a3e" fg="#ffe6a0" />
       <mesh scale={scale} renderOrder={1150}>
         <ringGeometry args={[.86, 1, 48]} />
         <meshBasicMaterial color={inPlace ? GREEN : GOLD} transparent opacity={.95} side={DoubleSide} depthWrite={false} />

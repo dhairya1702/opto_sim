@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Group, MeshBasicMaterial, Quaternion, Vector3 } from "three";
+import { Group, MeshBasicMaterial, Quaternion, Vector2, Vector3 } from "three";
 import { useXRClinicRuntime, type ClinicInputMode, type XRClinicInterruption } from "../../interaction/useXRClinicRuntime";
 import { desktopPenlightPose } from "../../interaction/desktopClinicInput";
-import { CLINIC_EYE_MIDPOINT, CLINIC_PATIENT_EYES } from "../../interaction/clinicPatient";
+import { CLINIC_EYE_MIDPOINT, CLINIC_EYE_WHITE_RADII, CLINIC_PATIENT_EYES } from "../../interaction/clinicPatient";
 import { emptyHirschbergTechnique, clinicHirschbergReflex, hirschbergSubmission, type HirschbergPracticeFinding } from "../../interaction/xrHirschbergPractice";
 import { HIRSCHBERG_GUIDED_STEP_COUNT, hirschbergGuidedStep } from "../../interaction/opticGuidance";
 import { xrHirschbergPrompt, xrHirschbergTechnique, type XRHirschbergTechnique } from "../../interaction/xrPractice";
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
+import { XRWorkingDistanceLabel } from "../../scene/XRWorkingDistanceLabel";
 import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
 import { XRClinicUtilityPanel, XRHeadPanel, XRPanelButton, XRSign as Sign } from "../../scene/XRClinicPanels";
 import { Box } from "../../scene/Models";
@@ -48,10 +49,22 @@ function HirschbergReflexes({ scenario, visual }: { scenario: OpticScenario; vis
   return <>{(["OD", "OS"] as const).map(eye => {
     const offset = clinicHirschbergReflex(scenario[eye === "OD" ? "od" : "os"]);
     const centre = CLINIC_PATIENT_EYES[eye];
-    return <group key={eye} ref={object => { if (object) roots.current[eye] = object; else delete roots.current[eye]; }} visible={false}
-      position={[centre[0] + offset.x, centre[1] + offset.y, -.568]} userData={{ xrHirschbergReflex: eye, xrIgnoreRay: true }}>
-      <mesh><circleGeometry args={[.0013, 20]} /><meshBasicMaterial color="#fff9d8" transparent depthWrite={false} /></mesh>
-      <mesh position={[0, 0, -.0003]}><ringGeometry args={[.0015, .0022, 20]} /><meshBasicMaterial color="#ffe6a1" transparent opacity={.3} depthWrite={false} /></mesh>
+    // Keep the authored landmark centres. Clip both the bright core and halo
+    // against the same visible envelope as the canonical patient's eye mesh.
+    const clipToEye: MeshBasicMaterial["onBeforeCompile"] = shader => {
+      shader.uniforms.hirschbergOffset = { value: new Vector2(offset.x, offset.y) };
+      shader.uniforms.hirschbergEyeRadii = { value: new Vector2(CLINIC_EYE_WHITE_RADII[0], CLINIC_EYE_WHITE_RADII[1]) };
+      shader.vertexShader = "uniform vec2 hirschbergOffset; varying vec2 vReflexEyePosition;\n" + shader.vertexShader;
+      shader.vertexShader = shader.vertexShader.replace("#include <begin_vertex>",
+        "#include <begin_vertex>\nvReflexEyePosition = position.xy + hirschbergOffset;");
+      shader.fragmentShader = "uniform vec2 hirschbergEyeRadii; varying vec2 vReflexEyePosition;\n" + shader.fragmentShader;
+      shader.fragmentShader = shader.fragmentShader.replace("#include <clipping_planes_fragment>",
+        "#include <clipping_planes_fragment>\nvec2 eyePoint = vReflexEyePosition / hirschbergEyeRadii;\nif (dot(eyePoint, eyePoint) > 1.0) discard;");
+    };
+    return <group key={`${eye}-${offset.x}-${offset.y}`} ref={object => { if (object) roots.current[eye] = object; else delete roots.current[eye]; }} visible={false}
+      position={[centre[0] + offset.x, centre[1] + offset.y, -.5697]} userData={{ xrHirschbergReflex: eye, xrIgnoreRay: true }}>
+      <mesh><circleGeometry args={[.00065, 24]} /><meshBasicMaterial onBeforeCompile={clipToEye} color="#fff9d8" transparent depthWrite={false} /></mesh>
+      <mesh position={[0, 0, -.0001]}><ringGeometry args={[.0008, .0011, 24]} /><meshBasicMaterial onBeforeCompile={clipToEye} color="#ffe6a1" transparent opacity={.3} depthWrite={false} /></mesh>
     </group>;
   })}</>;
 }
@@ -204,11 +217,12 @@ export function HirschbergPracticeController({ active, preview = false, inputMod
     giveFixation, toggleHelp, openRecording, chooseDirection, chooseAmount, record, cancel, reset, next: nextFinding,
   }); }, [technique, held, light, fixation, direction, amount, checked, correct, help, recording, finding, active, captured, onMirror, nextFinding]);
   const findings = <>
-        <Box p={[0, -.03, -.015]} s={[.76, 1.20, .018]} c="#102329" radius={.012} />
-        <Sign text={[`HIRSCHBERG · FINDING ${findingPosition.current}/${findingPosition.total}`, checked ? correct ? "Correct · finding recorded" : "Recheck direction and landmark." : captured ? "OBSERVATION CAPTURED ✓ · choose answers and submit" : prompt]} p={[0, .245, 0]} size={[.70, .16]} bg="#102329" fg="#eefbf7" />
+        {captured && !correct && <Sign transparentBackground text={["Observation"]} p={[0, .28, .012]} size={[.36, .038]} bg="#102329" fg="#eefbf7" />}
+        {!guided && !captured && <Sign transparentBackground text={[prompt]} p={[0, .245, 0]} size={[.70, .10]} bg="#102329" fg="#eefbf7" />}
         <XRPanelButton label={fixation ? "FIXATION GIVEN ✓" : "LOOK AT THE LIGHT"} position={[0, .49, .02]} width={.70} onClick={giveFixation} />
         <XRPanelButton label="HELP" position={[-.18, .395, .02]} width={.34} onClick={toggleHelp} />
         <XRPanelButton label="EXIT VR" position={[.18, .395, .02]} width={.34} onClick={onExit} />
+        {captured && !(checked && correct) && <>
         {HIRSCHBERG_DIRECTIONS.map(([value, label], index) => <XRPanelButton key={value} label={label.toUpperCase()}
           position={[index % 2 ? .18 : -.18, .10 - Math.floor(index / 2) * .08, .012]} width={.34}
           disabled={checked && correct} active={direction === value} onClick={() => chooseDirection(value)} />)}
@@ -216,8 +230,9 @@ export function HirschbergPracticeController({ active, preview = false, inputMod
           position={[index % 2 ? .18 : -.18, -.17 - Math.floor(index / 2) * .08, .012]} width={.34}
           disabled={checked && correct} active={amount === value} onClick={() => chooseAmount(value)} />)}
         <XRPanelButton label="CANCEL" position={[-.18, -.335, .012]} width={.34} onClick={cancel} />
-        <XRPanelButton label="SUBMIT / CHECK" position={[.18, -.335, .012]} width={.34} disabled={checked && correct} active={Boolean(captured && direction && amount)} onClick={record} />
-        {(checked || submissionMessage) && <Sign text={[submissionMessage || (correct ? finding.feedback : "Incorrect · compare direction and landmark, then try again.")]} p={[0, -.425, .012]} size={[.70, .08]} bg="#102329" fg="#eefbf7" />}
+        <XRPanelButton label="SUBMIT" position={[.18, -.335, .012]} width={.34} disabled={checked && correct} active={Boolean(captured && direction && amount)} onClick={record} />
+        </>}
+        {(checked || submissionMessage) && <Sign transparentBackground text={[submissionMessage || (correct ? finding.feedback : "Incorrect · compare direction and landmark, then try again.")]} p={[0, -.425, .012]} size={[.70, .08]} bg="#102329" fg="#eefbf7" />}
         {checked && correct && <XRPanelButton label="NEW PATIENT FINDING" position={[0, -.51, .012]} width={.70} onClick={nextFinding} />}
       </>;
   return <>
@@ -225,11 +240,12 @@ export function HirschbergPracticeController({ active, preview = false, inputMod
     <XRClinicRuntimeView cleanHands runtime={runtime} active={active && !preview} preview={preview}
       title="HIRSCHBERG · PRACTICE" instruction="Pick up the penlight · findings on rear wall · trigger to select"
       showWallInstructions={!guided} />
+    {active && !preview && guided && <XRWorkingDistanceLabel runtime={runtime} tool="pupils" distanceCm={technique.distanceCm} ready={technique.distanceReady} />}
     {(active || preview) && guided && <XRGuidedStepBubble stepId={guidance.id} stepNumber={guidance.index + 1}
       total={HIRSCHBERG_GUIDED_STEP_COUNT} title={guidance.title} lines={guidance.lines} complete={guidance.complete} />}
     {active && <>
       <XRClinicUtilityPanel runtime={runtime} onHelp={() => { setHelp(true); setMenu(false); setRecording(false); }} onExit={onExit} />
-      <XRPracticeFindingsBoard runtime={runtime} active={active && !preview} tools={["pupils"]} forceVisible={recording} hidden={menu || help}>{findings}</XRPracticeFindingsBoard>
+      <XRPracticeFindingsBoard runtime={runtime} active={active && !preview} tools={["pupils"]} forceVisible={recording || Boolean(captured) || checked} hidden={menu || help}>{findings}</XRPracticeFindingsBoard>
       <HirschbergReflexes scenario={scenario} visual={visual} />
       {menu && !recording && !help && <XRHeadPanel>
         <Box s={[.66, .54, .018]} c="#102329" radius={.012} />

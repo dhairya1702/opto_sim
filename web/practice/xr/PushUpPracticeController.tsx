@@ -1,3 +1,4 @@
+import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
 import { pushUpBoardActions } from "../../interaction/practiceBoardActions";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
@@ -163,10 +164,10 @@ export function PushUpPracticeController({ active, preview = false, inputMode = 
         highlightStart: disclosure.showHighlights && coach.index === 4 } }} />
     {(live || preview) && <LibraryEquipmentTray active={live} equipment={runtime.equipment} showFittingGuides={disclosure.showHighlights} />}
     {live && voiceReport && <XRSign text={["FICTIONAL PATIENT · CURRENT RESPONSE", voiceReport]} p={[.55, 1.75, -.10]} size={[.58, .20]} bg="#07151b" fg="#eefbf7" />}
-    {live && disclosure.showCoach && <XRSign text={[`GUIDED STEP ${coach.index + 1} / 7 · ${coach.title}`, ...coach.lines]} p={[-.58, 1.74, -.08]} size={[.62, .22]} bg="#102329" fg="#eefbf7" />}
+    {live && disclosure.showCoach && <XRGuidedStepBubble stepId={String(coach.index)} title={coach.title} lines={coach.lines} />}
     <PracticeLessonUI runtime={runtime} active={live} title={LIBRARY_TITLES["push-up"]} status={xrStatus} tools={["push-up-rule"]} actions={actions}
       directActions={directActions} fields={fields} lesson={lesson} entryReady={entryReady} ready={entryReady} onRecord={record} onReset={reset} onExit={onExit} onCancel={cancel}
-      boardStatusLines={[`EYE ${state.run.eyeIndex + 1} / 3 · ${eye}`, state.run.capture ? "ENDPOINT FROZEN · READ THE MODELED SCALE" : attemptKind === "guided" ? coach.title : "Complete the physical sequence."]}
+      boardFindingLines={[`EYE ${state.run.eyeIndex + 1} / 3 · ${eye}`]} boardStatusLines={[`EYE ${state.run.eyeIndex + 1} / 3 · ${eye}`, state.run.capture ? "ENDPOINT FROZEN · READ THE MODELED SCALE" : attemptKind === "guided" ? coach.title : "Complete the physical sequence."]}
       help={attemptKind === "guided" ? ["Fit near correction and prepare the displayed eye's occlusion.", "Dock the ruler's patient end at the spectacle plane.", "Use the free controller trigger beside the carriage to slide the letter card.", "Begin within 38–42 cm, then move inward until sustained blur is reported and frozen.", "Read the modeled scale and independently enter distance and 100 ÷ distance.", "The geometry, timing and eye motion are illustrative drafts pending clinical and device review."]
         : ["Use the modeled centimetre scale and neutral patient reports.", "The physical geometry and eye movement are illustrative drafts."]} />
   </>;

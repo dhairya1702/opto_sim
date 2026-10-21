@@ -44,14 +44,14 @@ export function worthGuidedStep(state: WorthGuidedState): WorthGuidedStep {
   if (state.nearRecorded && state.distanceRecorded)
     return guided("complete", 11, "Worth comparison complete", ["Near and mirrored-distance findings are independently recorded."], true);
   if (!state.correctionFitted)
-    return guided("fit-correction", 0, "Fit the patient's correction", ["Pick up the correction frame and fit it at the patient bridge."]);
+    return guided("fit-correction", 0, "Fit the trial frame", ["Pick up the trial frame and fit it at the patient's bridge."]);
   if (!state.filtersFitted)
     return guided("fit-filters", 1, "Fit the red-green glasses", ["Fit the filters at the bridge: red over OD and green over OS."]);
 
   const nearPending = !state.nearRecorded;
   if (nearPending) {
     if (!state.targetHandled && state.condition.endpoint !== "near")
-      return guided("pick-up-target", 2, "Pick up the Worth target", ["Find the four-dot target on the instrument tray and use the side grip."]);
+      return guided("pick-up-target", 2, "Pick up the Worth target", ["Use the side grip to pick up the four-dot target."]);
     if (state.condition.endpoint !== "near") {
       const correction = !state.condition.facing
         ? "Turn either illuminated face toward Arun."

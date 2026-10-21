@@ -29,13 +29,13 @@ export function brucknerGuidedStep(state: BrucknerGuidedState): GuidedCoachStep 
   if (state.captured) return {
     id: "record", index: 5, title: "Record the comparison",
     lines: state.observationChosen
-      ? ["Your reflex comparison is selected.", "Press SUBMIT / CHECK on the findings board."]
+      ? ["Your reflex comparison is selected.", "Press SUBMIT on the findings board."]
       : ["Choose equal, OD brighter, or OS brighter", "from what you saw through the scope."],
     complete: false,
   };
   if (!state.toolHeld) return {
     id: "tool", index: 0, title: "Pick up the ophthalmoscope",
-    lines: ["Find it on the left instrument trolley.", "Squeeze the side grip once beside its handle."], complete: false,
+    lines: ["Squeeze the side grip once beside its handle."], complete: false,
   };
   if (!state.fixation) return {
     id: "instruct", index: 1, title: "Instruct Arun",
@@ -49,12 +49,15 @@ export function brucknerGuidedStep(state: BrucknerGuidedState): GuidedCoachStep 
     id: "illuminate", index: 3, title: "Illuminate both pupils",
     lines: [
       state.light ? "Keep the trigger held to maintain the beam." : "Hold the instrument trigger to switch on the light.",
-      state.distanceReady ? "Aim midway between both pupils." : "Move to the taught 90–110 cm working zone.",
+      !state.distanceReady ? "Move to the taught 90–110 cm working zone."
+        : !state.aimReady ? "Distance correct · aim midway between both pupils."
+          : !state.illuminated ? "Distance and aim correct · keep both pupils inside the light beam."
+            : "Both pupils illuminated · keep the light steady.",
     ], complete: false,
   };
   return {
     id: "inspect", index: 4, title: "Inspect both red reflexes",
-    lines: ["Press B/Y on the instrument hand.", "Compare both pupils together, then close the view."], complete: false,
+    lines: ["Distance and illumination correct · press B/Y on the instrument hand.", "Compare both red reflexes together, then close the view."], complete: false,
   };
 }
 
@@ -88,12 +91,12 @@ export function hirschbergGuidedStep(state: HirschbergGuidedState): GuidedCoachS
     };
     return {
       id: "record", index: 5, title: "Record the interpretation",
-      lines: ["Direction and landmark are selected.", "Press SUBMIT / CHECK on the findings board."], complete: false,
+      lines: ["Direction and landmark are selected.", "Press SUBMIT on the findings board."], complete: false,
     };
   }
   if (!state.toolHeld) return {
     id: "tool", index: 0, title: "Pick up the penlight",
-    lines: ["Find it on the left instrument trolley.", "Squeeze the side grip once beside its handle."], complete: false,
+    lines: ["Squeeze the side grip once beside its handle."], complete: false,
   };
   if (!state.fixation) return {
     id: "instruct", index: 1, title: "Instruct Arun",

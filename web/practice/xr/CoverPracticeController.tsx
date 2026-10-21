@@ -336,7 +336,7 @@ export function CoverPracticeController({ active, preview = false, inputMode = "
     [onMirror, status, ready, entryReady, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, fixation, base, power, readout.prism, scenarioIndex, guides, coverRecords, alternateRecords, fields]);
   const settings = <XRHeadPanel>
     <Box s={[.76, .90, .018]} c="#102329" radius={.012} />
-    <XRSign text={["PRISM · SELECTED WORKING CELL", `${power}Δ · ${base || "choose base"}`, readout.prism ? `Aligned before ${readout.prism}` : "Hold the middle cell before either pupil."]} p={[0, .31, .012]} size={[.70, .20]} bg="#102329" fg="#eefbf7" />
+    <XRSign text={["PRISM · SELECTED WORKING CELL", `${power}Δ · ${base || "choose base"}`, readout.prism ? `Aligned before ${readout.prism}` : guided ? "Not aligned" : "Hold the middle cell before either pupil."]} p={[0, .31, .012]} size={[.70, .20]} bg="#102329" fg="#eefbf7" />
     {prismActions.map((action, index) => <XRPanelButton key={action.label} label={action.label} active={action.active} disabled={lesson.recorded || action.disabled}
       position={[index % 2 ? .18 : -.18, .15 - Math.floor(index / 2) * .085, .025]} width={.34} onClick={action.run} />)}
     <XRPanelButton label="CLOSE SETTINGS" position={[-.18, -.23, .025]} width={.34} onClick={() => lesson.setMode("none")} />

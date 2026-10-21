@@ -19,8 +19,9 @@ export const MOTILITY_DWELL_SECONDS = 0.7;
 export const MOTILITY_SPATIAL_GRACE_SECONDS = 0.2;
 export const MOTILITY_RECOVERY_DWELL_SECONDS = 0.3;
 // Illustrative interaction tolerances, not a calibrated clinical target speed.
-export const MOTILITY_MAX_NORMALIZED_SPEED = 3.2;
-export const MOTILITY_ROUTE_CORRIDOR = 0.22;
+export const MOTILITY_MAX_NORMALIZED_SPEED = 5;
+export const MOTILITY_SPEED_GRACE_SECONDS = 0.12;
+export const MOTILITY_ROUTE_CORRIDOR = 0.30;
 export const MOTILITY_H_ROUTE: readonly GazePositionId[] = [
   "centre", "left", "left-up", "left", "left-down", "left", "centre",
   "up", "centre", "down", "centre",
@@ -129,6 +130,7 @@ export type MotilityCoverage = {
   current: string | null;
   dwell: number;
   spatialGrace?: number;
+  fastSeconds?: number;
   anchor?: string | null;
   transition?: Readonly<{ from: string; to: string }> | null;
   recovery?: Readonly<{ returnTo: string; reason: MotilityRecoveryReason }> | null;
@@ -137,7 +139,7 @@ export type MotilityCoverage = {
 };
 export type MotilityObservationOptions = Readonly<{ assisted?: boolean }>;
 export const newMotilityCoverage = (): MotilityCoverage => ({
-  seen: [], current: null, dwell: 0, spatialGrace: 0, anchor: null,
+  seen: [], current: null, dwell: 0, spatialGrace: 0, fastSeconds: 0, anchor: null,
   transition: null, recovery: null, previous: null, notice: "",
 });
 const gazePosition = (id: string | null | undefined) => gazePositions.find(position => position.id === id);
@@ -146,10 +148,10 @@ const neighbours = (id: string | null | undefined): readonly GazePositionId[] =>
   return position ? MOTILITY_NEIGHBOURS[position.id] : [];
 };
 const recoveryNotice = (reason: MotilityRecoveryReason) => reason === "speed"
-  ? "Move the target more slowly, then return to the last confirmed point."
+  ? "Move more slowly, then return to the last confirmed point or centre."
   : reason === "fixation"
-    ? "Re-establish fixation at the last confirmed point."
-    : "Return to the last confirmed point.";
+    ? "Re-establish fixation at the last confirmed point or centre."
+    : "Return to the last confirmed point or centre.";
 function pointSegmentDistance(point: { x: number; y: number }, from: { x: number; y: number }, to: { x: number; y: number }) {
   const dx = to.x - from.x, dy = to.y - from.y;
   const lengthSquared = dx * dx + dy * dy;
@@ -159,20 +161,27 @@ function pointSegmentDistance(point: { x: number; y: number }, from: { x: number
 }
 function recoverMotility(state: MotilityCoverage, reason: MotilityRecoveryReason): MotilityCoverage {
   const anchor = gazePosition(state.anchor)?.id ?? (state.seen.includes("centre") ? "centre" : null);
-  return { ...state, current: null, dwell: 0, spatialGrace: 0, transition: null, previous: null,
+  return { ...state, current: null, dwell: 0, spatialGrace: 0, fastSeconds: 0, transition: null, previous: null,
     recovery: anchor ? { returnTo: anchor, reason } : null,
     notice: anchor ? recoveryNotice(reason) : "Begin at the starting point." };
 }
 export function interruptMotility(state: MotilityCoverage): MotilityCoverage {
   if (state.seen.length === gazePositions.length)
-    return { ...state, current: null, dwell: 0, spatialGrace: 0, transition: null, recovery: null, previous: null, notice: "" };
+    return { ...state, current: null, dwell: 0, spatialGrace: 0, fastSeconds: 0, transition: null, recovery: null, previous: null, notice: "" };
   return recoverMotility(state, "fixation");
 }
+function returnGazeIds(state: MotilityCoverage): readonly string[] {
+  return [...new Set([state.recovery?.returnTo, state.seen.includes("centre") ? "centre" : null].filter((id): id is string => Boolean(id)))];
+}
+function reachableGazeIds(state: MotilityCoverage): readonly string[] {
+  // Completed points are safe repositioning stops, including the central hub.
+  return [...new Set([...neighbours(state.anchor), ...state.seen])].filter(id => id !== state.anchor);
+}
 export function motilityNextGazeIds(state: MotilityCoverage): readonly string[] {
-  if (state.recovery?.returnTo) return [state.recovery.returnTo];
-  if (state.transition?.to) return [state.transition.to];
+  if (state.recovery) return returnGazeIds(state);
   if (!state.anchor) return ["centre"];
-  return neighbours(state.anchor);
+  return [...new Set([...(state.transition ? [state.transition.to] : neighbours(state.anchor)),
+    ...(state.seen.includes("centre") && state.anchor !== "centre" ? ["centre"] : [])])];
 }
 function creditArrival(state: MotilityCoverage, destination: GazePositionId, dt: number, point: { x: number; y: number }): MotilityCoverage {
   if (state.seen.includes(destination)) return { ...state, anchor: destination, transition: null, recovery: null,
@@ -188,13 +197,13 @@ export function observeTarget(state: MotilityCoverage, target: FixationTarget, d
   if (!active) return interruptMotility(state);
   const position = gazePositions.find(p => Math.hypot(p.x - x, p.y - y) < MOTILITY_TARGET_RADIUS);
   if (state.recovery) {
-    if (position?.id !== state.recovery.returnTo) return { ...state, current: null, dwell: 0, spatialGrace: 0, previous: point,
+    if (!position || !returnGazeIds(state).includes(position.id)) return { ...state, current: null, dwell: 0, spatialGrace: 0, previous: point,
       notice: recoveryNotice(state.recovery.reason) };
     const dwell = (state.current === position.id ? state.dwell : 0) + clamp(dt, 0, 0.1);
     if (dwell < MOTILITY_RECOVERY_DWELL_SECONDS) return { ...state, current: position.id, dwell, previous: point,
       notice: "Hold steady to restore the route." };
     return { ...state, anchor: position.id, current: position.id, dwell: 0, spatialGrace: 0,
-      transition: null, recovery: null, previous: point, notice: "" };
+      transition: null, recovery: null, fastSeconds: 0, previous: point, notice: "" };
   }
   const anchor = gazePosition(state.anchor);
   if (!anchor) {
@@ -208,41 +217,35 @@ export function observeTarget(state: MotilityCoverage, target: FixationTarget, d
   }
   const frameDt = clamp(dt, 0, 0.1);
   const movement = state.previous ? Math.hypot(point.x - state.previous.x, point.y - state.previous.y) : 0;
-  if (!options.assisted && state.previous && frameDt > 0 && movement > .035 && movement / frameDt > MOTILITY_MAX_NORMALIZED_SPEED)
+  const tooFast = !options.assisted && Boolean(state.previous) && frameDt > 0
+    && movement > .035 && movement / frameDt > MOTILITY_MAX_NORMALIZED_SPEED;
+  const fastSeconds = tooFast ? (state.fastSeconds ?? 0) + frameDt : 0;
+  if (tooFast && (movement > .5 || fastSeconds >= MOTILITY_SPEED_GRACE_SECONDS))
     return recoverMotility(state, "speed");
-  if (!state.transition && position?.id === anchor.id)
-    return { ...state, current: anchor.id, dwell: 0, spatialGrace: 0, previous: point, notice: "" };
+  state = { ...state, fastSeconds };
+  if (position?.id === anchor.id)
+    return { ...state, current: anchor.id, dwell: 0, transition: null, spatialGrace: 0, previous: point, notice: "" };
 
-  let transition = state.transition;
-  if (!transition) {
-    const allowed = neighbours(anchor.id);
-    if (position && allowed.includes(position.id)) transition = { from: anchor.id, to: position.id };
-    else if (position) return recoverMotility(state, "route");
-    else {
-      const match = allowed.map(id => {
-        const destination = gazePosition(id)!;
-        return { id, ...pointSegmentDistance(point, anchor, destination) };
-      }).filter(candidate => candidate.projection >= 0 && candidate.projection <= 1 && candidate.distance <= MOTILITY_ROUTE_CORRIDOR)
-        .sort((a, b) => a.distance - b.distance)[0];
-      if (!match) return recoverMotility(state, "route");
-      transition = { from: anchor.id, to: match.id };
-    }
-  }
-
-  const from = gazePosition(transition.from), destination = gazePosition(transition.to);
-  if (!from || !destination) return recoverMotility(state, "route");
-  if (position?.id === from.id) return { ...state, anchor: from.id, transition: null, current: from.id,
-    dwell: 0, spatialGrace: 0, previous: point, notice: "" };
-  if (position && position.id !== destination.id) return recoverMotility(state, "route");
-  const segment = pointSegmentDistance(point, from, destination);
-  if (segment.distance > MOTILITY_ROUTE_CORRIDOR || segment.projection < 0 || segment.projection > 1.05)
-    return recoverMotility(state, "route");
-  if (position?.id === destination.id) return creditArrival({ ...state, transition }, destination.id, frameDt, point);
-  if (state.current === destination.id && state.dwell > 0) {
+  const allowed = reachableGazeIds(state);
+  // Re-evaluate direction from the last confirmed point on every frame. A small
+  // sideways departure must not lock the learner onto the wrong branch.
+  const destinationId = position && allowed.includes(position.id) ? position.id
+    : allowed.map(id => ({ id, ...pointSegmentDistance(point, anchor, gazePosition(id)!) }))
+      .filter(candidate => candidate.projection >= -.1 && candidate.projection <= 1.1 && candidate.distance <= MOTILITY_ROUTE_CORRIDOR)
+      .sort((a, b) => a.distance - b.distance)[0]?.id;
+  if (!destinationId || (position && position.id !== destinationId)) {
     const spatialGrace = (state.spatialGrace ?? 0) + frameDt;
     if (spatialGrace < MOTILITY_SPATIAL_GRACE_SECONDS)
-      return { ...state, transition, spatialGrace, previous: point };
+      return { ...state, current: null, dwell: 0, spatialGrace, previous: point,
+        notice: "Follow a highlighted route, or return to the centre." };
+    return recoverMotility(state, "route");
   }
+  const transition = { from: anchor.id, to: destinationId };
+  if (position?.id === destinationId)
+    return creditArrival({ ...state, transition }, position.id, frameDt, point);
+  const spatialGrace = state.current === destinationId && state.dwell > 0 ? (state.spatialGrace ?? 0) + frameDt : 0;
+  if (state.current === destinationId && state.dwell > 0 && spatialGrace < MOTILITY_SPATIAL_GRACE_SECONDS)
+    return { ...state, transition, spatialGrace, previous: point };
   return { ...state, transition, current: null, dwell: 0, spatialGrace: 0, previous: point, notice: "" };
 }
 

@@ -7,9 +7,8 @@ import { useXRClinicRuntime, type ClinicInputMode } from "../../interaction/useX
 import type { ConsultationToolId } from "../../interaction/xrConsultationTools";
 import { isPatientFitted, sensoryEquipment, sensoryFittingSignature, sensorySockets, sensoryTargetCondition } from "../../interaction/xrSensoryEquipment";
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
-import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
+import { XRGuidedStepBubble, wrapGuidedStepLines } from "../../scene/XRGuidedStepBubble";
 import { XRSign } from "../../scene/XRClinicPanels";
-import { Box } from "../../scene/Models";
 import { PracticeLessonUI, usePracticeLesson, type BatchMirror, type LessonAction, type LessonField } from "./PracticeLessonUI";
 import { usePracticeAttempt } from "../PracticeAttemptContext";
 
@@ -164,7 +163,7 @@ export function WorthPracticeController({ active, preview = false, inputMode = "
     reportAction,
     { label: "NEW PATIENT PATTERN", run: next },
     ...(inputMode === "desktop" ? [
-      { label: "FIT CORRECTION", active: isPatientFitted(runtime.tools, "subjective"), run: () => placeAtSocket("subjective", "sensory-correction") },
+      { label: "FIT TRIAL FRAME", active: isPatientFitted(runtime.tools, "subjective"), run: () => placeAtSocket("subjective", "sensory-correction") },
       { label: "FIT RED / GREEN GLASSES", active: isPatientFitted(runtime.tools, "red-green"), run: () => placeAtSocket("red-green", "sensory-red-green") },
       { label: "PLACE TARGET · NEAR 40 CM", active: technique.endpoint === "near", run: () => placeAtSocket("worth", "sensory-worth-near") },
       { label: "PLACE TARGET · MIRRORED DISTANCE", active: technique.endpoint === "distance", run: () => placeAtSocket("worth", "sensory-worth-distance") },
@@ -175,7 +174,7 @@ export function WorthPracticeController({ active, preview = false, inputMode = "
     targetHandled: (runtime.tools.worth.revision ?? 0) > 0, targetHeld: runtime.tools.worth.placement.kind === "held", powered: runtime.tools.worth.powered,
     condition: { endpoint: technique.endpoint, facing: technique.facing, distanceCm: technique.distanceCm },
     fixationEndpoint, captureEndpoint: captured?.endpoint ?? null, nearRecorded: Boolean(records.near), distanceRecorded: Boolean(records.distance) });
-  const directActions = !runtime.tools.worth.powered ? [powerAction]
+  const directActions = captured ? [] : !runtime.tools.worth.powered ? [powerAction]
     : technique.endpoint && fixationEndpoint !== technique.endpoint ? [fixationAction]
       : technique.endpoint && !captured ? [reportAction] : [];
   const voiceReport = captured ? `I see ${captured.report.charAt(0).toLowerCase()}${captured.report.slice(1)}` : undefined;
@@ -189,14 +188,13 @@ export function WorthPracticeController({ active, preview = false, inputMode = "
       instrumentSettings={{ worth: { powered: runtime.tools.worth.powered, onPowerChange: setPower } }} />
     {(active || preview) && guided && <XRGuidedStepBubble stepId={guidance.id} stepNumber={guidance.index + 1}
       total={WORTH_GUIDED_STEP_COUNT} title={guidance.title} lines={guidance.lines} complete={guidance.complete} />}
-    {active && captured && <group position={[.62, 1.65, -.15]} userData={{ xrIgnoreRay: true }}>
-      <Box s={[.47, .34, .012]} c="#07151b" />
-      <XRSign text={["FICTIONAL PATIENT-REPORTED VIEW", captured.report, "Enlarged illustration; not calibrated optics."]} p={[0, .10, .012]} size={[.45, .13]} bg="#07151b" fg="#eefbf7" />
-      <group position={[0, -.05, .015]}><ReportDots finding={captured.finding} /></group>
-    </group>}
     <PracticeLessonUI runtime={runtime} active={active} title="WORTH FOUR DOT" status={status} tools={["subjective", "red-green", "worth"]} actions={actions} directActions={directActions} fields={fields}
       lesson={lesson} entryReady={ready} ready={ready} onRecord={record} onReset={reset} onNext={next} onExit={onExit} onCancel={cancel}
       forceBoardVisible={Boolean(captured)}
-      help={["Fit correction, then the fixed red OD / green OS glasses.", "Use the free controller to press the target switch on either face.", "Near: aim either illuminated face toward the patient at about 40 cm or use the stand.", "Distance: seat either face in the simulated mirrored 6 m dock.", "Ask for count, colours and positions at each condition.", "Report captures survive release. Enter your own count and interpretation."]} />
+      boardReport={captured ? <>
+        <XRSign transparentBackground text={wrapGuidedStepLines([captured.report], 44)} p={[0, .065, .012]} size={[.70, .095]} bg="#102329" fg="#eefbf7" />
+        <group position={[0, -.04, .015]} scale={.6}><ReportDots finding={captured.finding} /></group>
+      </> : undefined}
+      help={["Fit the trial frame containing the patient's correction, then the fixed red OD / green OS glasses.", "Use the free controller to press the target switch on either face.", "Near: aim either illuminated face toward the patient at about 40 cm or use the stand.", "Distance: seat either face in the simulated mirrored 6 m dock.", "Ask for count, colours and positions at each condition.", "Report captures survive release. Enter your own count and interpretation."]} />
   </>;
 }

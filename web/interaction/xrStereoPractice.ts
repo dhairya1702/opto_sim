@@ -185,7 +185,7 @@ export type StereoGuidedStep = Readonly<{ id: string; index: number; title: stri
 export function stereoGuidedStep(state: StereoGuidedState): StereoGuidedStep {
   const { run } = state;
   if (state.recorded) return { id: "complete", index: 8, title: "Threshold recorded", lines: ["Guided comparison complete."], complete: true };
-  if (!state.correctionFitted) return { id: "fit-correction", index: 0, title: "Fit the near correction", lines: ["Seat the trial-frame correction at Arun's bridge.", "The fitting socket and orientation must be valid."], complete: false };
+  if (!state.correctionFitted) return { id: "fit-correction", index: 0, title: "Fit the near correction", lines: ["Seat the trial-frame correction at Arun's bridge."], complete: false };
   if (!state.filtersFitted) return { id: "fit-polarised", index: 1, title: "Fit the polarised glasses", lines: ["Place them as a separate layer over the correction."], complete: false };
   if (!state.bookletHandled && !state.bookletSupported) return { id: "pickup-booklet", index: 2, title: "Pick up the stereo booklet", lines: ["Use the booklet's side grip, then bring it to Arun."], complete: false };
   if (!state.geometryReady) {
@@ -196,11 +196,11 @@ export function stereoGuidedStep(state: StereoGuidedState): StereoGuidedStep {
             : "Centre and support the booklet in front of Arun.";
     return { id: "position-booklet", index: 3, title: "Position the booklet", lines: [correction, "Use 38–42 cm or the authored near stand."], complete: false };
   }
-  if (!fixationCurrent(run)) return { id: "establish-fixation", index: 4, title: "Establish fixation", lines: ["Ask Arun to look at the circles.", `PAGE ${run.page + 1} OF ${stereoPracticeLevels.length}`], complete: false };
-  if (!run.reply) return { id: "present-ask", index: 5, title: "Present and ask", lines: ["Ask which circle appears raised or closer.", `PAGE ${run.page + 1} OF ${stereoPracticeLevels.length}`], complete: false };
+  if (!fixationCurrent(run)) return { id: "establish-fixation", index: 4, title: "Establish fixation", lines: ["Ask Arun to look at the circles."], complete: false };
+  if (!run.reply) return { id: "present-ask", index: 5, title: "Present and ask", lines: ["Ask which circle appears raised or closer."], complete: false };
   if (!run.markedCircle) return { id: "mark-response", index: 6, title: "Record Arun's answer", lines: ["Select only the circle Arun named: left, middle, or right.", "The simulator compares it with the correct circle automatically."], complete: false };
   if (!run.confirmed) return { id: "compare-response", index: 7, title: "Compare the response", lines: ["The simulator is comparing Arun's answer with the correct circle for this page."], complete: false };
-  if (!run.capture) return { id: "turn-page", index: 7, title: "Turn one page", lines: ["The response has been classified automatically. Turn exactly one page, then establish fixation again.", `PAGE ${run.page + 1} OF ${stereoPracticeLevels.length} confirmed`], complete: false };
+  if (!run.capture) return { id: "turn-page", index: 7, title: "Turn one page", lines: ["The response has been classified automatically. Turn exactly one page, then establish fixation again."], complete: false };
   return { id: "record-threshold", index: 8, title: "Record the threshold", lines: ["Select the last correct level independently.", "No answer is preselected."], complete: false };
 }
 

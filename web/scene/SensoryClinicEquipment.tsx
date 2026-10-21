@@ -1,3 +1,4 @@
+import { XRTeleportRing } from "./XRTeleportRing";
 import { CatmullRomCurve3, DoubleSide, Vector2, Vector3 } from "three";
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
@@ -101,7 +102,7 @@ function StereoBooklet() {
       <Box p={[side * .058, .146, -.005]} s={[.094, .004, .001]} c="#3f827a" radius={.001} />
     </group>)}
     <Cylinder p={[0, .08, -.003]} h={.17} radius={.004} c="#4c5f5e" />
-    {/* Lesson-owned page stacks and selectable circles remain immediately outside this model. */}
+    {/* Lesson-owned page stacks and examiner reference circles remain immediately outside this model. */}
   </group>;
 }
 
@@ -162,7 +163,7 @@ export function SensoryClinicStation({ runtime, distanceLetter = false, fixation
       <Cylinder p={[.26, .70, SENSORY_NEAR_TARGET[2]]} h={1.37} radius={.012} c="#768e8c" />
       <Box p={[.13, 1.31, SENSORY_NEAR_TARGET[2] + .017]} s={[.28, .018, .065]} c="#78948e" />
       <Box p={[.26, .025, SENSORY_NEAR_TARGET[2]]} s={[.22, .035, .22]} c="#78948e" />
-      <Sign text={["NEAR STAND · 40 CM", "ASSISTED PLACEMENT"]} p={[.29, 1.19, SENSORY_NEAR_TARGET[2] + .025]} size={[.24, .08]} bg="#173a3e" fg="#e8fff9" />
+      <Sign transparentBackground text={["NEAR STAND"]} p={[.29, 1.19, SENSORY_NEAR_TARGET[2] + .025]} size={[.24, .0375]} fg="#e8fff9" />
     </group>}
     {runtime.equipment.includes("worth") || distanceLetter ? <group>
       <group userData={{ xrIgnoreRay: true }}>
@@ -173,13 +174,12 @@ export function SensoryClinicStation({ runtime, distanceLetter = false, fixation
         {runtime.equipment.includes("worth") && <>
           <Cylinder p={[SENSORY_DISTANCE_TARGET[0], .68, SENSORY_DISTANCE_TARGET[2]]} h={1.3} radius={.012} c="#768e8c" />
           <Box p={[SENSORY_DISTANCE_TARGET[0], 1.35, SENSORY_DISTANCE_TARGET[2] - .015]} s={[.16, .02, .10]} c="#456e69" />
-          <Sign text={["DISTANCE TARGET DOCK", "PLACE COMPATIBLE TARGET HERE"]} p={[.68, 1.2, SENSORY_DISTANCE_TARGET[2] + .04]} size={[.34, .08]} bg="#173a3e" fg="#e8fff9" />
+          <Sign transparentBackground text={["DISTANCE TARGET DOCK"]} p={[.68, 1.2, SENSORY_DISTANCE_TARGET[2] + .04]} size={[.345, .045]} fg="#e8fff9" />
         </>}
       </group>
     </group> : null}
     {([[0, .25, "PATIENT FITTING"], [.65, -.16, "DISTANCE TARGET DOCK"]] as const).filter(([, , label]) => label !== "DISTANCE TARGET DOCK" || runtime.equipment.includes("worth")).map(([x, z, label]) => <group key={label} position={[x, .012, z]} userData={active ? { xrTeleport: [x, 0, z] } : { xrPreviewPad: true }}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[.14, .20, 32]} /><meshBasicMaterial color="#4fae9d" transparent opacity={.65} /></mesh>
-      <Sign text={[label]} p={[0, .008, 0]} size={[.32, .07]} rotation={[-Math.PI / 2, 0, 0]} bg="#153b3c" fg="#e8fff9" />
+      <XRTeleportRing innerRadius={.14} outerRadius={.20} opacity={.65} />
     </group>)}
     {/* Fitting cues retain a small bridge/grip target and never reveal the authored finding. */}
     {showFittingGuides && SENSORY_SOCKETS.filter(socket => socket.fittingLayer && runtime.equipment.includes(socket.tool)).map(socket => <group key={socket.id} position={[...socket.position]} userData={{ xrIgnoreRay: true, xrInstructionalHighlight: true }}>

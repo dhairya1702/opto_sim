@@ -238,7 +238,7 @@ export function FourPrismPracticeController({ active, preview = false, inputMode
     <PracticeLessonUI runtime={runtime} active={active && !preview} title="4Δ BASE-OUT" status={status} tools={["subjective", "four-prism"]}
       actions={actions} directActions={directActions} fields={fields} lesson={lesson} ready={ready} entryReady={entryReady}
       onRecord={record} onReset={reset} onNext={next} onExit={exit} onCancel={cancel} forceBoardVisible={Boolean(run.eyeCaptures.OD)}
-      boardStatusLines={[...history, neutral]} help={guided ? ["Fit best distance correction and establish isolated-letter fixation.",
+      boardFindingLines={history} boardStatusLines={[...history, neutral]} help={guided ? ["Fit best distance correction and establish isolated-letter fixation.",
         "Use the dedicated fixed 4Δ prism. Thumbstick left selects the left base arrow for OD; right selects the right base arrow for OS. Physical wrist roll also remains available.", "Observe OD continuously for 2400 ms, withdraw completely, then switch the base direction for OS.",
         "Record each eye's movement before interpreting. Movement and handling are illustrative, not calibrated."]
         : ["Complete the examination using the available neutral controls.", "Movement and handling are illustrative, not calibrated."]} />

@@ -43,6 +43,19 @@ export function xrKrimskyTechnique(input: XRKrimskyInput, finding: KrimskyFindin
     neutral: correctionReady && residual === 0 };
 }
 export type XRKrimskyTechnique = ReturnType<typeof xrKrimskyTechnique>;
+/** Describe the physical gate that currently prevents a prism response. */
+export function krimskyViewingIssue(technique: XRKrimskyTechnique, tracked: boolean, light: boolean) {
+  if (!tracked) return { title: "Restore tracking", lines: ["Bring both controllers into tracking before comparing the reflexes."] };
+  if (!light) return { title: "Keep the penlight on", lines: ["Hold the penlight trigger throughout the comparison."] };
+  if (!technique.distanceReady) return { title: "Restore the light distance", lines: [
+    `Light-to-patient distance: ${Math.round(technique.distanceCm)} cm.`,
+    "Move the penlight to 46–54 cm; the distance label turns green.",
+  ] };
+  if (!technique.aimReady) return { title: "Centre the light beam", lines: ["Aim the penlight midway between both pupils.", "Keep its trigger held and preserve the working distance."] };
+  if (!technique.viewReady) return { title: "Centre your examiner view", lines: ["Look directly toward the patient's eyes using your selected examiner-eye view.", "Keep the penlight and prism steady."] };
+  return null;
+}
+
 /** Same signed linear relative-reflex model as desktop, scaled to the clinic iris. */
 export function clinicKrimskyReflex(finding: KrimskyFinding, residual: number) {
   return Math.max(-.09, Math.min(.09, residual * finding.sign * .003)) * (CLINIC_IRIS_RADIUS / .1);
@@ -53,8 +66,8 @@ export function captureKrimskyComparison(technique: XRKrimskyTechnique): Krimsky
   if (!technique.neutral || technique.prismEye !== krimskyEye(method) || (base !== "BI" && base !== "BO") || !Number.isInteger(power) || power < 0 || power > 40) return null;
   return Object.freeze({ method, eye: technique.prismEye, base, power, distanceCm: technique.distanceCm });
 }
-export function krimskyComparisonSubmission(comparison: KrimskyComparison | null, answer: string) {
-  if (!comparison || answer.trim() === "") return null;
+export function krimskyComparisonSubmission(comparison: KrimskyComparison | null, answer: string, baseAnswer = "") {
+  if (!comparison || answer.trim() === "" || (baseAnswer !== "BI" && baseAnswer !== "BO")) return null;
   const power = Number(answer);
-  return Number.isInteger(power) && power >= 0 && power <= 40 && power === comparison.power;
+  return Number.isInteger(power) && power >= 0 && power <= 40 && power === comparison.power && baseAnswer === comparison.base;
 }

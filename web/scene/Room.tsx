@@ -96,7 +96,7 @@ export function ConsultationInterior({ held, xr = false }: { held?: Consultation
         <Refraction portable={false} />
       </group>
       <group userData={{ station: "acuity" }}>
-        <Box p={[-1.02, 1.84, -2.445]} s={[0.72, 1.04, 0.08]} c="#273d42" />
+        <Box p={[-1.22, 1.84, -2.445]} s={[0.72, 1.04, 0.08]} c="#273d42" />
         <Sign
           text={[
             "E",
@@ -107,7 +107,7 @@ export function ConsultationInterior({ held, xr = false }: { held?: Consultation
             "E D F C Z P",
             "SIMULATED DISPLAY",
           ]}
-          p={[-1.02, 1.84, -2.398]}
+          p={[-1.22, 1.84, -2.398]}
           size={[0.65, 0.97]}
           bg="#f8faf3"
           fg="#24363b"

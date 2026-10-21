@@ -1,3 +1,4 @@
+import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Quaternion, Vector3 } from "three";
@@ -195,11 +196,11 @@ export function VerticalFusionalVergencePracticeController({ active, preview = f
         highlightAperture: disclosure.showHighlights && coach.index === 4, highlightDial: disclosure.showHighlights && coach.index >= 5 && coach.index <= 8 } }} />
     {(live || preview) && <LibraryEquipmentTray active={live} equipment={runtime.equipment} showFittingGuides={disclosure.showHighlights} />}
     {live && voiceReport && <XRSign text={["FICTIONAL PATIENT · CURRENT RESPONSE", voiceReport]} p={[.55, 1.75, -.10]} size={[.58, .20]} bg="#07151b" fg="#eefbf7" />}
-    {(live || preview) && disclosure.showCoach && <XRSign text={[`GUIDED STEP ${coach.index + 1} / 10 · ${coach.title}`, ...coach.lines]} p={[-.58, 1.74, -.08]} size={[.62, .22]} bg="#102329" fg="#eefbf7" />}
+    {(live || preview) && disclosure.showCoach && <XRGuidedStepBubble stepId={String(coach.index)} title={coach.title} lines={coach.lines} />}
     <PracticeLessonUI runtime={runtime} active={live} title={LIBRARY_TITLES["vertical-distance"]} status={status} tools={["vergence-prism"]}
       actions={actions} directActions={actions.filter(action => action.label.includes("INSTRUCTION") || action.label.includes("REPORT") || action.label.includes("RELEASE"))}
       fields={entryFields} lesson={lesson} entryReady={entryReady} ready={entryReady} onRecord={record} onReset={reset} onExit={onExit} onCancel={cancel}
-      boardStatusLines={[`DIRECTIONS ${capturedCount} / 2`, `READ SCALE ${state.power.toFixed(1)}Δ`, attemptKind === "guided" ? coach.title : "Complete the required sequence."]}
+      boardFindingLines={[`DIRECTIONS ${capturedCount} / 2`, `SCALE ${state.power.toFixed(1)}Δ`]} boardStatusLines={[`DIRECTIONS ${capturedCount} / 2`, `READ SCALE ${state.power.toFixed(1)}Δ`, attemptKind === "guided" ? coach.title : "Complete the required sequence."]}
       help={attemptKind === "guided" ? ["Fit correction and establish the prepared mirrored isolated target one line larger than the poorer eye's best-corrected acuity.",
         "Ask for sustained diplopia and recovery to single; no blur endpoint is used.", "Hold the patient-facing aperture before OD and physically roll to BU, then BD at zero.",
         "Use the free-hand trigger around the dial; thumbstick and panel 0.1Δ steps are accessibility fallbacks.",

@@ -28,7 +28,7 @@ export function motilityGuidedStep(state: MotilityGuidedState): MotilityGuidedSt
   };
   if (!state.toolHeld && seenCount < 9) return {
     id: "tool", index: 0, title: "Pick up the penlight",
-    lines: ["Find it on the left instrument trolley.", "Squeeze the side grip once beside its handle."], complete: false,
+    lines: ["Squeeze the side grip once beside its handle."], complete: false,
   };
   if (!state.following) return {
     id: "instruct", index: 1, title: "Instruct Arun",
@@ -40,7 +40,7 @@ export function motilityGuidedStep(state: MotilityGuidedState): MotilityGuidedSt
   };
   if (seenCount < 9) return {
     id: "pattern", index: 3, title: "Complete the H-pattern",
-    lines: [`${seenCount}/9 gaze positions checked.`, "Follow the highlighted H route; hold at each point."], complete: false,
+    lines: [`${seenCount}/9 gaze positions checked.`, "Follow the highlighted route; hold at each new point. Return through the centre to change direction."], complete: false,
   };
   if (!state.symptomsAsked) return {
     id: "symptoms", index: 4, title: "Ask about symptoms",
@@ -49,7 +49,7 @@ export function motilityGuidedStep(state: MotilityGuidedState): MotilityGuidedSt
   return {
     id: "record", index: 5, title: "Record your observation",
     lines: state.observationChosen
-      ? ["Your observation is selected.", "Press SUBMIT / CHECK on the findings board."]
+      ? ["Your observation is selected.", "Press SUBMIT on the findings board."]
       : ["Choose the movement you actually observed", "on the findings board, then submit it."],
     complete: false,
   };

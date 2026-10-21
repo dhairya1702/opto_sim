@@ -1,3 +1,4 @@
+import { XRTeleportRing } from "./XRTeleportRing";
 import { DoubleSide } from "three";
 import type { ClinicInstrumentSettings } from "./LibraryClinicEquipment";
 import { SensoryClinicStation } from "./SensoryClinicEquipment";
@@ -61,19 +62,11 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
     {showGuides && stations.filter(station => station.id !== "fundus").map(station => {
       const arrival = consultationXRArrival(station.id, station.position);
       return <group key={station.id} position={[arrival[0], .012, arrival[2]]} userData={active ? { xrTeleport: arrival } : { xrPreviewPad: true }}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[.22, .3, 32]} />
-        <meshBasicMaterial color="#4fae9d" transparent opacity={.72} />
-      </mesh>
-      <Sign text={[station.name.toUpperCase()]} p={[0, .008, 0]} size={[.42, .1]} rotation={[-Math.PI / 2, 0, 0]} bg="#153b3c" fg="#e8fff9" />
+      <XRTeleportRing />
     </group>;
     })}
-    {showGuides && <group position={[...AUXILIARY_INSTRUMENT_KIT.xrArrival]} userData={active ? { xrTeleport: [...AUXILIARY_INSTRUMENT_KIT.xrArrival] } : { xrPreviewPad: true }}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[.22, .3, 32]} />
-        <meshBasicMaterial color="#4fae9d" transparent opacity={.72} />
-      </mesh>
-      <Sign text={["EXTENDED INSTRUMENT KIT"]} p={[0, .008, 0]} size={[.46, .1]} rotation={[-Math.PI / 2, 0, 0]} bg="#153b3c" fg="#e8fff9" />
+    {showGuides && <group position={[AUXILIARY_INSTRUMENT_KIT.xrArrival[0], .012, AUXILIARY_INSTRUMENT_KIT.xrArrival[2]]} userData={active ? { xrTeleport: [...AUXILIARY_INSTRUMENT_KIT.xrArrival] } : { xrPreviewPad: true }}>
+      <XRTeleportRing />
     </group>}
     {(active || preview) && <>
       <SensoryClinicStation active={active} runtime={runtime} distanceLetter={sensoryStation === "four-prism"} fixationLetter={sensoryFixationLetter} showFittingGuides={showInstructionalHighlights} />

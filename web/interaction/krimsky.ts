@@ -4,6 +4,10 @@ export const krimskyCases = [
   { deviation: "Left exotropia", base: "BI" as KrimskyBase, power: 20, sign: -1 },
   { deviation: "Left esotropia", base: "BO" as KrimskyBase, power: 15, sign: 1 },
 ];
+/** Reuse the authored findings in both methods, alternating methods per case. */
+export const krimskyPracticeCases = krimskyCases.flatMap(finding =>
+  (["standard", "modified"] as const).map(method => ({ ...finding, method })),
+);
 export function krimskyEye(method: KrimskyMethod) { return method === "standard" ? "OS" : "OD"; }
 export function krimskyResidual(endpoint: number, power: number, correctBase: boolean) {
   return endpoint - (correctBase ? power : -power);

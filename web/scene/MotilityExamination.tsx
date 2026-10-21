@@ -50,7 +50,8 @@ export function MotilityExamination({ onComplete, onCancel, practiceAttempt, sce
   const [following, setFollowing] = useState(false);
   const [light, setLight] = useState(false);
   const [grabbed, setGrabbed] = useState(false);
-  const [guides, setGuides] = useState(practiceAttempt !== "test");
+  const [optionalGuides, setGuides] = useState(practiceAttempt !== "test");
+  const guides = practiceAttempt === "guided" || optionalGuides;
   const [asked, setAsked] = useState(false);
   const [observation, setObservation] = useState("");
   const [checked, setChecked] = useState(false);
@@ -143,7 +144,7 @@ export function MotilityExamination({ onComplete, onCancel, practiceAttempt, sce
         <div className="motility-controls">
           <label>Target distance: {Math.round(control.z * 100)} cm<input aria-label="Target distance" type="range" min="30" max="40" step="5" value={Math.round(control.z * 100)} onChange={e => update(control.x, control.y, Number(e.target.value) / 100)} /></label>
           <button className={light ? "primary" : "secondary"} onClick={() => setLight(value => !value)}>{light ? "Penlight on" : "Switch penlight on"}</button>
-          {practiceAttempt !== "test" && <label className="check-row"><input type="checkbox" checked={guides} onChange={e => setGuides(e.target.checked)} />Show H-pattern guides</label>}
+          {practiceAttempt !== "test" && practiceAttempt !== "guided" && <label className="check-row"><input type="checkbox" checked={guides} onChange={e => setGuides(e.target.checked)} />Show H-pattern guides</label>}
           <button className="secondary" onClick={() => update(0, 0)}>Return target to start</button>
         </div>
         <ul className="gaze-checklist sr-only" aria-label="Observed gaze positions">{gazePositions.map(p => <li key={p.id}>{coverage.seen.includes(p.id) ? "✓" : "○"} {p.label}</li>)}</ul>
@@ -158,7 +159,7 @@ export function MotilityExamination({ onComplete, onCancel, practiceAttempt, sce
           if (!ready) return;
           if (!practiceAttempt) { if (done.current) return; done.current = true; onComplete(recordedObservation); return; }
           setChecked(true); if (correct) onComplete(recordedObservation);
-        }}>{practiceAttempt ? "Submit / check finding" : "Record finding & return to room →"}</button>
+        }}>{practiceAttempt ? "Submit finding" : "Record finding & return to room →"}</button>
         <p className="small muted">Simplified draft movement examples. Position coverage is a practice aid, not a clinical technique score or diagnosis. {practiceAttempt ? `${motilityScenarios.length} authored findings are shared by Guided Practice and Test.` : "Your selected observation is preserved for debrief comparison."}</p>
       </footer>
     </dialog>

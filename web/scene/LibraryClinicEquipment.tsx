@@ -1,3 +1,4 @@
+import { XRTeleportRing } from "./XRTeleportRing";
 import { useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { CatmullRomCurve3, DoubleSide, MathUtils, Path, Shape, Vector2, Vector3, type Group } from "three";
@@ -352,8 +353,7 @@ export function LibraryEquipmentTray({ active = false, equipment = [], showFitti
     && (!fittingGuideSocketIds || fittingGuideSocketIds.includes(socket.id)));
   return <>
     {([[0, .25, "PATIENT FITTING"]] as const).map(([x, z, label]) => <group key={label} position={[x, .012, z]} userData={active ? { xrTeleport: [x, 0, z] } : { xrPreviewPad: true }}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[.19, .26, 32]} /><meshBasicMaterial color="#4fae9d" transparent opacity={.65}/></mesh>
-      <XRSign text={[label]} p={[0, .008, 0]} size={[.33, .08]} rotation={[-Math.PI / 2, 0, 0]} bg="#153b3c" fg="#e8fff9"/>
+      <XRTeleportRing innerRadius={.19} outerRadius={.26} opacity={.65} />
     </group>)}
     {showFittingGuides && fittingGuides.map(socket => {
       const maddox = socket.id === "sensory-maddox-horizontal" || socket.id === "sensory-maddox-vertical";
@@ -374,6 +374,6 @@ export function LibraryNearStand({ card = "near" }: { card?: "near" | "thoringto
     <Cylinder p={[.26, .68, -.18]} h={1.34} radius={.01} c="#78948e" />
     <Box p={[.13, ledgeY, -.18]} s={[.28, .016, .05]} c="#78948e" />
     <Box p={[.26, .025, -.18]} s={[.22, .025, .22]} c="#78948e" />
-    <XRSign text={["NEAR TARGET · RELEASE AT 40 CM"]} p={[.30, 1.20, -.16]} size={[.28, .06]} bg="#173a3e" fg="#e8fff9" />
+    <XRSign transparentBackground text={["NEAR STAND"]} p={[.30, 1.20, -.16]} size={[.24, .0375]} fg="#e8fff9" />
   </group>;
 }

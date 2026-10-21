@@ -1,3 +1,4 @@
+import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Vector3 } from "three";
@@ -160,11 +161,11 @@ export function NPCPracticeController({ active, preview = false, inputMode = "xr
       instrumentSettings={{ "npc-rule": { distanceCm: state.distance, highlightCarriage: disclosure.showHighlights && coach.index >= 3 && coach.index <= 8 } }} />
     {(live || preview) && <LibraryEquipmentTray active={live} equipment={runtime.equipment} showFittingGuides={disclosure.showHighlights} />}
     {live && <XRSign text={["FICTIONAL PATIENT · CURRENT RESPONSE", voiceReport]} p={[.55, 1.75, -.10]} size={[.55, .20]} bg="#07151b" fg="#eefbf7" />}
-    {live && disclosure.showCoach && <XRSign text={[`GUIDED STEP ${coach.index + 1} / 10 · ${coach.title}`, ...coach.lines]} p={[-.58, 1.74, -.08]} size={[.60, .22]} bg="#102329" fg="#eefbf7" />}
+    {live && disclosure.showCoach && <XRGuidedStepBubble stepId={String(coach.index)} title={coach.title} lines={coach.lines} />}
     <PracticeLessonUI runtime={runtime} active={live} title={LIBRARY_TITLES.npc} status={xrStatus} tools={["npc-rule"]} actions={actions}
       directActions={actions.filter(action => action.label.includes("INSTRUCTION") || action.label.includes("MARK") || action.label.includes("RELEASED"))}
       fields={fields} lesson={lesson} entryReady={entryReady} ready={entryReady} onRecord={record} onReset={reset} onNext={state.run.record ? next : undefined} onExit={onExit} onCancel={cancel}
-      boardStatusLines={[`TRIALS ${state.run.captures.length} / 3`, "READ THE MODELED CENTIMETRE SCALE", attemptKind === "guided" ? coach.title : "Complete the required sequence."]}
+      boardFindingLines={[`TRIALS ${state.run.captures.length} / 3`]} boardStatusLines={[`TRIALS ${state.run.captures.length} / 3`, "READ THE MODELED CENTIMETRE SCALE", attemptKind === "guided" ? coach.title : "Complete the required sequence."]}
       help={attemptKind === "guided" ? ["Fit correction, pick up the dedicated rule and dock its patient end at the spectacle plane.", "Use the free controller trigger beside the carriage to slide the target while the rule remains docked.", "Begin at 38–42 cm; hold 250 ms, move inward, capture break, then move outward to recovery.", "Repeat three times, release the rule, and enter all values independently.", "Geometry, eye motion, ergonomics and readability are draft assumptions."] : ["Use the modeled centimetre scale and neutral controller prompts.", "The physical geometry and eye movement are illustrative drafts."]} />
   </>;
 }

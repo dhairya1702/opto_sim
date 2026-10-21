@@ -27,13 +27,13 @@ export function HirschbergVRStage({ scenario, finding, findingPosition, onClose,
       <button className="secondary full" onClick={mirror.giveFixation}>Ask the patient to look at the light</button>
       {guided && <button className="secondary full" onClick={mirror.toggleHelp}>{mirror.help ? "Close help" : "Help"}</button>}
       {guided && mirror.help && <p role="status">{xrHirschbergPrompt(mirror.technique, mirror)}</p>}
-      <button className="primary full" onClick={mirror.openRecording}>Record finding</button>
-      {mirror.recording && <>
+      {mirror.captured && !(mirror.checked && mirror.correct) && <>
+        <p className="eyebrow">Observation</p>
         <label>Interpretation<select value={mirror.direction} disabled={!mirror.captured || (mirror.checked && mirror.correct)} onChange={event => mirror.chooseDirection(event.target.value)}>
           <option value="">Choose after inspecting</option>{HIRSCHBERG_DIRECTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         <label>Approximate landmark<select value={mirror.amount} disabled={!mirror.captured || (mirror.checked && mirror.correct)} onChange={event => mirror.chooseAmount(event.target.value)}>
           <option value="">Choose after inspecting</option>{HIRSCHBERG_LANDMARKS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-        <button className="primary full" disabled={!mirror.captured || !mirror.direction || !mirror.amount || (mirror.checked && mirror.correct)} onClick={mirror.record}>Record interpretation</button>
+        <button className="primary full" disabled={!mirror.captured || !mirror.direction || !mirror.amount || (mirror.checked && mirror.correct)} onClick={mirror.record}>Submit</button>
         <button className="secondary full" onClick={mirror.cancel}>Cancel recording</button>
       </>}
       {mirror.checked && <p role="status">{mirror.correct ? finding.feedback : "Recheck the reflex position, direction rule, and landmark."}</p>}

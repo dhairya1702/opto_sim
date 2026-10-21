@@ -8,3 +8,6 @@ export const CLINIC_PATIENT_EYES: Record<XRPupilEye, [number, number, number]> =
 export const CLINIC_EYE_MIDPOINT: [number, number, number] = [0, 1.5, -.573];
 export const CLINIC_PUPIL_RADIUS = .008;
 export const CLINIC_IRIS_RADIUS = .010;
+
+/** Visible eye-white envelope used by the patient mesh and reflex clipping. */
+export const CLINIC_EYE_WHITE_RADII: [number, number, number] = [.025, .011, .013];

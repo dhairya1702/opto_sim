@@ -3,7 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import { RoundedBox } from "@react-three/drei";
 import { CanvasTexture, LinearFilter, RepeatWrapping, SRGBColorSpace, Vector3, Quaternion, type Mesh } from "three";
 import { perfCount } from "../perf/perfFlag";
-import { CLINIC_IRIS_RADIUS, CLINIC_PUPIL_RADIUS } from "../interaction/clinicPatient";
+import { CLINIC_EYE_WHITE_RADII, CLINIC_IRIS_RADIUS, CLINIC_PUPIL_RADIUS } from "../interaction/clinicPatient";
 import { INSTRUMENT_KIT, INSTRUMENT_KIT_ROTATION_Y } from "../interaction/clinicLayout";
 import { PATIENT_BLINK_DURATION_SECONDS, patientBlinkClosure, patientBlinkDelay, patientMouthTarget } from "../interaction/patientAnimation";
 import { useVoiceStatus } from "../voice/VoiceStatusContext";
@@ -367,7 +367,7 @@ export function Patient({ xr = false }: { xr?: boolean }) {
       {[-1, 1].map((side) => (
         <group key={side}>
           <Orb p={[side * 0.13, 1.48, 0]} s={[0.024, 0.04, 0.025]} c={skin} />
-          <Orb p={[side * 0.048, 1.5, 0.115]} s={[0.025, 0.011, 0.013]} c="#e6d7c5" />
+          <Orb p={[side * 0.048, 1.5, 0.115]} s={CLINIC_EYE_WHITE_RADII} c="#e6d7c5" />
           {xr ? <group position={[side * .048, 1.5, .129]}>
             <group userData={{ consultationGaze: side < 0 ? "OD" : "OS" }}>
               <mesh><circleGeometry args={[CLINIC_IRIS_RADIUS, 24]} /><meshStandardMaterial color="#695342" /></mesh>

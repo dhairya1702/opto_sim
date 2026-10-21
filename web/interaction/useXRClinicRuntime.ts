@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Group, Object3D, Quaternion, Raycaster, Vector3 } from "three";
+import { Group, Matrix4, Object3D, Quaternion, Ray, Raycaster, Vector3 } from "three";
 import type { StationId } from "../domain/types";
 import {
   initialConsultationInput, interruptConsultationInput, pressConsultationGrip,
@@ -526,11 +526,32 @@ export function useXRClinicRuntime(options: Options) {
     }
   });
 
+  const priorityHitScratch = useMemo(() => ({ inverse: new Matrix4(), ray: new Ray(), point: new Vector3() }), []);
   function rayHit(slot: ControllerSlot) {
     slot.ray.getWorldPosition(origin);
     slot.ray.getWorldQuaternion(quaternion);
     direction.set(0, 0, -1).applyQuaternion(quaternion).normalize();
     raycaster.set(origin, direction);
+    // Head-following result actions need a geometric hit area independent of
+    // decorative meshes, material sides and the wall editor behind them.
+    let priorityHit: { object: Object3D; point: Vector3; distance: number } | null = null;
+    scene.traverseVisible(object => {
+      if (!object.userData.xrButton || !object.userData.xrAction || !ancestorData(object).priorityPanel) return;
+      object.updateWorldMatrix(true, false);
+      const scratch = priorityHitScratch;
+      scratch.inverse.copy(object.matrixWorld).invert();
+      scratch.ray.copy(raycaster.ray).applyMatrix4(scratch.inverse);
+      if (Math.abs(scratch.ray.direction.z) < .00001) return;
+      const t = (.012 - scratch.ray.origin.z) / scratch.ray.direction.z;
+      if (t < 0) return;
+      scratch.ray.at(t, scratch.point);
+      if (Math.abs(scratch.point.x) > Number(object.userData.xrWidth ?? .5) / 2
+        || Math.abs(scratch.point.y) > Number(object.userData.xrHeight ?? .077) / 2) return;
+      scratch.point.applyMatrix4(object.matrixWorld);
+      const distance = raycaster.ray.origin.distanceTo(scratch.point);
+      if (!priorityHit || distance < priorityHit.distance) priorityHit = { object, point: scratch.point.clone(), distance };
+    });
+    if (priorityHit) return priorityHit;
     const intersections = raycaster.intersectObject(scene, true).filter(intersection => {
       let object: Object3D | null = intersection.object;
       let interactive = false;

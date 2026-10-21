@@ -1,23 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Group, Mesh, MeshBasicMaterial, Quaternion, Vector3 } from "three";
-import { krimskyCases, krimskyEye, type KrimskyMethod } from "../../interaction/krimsky";
+import { krimskyPracticeCases, krimskyEye, type KrimskyMethod } from "../../interaction/krimsky";
 import { KRIMSKY_GUIDED_STEP_COUNT, krimskyGuidedStep } from "../../interaction/alignmentGuidance";
 import { CLINIC_PATIENT_EYES } from "../../interaction/clinicPatient";
 import { PRISM_BAR_WORKING_Y } from "../../interaction/xrConsultationTools";
 import { useXRClinicRuntime, type ClinicInputMode } from "../../interaction/useXRClinicRuntime";
 import { desktopPatientFacingPose, desktopPenlightPose } from "../../interaction/desktopClinicInput";
-import { captureKrimskyComparison, clinicKrimskyReflex, krimskyComparisonSubmission, KRIMSKY_PRISM_POWERS, stepKrimskyPrismPower, xrKrimskyTechnique, type ExaminerEye, type KrimskyComparison } from "../../interaction/xrKrimskyPractice";
+import { captureKrimskyComparison, clinicKrimskyReflex, krimskyViewingIssue, krimskyComparisonSubmission, KRIMSKY_PRISM_POWERS, stepKrimskyPrismPower, xrKrimskyTechnique, type ExaminerEye, type KrimskyComparison } from "../../interaction/xrKrimskyPractice";
 import { createXRViewerScratch, xrExaminerPose, xrViewerPoses } from "../../interaction/xrViewer";
 import { XRClinicRuntimeView } from "../../scene/XRClinicRuntimeView";
+import { XRWorkingDistanceLabel } from "../../scene/XRWorkingDistanceLabel";
 import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
-import { XRHeadPanel, XRPanelButton, XRSign } from "../../scene/XRClinicPanels";
-import { Box } from "../../scene/Models";
 import { PracticeLessonUI, usePracticeLesson, type BatchMirror, type LessonAction, type LessonField } from "./PracticeLessonUI";
 import { usePracticeAttempt } from "../PracticeAttemptContext";
 
 const prismPowerChoices = KRIMSKY_PRISM_POWERS.map(power => [String(power), `${power}Δ`] as const);
-const initialSetup = () => ({ method: "standard" as KrimskyMethod, fixation: false, examinerEye: null as ExaminerEye | null, base: "", power: 0 });
+const initialSetup = (method: KrimskyMethod) => ({ method, fixation: false, examinerEye: null as ExaminerEye | null, base: "", power: 0 });
 export function KrimskyPracticeController({ active, preview = false, inputMode = "xr", onComplete, onExit, onMirror }: {
   active: boolean; preview?: boolean; inputMode?: ClinicInputMode; onComplete: () => void; onExit: () => void; onMirror?: (mirror: BatchMirror) => void;
 }) {
@@ -25,9 +24,10 @@ export function KrimskyPracticeController({ active, preview = false, inputMode =
   const guided = attemptSettings?.kind === "guided";
   const { gl, camera } = useThree();
   const [index, setIndex] = useState(0);
-  const finding = krimskyCases[index];
+  const finding = krimskyPracticeCases[index];
+  const method = finding.method;
   const lesson = usePracticeLesson(onComplete);
-  const [setup, setSetup] = useState(initialSetup);
+  const [setup, setSetup] = useState(() => initialSetup(method));
   const setupRef = useRef(setup);
   const capturedRef = useRef<KrimskyComparison | null>(null);
   const prismAnchorPowerRef = useRef<number | null>(null);
@@ -35,9 +35,9 @@ export function KrimskyPracticeController({ active, preview = false, inputMode =
   const [captured, setCaptured] = useState<KrimskyComparison | null>(null), [message, setMessage] = useState("");
   const fields = useMemo<LessonField[]>(() => [{
     id: "power",
-    label: captured ? `Neutralising prism · ${captured.base}` : "Neutralising prism",
+    label: "Prism power",
     choices: prismPowerChoices,
-  }], [captured]);
+  }, { id: "base", label: "Prism base", choices: [["BI", "Base in · BI"], ["BO", "Base out · BO"]] }], []);
   const clearPending = lesson.clearPending;
   const interrupt = useCallback(() => { if (!capturedRef.current) clearPending(); }, [clearPending]);
   const runtime = useXRClinicRuntime({ active: active && !preview, inputMode, editorOpen: lesson.mode !== "none", onInterrupt: interrupt,
@@ -114,17 +114,12 @@ export function KrimskyPracticeController({ active, preview = false, inputMode =
   const updateSetup = (next: typeof setup) => { setupRef.current = next; setSetup(next); };
   const clearComparison = () => { capturedRef.current = null; setCaptured(null); clearPending(); setMessage(""); };
   const reset = useCallback(() => {
-    lesson.reset(); setupRef.current = { ...initialSetup(), method: setupRef.current.method }; setSetup(setupRef.current);
+    lesson.reset(); setupRef.current = initialSetup(method); setSetup(setupRef.current);
     correctionKey.current = ""; prismAnchorPowerRef.current = null; setPrismAnchorPower(null);
     capturedRef.current = null; setCaptured(null); setMessage(""); runtime.resetClinic();
-  }, [lesson.reset, runtime.resetClinic]);
+  }, [lesson.reset, runtime.resetClinic, method]);
   useEffect(() => { reset(); }, [index, reset]);
   useEffect(() => { if (!active) reset(); }, [active, reset]);
-  const changeMethod = (method: KrimskyMethod) => {
-    if (!active || preview || method === setupRef.current.method) return;
-    lesson.reset(); clearComparison(); prismAnchorPowerRef.current = null; setPrismAnchorPower(null);
-    updateSetup({ ...setupRef.current, method, base: "", power: 0 });
-  };
   const changePrism = (base: string, power: number) => {
     if (!active || preview || lesson.awarded.current || runtime.toolsRef.current.prism.placement.kind !== "held") return;
     clearComparison(); updateSetup({ ...setupRef.current, base, power: Math.max(0, Math.min(40, Math.round(power))) });
@@ -157,7 +152,9 @@ export function KrimskyPracticeController({ active, preview = false, inputMode =
     if (!active || preview || lesson.awarded.current || capturedRef.current) return;
     const live = sample();
     const comparison = captureKrimskyComparison(live);
-    if (!comparison) { setMessage(live.correctionReady ? "Reflexes remain asymmetric · adjust prism and compare again." : "Align the light/view and prism before comparing."); return; }
+    if (!comparison) {
+      const issue = krimskyViewingIssue(live, runtime.frameValid.current, runtime.toolsRef.current.pupils.powered);
+      setMessage(issue ? `${issue.title} · ${issue.lines.join(" ")}` : live.correctionReady ? "Reflexes remain asymmetric · adjust prism and compare again." : "Align the light/view and prism before comparing."); return; }
     capturedRef.current = comparison; setCaptured(comparison); clearPending();
     setMessage("Matching reflex comparison captured · release the light or place tools down, then record your reading.");
   }
@@ -165,18 +162,27 @@ export function KrimskyPracticeController({ active, preview = false, inputMode =
   const record = () => {
     if (!active || preview || !runtime.frameValid.current) return;
     const comparison = capturedRef.current, answer = lesson.entriesRef.current.power;
-    const correct = krimskyComparisonSubmission(comparison, answer ?? "");
+    const correct = krimskyComparisonSubmission(comparison, answer ?? "", lesson.entriesRef.current.base ?? "");
     if (correct === null || !comparison) return;
     lesson.submit(true, correct, correct
       ? `${comparison.method === "modified" ? "Modified Krimsky" : "Krimsky"}: ${comparison.power}Δ ${comparison.base}, prism before ${comparison.eye}, at about ${Math.round(comparison.distanceCm)} cm.`
-      : "Read the captured neutralising prism and record its power in Δ.");
+      : "Record both the prism power in Δ and its base direction from your completed comparison.");
   };
-  const next = () => { if (!lesson.awarded.current) return; reset(); setIndex(value => (value + 1) % krimskyCases.length); };
-  const status = captured ? `${message || "Comparison captured."} Recorded base: ${captured.base} · choose the matching prism-bar power.`
+  const next = () => {
+    if (!lesson.awarded.current) return;
+    const nextIndex = (index + 1) % krimskyPracticeCases.length;
+    reset();
+    // Synchronize the new case's method before the next physical frame.
+    const nextSetup = initialSetup(krimskyPracticeCases[nextIndex].method);
+    updateSetup(nextSetup); setIndex(nextIndex);
+  };
+  const viewingIssue = krimskyViewingIssue(technique, runtime.frameValid.current, runtime.tools.pupils.powered);
+  const status = captured ? `${message || "Comparison captured."} Enter prism power and base direction.`
     : !runtime.tools.pupils.powered ? "Pick up the penlight and hold its trigger."
     : !setup.fixation ? "Ask the patient to look at the light."
     : !setup.examinerEye ? "Say which eye you are closing, or choose an examiner-eye view."
     : runtime.tools.prism.placement.kind !== "held" ? "Observe the initial reflex positions, then pick up the prism bar."
+    : viewingIssue ? `${viewingIssue.title} · ${viewingIssue.lines.join(" ")}`
     : prismAnchorPower === null ? `Move the gold-ringed ${setup.power}Δ cell over ${krimskyEye(setup.method)}.`
     : !technique.viewing ? `${Math.round(technique.distanceCm)} cm · hold light about 50 cm, aim between eyes and centre your view.`
     : message || (!technique.correctionReady ? `Place the prism before ${krimskyEye(setup.method)} · thumbstick left/right selects BI/BO; up/down changes power.`
@@ -184,14 +190,9 @@ export function KrimskyPracticeController({ active, preview = false, inputMode =
   const actions: LessonAction[] = [
     { label: setup.fixation ? "FIXATION GIVEN ✓" : "LOOK AT THE LIGHT", active: setup.fixation, run: () => updateSetup({ ...setupRef.current, fixation: true }) },
     ...(inputMode === "desktop" ? [{ label: runtime.tools.pupils.powered ? "PENLIGHT ON ✓" : "SWITCH PENLIGHT ON", run: () => runtime.setToolPower("pupils", true), active: runtime.tools.pupils.powered }] : []),
-    { label: "METHOD SETTINGS", run: () => lesson.setMode("settings") },
     { label: "CLOSE RIGHT EYE · LEFT VIEW", active: setup.examinerEye === "left", run: () => selectExaminerEye("left") },
     { label: "CLOSE LEFT EYE · RIGHT VIEW", active: setup.examinerEye === "right", run: () => selectExaminerEye("right") },
     { label: "OPEN BOTH EYES", active: setup.examinerEye === null, run: () => selectExaminerEye(null) },
-  ];
-  const methodConfiguration: LessonAction[] = [
-    { label: "STANDARD · OS", active: setup.method === "standard", run: () => changeMethod("standard") },
-    { label: "MODIFIED · OD", active: setup.method === "modified", run: () => changeMethod("modified") },
   ];
   const accessiblePrismConfiguration: LessonAction[] = [
     { label: "BASE IN · BI", active: setup.base === "BI", disabled: runtime.tools.prism.placement.kind !== "held" || lesson.recorded, run: () => changePrism("BI", 0) },
@@ -202,6 +203,9 @@ export function KrimskyPracticeController({ active, preview = false, inputMode =
   ];
   const ready = active && !preview && Boolean(captured);
   const guidance = krimskyGuidedStep({
+    viewingIssue,
+    requiredEye: krimskyEye(setup.method),
+    baseSelected: setup.base === "BI" || setup.base === "BO",
     penlightHeld: runtime.tools.pupils.placement.kind === "held",
     fixation: setup.fixation,
     examinerEyeSelected: Boolean(setup.examinerEye),
@@ -210,25 +214,18 @@ export function KrimskyPracticeController({ active, preview = false, inputMode =
     neutral: technique.neutral,
     comparisonCaptured: Boolean(captured),
     powerEntered: Boolean(lesson.entries.power),
+    baseEntered: Boolean(lesson.entries.base),
     recorded: lesson.recorded,
   });
-  useEffect(() => { onMirror?.({ title: setup.method === "modified" ? "Modified Krimsky" : "Krimsky", findingPosition: { current: index + 1, total: krimskyCases.length },
-    status: `${status} · selected prism ${setup.power}Δ ${setup.base || "base unselected"}`, ready, entryReady: ready, fields, actions: [...actions, ...methodConfiguration, ...accessiblePrismConfiguration], lesson, reset, record, next, cancel }); },
+  useEffect(() => { onMirror?.({ title: setup.method === "modified" ? "Modified Krimsky" : "Krimsky", findingPosition: { current: index + 1, total: krimskyPracticeCases.length },
+    status: captured ? status : `${status} · selected prism ${setup.power}Δ ${setup.base || "base unselected"}`, ready, entryReady: ready, fields, actions: [...actions, ...accessiblePrismConfiguration], lesson, reset, record, next, cancel }); },
     [onMirror, status, ready, technique.correctionReady, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, index, setup, runtime.tools.prism.placement.kind, prismAnchorPower]);
-  const settings = <XRHeadPanel>
-    <Box s={[.78, .66, .018]} c="#102329" radius={.012} />
-    <XRSign text={["KRIMSKY · METHOD", "Prism direction and power use the held prism's thumbstick."]} p={[0, .21, .012]} size={[.72, .14]} bg="#102329" fg="#eefbf7" />
-    {methodConfiguration.map((action, i) => <XRPanelButton key={action.label} label={action.label} active={action.active} disabled={action.disabled}
-      position={[i ? .18 : -.18, .08, .025]} width={.34} onClick={action.run} />)}
-    <XRPanelButton label="CLOSE SETTINGS" position={[-.18, -.08, .025]} width={.34} onClick={() => lesson.setMode("none")} />
-    <XRPanelButton label="EXIT VR" position={[.18, -.08, .025]} width={.34} onClick={onExit} />
-    <XRSign text={[status]} p={[0, -.23, .012]} size={[.72, .12]} bg="#102329" fg="#eefbf7" />
-  </XRHeadPanel>;
   return <>
     <XRClinicRuntimeView cleanHands runtime={runtime} active={active && !preview} preview={preview}
-      title="KRIMSKY · PRACTICE" instruction="Prism thumbstick: ← BI · BO → · ↑↓ power · trigger compare"
+      title={`${method === "modified" ? "MODIFIED" : "STANDARD"} KRIMSKY · PRACTICE`} instruction="Prism thumbstick: ← BI · BO → · ↑↓ power · trigger compare"
       instrumentSettings={{ prism: { power: setup.power, base: setup.base, anchorPower: prismAnchorPower ?? undefined, aligned: prismAnchorPower !== null,
         reflexOffset: clinicKrimskyReflex(finding, technique.residual), showReflex: prismAnchorPower !== null && technique.lit } }} showWallInstructions={!guided} />
+    {active && !preview && guided && <XRWorkingDistanceLabel runtime={runtime} tool="pupils" eye={krimskyEye(method)} distanceCm={technique.distanceCm} ready={technique.distanceReady} />}
     {(active || preview) && guided && <XRGuidedStepBubble stepId={guidance.id} stepNumber={guidance.index + 1}
       total={KRIMSKY_GUIDED_STEP_COUNT} title={guidance.title} lines={guidance.lines} complete={guidance.complete} />}
     {active && <group ref={reflexes} visible={false} userData={{ xrIgnoreRay: true }}>
@@ -237,7 +234,7 @@ export function KrimskyPracticeController({ active, preview = false, inputMode =
       </mesh>)}
     </group>}
     <PracticeLessonUI runtime={runtime} active={active} title={setup.method === "modified" ? "MODIFIED KRIMSKY" : "KRIMSKY"} status={status} tools={["pupils", "prism"]} actions={actions} fields={fields} lesson={lesson}
-      entryReady={ready} ready={ready} onRecord={record} onReset={reset} onNext={next} onExit={onExit} settings={settings} onCancel={cancel}
-      help={["Ask fixation on the penlight; hold its trigger.", "Say which eye you are closing; this records only your examiner-eye choice.", "Observe the initial reflex positions, then pick up the prism bar with your free hand.", "Standard: prism before OS; modified: before OD.", "Prism thumbstick: left = BI, right = BO, up/down changes power.", "Prism-hand trigger captures the neutral endpoint; A/X opens recording."]} />
+      entryReady={ready} ready={ready} onRecord={record} onReset={reset} onNext={next} onExit={onExit} onCancel={cancel}
+      help={["Ask fixation on the penlight; hold its trigger.", "Say which eye you are closing; this records only your examiner-eye choice.", "Observe the initial reflex positions, then pick up the prism bar with your free hand.", `${method === "modified" ? "Modified" : "Standard"}: prism before ${krimskyEye(method)} for this case.`, "Prism thumbstick: left = BI, right = BO, up/down changes power.", "Prism-hand trigger captures the neutral endpoint; A/X opens recording."]} />
   </>;
 }
