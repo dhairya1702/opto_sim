@@ -23,14 +23,14 @@ export type BrucknerGuidedState = {
 /** Uses the same physical and recording state as the Bruckner lesson. */
 export function brucknerGuidedStep(state: BrucknerGuidedState): GuidedCoachStep {
   if (state.recorded) return {
-    id: "record", index: 5, title: "Technique complete",
-    lines: ["Your comparison is recorded.", "Review the feedback or try the next finding."], complete: true,
+    id: "record", index: 5, title: "Complete",
+    lines: [], complete: true,
   };
   if (state.captured) return {
     id: "record", index: 5, title: "Record the comparison",
     lines: state.observationChosen
-      ? ["Your reflex comparison is selected.", "Press SUBMIT on the findings board."]
-      : ["Choose equal, OD brighter, or OS brighter", "from what you saw through the scope."],
+      ? ["Press SUBMIT"]
+      : ["Choose your observation"],
     complete: false,
   };
   if (!state.toolHeld) return {
@@ -39,25 +39,25 @@ export function brucknerGuidedStep(state: BrucknerGuidedState): GuidedCoachStep 
   };
   if (!state.fixation) return {
     id: "instruct", index: 1, title: "Instruct Arun",
-    lines: ["Ask him to look directly at the light.", "Use the LOOK AT THE LIGHT control or say it."], complete: false,
+    lines: ["Ask him to look directly at the light."], complete: false,
   };
   if (!state.largeSpot) return {
     id: "aperture", index: 2, title: "Select the large aperture",
-    lines: ["Use your free hand on the rear selector.", "Choose the large gold circle for both pupils."], complete: false,
+    lines: ["Use your free hand to increase aperture"], complete: false,
   };
   if (!state.light || !state.distanceReady || !state.aimReady || !state.illuminated) return {
     id: "illuminate", index: 3, title: "Illuminate both pupils",
     lines: [
-      state.light ? "Keep the trigger held to maintain the beam." : "Hold the instrument trigger to switch on the light.",
-      !state.distanceReady ? "Move to the taught 90–110 cm working zone."
-        : !state.aimReady ? "Distance correct · aim midway between both pupils."
-          : !state.illuminated ? "Distance and aim correct · keep both pupils inside the light beam."
-            : "Both pupils illuminated · keep the light steady.",
+      state.light ? "Keep the trigger held to maintain the beam." : "Hold the trigger to switch on the light.",
+      !state.distanceReady ? "Keep the light between 90–110 cm."
+        : !state.aimReady ? "Aim between both pupils."
+          : !state.illuminated ? "Keep both pupils inside the light beam."
+            : "Keep the light steady.",
     ], complete: false,
   };
   return {
     id: "inspect", index: 4, title: "Inspect both red reflexes",
-    lines: ["Distance and illumination correct · press B/Y on the instrument hand.", "Compare both red reflexes together, then close the view."], complete: false,
+    lines: ["Press B/Y on the instrument hand.", "Compare the reflexes"], complete: false,
   };
 }
 
@@ -78,20 +78,19 @@ export type HirschbergGuidedState = {
 /** Uses the same physical capture and explicit entry state as the Hirschberg lesson. */
 export function hirschbergGuidedStep(state: HirschbergGuidedState): GuidedCoachStep {
   if (state.recorded) return {
-    id: "record", index: 5, title: "Technique complete",
-    lines: ["Your interpretation is recorded.", "Review the feedback or try the next finding."], complete: true,
+    id: "record", index: 5, title: "Complete",
+    lines: [], complete: true,
   };
   if (state.captured) {
     if (!state.directionChosen || !state.landmarkChosen) return {
       id: "interpret", index: 4, title: "Interpret the reflexes",
-      lines: [
-        state.directionChosen ? "Direction selected; now choose the landmark." : "Choose the deviation direction you observed.",
-        state.landmarkChosen ? "Landmark selected; check the direction too." : "Then choose the approximate displacement landmark.",
-      ], complete: false,
+      lines: state.directionChosen ? ["Direction selected"]
+        : state.landmarkChosen ? ["Landmark selected"]
+          : ["Choose the deviation direction and the approximate displacement landmark."], complete: false,
     };
     return {
       id: "record", index: 5, title: "Record the interpretation",
-      lines: ["Direction and landmark are selected.", "Press SUBMIT on the findings board."], complete: false,
+      lines: ["Press SUBMIT"], complete: false,
     };
   }
   if (!state.toolHeld) return {
@@ -100,20 +99,18 @@ export function hirschbergGuidedStep(state: HirschbergGuidedState): GuidedCoachS
   };
   if (!state.fixation) return {
     id: "instruct", index: 1, title: "Instruct Arun",
-    lines: ["Ask him to look directly at the light.", "Use the LOOK AT THE LIGHT control or say it."], complete: false,
+    lines: ["Ask him to look directly at the light."], complete: false,
   };
   if (!state.light || !state.distanceReady) return {
     id: "position", index: 2, title: "Set the penlight position",
     lines: [
-      state.light ? "Keep the trigger held to maintain the light." : "Hold the trigger to switch the penlight on.",
-      state.distanceReady ? "The 50 cm working distance is set." : "Position the light at about 50 cm.",
+      "Hold the trigger to switch the penlight on.",
+      "Position the light at about 50 cm.",
     ], complete: false,
   };
   return {
     id: "inspect", index: 3, title: "Align and inspect",
-    lines: [
-      state.aimReady ? "Penlight aim is centred between both eyes." : "Aim midway between both eyes.",
-      state.viewReady ? "Hold steady to capture both reflexes." : "Face the patient and look toward both eyes.",
-    ], complete: false,
+    lines: [!state.aimReady ? "Aim midway between both eyes."
+      : state.viewReady ? "Hold steady to capture both reflexes." : "Face the patient and look toward both eyes."], complete: false,
   };
 }
