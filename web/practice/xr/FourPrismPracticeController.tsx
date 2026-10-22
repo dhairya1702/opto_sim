@@ -1,3 +1,4 @@
+import { usePracticeVoiceProcedure } from "../../voice/usePracticeVoiceProcedure";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Quaternion, Vector3 } from "three";
@@ -166,7 +167,7 @@ export function FourPrismPracticeController({ active, preview = false, inputMode
     selectPrismBase(eye === "OD" ? "left" : "right");
     runtime.setDesktopHeldPose("four-prism", desktopPatientFacingPose("four-prism", [anchor[0], anchor[1], anchor[2] + .06]));
   };
-  const fixationAction: LessonAction = { label: "LOOK AT THE ISOLATED LETTER", disabled: !run.fitted || run.recorded,
+  const fixationAction: LessonAction = { voiceIds: ["fixate-target"], label: "LOOK AT THE ISOLATED LETTER", disabled: !run.fitted || run.recorded,
     active: run.fixationSetupRevision === run.setupRevision, run: fixate };
   const withdrawAction: LessonAction = { label: "WITHDRAW PRISM", disabled: run.phase !== "withdraw",
     run: () => inputMode === "desktop"
@@ -225,6 +226,7 @@ export function FourPrismPracticeController({ active, preview = false, inputMode
   const status = `${neutral}${guided && techniqueReason ? ` · ${techniqueReason}` : ""}${run.notice ? ` · ${run.notice}` : ""}`;
   const guidance = fourPrismGuidedStep(run);
 
+  usePracticeVoiceProcedure("four-prism", active && !preview, { actions, voiceReport: undefined });
   useEffect(() => { onMirror?.({ title: "4Δ base-out", reportLines: history, status, ready, entryReady, fields, actions, lesson, reset, record, next, cancel }); },
     [onMirror, history.join("|"), status, ready, entryReady, fields, run, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded]);
 

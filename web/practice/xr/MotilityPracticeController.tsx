@@ -1,3 +1,4 @@
+import { usePracticeVoiceProcedure } from "../../voice/usePracticeVoiceProcedure";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { CLINIC_EYE_MIDPOINT } from "../../interaction/clinicPatient";
@@ -89,8 +90,8 @@ export function MotilityPracticeController({ active, preview = false, inputMode 
     askedRef.current = true; setAsked(true);
   };
   const actions = [
-    { label: following ? "FOLLOWING ✓" : "FOLLOW LIGHT · HEAD STILL", run: () => { followingRef.current = true; setFollowing(true); }, active: following },
-    { label: asked ? "SYMPTOMS ASKED ✓" : "ASK ABOUT SYMPTOMS", run: ask, disabled: readout.count !== gazePositions.length, active: asked },
+    { voiceIds: ["follow-target"], label: following ? "FOLLOWING ✓" : "FOLLOW LIGHT · HEAD STILL", run: () => { followingRef.current = true; setFollowing(true); }, active: following },
+    { voiceIds: ["report-symptoms"], label: asked ? "SYMPTOMS ASKED ✓" : "ASK ABOUT SYMPTOMS", run: ask, disabled: readout.count !== gazePositions.length, active: asked },
     ...(inputMode === "desktop" ? [{ label: runtime.tools.pupils.powered ? "PENLIGHT ON ✓" : "SWITCH PENLIGHT ON", run: () => runtime.setToolPower("pupils", true), active: runtime.tools.pupils.powered },
       { label: "MOVE TO NEXT GAZE", run: () => { desktopGaze.current = (desktopGaze.current + 1) % motilityHRoutePositions.length; runtime.setDesktopHeldPose("pupils", desktopPose()); } }] : []),
   ];
@@ -115,8 +116,9 @@ export function MotilityPracticeController({ active, preview = false, inputMode 
       ? scenario.teachingFeedback
       : `That does not match this finding. Recheck both eyes in each gaze direction and compare the symptom report.`);
   };
+  usePracticeVoiceProcedure("motility", active && !preview, { actions, voiceReport: asked ? scenario.patientReply : undefined });
   useEffect(() => { onMirror?.({ title: "Motility", findingPosition: { current: motilityScenarios.findIndex(item => item.id === scenario.id) + 1, total: motilityScenarios.length },
-    reportLines: asked ? [scenario.patientReply] : undefined, status, ready, entryReady: ready, fields, actions, lesson, reset, record, next: onNext }); },
+    voiceReport: asked ? scenario.patientReply : undefined, reportLines: asked ? [scenario.patientReply] : undefined, status, ready, entryReady: ready, fields, actions, lesson, reset, record, next: onNext }); },
     [onMirror, status, ready, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, following, asked, scenario, onNext]);
   return <>
     <XRClinicRuntimeView cleanHands runtime={runtime} active={active && !preview} preview={preview}

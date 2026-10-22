@@ -1,3 +1,4 @@
+import practiceVoice from "../../shared/practiceVoice.json" with { type: "json" };
 const normalize = (value) => value.toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 const prohibited = /answer key|rubric|score|diagnos|test result|ignore .*instruction|system prompt|prescription|lens power/;
 const instructionPatterns = {
@@ -10,19 +11,6 @@ const instructionPatterns = {
 const encounterActionPatterns = {
   "dim-room": ["dim the lights", "dim room", "dim the room", "turn the room lights down", "lower the room lights", "make the room darker", "lights off", "turn off the lights", "switch off the lights", "room lights off"],
   "restore-room": ["restore the lights", "restore room lights", "turn the room lights on", "turn the lights back on", "bring the lights back up", "brighten the room", "lights on", "turn on the lights", "switch on the lights", "room lights on"],
-};
-const practicePatterns = {
-  "fixate-light": ["look at the light", "fixate the light"],
-  "target-on": ["turn on the target", "switch the target on", "switch the worth lights on", "switch the worth target on"],
-  "target-off": ["turn off the target", "switch the target off", "switch the worth lights off", "switch the worth target off"],
-  "fixate-target": ["look at the target", "fixate the target", "keep looking at the dots"],
-  "follow-target": ["follow the target", "follow the light"],
-  "report-symptoms": ["symptom", "double vision", "any pain", "any discomfort"],
-  "request-report": ["what do you see", "tell me what you see", "how many dots", "what colours do you see", "what colors do you see", "tell me where the dots are", "report now"],
-  "report-clear": ["is it clear", "can you clear", "clear now"],
-  "examiner-close-right-eye": ["close my right eye", "use my left eye", "left examiner eye"],
-  "examiner-close-left-eye": ["close my left eye", "use my right eye", "right examiner eye"],
-  "examiner-open-both-eyes": ["open both eyes", "opening both eyes", "use both eyes", "binocular view"],
 };
 const socialPatterns = [
   ["introduction", /\b(?:what is|whats|tell me) your name\b|\bwho are you\b/],
@@ -78,8 +66,8 @@ export function routeDeterministic(transcript, context, utteranceId) {
     if (socialId) return { kind: "social", socialId, utteranceId, transcript };
     return null;
   }
-  for (const [actionId, patterns] of Object.entries(practicePatterns)) {
-    if (context.allowedActions.includes(actionId) && patterns.some(pattern => q.includes(pattern))) return { kind: "practice-action", lessonId: context.lessonId, actionId, utteranceId, transcript };
+  for (const { id: actionId, phrases: patterns } of practiceVoice[context.lessonId] || []) {
+    if (context.allowedActions.includes(actionId) && patterns.some(pattern => q.includes(normalize(pattern)))) return { kind: "practice-action", lessonId: context.lessonId, actionId, utteranceId, transcript };
   }
   const socialId = socialIntent(q);
   if (socialId) return { kind: "social", socialId, utteranceId, transcript };

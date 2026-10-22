@@ -30,7 +30,7 @@ export class VoiceOutputArbiter {
 
   preferCanonical(generation: number) {
     if (!this.isCurrent(generation)) return false;
-    if (this.active?.kind === "gemini") this.active.stop();
+    this.active?.stop();
     this.active = undefined;
     return true;
   }

@@ -62,7 +62,8 @@ function facilityPreparationIssue(sample: FacilitySpatialSample) {
 }
 
 export function establishFacilityFixation(run: AccommodativeFacilityRun, sample: FacilitySpatialSample) {
-  if (run.phase === "complete" || run.capture) return run;
+  // Repeating an instruction is not a restart; never strand a live timer in ready.
+  if (run.phase === "complete" || run.capture || run.fixation) return run;
   const issue = facilityPreparationIssue(sample);
   if (issue) return Object.freeze({ ...run, feedback: issue });
   return Object.freeze({ ...run, phase: "ready" as const, fixation: true,

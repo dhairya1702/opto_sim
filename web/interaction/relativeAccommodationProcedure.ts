@@ -74,7 +74,7 @@ export function relativeAccommodationHasProgress(run: RelativeAccommodationRun) 
 }
 
 export function giveRelativeAccommodationInstruction(run: RelativeAccommodationRun, sample: RelativeAccommodationSpatialSample) {
-  if (run.phase === "complete" || run.praCapture) return run;
+  if (run.phase === "complete" || run.praCapture || run.instructionArmed) return run;
   const issue = relativeAccommodationGeometryIssue(sample);
   if (issue) return Object.freeze({ ...run, feedback: issue });
   return Object.freeze({ ...run, phase: "initial-clear" as const, instructionArmed: true,
@@ -82,7 +82,7 @@ export function giveRelativeAccommodationInstruction(run: RelativeAccommodationR
 }
 
 export function confirmRelativeAccommodationInitialClear(run: RelativeAccommodationRun, sample: RelativeAccommodationSpatialSample) {
-  if (run.phase === "complete" || run.praCapture) return run;
+  if (run.phase === "complete" || run.praCapture || run.initialClearConfirmed) return run;
   const issue = relativeAccommodationGeometryIssue(sample);
   if (issue) return Object.freeze({ ...run, feedback: issue });
   if (!run.instructionArmed) return Object.freeze({ ...run, feedback: "First ask the patient to keep the line clear and single and report sustained blur." });
@@ -92,7 +92,8 @@ export function confirmRelativeAccommodationInitialClear(run: RelativeAccommodat
 }
 
 export function confirmRelativeAccommodationBaseline(run: RelativeAccommodationRun, sample: RelativeAccommodationSpatialSample) {
-  if (!run.nraCapture || run.praCapture || run.phase === "complete") return Object.freeze({ ...run, feedback: "Capture NRA before confirming the baseline." });
+  if (run.baselineConfirmed || run.phase === "complete") return run;
+  if (!run.nraCapture || run.praCapture) return Object.freeze({ ...run, feedback: "Capture NRA before confirming the baseline." });
   const issue = relativeAccommodationGeometryIssue(sample);
   if (issue) return Object.freeze({ ...run, feedback: issue });
   if (run.powerD !== 0) return Object.freeze({ ...run, feedback: "Remove all plus power and return the holder to 0.00 D first." });
@@ -157,11 +158,16 @@ export function sampleRelativeAccommodation(run: RelativeAccommodationRun, sampl
   if (issue) {
     if (!relativeAccommodationHasProgress(run)) return Object.freeze({ ...run, invalidSinceMs: null, feedback: issue, report: "" });
     const invalidSinceMs = run.invalidSinceMs ?? sample.nowMs;
+    // Grace preserves setup, not sustained-blur credit across invalid geometry.
     if (sample.nowMs - invalidSinceMs < RELATIVE_SETUP_GRACE_MS)
-      return Object.freeze({ ...run, invalidSinceMs, feedback: `${issue} Restore the setup within 250 ms to continue.` });
+      return Object.freeze({ ...run, invalidSinceMs, blurSinceMs: null, feedback: `${issue} Restore the setup within 250 ms to continue.` });
     return cancelUnfinishedDwell(run, `${issue} Frozen endpoints were preserved; restore the setup to continue.`);
   }
-  if (run.invalidSinceMs !== null) run = Object.freeze({ ...run, invalidSinceMs: null });
+  if (run.invalidSinceMs !== null) {
+    if (sample.nowMs - run.invalidSinceMs >= RELATIVE_SETUP_GRACE_MS)
+      run = cancelUnfinishedDwell(run, "The setup interruption exceeded 250 ms. Restore alignment for a fresh response dwell.");
+    else run = Object.freeze({ ...run, invalidSinceMs: null });
+  }
   if (!run.instructionArmed) return Object.freeze({ ...run, feedback: "Ask the patient to keep the line clear and single and report the first sustained blur." });
   if (!run.initialClearConfirmed) return Object.freeze({ ...run, phase: "initial-clear" as const,
     feedback: "Confirm that the near line is initially clear and single at 0.00 D.", report: "The letters are clear and single." });

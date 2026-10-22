@@ -1,0 +1,593 @@
+{
+  "motility": [
+    {
+      "id": "follow-target",
+      "phrases": [
+        "follow the target",
+        "follow the light"
+      ],
+      "acknowledgement": "Okay, I will follow it with my eyes."
+    },
+    {
+      "id": "report-symptoms",
+      "phrases": [
+        "any symptoms",
+        "any double vision",
+        "any pain",
+        "any discomfort",
+        "symptoms",
+        "double vision"
+      ],
+      "acknowledgement": "I will tell you if I notice double vision, pain, or discomfort."
+    }
+  ],
+  "bruckner": [
+    {
+      "id": "fixate-light",
+      "phrases": [
+        "look at the light",
+        "fixate the light"
+      ],
+      "acknowledgement": "Okay, I am looking at the light."
+    }
+  ],
+  "hirschberg": [
+    {
+      "id": "fixate-light",
+      "phrases": [
+        "look at the light",
+        "fixate the light"
+      ],
+      "acknowledgement": "Okay, I am looking at the light."
+    }
+  ],
+  "krimsky": [
+    {
+      "id": "fixate-light",
+      "phrases": [
+        "look at the light",
+        "fixate the light"
+      ],
+      "acknowledgement": "Okay, I am looking at the light."
+    },
+    {
+      "id": "examiner-close-right-eye",
+      "phrases": [
+        "close my right eye",
+        "use my left eye",
+        "left examiner eye"
+      ],
+      "acknowledgement": "Left examiner-eye view active."
+    },
+    {
+      "id": "examiner-close-left-eye",
+      "phrases": [
+        "close my left eye",
+        "use my right eye",
+        "right examiner eye"
+      ],
+      "acknowledgement": "Right examiner-eye view active."
+    },
+    {
+      "id": "examiner-open-both-eyes",
+      "phrases": [
+        "open both eyes",
+        "opening both eyes",
+        "use both eyes",
+        "binocular view"
+      ],
+      "acknowledgement": "Binocular examiner view restored."
+    }
+  ],
+  "cover-uncover": [
+    {
+      "id": "fixate-target",
+      "phrases": [
+        "look at the target",
+        "fixate the target",
+        "keep looking at the dots",
+        "look at the light",
+        "fixate the light",
+        "look at the light",
+        "fixate the light"
+      ],
+      "acknowledgement": "Okay, I am looking at the target."
+    }
+  ],
+  "alternate-cover": [
+    {
+      "id": "fixate-target",
+      "phrases": [
+        "look at the target",
+        "fixate the target",
+        "keep looking at the dots",
+        "look at the light",
+        "fixate the light",
+        "look at the light",
+        "fixate the light"
+      ],
+      "acknowledgement": "Okay, I am looking at the target."
+    }
+  ],
+  "worth": [
+    {
+      "id": "target-on",
+      "phrases": [
+        "turn on the target",
+        "switch the worth lights on",
+        "switch the worth target on",
+        "switch the target on"
+      ],
+      "acknowledgement": "Worth target switched on."
+    },
+    {
+      "id": "target-off",
+      "phrases": [
+        "turn off the target",
+        "switch the worth lights off",
+        "switch the worth target off",
+        "switch the target off"
+      ],
+      "acknowledgement": "Worth target switched off."
+    },
+    {
+      "id": "fixate-target",
+      "phrases": [
+        "look at the target",
+        "fixate the target",
+        "keep looking at the dots",
+        "look at the light",
+        "fixate the light",
+        "look at the light",
+        "fixate the light"
+      ],
+      "acknowledgement": "Okay, I am looking at the target."
+    },
+    {
+      "id": "request-report",
+      "phrases": [
+        "what do you see",
+        "tell me what you see",
+        "how many dots",
+        "what colours do you see",
+        "tell me where the dots are",
+        "report now",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see"
+      ],
+      "acknowledgement": "I can report what I see now that the examination setup is ready."
+    }
+  ],
+  "stereopsis": [
+    {
+      "id": "fixate-target",
+      "phrases": [
+        "look at the circles",
+        "keep looking at the booklet",
+        "fixate the circles",
+        "keep looking at the circles"
+      ],
+      "acknowledgement": "Okay, I’m looking at the circles."
+    },
+    {
+      "id": "request-report",
+      "phrases": [
+        "which circle appears raised",
+        "which circle is raised",
+        "which circle is closer",
+        "does one circle stand out",
+        "what do you see",
+        "tell me what you see",
+        "what colors do you see"
+      ],
+      "acknowledgement": "I can report what I see now that the examination setup is ready."
+    }
+  ],
+  "four-prism": [
+    {
+      "id": "fixate-target",
+      "phrases": [
+        "look at the isolated letter",
+        "keep looking at the letter",
+        "keep the letter single",
+        "look at the letter",
+        "fixate the letter"
+      ],
+      "acknowledgement": "Okay, I’m looking at the letter and keeping it single."
+    }
+  ],
+  "maddox": [
+    {
+      "id": "fixate-target",
+      "phrases": [
+        "look at the target",
+        "fixate the target",
+        "keep looking at the dots",
+        "look at the light",
+        "fixate the light",
+        "look at the light",
+        "fixate the light"
+      ],
+      "acknowledgement": "Okay, I am looking at the target."
+    },
+    {
+      "id": "request-report",
+      "phrases": [
+        "what do you see",
+        "tell me what you see",
+        "how many dots",
+        "what colours do you see",
+        "tell me where the dots are",
+        "report now",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see"
+      ],
+      "acknowledgement": "I can report what I see now that the examination setup is ready."
+    }
+  ],
+  "thorington": [
+    {
+      "id": "fixate-target",
+      "phrases": [
+        "look at the target",
+        "fixate the target",
+        "keep looking at the dots",
+        "look at the light",
+        "fixate the light",
+        "look at the light",
+        "fixate the light"
+      ],
+      "acknowledgement": "Okay, I am looking at the target."
+    },
+    {
+      "id": "request-report",
+      "phrases": [
+        "what do you see",
+        "tell me what you see",
+        "how many dots",
+        "what colours do you see",
+        "tell me where the dots are",
+        "report now",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see"
+      ],
+      "acknowledgement": "I can report what I see now that the examination setup is ready."
+    }
+  ],
+  "npc": [
+    {
+      "id": "fixate-target",
+      "phrases": [
+        "look at the target",
+        "fixate the target",
+        "keep this clear and single tell me when it becomes double",
+        "tell me when it becomes double",
+        "keep the target clear and single"
+      ],
+      "acknowledgement": "Okay, I am looking at the target."
+    },
+    {
+      "id": "request-report",
+      "phrases": [
+        "what do you see",
+        "tell me what you see",
+        "how many dots",
+        "what colours do you see",
+        "tell me where the dots are",
+        "report now",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "is it clear",
+        "is it double",
+        "has it blurred"
+      ],
+      "acknowledgement": "I can report what I see now that the examination setup is ready."
+    }
+  ],
+  "horizontal-distance": [
+    {
+      "id": "fixate-target",
+      "phrases": [
+        "look at the target",
+        "fixate the target",
+        "tell me when it first blurs becomes double and becomes single again",
+        "report blur double and recovery",
+        "tell me when it blurs doubles and becomes single again"
+      ],
+      "acknowledgement": "Okay, I am looking at the target."
+    },
+    {
+      "id": "request-report",
+      "phrases": [
+        "what do you see",
+        "tell me what you see",
+        "how many dots",
+        "what colours do you see",
+        "tell me where the dots are",
+        "report now",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "is it clear",
+        "is it double",
+        "has it blurred"
+      ],
+      "acknowledgement": "I can report what I see now that the examination setup is ready."
+    }
+  ],
+  "vertical-distance": [
+    {
+      "id": "fixate-target",
+      "phrases": [
+        "look at the target",
+        "fixate the target",
+        "tell me when it becomes double and becomes single again",
+        "report double and recovery",
+        "tell me when it doubles and becomes single again"
+      ],
+      "acknowledgement": "Okay, I am looking at the target and will report sustained double vision and when it becomes single again."
+    },
+    {
+      "id": "request-report",
+      "phrases": [
+        "what do you see",
+        "tell me what you see",
+        "how many dots",
+        "what colours do you see",
+        "tell me where the dots are",
+        "report now",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "is it clear",
+        "is it double",
+        "has it blurred"
+      ],
+      "acknowledgement": "I can report what I see now that the examination setup is ready."
+    }
+  ],
+  "horizontal-near": [
+    {
+      "id": "fixate-target",
+      "phrases": [
+        "look at the near target",
+        "fixate the near target",
+        "tell me when it first blurs becomes double and becomes single again",
+        "report near blur double and recovery"
+      ],
+      "acknowledgement": "Okay, I am looking at the near target and will report sustained blur, double vision, and when it becomes single again."
+    },
+    {
+      "id": "request-report",
+      "phrases": [
+        "what do you see",
+        "tell me what you see",
+        "how many dots",
+        "what colours do you see",
+        "tell me where the dots are",
+        "report now",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "is it clear",
+        "is it double",
+        "has it blurred"
+      ],
+      "acknowledgement": "I can report what I see now that the examination setup is ready."
+    }
+  ],
+  "facility": [
+    {
+      "id": "fixate-target",
+      "phrases": [
+        "look at the target",
+        "fixate the target",
+        "keep looking at the dots",
+        "look at the light",
+        "fixate the light",
+        "look at the light",
+        "fixate the light"
+      ],
+      "acknowledgement": "Okay, I am looking at the target."
+    },
+    {
+      "id": "report-clear",
+      "phrases": [
+        "is it clear",
+        "can you clear it",
+        "can you clear",
+        "clear now"
+      ],
+      "acknowledgement": "It is clear and single now."
+    }
+  ],
+  "push-up": [
+    {
+      "id": "fixate-target",
+      "phrases": [
+        "look at the near target",
+        "fixate the near target",
+        "tell me when it first becomes blurred",
+        "report the first sustained blur"
+      ],
+      "acknowledgement": "Okay, I am reading the line and will report the first blur that remains blurred."
+    },
+    {
+      "id": "request-report",
+      "phrases": [
+        "what do you see",
+        "tell me what you see",
+        "how many dots",
+        "what colours do you see",
+        "tell me where the dots are",
+        "report now",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "is it clear",
+        "is it double",
+        "has it blurred"
+      ],
+      "acknowledgement": "I can report what I see now that the examination setup is ready."
+    }
+  ],
+  "minus-lens": [
+    {
+      "id": "fixate-target",
+      "phrases": [
+        "look at the near target",
+        "fixate the near target",
+        "tell me when it first becomes blurred",
+        "report the first sustained blur"
+      ],
+      "acknowledgement": "Okay, I am reading the line and will report the first blur that remains blurred."
+    },
+    {
+      "id": "request-report",
+      "phrases": [
+        "what do you see",
+        "tell me what you see",
+        "how many dots",
+        "what colours do you see",
+        "tell me where the dots are",
+        "report now",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "is it clear",
+        "is it double",
+        "has it blurred"
+      ],
+      "acknowledgement": "I can report what I see now that the examination setup is ready."
+    }
+  ],
+  "relative": [
+    {
+      "id": "fixate-target",
+      "phrases": [
+        "look at the near target",
+        "keep the line clear and single",
+        "tell me when it first becomes blurred",
+        "report the first sustained blur"
+      ],
+      "acknowledgement": "Okay, I will keep the line clear and single and report the first blur that remains blurred."
+    },
+    {
+      "id": "request-report",
+      "phrases": [
+        "what do you see",
+        "tell me what you see",
+        "how many dots",
+        "what colours do you see",
+        "tell me where the dots are",
+        "report now",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "what colors do you see",
+        "is it clear",
+        "is it double",
+        "has it blurred"
+      ],
+      "acknowledgement": "I can report what I see now that the examination setup is ready."
+    }
+  ],
+  "accommodative-facility": [
+    {
+      "id": "fixate-target",
+      "phrases": [
+        "look at the target",
+        "fixate the target",
+        "keep looking at the dots",
+        "look at the light",
+        "fixate the light",
+        "look at the light",
+        "fixate the light"
+      ],
+      "acknowledgement": "Okay, I am looking at the target."
+    },
+    {
+      "id": "report-clear",
+      "phrases": [
+        "is it clear",
+        "can you clear it",
+        "can you clear",
+        "clear now"
+      ],
+      "acknowledgement": "It is clear and single now."
+    }
+  ]
+}

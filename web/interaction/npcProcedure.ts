@@ -153,6 +153,7 @@ export function configureNPCRun(run: NPCRun, action: "fit-correction" | "pickup-
   if (action === "fit-correction") return Object.freeze({ ...run, correctionFitted: true, feedback: "Near correction fitted. Pick up the RAF-style rule." });
   if (action === "pickup-rule") return Object.freeze({ ...run, ruleHeld: true, released: false, feedback: "Dock the patient end at the spectacle plane." });
   if (action === "dock-rule") return Object.freeze({ ...run, ruleHeld: false, ruleDocked: true, released: false, feedback: "Align the upright rule on the binocular midline." });
+  if (run.instructionArmed) return run;
   return Object.freeze({ ...run, instructionArmed: true, phase: "start", feedback: "Set the carriage within 38–42 cm and hold starting fixation." });
 }
 
@@ -193,7 +194,7 @@ export function sampleNPC(run: NPCRun, sample: NPCSpatialSample): NPCRun {
   if (run.phase === "complete" || run.record || run.released || run.captures.length === NPC_TRIAL_COUNT) return run;
   const issue = setupIssue(run, sample);
   if (issue) return (run.phase === "approach" || run.phase === "recovery" || run.phase === "recovery-start")
-    ? resetUnfinishedApproach(run, issue) : Object.freeze({ ...run, feedback: issue, report: "" });
+    ? resetUnfinishedApproach(run, issue) : Object.freeze({ ...run, startStableSinceMs: null, feedback: issue, report: "" });
 
   if (run.phase === "setup") return Object.freeze({ ...run, phase: "start", feedback: "Set the carriage within 38–42 cm." });
   if (run.phase === "start") {

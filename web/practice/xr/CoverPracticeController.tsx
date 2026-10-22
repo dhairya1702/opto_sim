@@ -1,3 +1,4 @@
+import { usePracticeVoiceProcedure } from "../../voice/usePracticeVoiceProcedure";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { ALTERNATE_COVER_GUIDED_STEP_COUNT, COVER_UNCOVER_GUIDED_STEP_COUNT, coverGuidedStep } from "../../interaction/alignmentGuidance";
@@ -248,7 +249,7 @@ export function CoverPracticeController({ active, preview = false, inputMode = "
     runtime.setDesktopHeldPose("cover", desktopPatientFacingPose("cover", point));
   };
   const actions = [
-    { label: fixation ? `${readout.mode.toUpperCase()} FIXATION GIVEN ✓` : `LOOK AT THE ${readout.mode === "distance" ? "DISTANCE" : "NEAR"} TARGET`,
+    { voiceIds: ["fixate-target"], label: fixation ? `${readout.mode.toUpperCase()} FIXATION GIVEN ✓` : `LOOK AT THE ${readout.mode === "distance" ? "DISTANCE" : "NEAR"} TARGET`,
       run: () => { if (!readout.targetReady) return; setup.current.fixation = true; setFixation(true); },
       active: fixation, disabled: !readout.targetReady },
     ...(inputMode === "desktop" && (!readout.observed || readout.trial) ? [{ label: `POSITION OCCLUDER · ${practiceCoverProcedures[kind][readout.index]?.label ?? "SEQUENCE COMPLETE"}`, run: positionDesktopOccluder }] : []),
@@ -326,6 +327,7 @@ export function CoverPracticeController({ active, preview = false, inputMode = "
     { label: "POWER −2Δ", run: () => changePrism(setup.current.base, Math.max(0, setup.current.power - 2)), disabled: !prismHeld },
     { label: "POWER +2Δ", run: () => changePrism(setup.current.base, Math.min(30, setup.current.power + 2)), disabled: !prismHeld },
     { label: "REPEAT SEQUENCE", run: repeat }];
+  usePracticeVoiceProcedure(kind, active && !preview, { actions, voiceReport: undefined });
   useEffect(() => { onMirror?.({ title: kind === "cover-uncover" ? "Cover–uncover" : "Alternating cover", findingPosition: { current: scenarioIndex % (kind === "cover-uncover" ? coverScenarios.length : alternateCoverScenarios.length) + 1, total: kind === "cover-uncover" ? coverScenarios.length : alternateCoverScenarios.length },
     status: kind === "alternate-cover" ? `${status} · prism ${power}Δ ${base || "base unselected"}` : status, ready, entryReady, fields,
     actions: kind === "alternate-cover" ? [...actions, ...prismActions] : actions, lesson, reset, record, next,

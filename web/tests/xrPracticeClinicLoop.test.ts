@@ -1,4 +1,5 @@
 import { createElement } from "react";
+import { act } from "@react-three/fiber";
 import * as THREE from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { clinic } from "./helpers/xrClinicHarness";
@@ -48,23 +49,24 @@ describe("Hirschberg in the shared consultation clinic", () => {
   it("keeps held equipment and trigger state when advancing, but requires a new inspection before the next answer", async () => {
     const sim = await lesson(true); await sim.prepare();
     await sim.click(1, sim.button("NO DEVIATION")); await sim.click(1, sim.button("CENTRED · 0°"));
-    await sim.click(1, sim.button("SUBMIT / CHECK")); expect(sim.complete).toHaveBeenCalledTimes(1);
+    await sim.click(1, sim.button("SUBMIT")); expect(sim.complete).toHaveBeenCalledTimes(1);
     const toolPose = sim.tool("pupils").getWorldPosition(new THREE.Vector3());
     await sim.click(1, sim.button("NEW PATIENT FINDING")); await sim.rerender(); await sim.step(1 / 72, 12);
     expect(sim.mirror().held).toBe(true); expect(sim.mirror().light).toBe(true);
     expect(sim.tool("pupils").getWorldPosition(new THREE.Vector3()).distanceTo(toolPose)).toBeLessThan(1e-8);
     expect(sim.mirror().direction).toBe(""); expect(sim.mirror().amount).toBe(""); expect(sim.mirror().fixation).toBe(false);
-    await sim.click(1, sim.button("HYPERTROPIA")); await sim.click(1, sim.button("LIMBUS · ~45°"));
-    await sim.click(1, sim.button("SUBMIT / CHECK")); expect(sim.complete).toHaveBeenCalledTimes(1);
+    expect(() => sim.button("SUBMIT")).toThrow();
+    await act(async () => sim.mirror().record()); expect(sim.complete).toHaveBeenCalledTimes(1);
     await sim.click(1, sim.button("LOOK AT THE LIGHT")); await sim.step(1 / 72, 12);
     expect(sim.mirror().technique.ready).toBe(true);
-    await sim.click(1, sim.button("SUBMIT / CHECK")); expect(sim.complete).toHaveBeenCalledTimes(2);
+    await sim.click(1, sim.button("HYPERTROPIA")); await sim.click(1, sim.button("LIMBUS · ~45°"));
+    await sim.click(1, sim.button("SUBMIT")); expect(sim.complete).toHaveBeenCalledTimes(2);
     expect(sim.labels()).toContain("CORRECT"); expect(sim.encounter().results).toHaveLength(0);
   });
   it("uses the same preserve-tool next action from the browser mirror", async () => {
     const sim = await lesson(true); await sim.prepare();
     await sim.click(1, sim.button("NO DEVIATION")); await sim.click(1, sim.button("CENTRED · 0°"));
-    await sim.click(1, sim.button("SUBMIT / CHECK")); expect(sim.complete).toHaveBeenCalledTimes(1);
+    await sim.click(1, sim.button("SUBMIT")); expect(sim.complete).toHaveBeenCalledTimes(1);
     const toolPose = sim.tool("pupils").getWorldPosition(new THREE.Vector3());
     sim.mirror().next(); await sim.rerender(); await sim.step(1 / 72, 12);
     expect(sim.next).toHaveBeenCalledTimes(1);
@@ -82,15 +84,17 @@ describe("Hirschberg in the shared consultation clinic", () => {
     await sim.event(0, "selectstart"); await sim.step(1 / 72, 12);
     expect(sim.mirror().technique.distanceReady).toBe(false);
     expect(sim.reflexes().every(object => !object.visible)).toBe(true);
-    await sim.click(1, sim.button("NO DEVIATION")); await sim.click(1, sim.button("CENTRED · 0°"));
-    await sim.click(1, sim.button("SUBMIT / CHECK"));
+    expect(() => sim.button("NO DEVIATION")).toThrow();
+    expect(() => sim.button("SUBMIT")).toThrow();
+    await act(async () => sim.mirror().record());
     expect(sim.complete).not.toHaveBeenCalled();
     expect(sim.labels().some(label => label.includes("No observation was captured yet"))).toBe(true);
 
     await sim.at(0, [0, 1.5, .064]); await sim.step(1 / 72, 12);
     expect(sim.mirror().technique.ready).toBe(true);
     expect(sim.reflexes().every(object => object.visible)).toBe(true);
-    expect(sim.labels()).toContain("OBSERVATION CAPTURED ✓ · choose answers and submit");
+    expect(sim.mirror().captured).toBe(true);
+    expect(sim.labels()).toContain("Observation");
 
     sim.viewerCamera.rotation.y = .4; await sim.step(1 / 72, 12);
     expect(sim.mirror().technique.ready).toBe(false);
@@ -99,7 +103,7 @@ describe("Hirschberg in the shared consultation clinic", () => {
     await sim.event(0, "selectend"); await sim.step(1 / 72, 12);
     expect(sim.reflexes().every(object => !object.visible)).toBe(true);
     await sim.click(1, sim.button("NO DEVIATION")); await sim.click(1, sim.button("CENTRED · 0°"));
-    await sim.click(1, sim.button("SUBMIT / CHECK"));
+    await sim.click(1, sim.button("SUBMIT"));
     expect(sim.complete).toHaveBeenCalledTimes(1);
   });
   it("puts one findings form on the rear wall, keeps hands clean and explains an incomplete submission", async () => {
@@ -123,12 +127,12 @@ describe("Hirschberg in the shared consultation clinic", () => {
     await sim.step(1 / 72, 12); expect(board!.position.equals(anchored)).toBe(true);
     expect(sim.controls().some(object => object.parent?.userData.xrToolControls)).toBe(false);
     expect(sim.labels().filter(label => label === "Penlight")).toHaveLength(1);
-    await sim.click(0, sim.button("NO DEVIATION"));
-    await sim.click(0, sim.button("CENTRED · 0°"));
-    await sim.click(0, sim.button("SUBMIT / CHECK"));
+    expect(() => sim.button("NO DEVIATION")).toThrow();
+    expect(() => sim.button("SUBMIT")).toThrow();
+    await act(async () => sim.mirror().record());
     expect(sim.mirror().light).toBe(false); expect(sim.complete).not.toHaveBeenCalled();
     expect(sim.labels().some(label => label.includes("No observation was captured yet"))).toBe(true);
-    expect(sim.mirror().direction).toBe("none"); expect(sim.mirror().amount).toBe("0");
+    expect(sim.mirror().direction).toBe(""); expect(sim.mirror().amount).toBe("");
     await sim.click(0, sim.button("HELP"));
     expect(sim.rays[0].visible).toBe(true);
     await sim.click(0, sim.button("CLOSE HELP")); expect(sim.mirror().help).toBe(false);
@@ -145,12 +149,12 @@ describe("Hirschberg in the shared consultation clinic", () => {
     await sim.putDown(0); await sim.step(1 / 72, 12);
     expect(sim.mirror().technique.ready).toBe(false);
     await sim.click(1, sim.button("EXOTROPIA")); await sim.click(1, sim.button("PUPIL EDGE · ~15°"));
-    await sim.click(1, sim.button("SUBMIT / CHECK"));
+    await sim.click(1, sim.button("SUBMIT"));
     expect(sim.mirror().checked).toBe(true); expect(sim.mirror().correct).toBe(false);
     expect(sim.labels()).toContain("TRY AGAIN");
     expect(sim.complete).not.toHaveBeenCalled();
     await sim.click(1, sim.button("NO DEVIATION")); await sim.click(1, sim.button("CENTRED · 0°"));
-    await sim.click(1, sim.button("SUBMIT / CHECK"));
+    await sim.click(1, sim.button("SUBMIT"));
     expect(sim.mirror().correct).toBe(true); expect(sim.complete).toHaveBeenCalledTimes(1);
     expect(sim.labels()).toContain("CORRECT");
     expect(sim.encounter().results).toHaveLength(0);
@@ -194,11 +198,11 @@ describe("Hirschberg in the shared consultation clinic", () => {
     expect(sim.mirror().direction).toBe(""); expect(sim.mirror().amount).toBe("");
     await sim.click(1, sim.button("EXOTROPIA"));
     await sim.click(1, sim.button("PUPIL EDGE · ~15°"));
-    await sim.click(1, sim.button("SUBMIT / CHECK"));
+    await sim.click(1, sim.button("SUBMIT"));
     expect(sim.mirror().correct).toBe(false); expect(sim.complete).not.toHaveBeenCalled();
     await sim.click(1, sim.button("NO DEVIATION"));
     await sim.click(1, sim.button("CENTRED · 0°"));
-    await sim.click(1, sim.button("SUBMIT / CHECK"));
+    await sim.click(1, sim.button("SUBMIT"));
     expect(sim.complete).toHaveBeenCalledTimes(1);
     sim.mirror().record(); sim.mirror().record();
     expect(sim.complete).toHaveBeenCalledTimes(1);
@@ -221,7 +225,7 @@ describe("Hirschberg in the shared consultation clinic", () => {
     await sim.prepare();
 
     await sim.click(1, sim.button("HYPERTROPIA")); await sim.click(1, sim.button("LIMBUS · ~45°"));
-    await sim.click(1, sim.button("SUBMIT / CHECK"));
+    await sim.click(1, sim.button("SUBMIT"));
     expect(sim.complete).toHaveBeenCalledTimes(1);
   });
   it("clears retained observation and drafts on cancellation or session exit", async () => {
@@ -230,8 +234,9 @@ describe("Hirschberg in the shared consultation clinic", () => {
     await sim.click(1, sim.button("CANCEL"));
     expect(sim.mirror().direction).toBe(""); expect(sim.mirror().amount).toBe("");
     await sim.event(0, "selectend"); await sim.step(1 / 72, 12);
-    await sim.click(1, sim.button("NO DEVIATION")); await sim.click(1, sim.button("CENTRED · 0°"));
-    await sim.click(1, sim.button("SUBMIT / CHECK")); expect(sim.complete).not.toHaveBeenCalled();
+    expect(() => sim.button("NO DEVIATION")).toThrow();
+    expect(() => sim.button("SUBMIT")).toThrow();
+    await act(async () => sim.mirror().record()); expect(sim.complete).not.toHaveBeenCalled();
     await sim.exit(); sim.mirror().record(); expect(sim.complete).not.toHaveBeenCalled();
   });
   it("rejects the wrong instrument and clears late input on exit", async () => {

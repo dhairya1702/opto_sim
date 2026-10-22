@@ -37,7 +37,7 @@ export function PracticeVRClinic({ title, findingPosition, onClose, onDesktop, i
   const voiceStatus = useVoiceStatus();
   const dialog = useRef<HTMLDialogElement>(null);
   const renderer = useRef<WebGLRenderer | null>(null);
-  const { session, mounted, closing } = usePracticeXRSessionLifetime();
+  const { session, mounted, closing, generation } = usePracticeXRSessionLifetime();
   const startingRef = useRef(false);
   const [support, setSupport] = useState<"checking" | "supported" | "unavailable">(inputMode === "desktop" ? "unavailable" : "checking");
   const [starting, setStarting] = useState(false);
@@ -79,23 +79,25 @@ export function PracticeVRClinic({ title, findingPosition, onClose, onDesktop, i
   const enter = async () => {
     if (startingRef.current || session.current || closing.current) return;
     startingRef.current = true; setStarting(true); setError(""); setPreview(false);
+    const attempt = generation.current;
+    const current = () => mounted.current && !closing.current && generation.current === attempt;
     let next: XRSession | null = null;
     try {
       if (!navigator.xr || !renderer.current || failed) throw new Error("The VR renderer is unavailable. Use the desktop clinical view.");
       next = await navigator.xr.requestSession("immersive-vr", { requiredFeatures: ["local-floor"] });
-      if (!mounted.current || closing.current) { await next.end(); return; }
+      if (!current()) { await next.end(); return; }
       session.current = next;
       next.addEventListener("end", () => {
-        if (!mounted.current || session.current !== next) return;
+        if (!current() || session.current !== next) return;
         session.current = null; setActive(false);
       }, { once: true });
       renderer.current.xr.setReferenceSpaceType("local-floor");
       await renderer.current.xr.setSession(next);
-      if (!mounted.current || closing.current || session.current !== next) { await next.end().catch(() => undefined); return; }
+      if (!current() || session.current !== next) { await next.end().catch(() => undefined); return; }
       renderer.current.xr.setFoveation(.6); setActive(true);
     } catch (reason) {
       if (next) { if (session.current === next) session.current = null; await next.end().catch(() => undefined); }
-      if (mounted.current) setError(reason instanceof Error ? reason.message : "VR could not start. Try again or use the desktop clinical view.");
+      if (current()) setError(reason instanceof Error ? reason.message : "VR could not start. Try again or use the desktop clinical view.");
     } finally {
       startingRef.current = false; if (mounted.current) setStarting(false);
     }

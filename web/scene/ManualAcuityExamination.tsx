@@ -1,3 +1,4 @@
+import { requestedChart, testVoiceInstructionTarget, type TestVoiceInstructionDetail } from "../voice/testInstructions";
 import { Component, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import type { ExamConfig } from "../domain/types";
@@ -158,6 +159,24 @@ export function ManualAcuityExamination({
   const ready =
     asked && positioned && aligned && correctNearDistance && readingComplete && !!observation && viewReady && !viewFailed;
 
+  useEffect(() => {
+    const handle = (event: Event) => {
+      const detail = (event as CustomEvent<TestVoiceInstructionDetail>).detail;
+      if (detail.instructionId !== "read-chart") return;
+      event.preventDefault();
+      const requested = requestedChart(detail.transcript);
+      if (requested && requested !== examId) {
+        detail.result = { accepted: false, spokenText: `This is the ${examId === "near" ? "near-card" : examId} examination. Please select the chart you want me to read.`, errorCode: "CHART_MISMATCH" };
+      } else if (viewFailed) {
+        detail.result = { accepted: false, spokenText: "The chart is unavailable. Please reopen the examination.", errorCode: "TECHNIQUE_GATE" };
+      } else {
+        setAsked(true);
+        detail.result = { accepted: true, spokenText: "Okay, I will read what I can.", suppressAudio: voice };
+      }
+    };
+    testVoiceInstructionTarget.addEventListener("opto:voice-instruction", handle);
+    return () => testVoiceInstructionTarget.removeEventListener("opto:voice-instruction", handle);
+  }, [examId, viewFailed, voice]);
   useEffect(() => {
     const element = dialog.current!;
     element.showModal();

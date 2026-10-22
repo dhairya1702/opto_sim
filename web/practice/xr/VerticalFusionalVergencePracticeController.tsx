@@ -1,3 +1,4 @@
+import { usePracticeVoiceProcedure } from "../../voice/usePracticeVoiceProcedure";
 import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
@@ -176,8 +177,8 @@ export function VerticalFusionalVergencePracticeController({ active, preview = f
     { label: "FIT DISTANCE CORRECTION", active: state.run.correctionFitted, run: fitCorrection },
     { label: "ESTABLISH PREPARED MIRRORED TARGET", active: state.run.targetEstablished && targetReady(), disabled: !state.run.correctionFitted || !targetReady(), run: establishTarget },
     { label: "TOGGLE DISTANCE TARGET POWER", active: runtime.tools.worth.powered, run: () => { if (live) runtime.setToolPower("worth", !runtime.toolsRef.current.worth.powered); } },
-    { label: "GIVE DOUBLE / RECOVERY INSTRUCTION", active: state.run.instructionArmed, disabled: !state.run.targetEstablished, run: instruct },
-    { label: "PATIENT REPORT · WHAT DO YOU SEE?", disabled: !state.run.instructionArmed, run: publish },
+    { voiceIds: ["fixate-target"], label: "GIVE DOUBLE / RECOVERY INSTRUCTION", active: state.run.instructionArmed, disabled: !state.run.targetEstablished, run: instruct },
+    { voiceIds: ["request-report"], label: "PATIENT REPORT · WHAT DO YOU SEE?", disabled: !state.run.instructionArmed, run: publish },
     { label: "DIAL +0.1Δ · ACCESSIBILITY", disabled: !state.run.prismHeld || state.run.released, run: () => adjust(.1) },
     { label: "DIAL −0.1Δ · ACCESSIBILITY", disabled: !state.run.prismHeld || state.run.released, run: () => adjust(-.1) },
     ...(state.run.captures.BU && state.run.captures.BD && !state.run.released ? [{ label: "RELEASE ROTARY PRISM", run: release }] : []),
@@ -186,6 +187,7 @@ export function VerticalFusionalVergencePracticeController({ active, preview = f
   const capturedCount = Number(Boolean(state.run.captures.BU)) + Number(Boolean(state.run.captures.BD));
   const status = `${capturedCount}/2 directions · accessible scale ${state.power.toFixed(1)}Δ · ${state.base ?? "physically roll BU/BD"} · ${neutralPhase} · ${state.run.feedback}`;
   const voiceReport = state.run.instructionArmed ? verticalFusionalPatientReport(state.run, state.power) : undefined;
+  usePracticeVoiceProcedure("vertical-distance", active && !preview, { actions, voiceReport: voiceReport });
   useEffect(() => { onMirror?.({ title: LIBRARY_TITLES["vertical-distance"], findingPosition: { current: state.run.captures.BU ? 2 : 1, total: 2 },
     status, ready: entryReady, entryReady, fields: entryFields, actions, lesson, reset, record, cancel, reportLines: state.history, voiceReport });
   }, [onMirror, status, entryReady, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);

@@ -1,3 +1,4 @@
+import { usePracticeVoiceProcedure } from "../../voice/usePracticeVoiceProcedure";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Vector3 } from "three";
@@ -182,7 +183,7 @@ export function MaddoxPracticeController({ active, preview = false, inputMode = 
   const fittingGuideSocketIds = maddoxFittingGuideSocketIds(spatial, trial);
   const highlightPowerSwitch = guided && trial.site === "distance" && spatial.targetReady && !spatial.targetPowered;
   const actions = [
-    { label: run.reportInstruction ? "REPORTING INSTRUCTION GIVEN ✓" : "ASK STREAK / LIGHT RELATION", run: ask, active: run.reportInstruction, disabled: Boolean(run.capture) },
+    { voiceIds: ["fixate-target", "request-report"], label: run.reportInstruction ? "REPORTING INSTRUCTION GIVEN ✓" : "ASK STREAK / LIGHT RELATION", run: ask, active: run.reportInstruction, disabled: Boolean(run.capture) },
     { label: "PRISM TRIGGER · CAPTURE", run: capture, disabled: Boolean(run.capture) },
     { label: "FIT CORRECTION", run: () => placeAtSocket("subjective", "sensory-correction"), active: spatial.correctionFitted },
     { label: `FIT MADDOX ROD · ${trial.axis === "horizontal" ? "HORIZONTAL" : "VERTICAL"} GROOVES`,
@@ -196,6 +197,7 @@ export function MaddoxPracticeController({ active, preview = false, inputMode = 
     { id: "base", label: "Captured prism base", choices: (["BI", "BO", "BU", "BD"] as const).map(value => [value, value]) },
   ];
   const records = run.records.map(record => `${record.capture.site} ${record.capture.axis}: ${record.submittedPower}Δ ${record.submittedBase} · ${Math.round(record.capture.distanceCm)} cm`);
+  usePracticeVoiceProcedure("maddox", active && !preview, { actions, voiceReport: run.report || undefined });
   useEffect(() => { onMirror?.({ title: "Maddox rod", voiceReport: run.report || undefined, findingPosition: { current: run.trialIndex + 1, total: 4 }, status,
     ready: entryReady, entryReady, reportLines: records, fields, actions, lesson, reset, record, cancel });
   }, [onMirror, status, entryReady, run, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, runtime.tools]);

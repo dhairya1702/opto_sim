@@ -17,6 +17,7 @@ export function loadConfig(env = process.env) {
     maxSessionsPerIp: Number(env.VOICE_MAX_SESSIONS_PER_IP || 2),
     sessionLimitMs: Number(env.VOICE_SESSION_LIMIT_MS || 30 * 60_000),
     inactivityLimitMs: Number(env.VOICE_INACTIVITY_LIMIT_MS || 5 * 60_000),
+    semanticResponseLimitMs: Number(env.VOICE_SEMANTIC_RESPONSE_LIMIT_MS || 8000),
     maxJsonBytes: Number(env.VOICE_MAX_JSON_BYTES || 16_384),
     maxAudioFrameBytes: Number(env.VOICE_MAX_AUDIO_FRAME_BYTES || 131_072),
   };

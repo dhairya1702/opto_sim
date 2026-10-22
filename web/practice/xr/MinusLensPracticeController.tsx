@@ -1,3 +1,4 @@
+import { usePracticeVoiceProcedure } from "../../voice/usePracticeVoiceProcedure";
 import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
 import { minusLensBoardActions } from "../../interaction/practiceBoardActions";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -161,9 +162,9 @@ export function MinusLensPracticeController({ active, preview = false, inputMode
   const actions: LessonAction[] = [
     { label: "FIT NEAR CORRECTION", active: sample.correctionFitted, run: fitCorrection },
     { label: eye === "OD" ? "COVER OS · TEST OD" : "COVER OD · TEST OS", active: sample.occlusionReady, run: prepareOcclusion },
-    { label: "GIVE FIRST SUSTAINED BLUR INSTRUCTION", active: state.run.instructionArmed, disabled: Boolean(minusLensGeometryBlock(sample)), run: instruct },
+    { voiceIds: ["fixate-target"], label: "GIVE FIRST SUSTAINED BLUR INSTRUCTION", active: state.run.instructionArmed, disabled: Boolean(minusLensGeometryBlock(sample)), run: instruct },
     { label: "CONFIRM LINE CLEAR AT 0.00 D", active: state.run.initialClearConfirmed, disabled: !state.run.instructionArmed || state.run.powerD !== 0 || Boolean(minusLensGeometryBlock(sample)), run: confirmClear },
-    { label: "PATIENT REPORT · WHAT DO YOU SEE?", disabled: !state.run.instructionArmed, run: publish },
+    { voiceIds: ["request-report"], label: "PATIENT REPORT · WHAT DO YOU SEE?", disabled: !state.run.instructionArmed, run: publish },
     { label: "DIAL ADD −0.25 D · ACCESSIBILITY", disabled: !state.run.initialClearConfirmed || state.run.powerD <= -4 || Boolean(state.run.capture), run: () => applyStep("add") },
     { label: "DIAL REMOVE 0.25 D · ACCESSIBILITY", disabled: !state.run.initialClearConfirmed || state.run.powerD >= 0 || Boolean(state.run.capture), run: () => applyStep("remove") },
     { label: "RESTART CURRENT EYE", run: restart },
@@ -174,6 +175,7 @@ export function MinusLensPracticeController({ active, preview = false, inputMode
   const records = state.run.records.map(item => `${item.eye}: ${item.submittedPowerD.toFixed(2)} D added · ${item.submittedAmplitudeD.toFixed(2)} D amplitude`);
   const status = `${state.run.records.length}/2 eyes · ${eye} · accessible scale ${state.run.powerD.toFixed(2)} D · ${attemptKind === "guided" ? state.run.phase.replaceAll("-", " ") : "procedure in progress"} · ${state.run.feedback}`;
   const voiceReport = minusLensPatientReport(state.run) || undefined;
+  usePracticeVoiceProcedure("minus-lens", active && !preview, { actions, voiceReport: voiceReport });
   useEffect(() => { onMirror?.({ title: LIBRARY_TITLES["minus-lens"], findingPosition: { current: Math.min(2, state.run.eyeIndex + 1), total: 2 },
     status, ready: entryReady, entryReady, fields, actions, lesson, reset, record, cancel, reportLines: records, voiceReport });
   }, [onMirror, status, entryReady, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);

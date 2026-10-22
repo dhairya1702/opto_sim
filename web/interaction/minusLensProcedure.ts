@@ -67,7 +67,7 @@ export function interruptMinusLens(run: MinusLensRun, reason: string): MinusLens
 }
 
 export function giveMinusLensInstruction(run: MinusLensRun, sample: MinusLensSpatialSample): MinusLensRun {
-  if (run.capture || run.phase === "complete") return run;
+  if (run.capture || run.phase === "complete" || run.instructionArmed) return run;
   const issue = minusLensGeometryIssue(sample);
   if (issue) return Object.freeze({ ...run, feedback: issue });
   return Object.freeze({ ...run, phase: "initial-clear", instructionArmed: true, feedback: "Confirm that the selected near line is clear at 0.00 D.",
@@ -75,7 +75,7 @@ export function giveMinusLensInstruction(run: MinusLensRun, sample: MinusLensSpa
 }
 
 export function confirmMinusLensInitialClear(run: MinusLensRun, sample: MinusLensSpatialSample): MinusLensRun {
-  if (run.capture || run.phase === "complete") return run;
+  if (run.capture || run.phase === "complete" || run.initialClearConfirmed) return run;
   const issue = minusLensGeometryIssue(sample);
   if (issue) return Object.freeze({ ...run, feedback: issue });
   if (!run.instructionArmed) return Object.freeze({ ...run, feedback: "First ask the patient to report the first sustained blur." });
@@ -106,11 +106,16 @@ export function sampleMinusLens(run: MinusLensRun, sample: MinusLensSpatialSampl
     const hasProgress = run.instructionArmed || run.initialClearConfirmed || run.powerD !== 0;
     if (!hasProgress) return Object.freeze({ ...run, invalidSinceMs: null, feedback: issue, report: "" });
     const invalidSinceMs = run.invalidSinceMs ?? sample.nowMs;
+    // Grace preserves setup, not sustained-blur credit across invalid geometry.
     if (sample.nowMs - invalidSinceMs < MINUS_LENS_SETUP_GRACE_MS)
-      return Object.freeze({ ...run, invalidSinceMs, feedback: `${issue} Restore the setup within 250 ms to continue.` });
+      return Object.freeze({ ...run, invalidSinceMs, blurSinceMs: null, feedback: `${issue} Restore the setup within 250 ms to continue.` });
     return restartCurrent(run, `${issue} Restart ${minusLensEye(run)} at 0.00 D.`);
   }
-  if (run.invalidSinceMs !== null) run = Object.freeze({ ...run, invalidSinceMs: null });
+  if (run.invalidSinceMs !== null) {
+    if (sample.nowMs - run.invalidSinceMs >= MINUS_LENS_SETUP_GRACE_MS)
+      return restartCurrent(run, `The setup interruption exceeded 250 ms. Restart ${minusLensEye(run)} at 0.00 D.`);
+    run = Object.freeze({ ...run, invalidSinceMs: null });
+  }
   if (!run.instructionArmed) return Object.freeze({ ...run, feedback: "Ask the patient to report the first blur that remains blurred." });
   if (!run.initialClearConfirmed) return Object.freeze({ ...run, phase: "initial-clear", feedback: "Confirm that the selected line is clear at 0.00 D.", report: "The letters are clear." });
   if (run.powerD !== minusLensBlurPower) return run;

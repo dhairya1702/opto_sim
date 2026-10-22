@@ -1,3 +1,4 @@
+import { usePracticeVoiceProcedure } from "../../voice/usePracticeVoiceProcedure";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Group, Mesh, MeshBasicMaterial, Quaternion, Vector3 } from "three";
@@ -188,11 +189,11 @@ export function KrimskyPracticeController({ active, preview = false, inputMode =
     : message || (!technique.correctionReady ? `Place the prism before ${krimskyEye(setup.method)} · thumbstick left/right selects BI/BO; up/down changes power.`
       : technique.neutral ? "Reflexes match · prism-hand trigger captures comparison." : "Reflexes remain asymmetric · adjust prism power and compare.");
   const actions: LessonAction[] = [
-    { label: setup.fixation ? "FIXATION GIVEN ✓" : "LOOK AT THE LIGHT", active: setup.fixation, run: () => updateSetup({ ...setupRef.current, fixation: true }) },
+    { voiceIds: ["fixate-light"], label: setup.fixation ? "FIXATION GIVEN ✓" : "LOOK AT THE LIGHT", active: setup.fixation, run: () => updateSetup({ ...setupRef.current, fixation: true }) },
     ...(inputMode === "desktop" ? [{ label: runtime.tools.pupils.powered ? "PENLIGHT ON ✓" : "SWITCH PENLIGHT ON", run: () => runtime.setToolPower("pupils", true), active: runtime.tools.pupils.powered }] : []),
-    { label: "CLOSE RIGHT EYE · LEFT VIEW", active: setup.examinerEye === "left", run: () => selectExaminerEye("left") },
-    { label: "CLOSE LEFT EYE · RIGHT VIEW", active: setup.examinerEye === "right", run: () => selectExaminerEye("right") },
-    { label: "OPEN BOTH EYES", active: setup.examinerEye === null, run: () => selectExaminerEye(null) },
+    { voiceIds: ["examiner-close-right-eye"], label: "CLOSE RIGHT EYE · LEFT VIEW", active: setup.examinerEye === "left", run: () => selectExaminerEye("left") },
+    { voiceIds: ["examiner-close-left-eye"], label: "CLOSE LEFT EYE · RIGHT VIEW", active: setup.examinerEye === "right", run: () => selectExaminerEye("right") },
+    { voiceIds: ["examiner-open-both-eyes"], label: "OPEN BOTH EYES", active: setup.examinerEye === null, run: () => selectExaminerEye(null) },
   ];
   const accessiblePrismConfiguration: LessonAction[] = [
     { label: "BASE IN · BI", active: setup.base === "BI", disabled: runtime.tools.prism.placement.kind !== "held" || lesson.recorded, run: () => changePrism("BI", 0) },
@@ -217,6 +218,7 @@ export function KrimskyPracticeController({ active, preview = false, inputMode =
     baseEntered: Boolean(lesson.entries.base),
     recorded: lesson.recorded,
   });
+  usePracticeVoiceProcedure("krimsky", active && !preview, { actions, voiceReport: undefined });
   useEffect(() => { onMirror?.({ title: setup.method === "modified" ? "Modified Krimsky" : "Krimsky", findingPosition: { current: index + 1, total: krimskyPracticeCases.length },
     status: captured ? status : `${status} · selected prism ${setup.power}Δ ${setup.base || "base unselected"}`, ready, entryReady: ready, fields, actions: [...actions, ...accessiblePrismConfiguration], lesson, reset, record, next, cancel }); },
     [onMirror, status, ready, technique.correctionReady, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, index, setup, runtime.tools.prism.placement.kind, prismAnchorPower]);

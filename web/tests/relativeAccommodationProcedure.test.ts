@@ -106,13 +106,12 @@ describe("relative accommodation procedure", () => {
     });
   });
 
-  it("preserves the short geometry grace period", () => {
+  it("preserves setup during short geometry grace but restarts response dwell", () => {
     let run = pendingEndpoint("NRA");
-    const startedAt = run.blurSinceMs;
     run = sampleRelativeAccommodation(run, valid(2500, { holderAligned: false }));
     run = sampleRelativeAccommodation(run, valid(2500 + RELATIVE_SETUP_GRACE_MS - 1));
     expect(run.phase).toBe("confirming-nra");
-    expect(run.blurSinceMs).toBe(startedAt);
+    expect(run.blurSinceMs).toBe(2500 + RELATIVE_SETUP_GRACE_MS - 1);
     expect(run.invalidSinceMs).toBeNull();
   });
 
@@ -234,4 +233,24 @@ describe("relative accommodation procedure", () => {
     expect(relativeAccommodationDisclosure("test")).toEqual({ showCoach: false, showHighlights: false });
     expect(relativeAccommodationGuidedStep(newRelativeAccommodationRun(), valid(0, { correctionFitted: false })).title).toBe("Fit near correction");
   });
+});
+
+it.each(["NRA", "PRA"] as const)("preserves %s progress through repeated setup commands", kind => {
+  let run = pendingEndpoint(kind);
+  expect(giveRelativeAccommodationInstruction(run, valid(2500))).toBe(run);
+  expect(confirmRelativeAccommodationInitialClear(run, valid(2500))).toBe(run);
+  if (kind === "PRA") expect(confirmRelativeAccommodationBaseline(run, valid(2500))).toBe(run);
+  run = sampleRelativeAccommodation(run, valid(4000));
+  expect(kind === "NRA" ? run.nraCapture : run.praCapture).not.toBeNull();
+});
+it.each(["NRA", "PRA"] as const)("requires a fresh %s dwell after transient alignment loss", kind => {
+  let run = pendingEndpoint(kind);
+  run = sampleRelativeAccommodation(run, valid(3100, { holderAligned: false }));
+  expect(run.blurSinceMs).toBeNull();
+  run = sampleRelativeAccommodation(run, valid(3200));
+  expect(kind === "NRA" ? run.nraCapture : run.praCapture).toBeNull();
+  run = sampleRelativeAccommodation(run, valid(4399));
+  expect(kind === "NRA" ? run.nraCapture : run.praCapture).toBeNull();
+  run = sampleRelativeAccommodation(run, valid(4400));
+  expect(kind === "NRA" ? run.nraCapture : run.praCapture).not.toBeNull();
 });

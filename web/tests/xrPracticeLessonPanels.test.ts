@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { act } from "@react-three/fiber";
-import { Mesh, type Object3D, Vector3 } from "three";
+import { Box3, Mesh, type Object3D } from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { clinic } from "./helpers/xrClinicHarness";
 import { VergencePracticeController } from "../practice/xr/VergencePracticeController";
@@ -9,76 +9,110 @@ import { WorthPracticeController } from "../practice/xr/WorthPracticeController"
 import { PushUpPracticeController } from "../practice/xr/PushUpPracticeController";
 import { MinusLensPracticeController } from "../practice/xr/MinusLensPracticeController";
 import { RelativeAccommodationPracticeController } from "../practice/xr/RelativeAccommodationPracticeController";
-import type { BatchMirror } from "../practice/xr/PracticeLessonUI";
+import { PracticeLessonUI, usePracticeLesson, type BatchMirror, type PracticeLesson } from "../practice/xr/PracticeLessonUI";
+import { useXRClinicRuntime } from "../interaction/useXRClinicRuntime";
 let dispose: (() => Promise<void>) | undefined;
 afterEach(async () => { await dispose?.(); dispose = undefined; vi.unstubAllGlobals(); });
-function panelBounds(scene: Object3D) {
-  let panel: Object3D | undefined;
-  scene.traverse(object => { if (object.userData.xrObservationEditor || object.userData.xrPersistentFindings) panel = object; });
-  if (!panel) throw new Error("Missing lesson panel");
-  const backing = panel.children[0];
-  if (!(backing instanceof Mesh)) throw new Error("Missing panel backing");
-  backing.geometry.computeBoundingBox();
-  const bounds = backing.geometry.boundingBox?.clone().applyMatrix4(backing.matrix);
-  if (!bounds) throw new Error("Missing backing bounds");
-  const buttons: { label: string; left: number; right: number; bottom: number; top: number }[] = [];
+
+function panelBounds(scene: Object3D, surface: "wall" | "head") {
+  const panels: Object3D[] = [];
+  scene.updateMatrixWorld(true);
+  scene.traverse(object => { if (object.userData[surface === "wall" ? "xrPersistentFindings" : "xrObservationEditor"]) panels.push(object); });
+  expect(panels).toHaveLength(1);
+  const panel = panels[0];
+  // The wall findings have no backing. Headset menus still have one.
+  const backing = surface === "head" ? panel.children[0] : undefined;
+  if (backing) expect(backing).toBeInstanceOf(Mesh);
+  const backingBounds = backing ? new Box3().setFromObject(backing) : null;
+  const buttons: { label: string; bounds: Box3 }[] = [];
   panel.traverse(object => {
     if (!object.userData.xrButton) return;
-    const button = object.children[0];
-    if (!(button instanceof Mesh)) throw new Error("Missing button geometry");
-    button.geometry.computeBoundingBox();
-    const size = button.geometry.boundingBox?.getSize(new Vector3());
-    if (!size) throw new Error("Missing button bounds");
-    const point = panel!.worldToLocal(object.getWorldPosition(new Vector3()));
-    buttons.push({ label: object.userData.xrLabel, left: point.x - size.x / 2, right: point.x + size.x / 2, bottom: point.y - size.y / 2, top: point.y + size.y / 2 });
+    const face = object.children[0]; expect(face).toBeInstanceOf(Mesh);
+    const bounds = new Box3().setFromObject(face);
+    if (backingBounds) {
+      expect(bounds.min.x).toBeGreaterThanOrEqual(backingBounds.min.x - 1e-6);
+      expect(bounds.max.x).toBeLessThanOrEqual(backingBounds.max.x + 1e-6);
+      expect(bounds.min.y).toBeGreaterThanOrEqual(backingBounds.min.y - 1e-6);
+      expect(bounds.max.y).toBeLessThanOrEqual(backingBounds.max.y + 1e-6);
+    }
+    buttons.push({ label: object.userData.xrLabel, bounds });
   });
-  for (const button of buttons) {
-    expect(button.left, button.label).toBeGreaterThanOrEqual(bounds.min.x - 1e-6);
-    expect(button.right, button.label).toBeLessThanOrEqual(bounds.max.x + 1e-6);
-    expect(button.bottom, button.label).toBeGreaterThanOrEqual(bounds.min.y - 1e-6);
-    expect(button.top, button.label).toBeLessThanOrEqual(bounds.max.y + 1e-6);
-  }
   for (let i = 0; i < buttons.length; i++) for (let j = i + 1; j < buttons.length; j++) {
-    const a = buttons[i], b = buttons[j];
-    expect(a.left < b.right - 1e-6 && a.right > b.left + 1e-6 && a.bottom < b.top - 1e-6 && a.top > b.bottom + 1e-6, `${a.label} overlaps ${b.label}`).toBe(false);
+    const a = buttons[i].bounds, b = buttons[j].bounds;
+    expect(a.min.x < b.max.x - 1e-6 && a.max.x > b.min.x + 1e-6 && a.min.y < b.max.y - 1e-6 && a.max.y > b.min.y + 1e-6,
+      `${buttons[i].label} overlaps ${buttons[j].label}`).toBe(false);
   }
-  return buttons;
+  return buttons.map(button => button.label);
 }
+
 describe("headset panel layout", () => {
-  it("automatically shows a larger paged numeric findings board after flipper pickup without awarding incomplete work", async () => {
+  it.each(["facility", "worth", "npc", "relative", "push-up", "minus-lens"] as const)("keeps %s observation controls hidden until technique is ready, even if recording mode is requested", async kind => {
     let mirror: BatchMirror;
     const complete = vi.fn();
-    const sim = await clinic({ renderAdapter: ({ active }) => createElement(VergencePracticeController, { active, kind: "facility", onComplete: complete, onExit: vi.fn(), onMirror: next => { mirror = next; } }) });
-    dispose = sim.dispose;
-    expect(sim.controls()).toHaveLength(0);
-    await sim.pickup(1, "prism-flipper");
-    const labels = panelBounds(sim.state.scene).map(button => button.label);
-    expect(labels).toContain("ENTRY +1 cpm"); expect(labels).toContain("PROCEDURE CONTROLS");
-    expect(mirror!.lesson.mode).toBe("none");
-    await act(async () => mirror!.record()); expect(complete).not.toHaveBeenCalled();
-    await sim.click(0, sim.button("SUBMIT / CHECK"));
-    expect(sim.labels()).toContain("NOT READY YET"); expect(complete).not.toHaveBeenCalled();
-    await sim.putDown(1); await sim.step();
-    expect(panelBounds(sim.state.scene).map(button => button.label)).toContain("ENTRY +1 cpm");
-  });
-  it("fits long menus and all Worth entry choices inside the backing without overlapping footer controls", async () => {
-    let mirror: BatchMirror;
-    const sim = await clinic({ renderAdapter: ({ active }) => createElement(WorthPracticeController, { active, onComplete: vi.fn(), onExit: vi.fn(), onMirror: next => { mirror = next; } }) });
-    dispose = sim.dispose;
-    await act(async () => mirror!.lesson.setMode("menu")); await sim.step(1 / 72, 12);
-    expect(panelBounds(sim.state.scene).map(button => button.label)).toContain("CLOSE");
-    await act(async () => mirror!.lesson.setMode("record")); await sim.step(1 / 72, 12);
-    const labels = panelBounds(sim.state.scene).map(button => button.label);
-    expect(labels).toContain("RIGHT HYPER"); expect(labels).toContain("SUBMIT / CHECK");
-  });
-  it.each(["npc", "relative", "push-up", "minus-lens"] as const)("fits paged decimal %s entries and navigation without overlap", async kind => {
-    let mirror: BatchMirror;
     const sim = await clinic({ renderAdapter: ({ active }) => {
-      const common = { active, onComplete: vi.fn(), onExit: vi.fn(), onMirror: (next: BatchMirror) => { mirror = next; } };
-      return kind === "npc" ? createElement(NPCPracticeController, common) : kind === "push-up" ? createElement(PushUpPracticeController, common) : kind === "minus-lens" ? createElement(MinusLensPracticeController, common) : createElement(RelativeAccommodationPracticeController, common);
+      const common = { active, onComplete: complete, onExit: vi.fn(), onMirror: (next: BatchMirror) => { mirror = next; } };
+      return kind === "facility" ? createElement(VergencePracticeController, { ...common, kind: "facility" })
+        : kind === "worth" ? createElement(WorthPracticeController, common)
+        : kind === "npc" ? createElement(NPCPracticeController, common)
+        : kind === "push-up" ? createElement(PushUpPracticeController, common)
+        : kind === "minus-lens" ? createElement(MinusLensPracticeController, common)
+        : createElement(RelativeAccommodationPracticeController, common);
     } }); dispose = sim.dispose;
-    await act(async () => mirror!.lesson.setMode("record")); await sim.step(1 / 72, 12);
-    const labels = panelBounds(sim.state.scene).map(button => button.label); expect(labels).toContain("NEXT ENTRIES"); expect(labels).toContain("SUBMIT / CHECK");
-    await sim.click(1, sim.button("NEXT ENTRIES")); panelBounds(sim.state.scene);
+    if (kind === "facility") await sim.pickup(1, "prism-flipper");
+    await act(async () => mirror!.lesson.setMode("record")); await sim.step();
+    expect(mirror!.ready).toBe(false);
+    const labels = panelBounds(sim.state.scene, "wall");
+    expect(labels).not.toContain("SUBMIT");
+    expect(labels.some(label => label.startsWith("ENTRY "))).toBe(false);
+    await act(async () => {
+      for (const field of mirror!.fields) mirror!.lesson.choose(field.id, field.number ? "1" : field.choices[0][0]);
+      mirror!.record();
+    });
+    expect(complete).not.toHaveBeenCalled();
+    expect(sim.record).not.toHaveBeenCalled(); expect(sim.encounter().results).toEqual([]);
+  });
+
+  // Explicit ready UI fixtures isolate layout from clinical setup. Procedure completion
+  // and captured values are exercised by the mounted lesson and pure procedure tests.
+  it.each(["worth", "npc", "relative", "push-up", "minus-lens"] as const)("fits ready %s entries and pagination without overlap and retains entries between pages", async kind => {
+    let lesson: PracticeLesson;
+    const record = vi.fn();
+    let mirror: BatchMirror;
+    const source = await clinic({ renderAdapter: ({ active }) => {
+      const common = { active, onComplete: vi.fn(), onExit: vi.fn(), onMirror: (next: BatchMirror) => { mirror = next; } };
+      return kind === "worth" ? createElement(WorthPracticeController, common)
+        : kind === "npc" ? createElement(NPCPracticeController, common)
+        : kind === "push-up" ? createElement(PushUpPracticeController, common)
+        : kind === "minus-lens" ? createElement(MinusLensPracticeController, common)
+        : createElement(RelativeAccommodationPracticeController, common);
+    } });
+    dispose = source.dispose;
+    const fields = mirror!.fields;
+    await source.dispose(); dispose = undefined;
+    function ReadyPanel({ active }: { active: boolean }) {
+      lesson = usePracticeLesson(vi.fn());
+      const runtime = useXRClinicRuntime({ active, editorOpen: lesson.mode !== "none", onInterrupt: () => undefined });
+      return createElement(PracticeLessonUI, { runtime, active, title: "Layout fixture", status: "Captured", help: [], tools: [],
+        actions: Array.from({ length: 11 }, (_, index) => ({ label: `ACTION ${index}`, run: () => undefined })), directActions: [],
+        fields, lesson, entryReady: true, ready: true, onRecord: record, onReset: lesson.reset, onExit: vi.fn() });
+    }
+    const sim = await clinic({ renderAdapter: ({ active }) => createElement(ReadyPanel, { active }) }); dispose = sim.dispose;
+    const labels = panelBounds(sim.state.scene, "wall");
+    const paginated = labels.includes("NEXT ENTRIES");
+    if (kind !== "worth") expect(paginated).toBe(true);
+    await sim.click(1, sim.button("SUBMIT")); expect(record).not.toHaveBeenCalled();
+    const first = fields[0];
+    await sim.click(1, sim.button(first.number ? `ENTRY +${first.number.step ?? 1}${first.number.unit}` : first.choices[0][1].toUpperCase()));
+    const entries = { ...lesson!.entries };
+    if (paginated) {
+      await sim.click(1, sim.button("NEXT ENTRIES"));
+      expect(panelBounds(sim.state.scene, "wall")).toContain("PREVIOUS ENTRIES");
+      expect(lesson!.entries).toEqual(entries);
+      await sim.click(1, sim.button("PREVIOUS ENTRIES")); expect(lesson!.entries).toEqual(entries);
+    } else {
+      expect(labels).toContain("RIGHT HYPER");
+    }
+    await act(async () => lesson!.setMode("menu")); await sim.step();
+    expect(panelBounds(sim.state.scene, "head")).toContain("CLOSE");
   });
 });

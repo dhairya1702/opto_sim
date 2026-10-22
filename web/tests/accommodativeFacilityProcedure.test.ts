@@ -120,3 +120,14 @@ describe("shared accommodative-facility procedure", () => {
     expect(run.records.map(record => record.eye)).toEqual(["OD", "OS", "OU"]);
   });
 });
+
+it("keeps repeated fixation and start commands harmless during a timed run", () => {
+  let run = startAccommodativeFacility(establishFacilityFixation(newAccommodativeFacilityRun(), ready(0)), ready(0));
+  run = flipAccommodativeFacility(run, ready(1500));
+  expect(establishFacilityFixation(run, ready(1600))).toBe(run);
+  expect(startAccommodativeFacility(run, ready(1600))).toBe(run);
+  run = flipAccommodativeFacility(run, ready(3300));
+  run = sampleAccommodativeFacility(run, ready(60000));
+  expect(run.capture).toEqual({ eye: "OD", cycles: 1 });
+  expect(establishFacilityFixation(run, ready(60001))).toBe(run);
+});

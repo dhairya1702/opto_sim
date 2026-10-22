@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { XRSessionOwner } from "../interaction/xrSessionOwner";
 import { flushSync } from "react-dom";
 import {
   ArrowRight,
@@ -82,8 +83,8 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
   const [tick, setTick] = useState(Date.now());
   const canvas = useRef<HTMLCanvasElement | null>(null);
   const xrRenderer = useRef<WebGLRenderer | null>(null);
-  const xrSession = useRef<XRSession | null>(null);
-  const xrStarting = useRef(false);
+  const xrOwner = useRef(new XRSessionOwner());
+  useEffect(() => { const owner = xrOwner.current; owner.open(); return () => owner.dispose(); }, []);
   const [xrSupport, setXrSupport] = useState<"checking" | "supported" | "unavailable">("checking");
   const [xrActive, setXrActive] = useState(false);
   const [xrPreview, setXrPreview] = useState(false);
@@ -122,7 +123,13 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
           };
         }
       }
-      return invokeTestVoiceInstruction(command.instructionId, command.transcript);
+      const result = invokeTestVoiceInstruction(command.instructionId, command.transcript);
+      if (command.instructionId === "report-symptoms" && ["HISTORY_CONTEXT", "ACTION_NOT_AVAILABLE_HERE"].includes(result.errorCode ?? "")) {
+        const reply = scriptedPatient.answer(command.transcript, c);
+        dispatch({ type: "askQuestion", question: command.transcript, resolvedFactIds: reply.factIds, utteranceId: command.utteranceId, source: "voice", at: Date.now() });
+        return { accepted: true, spokenText: reply.reply, cacheKeys: reply.factIds.map(id => `${c.id}:${c.version}:history:${id}`) };
+      }
+      return result;
     }
     if (command.kind === "encounter-action") return invokeTestVoiceEncounterAction(command.actionId, command.transcript);
     if (command.kind === "social") return socialVoiceReply(command.socialId);
@@ -153,41 +160,24 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
     if (document.pointerLockElement) document.exitPointerLock();
   };
   const endXR = useCallback(async () => {
-    const active = xrSession.current;
-    xrSession.current = null;
-    try { await active?.end(); } finally {
-      setXrActive(false);
-    }
+    setXrActive(false);
+    await xrOwner.current.stop();
   }, []);
   const toggleXR = useCallback(async () => {
-    if (xrActive) {
-      await endXR();
-      return;
-    }
-    if (xrStarting.current) return;
-    xrStarting.current = true;
-    setXrError("");
-    unlock();
-    let next: XRSession | null = null;
-    try {
-      if (!navigator.xr || !xrRenderer.current) throw new Error("WebXR is not available in this browser.");
-      next = await navigator.xr.requestSession("immersive-vr", { requiredFeatures: ["local-floor"] });
-      xrSession.current = next;
-      next.addEventListener("end", () => {
-        if (xrSession.current === next) xrSession.current = null;
-        setXrActive(false);
-      }, { once: true });
-      xrRenderer.current.xr.setReferenceSpaceType("local-floor");
-      await xrRenderer.current.xr.setSession(next);
-      xrRenderer.current.xr.setFoveation(.6);
-      setXrActive(true);
-    } catch (reason) {
-      if (next) await next.end().catch(() => undefined);
-      if (xrSession.current === next) xrSession.current = null;
-      setXrError(reason instanceof Error ? reason.message : "The VR session could not start.");
-    } finally {
-      xrStarting.current = false;
-    }
+    if (xrActive) { await endXR(); return; }
+    setXrError(""); unlock();
+    const renderer = xrRenderer.current;
+    await xrOwner.current.start(async () => {
+      if (!navigator.xr || !renderer) throw new Error("WebXR is not available in this browser.");
+      return navigator.xr.requestSession("immersive-vr", { requiredFeatures: ["local-floor"] });
+    }, async next => {
+      if (!renderer) throw new Error("The VR renderer is unavailable.");
+      renderer.xr.setReferenceSpaceType("local-floor");
+      await renderer.xr.setSession(next);
+    }, active => {
+      if (active) renderer?.xr.setFoveation(.6);
+      setXrActive(active);
+    }, reason => setXrError(reason instanceof Error ? reason.message : "The VR session could not start."));
   }, [endXR, xrActive]);
   const toggleXRExperience = useCallback(() => {
     if (xrSupport === "unavailable") {
@@ -360,7 +350,7 @@ function TestEncounter({ onExit }: { onExit: () => void }) {
       () => { if (!cancelled) setXrSupport("unavailable"); },
     );
     if (!navigator.xr) setXrSupport("unavailable");
-    return () => { cancelled = true; const active = xrSession.current; xrSession.current = null; void active?.end(); };
+    return () => { cancelled = true; };
   }, []);
   useEffect(() => {
     if (xrActive && (panel || animation)) void endXR();

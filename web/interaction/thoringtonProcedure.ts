@@ -175,7 +175,7 @@ const resetCurrent = (run: ThoringtonRun, feedback: string, incrementRevision = 
 });
 
 export function armThoringtonReport(run: ThoringtonRun, sample: ThoringtonSpatialSample): ThoringtonRun {
-  if (run.phase === "complete" || run.capture) return run;
+  if (run.phase === "complete" || run.capture || run.reportInstruction) return run;
   const current = THORINGTON_CASES[run.caseIndex].trials[run.trialIndex];
   const issue = thoringtonSetupIssue({ ...sample, fixationInstruction: true }, current, run.requiredRodRefitRevision);
   if (issue) return Object.freeze({ ...run, feedback: issue });

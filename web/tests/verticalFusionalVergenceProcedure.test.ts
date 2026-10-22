@@ -181,3 +181,13 @@ describe("vertical distance fusional vergence procedure", () => {
     expect(verticalFusionalDisclosure("test")).toMatchObject({ showCoach: false, showHighlights: false, revealThresholds: false });
   });
 });
+
+it.each(["alignedOD", "targetEstablished", "tracking", "correctionFitted"] as const)("requires fresh vergence baseline dwell after invalid %s", field => {
+  let run = sampleVerticalFusionalRun(configured(), valid(0, 0, "BU"));
+  run = sampleVerticalFusionalRun(run, valid(200, 0, "BU", { [field]: false }));
+  expect(run.baselineStableSinceMs).toBeNull();
+  run = sampleVerticalFusionalRun(run, valid(300, 0, "BU")); expect(run.phase).toBe("baseline");
+  run = sampleVerticalFusionalRun(run, valid(549, 0, "BU")); expect(run.phase).toBe("baseline");
+  run = sampleVerticalFusionalRun(run, valid(550, 0, "BU")); expect(run.phase).toBe("increase");
+  expect(configureVerticalFusionalRun(run, "give-instruction")).toBe(run);
+});

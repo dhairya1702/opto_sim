@@ -150,3 +150,10 @@ describe("shared Modified Thorington procedure", () => {
     expect(thoringtonTestStatus(newThoringtonRun(), sample())).not.toMatch(/6|right|esophoria/i);
   });
 });
+
+it("does not restart valid stability when the reporting instruction is repeated", () => {
+  let run = sampleThorington(armThoringtonReport(newThoringtonRun(), sample()), sample(), 100);
+  expect(armThoringtonReport(run, sample())).toBe(run);
+  run = sampleThorington(run, sample(), 350);
+  expect(run.capture).not.toBeNull();
+});

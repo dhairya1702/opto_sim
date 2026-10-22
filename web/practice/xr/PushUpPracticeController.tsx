@@ -1,3 +1,4 @@
+import { usePracticeVoiceProcedure } from "../../voice/usePracticeVoiceProcedure";
 import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
 import { pushUpBoardActions } from "../../interaction/practiceBoardActions";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -143,8 +144,8 @@ export function PushUpPracticeController({ active, preview = false, inputMode = 
   const actions: LessonAction[] = [
     { label: "FIT NEAR CORRECTION", active: sample.correctionFitted, run: fitCorrection },
     { label: eye === "OD" ? "COVER OS · TEST OD" : eye === "OS" ? "COVER OD · TEST OS" : "REMOVE COVER · TEST OU", active: sample.occlusionReady, run: prepareOcclusion },
-    { label: "GIVE FIRST SUSTAINED BLUR INSTRUCTION", active: state.run.instructionArmed, disabled: !sample.ruleDocked, run: instruct },
-    { label: "PATIENT REPORT · WHAT DO YOU SEE?", disabled: !state.run.instructionArmed, run: publish },
+    { voiceIds: ["fixate-target"], label: "GIVE FIRST SUSTAINED BLUR INSTRUCTION", active: state.run.instructionArmed, disabled: !sample.ruleDocked, run: instruct },
+    { voiceIds: ["request-report"], label: "PATIENT REPORT · WHAT DO YOU SEE?", disabled: !state.run.instructionArmed, run: publish },
     { label: "RESTART CURRENT EYE", run: restart },
   ];
   const directActions = pushUpBoardActions(state.run).map(id => ({ instruction: actions[2], report: actions[3] })[id]);
@@ -152,6 +153,7 @@ export function PushUpPracticeController({ active, preview = false, inputMode = 
   const xrStatus = `${state.run.records.length}/3 eyes · ${eye} · ${state.run.phase.replaceAll("-", " ")} · ${state.run.feedback}`;
   const accessibleStatus = `${state.run.records.length}/3 eyes · ${eye} · accessible ruler reading ${state.distance.toFixed(1)} cm · ${state.run.feedback}`;
   const voiceReport = state.run.instructionArmed ? state.run.report || "The letters are clear." : undefined;
+  usePracticeVoiceProcedure("push-up", active && !preview, { actions, voiceReport: voiceReport });
   useEffect(() => { onMirror?.({ title: LIBRARY_TITLES["push-up"], findingPosition: { current: Math.min(3, state.run.eyeIndex + 1), total: 3 },
     status: accessibleStatus, ready: entryReady, entryReady, fields, actions, lesson, reset, record, cancel, reportLines: records, voiceReport });
   }, [onMirror, accessibleStatus, entryReady, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);

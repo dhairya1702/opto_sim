@@ -230,3 +230,13 @@ describe("horizontal distance fusional vergence procedure", () => {
     expect(fusionalDisclosure("test")).toMatchObject({ showCoach: false, showHighlights: false, revealThresholds: false });
   });
 });
+
+it.each(["alignedOD", "targetEstablished", "tracking", "correctionFitted"] as const)("requires fresh vergence baseline dwell after invalid %s", field => {
+  let run = sampleFusionalRun(configured(), valid(0, 0, "BI"));
+  run = sampleFusionalRun(run, valid(200, 0, "BI", { [field]: false }));
+  expect(run.baselineStableSinceMs).toBeNull();
+  run = sampleFusionalRun(run, valid(300, 0, "BI")); expect(run.phase).toBe("baseline");
+  run = sampleFusionalRun(run, valid(549, 0, "BI")); expect(run.phase).toBe("baseline");
+  run = sampleFusionalRun(run, valid(550, 0, "BI")); expect(run.phase).toBe("increase");
+  expect(configureFusionalRun(run, "give-instruction")).toBe(run);
+});

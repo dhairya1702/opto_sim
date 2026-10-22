@@ -44,7 +44,7 @@ async function lesson(preview = false, attemptKind?: PracticeAttemptKind) {
   const enter = async (count: number, interpretation: string) => {
     await act(async () => mirror!.lesson.setMode("record")); await sim.step();
     await sim.click(1, sim.button(`${count} DOTS`)); await sim.click(1, sim.button(interpretation));
-    await sim.click(1, sim.button("SUBMIT / CHECK")); await sim.step(1 / 72, 12);
+    await sim.click(1, sim.button("SUBMIT")); await sim.step(1 / 72, 12);
   };
   const targetSwitch = () => {
     let control: Object3D | undefined;
@@ -78,11 +78,11 @@ describe("mounted Worth Practice with the shared clinic runtime", () => {
 
   it("runs all twelve Guided steps from physical setup through both endpoint records", async () => {
     const sim = await lesson(false, "guided");
-    expect(sim.labels()).toContain("GUIDED · STEP 1 OF 12");
-    await sim.seat("subjective", "sensory-correction"); expect(sim.labels()).toContain("GUIDED · STEP 2 OF 12");
-    await sim.seat("red-green", "sensory-red-green"); expect(sim.labels()).toContain("GUIDED · STEP 3 OF 12");
-    await sim.pickup(0, "worth"); await sim.step(1 / 72, 12); expect(sim.labels()).toContain("GUIDED · STEP 4 OF 12");
-    await sim.near(true); expect(sim.labels()).toContain("GUIDED · STEP 5 OF 12");
+    expect(sim.guidedStep()).toBe("fit-correction");
+    await sim.seat("subjective", "sensory-correction"); expect(sim.guidedStep()).toBe("fit-filters");
+    await sim.seat("red-green", "sensory-red-green"); expect(sim.guidedStep()).toBe("pick-up-target");
+    await sim.pickup(0, "worth"); await sim.step(1 / 72, 12); expect(sim.guidedStep()).toBe("position-near");
+    await sim.near(true); expect(sim.guidedStep()).toBe("power-target");
     const haptics = sim.haptics[1].mock.calls.length;
     await sim.click(0, sim.targetSwitch()); // The target-holding hand cannot operate its side switch.
     expect(sim.mirror().actions.some(action => action.label === "SWITCH TARGET ON")).toBe(true);
@@ -90,28 +90,28 @@ describe("mounted Worth Practice with the shared clinic runtime", () => {
     await sim.at(1, [0, 1.6, 1.8]); await sim.click(1, sim.targetSwitch()); // Free hand remains outside control reach.
     expect(sim.mirror().actions.some(action => action.label === "SWITCH TARGET ON")).toBe(true);
     await sim.physicalSwitch(); expect(sim.mirror().actions.some(action => action.label === "SWITCH TARGET OFF")).toBe(true);
-    expect(sim.haptics[1]).toHaveBeenCalledTimes(haptics + 1); expect(sim.labels()).toContain("GUIDED · STEP 6 OF 12");
+    expect(sim.haptics[1]).toHaveBeenCalledTimes(haptics + 1); expect(sim.guidedStep()).toBe("fixate-near");
     expect(sim.mirror().actions.some(action => action.label.includes("FILTER CHECK"))).toBe(false);
-    await sim.action("LOOK AT THE TARGET"); expect(sim.labels()).toContain("GUIDED · STEP 7 OF 12");
-    await sim.action("ASK COUNT, COLOURS AND POSITIONS"); expect(sim.labels()).toContain("GUIDED · STEP 8 OF 12");
+    await sim.action("LOOK AT THE TARGET"); expect(sim.guidedStep()).toBe("elicit-near");
+    await sim.action("ASK COUNT, COLOURS AND POSITIONS"); expect(sim.guidedStep()).toBe("record-near");
     expect(sim.mirror().voiceReport).toContain("I see four dots");
     await sim.enter(4, "FLAT FUSION"); expect(sim.labels()).toContain("PROGRESS SAVED"); expect(sim.labels()).not.toContain("TRY AGAIN");
-    expect(sim.labels()).toContain("GUIDED · STEP 9 OF 12");
+    expect(sim.guidedStep()).toBe("dock-distance");
     await act(async () => sim.mirror().lesson.setMode("none"));
     await sim.seat("worth", "sensory-worth-distance", 0, true);
     expect(sim.mirror().actions.some(action => action.label === "SWITCH TARGET OFF")).toBe(true);
-    expect(sim.labels()).toContain("GUIDED · STEP 10 OF 12");
-    await sim.action("LOOK AT THE TARGET"); expect(sim.labels()).toContain("GUIDED · STEP 11 OF 12");
-    await sim.action("ASK COUNT, COLOURS AND POSITIONS"); expect(sim.labels()).toContain("GUIDED · STEP 12 OF 12");
-    await sim.enter(2, "LEFT-EYE SUPPRESSION"); expect(sim.labels()).toContain("GUIDED · COMPLETE"); expect(sim.complete).toHaveBeenCalledTimes(1);
+    expect(sim.guidedStep()).toBe("fixate-distance");
+    await sim.action("LOOK AT THE TARGET"); expect(sim.guidedStep()).toBe("elicit-distance");
+    await sim.action("ASK COUNT, COLOURS AND POSITIONS"); expect(sim.guidedStep()).toBe("record-distance");
+    await sim.enter(2, "LEFT-EYE SUPPRESSION"); expect(sim.labels()).toContain("Worth comparison complete"); expect(sim.complete).toHaveBeenCalledTimes(1);
     await act(async () => sim.mirror().reset()); await sim.step(1 / 72, 12);
-    expect(sim.labels()).toContain("GUIDED · STEP 1 OF 12"); expect(sim.mirror().voiceReport).toBeUndefined();
+    expect(sim.guidedStep()).toBe("fit-correction"); expect(sim.mirror().voiceReport).toBeUndefined();
     expect(sim.mirror().status).toContain("Near pending"); expect(sim.mirror().actions.some(action => action.label === "SWITCH TARGET ON")).toBe(true);
   });
 
   it("keeps the same Worth capability in independent Test without rendering the Guided coach", async () => {
     const sim = await lesson(false, "test");
-    expect(sim.labels().join(" ")).not.toContain("GUIDED · STEP");
+    expect(sim.guidedStep()).toBeUndefined();
     let highlights = 0; sim.state.scene.traverse(object => { if (object.userData.xrInstructionalHighlight) highlights++; });
     expect(highlights).toBe(0);
     const turnOn = sim.mirror().actions.find(action => action.label === "SWITCH TARGET ON")!;
@@ -140,7 +140,7 @@ describe("mounted Worth Practice with the shared clinic runtime", () => {
     await sim.action("LOOK AT THE TARGET");
     await sim.panel(1); await sim.click(1, sim.button("ASK COUNT, COLOURS AND POSITIONS")); await sim.step(1 / 72, 12);
     expect(sim.mirror().status).toContain("Two red dots"); expect(sim.mirror().ready).toBe(true);
-    await sim.click(1, sim.button("RECORD FINDING"));
+    await sim.click(1, sim.button("OBSERVATION"));
     expect(sim.mirror().lesson.entries).toEqual({});
     await sim.enter(2, "LEFT-EYE SUPPRESSION"); expect(sim.complete).toHaveBeenCalledTimes(1);
     await act(async () => sim.mirror().record()); expect(sim.complete).toHaveBeenCalledTimes(1);

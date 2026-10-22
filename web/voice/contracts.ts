@@ -44,7 +44,7 @@ const nonEmpty = (value: unknown): value is string => typeof value === "string" 
 export function validVoiceCommand(value: unknown): value is VoiceCommand {
   if (!value || typeof value !== "object") return false;
   const command = value as Partial<VoiceCommand>;
-  if (!nonEmpty(command.kind) || !nonEmpty(command.utteranceId) || !nonEmpty(command.transcript) || command.transcript.length > 500) return false;
+  if (!nonEmpty(command.kind) || !nonEmpty(command.utteranceId) || typeof command.transcript !== "string" || !command.transcript.trim() || command.transcript.length > 500) return false;
   if (command.kind === "history") return Array.isArray(command.factIds) && command.factIds.length <= 10 && command.factIds.every(nonEmpty);
   if (command.kind === "patient-instruction") return nonEmpty(command.instructionId);
   if (command.kind === "encounter-action") return nonEmpty(command.actionId);

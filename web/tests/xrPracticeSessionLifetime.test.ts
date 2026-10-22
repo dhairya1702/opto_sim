@@ -7,12 +7,14 @@ let dispose: (() => Promise<void>) | undefined;
 afterEach(async () => { await dispose?.(); dispose = undefined; vi.unstubAllGlobals(); });
 describe("Practice XR session lifetime in development StrictMode", () => {
   it("reopens the launch guard through StrictMode's setup/cleanup/setup sequence", () => {
-    const lifetime = { session: { current: null }, mounted: { current: false }, closing: { current: false } };
+    const lifetime = { session: { current: null }, mounted: { current: false }, closing: { current: false }, generation: { current: 0 } };
     const replayCleanup = openPracticeXRSessionLifetime(lifetime);
     expect(lifetime.closing.current).toBe(false);
     replayCleanup(); expect(lifetime.closing.current).toBe(true);
+    expect(lifetime.generation.current).toBe(1);
     const actualCleanup = openPracticeXRSessionLifetime(lifetime);
     expect(lifetime.mounted.current).toBe(true); expect(lifetime.closing.current).toBe(false);
+    expect(lifetime.generation.current).toBe(1);
     actualCleanup(); expect(lifetime.mounted.current).toBe(false);
   });
   it("retains session ownership across renders and ends it on actual unmount", async () => {

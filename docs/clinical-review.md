@@ -4,6 +4,8 @@ Case `adult_distance_blur_01`, case version `0.1-draft`, rubric version `0.1-dra
 
 This is a fictional demonstration of clinical reasoning and examination selection. It is not clinically validated, a full clinical protocol, or certification of manual technique. No clinical approval has been recorded. The 8–12 minute encounter is a product target, not an examination standard.
 
+Procedure-state robustness revision (21 October 2026): repeated instructions/clarity confirmations are idempotent during an existing attempt; only explicit restart/reset controls restart it. Invalid setup cannot retain unfinished NPC/vergence/push-up baseline dwell. In minus-lens and NRA/PRA, the existing 250 ms grace preserves setup but no longer preserves sustained-blur dwell across sampled invalid geometry; a fresh full dwell is required. This resolves stale technique credit without changing authored findings, response durations, required examination sequence, Test case data or scoring. The stricter interruption behavior remains an educational interaction assumption requiring clinician/device review; status remains **draft**.
+
 ## Inspectable sources of truth
 
 Motility interaction revision: completed gaze points can be revisited for repositioning, and primary gaze is an alternative recovery hub. New observations still require adjacent H-route movement and the existing observation dwell. Direction is reassessed during movement; the draft normalized corridor is 0.30, speed allowance is 5 units/s with 0.12 s of spike grace, and large jumps still interrupt. These usability tolerances and the recovery model require clinician/device review; authored findings and review status remain unchanged (draft).
@@ -205,3 +207,7 @@ Engineering assumptions require review: separate correction/OD-rod/opposite-eye-
 Clinician review must assess source fidelity and these approximations; physical Quest 3S checks must establish ergonomics, stimulus/panel readability, reach, tracking recovery and frame timing. See `vr-library-completion.md`. Clinical status remains **draft** and all physical acceptance remains pending.
 
 Krimsky recording now requires independent entries for both prism power and BI/BO against the immutable completed comparison. The captured base is omitted from entry labels and prompts. Existing authored endpoint powers and directions are unchanged; this is a recording-interface correction and clinical status remains draft.
+
+### Voice response ownership correction (2026-10-22; draft)
+
+Voice now uses the active Practice scenario's patient reply instead of a normal-motility fallback or interface coaching. Facility clarity responses use the existing engine timing and readiness, with no new thresholds; asking for clarity does not operate the flipper. Test VR near/pinhole requests are explicitly unsupported rather than answered with distance acuity. Case facts, expected findings, technique sequences and scoring are unchanged. These response/interaction corrections remain educational drafts pending the existing clinician and device review.

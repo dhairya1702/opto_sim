@@ -1,3 +1,4 @@
+import { usePracticeVoiceProcedure } from "../../voice/usePracticeVoiceProcedure";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { facilityDuration, facilityRemaining } from "../../interaction/accommodativeFacility";
@@ -116,7 +117,7 @@ export function VergencePracticeController({ kind, active, preview = false, inpu
   const fields: LessonField[] = kind === "facility" ? [{ id: "cycles", label: "Full cycles in 60 seconds", choices: [], number: { min: 0, max: 100, unit: " cpm" } }] : ([...(vergenceFindings[kind][setup.current.base]?.blur != null ? ["blur"] : []), "break", "recovery"]).map(id => ({ id, label: id, choices: [], number: { min: 0, max: 30, unit: "Δ" } }));
   const actions = [
     { label: "FIT NEAR CORRECTION", run: fitCorrection, active: isPatientFitted(runtime.toolsRef.current, "subjective") },
-    { label: "ESTABLISH FIXATION", run: () => change({ fixation: true }) },
+    { voiceIds: ["fixate-target"], label: "ESTABLISH FIXATION", run: () => change({ fixation: true }) },
     ...(isPrism ? vergenceBases(kind).map(base => ({ label: `BASE ${base}`, disabled: base !== vergenceBases(kind)[baseIndex.current], active: state.settings.base === base, run: () => { if (base === vergenceBases(kind)[baseIndex.current]) { clearRun(); change({ base, power: 0 }); } } })) : []),
     ...(isPrism ? [-1, 1].map(step => ({ label: `PRISM ${step > 0 ? "+" : "−"}1Δ`, disabled: !state.ready || !state.settings.base || state.captured, run: () => { if (sample().ready) change({ power: Math.max(0, Math.min(30, setup.current.power + step)) }); } })) : []),
     ...(kind === "facility" ? [{ label: "START 60-SECOND RUN", disabled: !state.ready || Boolean(timed.current || capture.current), run: start }] : [{ label: "MARK PATIENT ENDPOINT", disabled: !state.ready || state.captured, run: mark }]),
@@ -124,6 +125,7 @@ export function VergencePracticeController({ kind, active, preview = false, inpu
   ];
   const status = `${state.history.length}/${isPrism ? 2 : 1} records · ${kind === "facility" ? `${state.seconds}s · ${state.cycles} cycles · ${state.side}` : `${state.settings.power}Δ ${state.settings.base || "choose base"} · ${state.phase}`} · ` + (!state.ready && !state.captured ? "Fit correction, establish fixation and physically align target/instrument." : state.report);
   const ready = live && state.captured;
+  usePracticeVoiceProcedure(kind, active && !preview, { actions, voiceReport: state.ready && timed.current && !capture.current ? (performance.now() - timed.current.presented >= vergenceFacilityDelay[timed.current.side] ? "It is clear and single now." : "It is not clear and single yet.") : undefined });
   useEffect(() => { onMirror?.({ title: LIBRARY_TITLES[kind], findingPosition: { current: baseIndex.current + 1, total: isPrism ? 2 : 1 }, status, ready, entryReady: ready, fields, actions, lesson, reset, record, cancel, reportLines: state.history }); }, [onMirror, status, ready, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
   return <>
     <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title={LIBRARY_TITLES[kind].toUpperCase()} sensoryStation={!near ? "four-prism" : undefined} instrumentSettings={{ "prism-flipper": {

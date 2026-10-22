@@ -202,3 +202,14 @@ describe("shared Maddox procedure", () => {
     expect(maddoxFittingGuideSocketIds(sample(), MADDOX_TRIALS[0])).toEqual([]);
   });
 });
+
+it("keeps neutralisation and dwell when the reporting instruction is repeated", () => {
+  let run = armMaddoxReport(newMaddoxRun(), sample());
+  run = sampleMaddox(run, sample(), 0);
+  run = sampleMaddox(run, sample(), 250);
+  expect(run.introduced20).toBe(true);
+  run = sampleMaddox(run, sample({ cell: MADDOX_TRIALS[0].neutral }), 300);
+  expect(armMaddoxReport(run, sample())).toBe(run);
+  run = sampleMaddox(run, sample({ cell: MADDOX_TRIALS[0].neutral }), 550);
+  expect(captureMaddox(run, sample({ cell: MADDOX_TRIALS[0].neutral })).capture).not.toBeNull();
+});

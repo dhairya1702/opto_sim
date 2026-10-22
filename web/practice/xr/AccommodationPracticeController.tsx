@@ -1,3 +1,5 @@
+import { facilityClearDelay } from "../../interaction/accommodativeFacility";
+import { usePracticeVoiceProcedure } from "../../voice/usePracticeVoiceProcedure";
 import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
 import { accommodativeFacilityBoardActions } from "../../interaction/practiceBoardActions";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -119,7 +121,7 @@ export function AccommodationPracticeController({ active, preview = false, input
     { label: eye === "OD" ? "COVER OS · TEST OD" : eye === "OS" ? "COVER OD · TEST OS" : "REMOVE COVER · TEST OU", active: sample.occlusionReady, run: prepareOcclusion },
   ];
   const procedureActions: LessonAction[] = [
-    { label: "ESTABLISH FIXATION", active: state.run.fixation, run: establish },
+    { voiceIds: ["fixate-target"], label: "ESTABLISH FIXATION", active: state.run.fixation, run: establish },
     { label: "START 60-SECOND RUN", disabled: Boolean(facilityGeometryIssue(sample)) || state.run.side !== "plus" || !state.run.fixation || state.run.phase === "running" || Boolean(state.run.capture), run: start },
     { label: "RESTART CURRENT RUN", run: restart },
   ];
@@ -132,7 +134,10 @@ export function AccommodationPracticeController({ active, preview = false, input
   })[id]);
   const records = state.run.records.map(item => `${item.eye}: ${item.submittedCycles} full ±2.00 D pairs in 60 seconds`);
   const status = `${state.run.records.length}/3 eyes · ${eye} · ${state.seconds}s · ${state.run.cycles} cycles · ${state.run.side} · ${state.run.feedback}`;
-  const report = state.run.phase === "running" ? state.run.feedback : state.run.capture ? `${state.run.capture.cycles} full cycles recorded.` : undefined;
+  const report = state.run.phase === "running" && state.run.presentedMs !== null && !facilityGeometryIssue(sample)
+    ? performance.now() - state.run.presentedMs >= facilityClearDelay[state.run.side] ? "It is clear now." : "It is still blurred."
+    : undefined;
+  usePracticeVoiceProcedure("accommodative-facility", active && !preview, { actions, voiceReport: report });
   useEffect(() => { onMirror?.({ title: LIBRARY_TITLES["accommodative-facility"], findingPosition: { current: Math.min(3, state.run.eyeIndex + 1), total: 3 }, status, ready: entryReady, entryReady, fields, actions, lesson, reset, record, cancel, reportLines: records, voiceReport: report });
   }, [onMirror, status, entryReady, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
 

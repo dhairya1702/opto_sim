@@ -19,6 +19,11 @@ import {
   type TestVoiceInstruction,
 } from "../../voice/testInstructions";
 
+// Mounted clinic workflows render real scene geometry over thousands of simulated
+// frames. Allow parallel-suite scheduling overhead; these are behavior tests,
+// not wall-clock performance benchmarks. Pure tests do not import this harness.
+vi.setConfig({ testTimeout: 15_000 });
+
 extend({
   Color: THREE.Color,
   Group: THREE.Group, Mesh: THREE.Mesh,
@@ -250,6 +255,11 @@ export async function clinic({ guided = false, selectedExamId, renderAdapter }: 
       const button = controls().find(object => object.userData.xrRecordTool === id);
       if (!button) throw new Error(`Direct record button missing: ${id}`);
       return button;
+    },
+    guidedStep: () => {
+      let id: string | undefined;
+      state.scene.traverse(object => { if (object.userData.xrGuidedStepBubble) id = object.userData.guidedStepId; });
+      return id;
     },
     button: (label: string) => {
       const button = controls().find(object => object.userData.xrLabel === label);

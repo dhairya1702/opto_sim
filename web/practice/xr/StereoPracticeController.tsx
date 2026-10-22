@@ -1,3 +1,4 @@
+import { usePracticeVoiceProcedure } from "../../voice/usePracticeVoiceProcedure";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { DoubleSide, Group } from "three";
@@ -203,8 +204,8 @@ export function StereoPracticeController({ active, preview = false, inputMode = 
                       : "Response confirmed · turn one page.";
   const fullStatus = `${status}${message ? ` · ${message}` : ""}${restartNotice ? ` · ${restartNotice}` : ""}`;
 
-  const fixationAction: LessonAction = { label: "LOOK AT THE CIRCLES", active: Boolean(run.fixation), disabled: !spatial.ready || Boolean(run.capture) || lesson.recorded, run: fixate };
-  const askAction: LessonAction = { label: "ASK WHICH CIRCLE IS RAISED", disabled: !spatial.ready || !run.fixation || Boolean(run.capture) || lesson.recorded, run: ask };
+  const fixationAction: LessonAction = { voiceIds: ["fixate-target"], label: "LOOK AT THE CIRCLES", active: Boolean(run.fixation), disabled: !spatial.ready || Boolean(run.capture) || lesson.recorded, run: fixate };
+  const askAction: LessonAction = { voiceIds: ["request-report"], label: "ASK WHICH CIRCLE IS RAISED", disabled: !spatial.ready || !run.fixation || Boolean(run.capture) || lesson.recorded, run: ask };
   const markActions: LessonAction[] = stereoCircleNames.map(circle => ({ label: circle.toUpperCase(), active: run.markedCircle === circle,
     disabled: !spatial.ready || !run.reply || run.confirmed || lesson.recorded, run: () => mark(circle) }));
   const turnAction: LessonAction = { label: "TURN PAGE", disabled: !spatial.ready || !run.confirmed || Boolean(run.capture) || lesson.recorded, run: nextPage };
@@ -236,6 +237,7 @@ export function StereoPracticeController({ active, preview = false, inputMode = 
     run,
     recorded: lesson.recorded,
   });
+  usePracticeVoiceProcedure("stereopsis", active && !preview, { actions, voiceReport: voiceReport });
   useEffect(() => {
     onMirror?.({ title: "Stereopsis", voiceReport, reportLines: history, status: fullStatus, ready, entryReady, fields, actions, lesson, reset, record, cancel });
   }, [onMirror, voiceReport, history.join("|"), fullStatus, ready, entryReady, run, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded]);

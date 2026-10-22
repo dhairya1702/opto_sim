@@ -89,3 +89,24 @@ describe("dedicated minus-lens procedure", () => {
     expect(minusLensGuidedStep(run, valid(0, { lensAligned: false })).title).toContain("lens holder");
   });
 });
+
+it("preserves a pending endpoint through repeated instructions and initial-clear commands", () => {
+  let run = reachEndpoint(arm());
+  expect(giveMinusLensInstruction(run, valid(500))).toBe(run);
+  expect(confirmMinusLensInitialClear(run, valid(500))).toBe(run);
+  run = sampleMinusLens(run, valid(1200));
+  expect(run.capture?.powerD).toBe(-4);
+});
+it("keeps setup grace but requires fresh blur dwell after a brief alignment loss", () => {
+  let run = sampleMinusLens(reachEndpoint(arm()), valid(1100, { lensAligned: false }));
+  expect(run.blurSinceMs).toBeNull();
+  run = sampleMinusLens(run, valid(1200));
+  expect(run.powerD).toBe(-4); expect(run.capture).toBeNull();
+  run = sampleMinusLens(run, valid(2399)); expect(run.capture).toBeNull();
+  run = sampleMinusLens(run, valid(2400)); expect(run.capture?.powerD).toBe(-4);
+});
+it("expires setup grace even when the next sample is already valid", () => {
+  let run = sampleMinusLens(reachEndpoint(arm()), valid(500, { lensAligned: false }));
+  run = sampleMinusLens(run, valid(1000));
+  expect(run).toMatchObject({ phase: "setup", powerD: 0, capture: null, initialClearConfirmed: false });
+});

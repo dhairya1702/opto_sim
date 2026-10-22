@@ -72,14 +72,13 @@ describe("same-origin WebSocket admission", () => {
     try {
       const sent = [];
       const ws = { readyState: 1, send: value => sent.push(JSON.parse(value)), close: vi.fn() };
-      const session = new VoiceSession(ws, config, { synthesize: vi.fn() });
+      const session = new VoiceSession(ws, config, { synthesize: vi.fn() }, {}, { semantic: () => ({ start: async () => {}, sendText() {}, close: vi.fn() }) });
       session.context = requestContext;
-      session.gemini = { unsuppress: vi.fn(), suppress: vi.fn(), close: vi.fn() };
       session.transcript("What is your shoe size?", true);
       expect(sent.some(message => message.type === "command")).toBe(false);
-      vi.advanceTimersByTime(2000);
+      vi.advanceTimersByTime(8000);
       expect(sent.at(-1)).toMatchObject({ type: "command", command: { kind: "patient-reply", replyId: "unknown" } });
-      expect(session.gemini.suppress).toHaveBeenCalled();
+      expect(session.gemini.close).toHaveBeenCalled();
       session.close();
     } finally { vi.useRealTimers(); }
   });

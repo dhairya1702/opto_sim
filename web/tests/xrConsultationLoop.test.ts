@@ -12,6 +12,14 @@ let dispose: (() => Promise<void>) | undefined;
 afterEach(async () => { await dispose?.(); dispose = undefined; vi.unstubAllGlobals(); });
 
 describe("mounted consultation two-controller walkthrough", () => {
+  it("never substitutes distance acuity for near or pinhole speech requests", async () => {
+    const sim = await clinic(); dispose = sim.dispose;
+    for (const transcript of ["Read the near card", "Read through the pinhole"]) {
+      expect(await sim.instruct("read-chart", transcript)).toMatchObject({ accepted: false, errorCode: "ACTION_NOT_AVAILABLE_HERE" });
+    }
+    expect(await sim.instruct("report-symptoms", "Any pain?")).toMatchObject({ errorCode: "HISTORY_CONTEXT" });
+    expect(sim.record).not.toHaveBeenCalled();
+  });
   it("explains an out-of-reach grip and highlights the tool when the hand reaches its handle", async () => {
     const sim = await clinic(); dispose = sim.dispose;
     await sim.at(0, [0, 3, 3]);

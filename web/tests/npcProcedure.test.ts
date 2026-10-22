@@ -134,3 +134,21 @@ describe("shared NPC procedure", () => {
     expect(npcVoiceReply(subjective, 6)).toContain("double");
   });
 });
+
+it("does not rewind approach or recovery when the instruction is repeated", () => {
+  let run = sampleNPC(prepared(), spatial(0, 40));
+  run = sampleNPC(run, spatial(250, 40));
+  expect(configureNPCRun(run, "give-instruction")).toBe(run);
+  const moved = move(run, 40, 6, 250);
+  run = sampleNPC(moved.run, spatial(moved.now + 250, 6));
+  expect(run.breakCapture).not.toBeNull();
+  expect(configureNPCRun(run, "give-instruction")).toBe(run);
+});
+it.each(["patientFacing", "upright", "tracking", "correctionFitted"] as const)("clears NPC starting dwell when %s becomes invalid", field => {
+  let run = sampleNPC(prepared(), spatial(0, 40));
+  run = sampleNPC(run, spatial(200, 40, { [field]: false }));
+  expect(run.startStableSinceMs).toBeNull();
+  run = sampleNPC(run, spatial(300, 40)); expect(run.phase).toBe("start");
+  run = sampleNPC(run, spatial(549, 40)); expect(run.phase).toBe("start");
+  run = sampleNPC(run, spatial(550, 40)); expect(run.phase).toBe("approach");
+});

@@ -1,3 +1,4 @@
+import { requestedChart } from "../voice/testInstructions";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { DoubleSide, Object3D, Quaternion, Vector3 } from "three";
@@ -405,6 +406,10 @@ export function XRConsultationController({ active, preview = false, guided = fal
           ? { accepted: true, spokenText: "Okay, I will follow the light with my eyes and keep my head still." }
           : { accepted: true, spokenText: "Okay. Show me the light, and I will follow it with my eyes." };
       } else if (instructionId === "report-symptoms") {
+        if (!motilityFollowing) {
+          detail.result = { accepted: false, spokenText: "Could you ask about the symptoms you mean?", errorCode: "HISTORY_CONTEXT" };
+          return;
+        }
         if (motilityCoverageRef.current.seen.length !== gazePositions.length) {
           setHandlingMessage("Arun has not yet followed the target through a complete movement assessment.");
           detail.result = { accepted: true, spokenText: "I have not followed it through the whole movement yet." };
@@ -414,6 +419,13 @@ export function XRConsultationController({ active, preview = false, guided = fal
         setHandlingMessage(`Arun: ${MOTILITY_PATIENT_REPLY}`);
         detail.result = { accepted: true, spokenText: MOTILITY_PATIENT_REPLY };
       } else if (instructionId === "read-chart") {
+        const requested = requestedChart(detail.transcript);
+        const unsupported = requested === "near" || requested === "pinhole" || (!requested &&
+          (toolsRef.current.near.placement.kind === "held" || toolsRef.current.pinhole.placement.kind === "held"));
+        if (unsupported) {
+          detail.result = { accepted: false, spokenText: "Please use the desktop examination for near-card or pinhole reading. This room currently supports distance-chart responses only.", errorCode: "ACTION_NOT_AVAILABLE_HERE" };
+          return;
+        }
         const distanceOccluderHeld = toolsRef.current.distance.placement.kind === "held";
         const distanceOccluderReady = distanceOccluderHeld && workingPose("distance");
         const distanceCoverPosition = distanceOccluderReady
@@ -439,7 +451,7 @@ export function XRConsultationController({ active, preview = false, guided = fal
     };
     testVoiceInstructionTarget.addEventListener("opto:voice-instruction", voiceInstruction);
     return () => testVoiceInstructionTarget.removeEventListener("opto:voice-instruction", voiceInstruction);
-  }, [active, caseData.exams, coverSetupValid, origin, resetAcuity, resetCover, resetMotility, resetPupil, resetScopes, setHandlingMessage, toolsRef, workingPose]);
+  }, [active, caseData.exams, coverSetupValid, motilityFollowing, origin, resetAcuity, resetCover, resetMotility, resetPupil, resetScopes, setHandlingMessage, toolsRef, workingPose]);
 
   useEffect(() => {
     const encounterAction = (event: Event) => {

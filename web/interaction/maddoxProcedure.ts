@@ -133,7 +133,7 @@ const resetCurrent = (run: MaddoxRun, feedback: string, revision = run.setupRevi
 });
 
 export function armMaddoxReport(run: MaddoxRun, sample: MaddoxSpatialSample): MaddoxRun {
-  if (run.phase === "complete" || run.capture) return run;
+  if (run.phase === "complete" || run.capture || run.reportInstruction) return run;
   const trial = MADDOX_TRIALS[run.trialIndex];
   const issue = maddoxSetupIssue({ ...sample, fixationInstruction: true, prismHeld: true, prismForward: true, prismAligned: true, cell: 20, base: trial.base }, trial);
   if (issue) return Object.freeze({ ...run, feedback: issue });

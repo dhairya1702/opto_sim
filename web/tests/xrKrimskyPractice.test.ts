@@ -15,7 +15,7 @@ describe("Krimsky shared-clinic technique and recording", () => {
       expect(result.neutral).toBe(true); expect(result.residual).toBe(0);
       const captured = captureKrimskyComparison(result);
       expect(captured?.eye).toBe(method === "standard" ? "OS" : "OD");
-      expect(krimskyComparisonSubmission(captured, String(finding.power))).toBe(true);
+      expect(krimskyComparisonSubmission(captured, String(finding.power), finding.base)).toBe(true);
     }
   });
   it("rejects wrong eye, midpoint, tilt, missing tools and invalid view/working distance", () => {
@@ -54,7 +54,9 @@ describe("Krimsky shared-clinic technique and recording", () => {
     const captured = captureKrimskyComparison(xrKrimskyTechnique(input, krimskyCases[0]));
     expect(Object.isFrozen(captured)).toBe(true);
     expect(krimskyComparisonSubmission(null, "20")).toBeNull(); expect(krimskyComparisonSubmission(captured, "")).toBeNull();
-    for (const answer of ["15", "NaN", "Infinity", "20.5", "-1", "41"]) expect(krimskyComparisonSubmission(captured, answer)).toBe(false);
-    expect(krimskyComparisonSubmission(captured, "20")).toBe(true);
+    for (const answer of ["15", "NaN", "Infinity", "20.5", "-1", "41"]) expect(krimskyComparisonSubmission(captured, answer, "BI")).toBe(false);
+    expect(krimskyComparisonSubmission(captured, "20")).toBeNull();
+    expect(krimskyComparisonSubmission(captured, "20", "BO")).toBe(false);
+    expect(krimskyComparisonSubmission(captured, "20", "BI")).toBe(true);
   });
 });

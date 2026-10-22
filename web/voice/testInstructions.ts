@@ -79,3 +79,11 @@ export function invokeTestVoiceEncounterAction(actionId: string, transcript?: st
     errorCode: "ACTION_NOT_AVAILABLE_HERE",
   };
 }
+
+/** Explicit requests must not be answered with a different chart's finding. */
+export function requestedChart(transcript = ""): "near" | "pinhole" | "distance" | undefined {
+  if (/\bpinhole\b|\bpin hole\b/i.test(transcript)) return "pinhole";
+  if (/\bnear\b|\breading card\b/i.test(transcript)) return "near";
+  if (/\bdistance\b|\bfar\b/i.test(transcript)) return "distance";
+  return undefined;
+}

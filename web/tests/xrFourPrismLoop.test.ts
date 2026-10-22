@@ -53,7 +53,7 @@ async function lesson(kind: PracticeAttemptKind = "guided", preview = false, sce
 describe("mounted shared-clinic 4Δ base-out Practice", () => {
   it("shows the nine-step Guided coach in preview and removes it from independent Test", async () => {
     const guided = await lesson("guided", true);
-    expect(guided.labels().join(" ")).toContain("STEP 1 OF 9");
+    expect(guided.guidedStep()).toBe("fit");
     const model = guided.tool("four-prism");
     expect(model.userData.consultationToolId).toBe("four-prism");
     let dedicated = 0, barCells = 0;
@@ -61,7 +61,7 @@ describe("mounted shared-clinic 4Δ base-out Practice", () => {
     expect(dedicated).toBe(1); expect(barCells).toBe(0); expect(guided.labels().join(" ")).toContain("4Δ");
     await guided.dispose(); dispose = undefined;
     const test = await lesson("test", true);
-    expect(test.labels().join(" ")).not.toContain("STEP 1 OF 9");
+    expect(test.guidedStep()).toBeUndefined();
     expect(test.labels().join(" ")).not.toContain("Point the base");
   });
 

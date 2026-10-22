@@ -85,3 +85,18 @@ describe("Push-up amplitude procedure", () => {
     expect(run.phase).toBe("setup"); expect(run.records).toHaveLength(1);
   });
 });
+
+it("does not rewind an inward approach when the instruction is repeated", () => {
+  let run = arm();
+  run = samplePushUp(run, valid(500, 38));
+  expect(givePushUpInstruction(run)).toBe(run);
+  run = samplePushUp(run, valid(750, 36));
+  expect(run.phase).toBe("approach");
+});
+it("requires a fresh starting dwell after explicit interruption", () => {
+  let run = samplePushUp(givePushUpInstruction(newPushUpRun()), valid(0));
+  run = interruptPushUp(run, "Tracking lost.");
+  run = samplePushUp(run, valid(300)); expect(run.phase).toBe("start");
+  run = samplePushUp(run, valid(549)); expect(run.phase).toBe("start");
+  run = samplePushUp(run, valid(550)); expect(run.phase).toBe("approach");
+});

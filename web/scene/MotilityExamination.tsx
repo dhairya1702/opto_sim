@@ -1,3 +1,4 @@
+import { testVoiceInstructionTarget, type TestVoiceInstructionDetail } from "../voice/testInstructions";
 import { Component, useEffect, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { EyeSurface } from "./EyeSurface";
@@ -97,6 +98,25 @@ export function MotilityExamination({ onComplete, onCancel, practiceAttempt, sce
     setFollowing(false); setAsked(false); setObservation(""); setChecked(false);
     setCoverage(newMotilityCoverage()); done.current = false;
   }, [scenario.id, control.z]);
+  useEffect(() => {
+    if (practiceAttempt) return;
+    const handle = (event: Event) => {
+      const detail = (event as CustomEvent<TestVoiceInstructionDetail>).detail;
+      if (detail.instructionId === "follow-target") {
+        event.preventDefault(); setFollowing(true);
+        detail.result = { accepted: true, spokenText: "Okay, I will follow the target with my eyes and keep my head still." };
+      } else if (detail.instructionId === "report-symptoms") {
+        event.preventDefault();
+        if (!following || failed || coverage.seen.length < gazePositions.length) {
+          detail.result = { accepted: false, spokenText: "I have not followed it through the whole movement yet.", errorCode: "TECHNIQUE_GATE" };
+        } else {
+          setAsked(true); detail.result = { accepted: true, spokenText: scenario.patientReply };
+        }
+      }
+    };
+    testVoiceInstructionTarget.addEventListener("opto:voice-instruction", handle);
+    return () => testVoiceInstructionTarget.removeEventListener("opto:voice-instruction", handle);
+  }, [practiceAttempt, following, failed, coverage.seen.length, scenario.patientReply]);
   const ready = light && coverage.seen.length === gazePositions.length && asked && !!observation && !failed;
   const correct = observation === scenario.id;
   const recordedObservation = motilityRecordedObservation(observation);

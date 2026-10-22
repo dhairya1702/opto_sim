@@ -70,7 +70,7 @@ function restartCurrent(run: PushUpRun, feedback: string): PushUpRun {
 }
 
 export function givePushUpInstruction(run: PushUpRun): PushUpRun {
-  if (run.phase === "complete" || run.capture) return run;
+  if (run.phase === "complete" || run.capture || run.instructionArmed) return run;
   return Object.freeze({ ...run, instructionArmed: true, phase: "start", startStableSinceMs: null,
     feedback: "Set the letter card within 38–42 cm and hold the starting position.", report: "The letters are clear." });
 }
@@ -83,7 +83,7 @@ export function restartPushUpEye(run: PushUpRun): PushUpRun {
 }
 
 export function interruptPushUp(run: PushUpRun, reason: string): PushUpRun {
-  if (run.capture || run.phase === "complete" || run.phase === "setup" || run.phase === "start") return run;
+  if (run.capture || run.phase === "complete" || run.phase === "setup") return run;
   return restartCurrent(run, `${reason} Return the card to 38–42 cm and restart the inward approach.`);
 }
 

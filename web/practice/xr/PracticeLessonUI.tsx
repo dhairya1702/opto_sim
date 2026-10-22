@@ -9,7 +9,7 @@ import { wrapGuidedStepLines } from "../../scene/XRGuidedStepBubble";
 import { XRPracticeFindingsBoard } from "../../scene/XRPracticeFindingsBoard";
 import { useXRPracticeResult, XRPracticeResultHUD } from "../../scene/XRPracticeResultHUD";
 
-export type LessonAction = { label: string; run: () => void; active?: boolean; disabled?: boolean };
+export type LessonAction = { voiceIds?: string[]; label: string; run: () => void; active?: boolean; disabled?: boolean };
 export type LessonField = { id: string; label: string; choices: readonly (readonly [string, string])[]; number?: { min: number; max: number; unit: string; step?: number } };
 export function usePracticeLesson(onComplete: () => void) {
   const { result, showResult, clearResult } = useXRPracticeResult();

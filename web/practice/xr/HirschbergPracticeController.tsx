@@ -1,3 +1,4 @@
+import { usePracticeVoiceProcedure } from "../../voice/usePracticeVoiceProcedure";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Group, MeshBasicMaterial, Quaternion, Vector2, Vector3 } from "three";
@@ -213,6 +214,7 @@ export function HirschbergPracticeController({ active, preview = false, inputMod
     recorded: correct && checked,
   });
   const nextFinding = useCallback(() => { if (!awarded.current) return; clearAttempt(); onNext(); }, [clearAttempt, onNext]);
+  usePracticeVoiceProcedure("hirschberg", active && !preview, { actions: [{ voiceIds: ["fixate-light"], run: giveFixation }] });
   useEffect(() => { onMirror?.({ technique, held, light, fixation, captured: Boolean(captured), direction, amount, checked, correct, help, recording,
     giveFixation, toggleHelp, openRecording, chooseDirection, chooseAmount, record, cancel, reset, next: nextFinding,
   }); }, [technique, held, light, fixation, direction, amount, checked, correct, help, recording, finding, active, captured, onMirror, nextFinding]);

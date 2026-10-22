@@ -1,3 +1,4 @@
+import { usePracticeVoiceProcedure } from "../../voice/usePracticeVoiceProcedure";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Group, Mesh, MeshBasicMaterial } from "three";
@@ -86,7 +87,7 @@ export function BrucknerPracticeController({ active, preview = false, inputMode 
   useEffect(() => { clearAttempt(); }, [scenario, clearAttempt]);
   useEffect(() => { if (!active) reset(); }, [active, reset]);
   const actions = [
-    { label: fixation ? "FIXATION GIVEN ✓" : "LOOK AT THE LIGHT", run: () => { setup.current.fixation = true; setFixation(true); }, active: fixation },
+    { voiceIds: ["fixate-light"], label: fixation ? "FIXATION GIVEN ✓" : "LOOK AT THE LIGHT", run: () => { setup.current.fixation = true; setFixation(true); }, active: fixation },
     ...(inputMode === "desktop" ? [
       { label: runtime.scopeAperture === "large" ? "LARGE APERTURE ✓" : "SELECT LARGE APERTURE", run: () => { if (runtime.scopeAperture !== "large") runtime.cycleScopeAperture(); }, active: runtime.scopeAperture === "large" },
       { label: runtime.tools.fundus.powered ? "OPHTHALMOSCOPE ON ✓" : "SWITCH OPHTHALMOSCOPE ON", run: () => runtime.setToolPower("fundus", true), active: runtime.tools.fundus.powered },
@@ -126,6 +127,7 @@ export function BrucknerPracticeController({ active, preview = false, inputMode 
     lesson.submit(active && !preview && runtime.frameValid.current && capturedRef.current && Boolean(answer), correct, correct ? brucknerScenarios[scenario].answer : "Keep both pupils in the beam and compare the red reflex brightness.");
   };
   const next = () => { if (!lesson.awarded.current) return; clearAttempt(); onNext(); };
+  usePracticeVoiceProcedure("bruckner", active && !preview, { actions, voiceReport: undefined });
   useEffect(() => { onMirror?.({ title: "Bruckner", status, ready: active && !preview && captured, entryReady: captured, fields, actions, lesson, reset, record, next }); },
     [onMirror, status, technique.ready, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, scenario, fixation, runtime.scopeAperture, captured]);
   return <>

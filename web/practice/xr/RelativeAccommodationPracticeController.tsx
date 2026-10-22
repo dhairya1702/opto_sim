@@ -1,3 +1,4 @@
+import { usePracticeVoiceProcedure } from "../../voice/usePracticeVoiceProcedure";
 import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
 import { relativeAccommodationBoardActions } from "../../interaction/practiceBoardActions";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -175,9 +176,9 @@ export function RelativeAccommodationPracticeController({ active, preview = fals
   const actions: LessonAction[] = [
     { label: "FIT NEAR CORRECTION", active: sample.correctionFitted, run: fitCorrection },
     { label: "PLACE READABLE TARGET AT 40 CM", active: sample.targetDocked, run: placeTarget },
-    { label: "GIVE CLEAR / SINGLE / SUSTAINED BLUR INSTRUCTION", active: state.run.instructionArmed, disabled: blocked, run: instruct },
+    { voiceIds: ["fixate-target"], label: "GIVE CLEAR / SINGLE / SUSTAINED BLUR INSTRUCTION", active: state.run.instructionArmed, disabled: blocked, run: instruct },
     { label: "CONFIRM INITIAL CLEAR AT 0.00 D", active: state.run.initialClearConfirmed, disabled: !state.run.instructionArmed || state.run.powerD !== 0 || blocked, run: confirmInitial },
-    { label: "PATIENT REPORT · WHAT DO YOU SEE?", disabled: !state.run.instructionArmed, run: publish },
+    { voiceIds: ["request-report"], label: "PATIENT REPORT · WHAT DO YOU SEE?", disabled: !state.run.instructionArmed, run: publish },
     { label: "DIAL +0.25 D · ACCESSIBILITY", disabled: !state.run.initialClearConfirmed || Boolean(state.run.nraCapture) || state.run.powerD >= RELATIVE_HOLDER_MAX_D || blocked, run: () => applyStep("plus") },
     { label: "DIAL −0.25 D · ACCESSIBILITY", disabled: !state.run.initialClearConfirmed || state.run.powerD <= (state.run.baselineConfirmed ? RELATIVE_HOLDER_MIN_D : 0) || Boolean(state.run.praCapture) || blocked, run: () => applyStep("minus") },
     { label: "CONFIRM CLEAR BASELINE AT 0.00 D", active: state.run.baselineConfirmed, disabled: !state.run.nraCapture || state.run.powerD !== 0 || state.run.baselineConfirmed || blocked, run: confirmBaseline },
@@ -190,6 +191,7 @@ export function RelativeAccommodationPracticeController({ active, preview = fals
   const phaseLabel = attemptKind === "guided" ? state.run.phase.replaceAll("-", " ") : "procedure in progress";
   const status = `OU · accessible scale ${state.run.powerD >= 0 ? "+" : ""}${state.run.powerD.toFixed(2)} D · ${phaseLabel} · ${state.run.feedback}`;
   const voiceReport = relativeAccommodationPatientReport(state.run) || undefined;
+  usePracticeVoiceProcedure("relative", active && !preview, { actions, voiceReport: voiceReport });
   useEffect(() => { onMirror?.({ title: LIBRARY_TITLES.relative, findingPosition: { current: 1, total: 1 }, status,
     ready: entryReady, entryReady, fields, actions, lesson, reset, record, cancel, reportLines: records, voiceReport });
   }, [onMirror, status, entryReady, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);

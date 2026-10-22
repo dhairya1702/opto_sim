@@ -14,7 +14,7 @@ These instructions apply to the entire repository.
 - A 20-module binocular-vision Practice library across motor alignment, sensory status, latent deviation, vergence, and accommodation. It includes extraocular motilities; Bruckner, Hirschberg, Krimsky, cover–uncover, and alternating cover; Worth four dot, stereopsis, and 4Δ base-out; Maddox rod and Modified Thorington; near point of convergence, horizontal distance, vertical distance, horizontal near, and near vergence facility; and push-up amplitude, minus-lens amplitude, NRA/PRA, and accommodative facility. All interactions and findings remain educational drafts pending clinical review.
 - One case: `adult_distance_blur_01`, version `0.1-draft`.
 - One fictional patient: Arun, age 24, with gradual bilateral distance blur.
-- Scripted, deterministic history responses; no network or AI service.
+- Scripted, deterministic clinical history and scoring. Optional voice uses Google STT, turn-scoped Gemini fallback for unmatched finalized text, and canonical assets/TTS; it must not invent findings or bypass procedure gates.
 - Examination selection, prerequisites, result recording, evidence selection, assessment, management choices, and debrief.
 - Manual interactions for distance/pinhole/near acuity, pupils, near pupil response, cover testing, motility, and retinoscopy.
 - Illustrative anterior-segment and posterior-pole views.
@@ -23,7 +23,7 @@ These instructions apply to the entire repository.
 - Test consultation defaults to free exploration of the authored case: independent two-hand tools, assisted placement/transfer, immediate supported patient visuals, natural spoken patient instructions grounded in held tools, spoken room-light actions grounded in environmental state, and an A/X menu limited to lighting/recording/history/notebook/assessment. Patient instructions must not be duplicated as A/X buttons. Pickup must not open examination panels or technique guidance. Optional guided adapters are retained internally and disabled in Room. Record finding beside a held supported tool explicitly opens a headset-following entry drawer with completion checks; Record observation in the menu remains an alternative. In-room retinoscopy and schematic ophthalmoscopy use the same case findings and eye-specific recording path. Free exploration records no findings automatically. Exit VR must preserve saved session data and record nothing from unfinished technique. Desktop/manual controls remain the non-voice accessibility fallback.
 - Session state is memory-only and is cleared by reload or restart.
 
-Out of scope at present: authentication, backend persistence, institutional records, secure examination delivery, multiplayer/supervisor mode, speech recognition, generative patient dialogue, controller physics, hand tracking, validated optical or disease physiology, and clinical certification.
+Out of scope at present: authentication, backend persistence, institutional records, secure examination delivery, multiplayer/supervisor mode, unscripted clinical patient facts, controller physics, hand tracking, validated optical or disease physiology, and clinical certification.
 
 ## Technology
 
@@ -36,7 +36,7 @@ Out of scope at present: authentication, backend persistence, institutional reco
 - Playwright for browser end-to-end tests
 - Lucide React icons
 
-No backend is required. `main.py` is a small pre-existing Python entry point and is not part of the web application runtime.
+The typed simulator needs no backend. Optional voice uses the same-origin Express/WebSocket service in `server/`; microphone PCM goes to STT, while unmatched finalized text may use a turn-scoped Gemini request. `main.py` is a small pre-existing Python entry point and is not part of the web application runtime.
 
 ## Repository map
 
@@ -94,6 +94,8 @@ No backend is required. `main.py` is a small pre-existing Python entry point and
 | `web/domain/engine.ts` | Pure session reducer, prerequisite gating, result keys, and deterministic assessment |
 | `web/patient/scripted.ts` | Deterministic question matching and scripted patient replies |
 | `web/interaction/` | Input/controller code plus pure procedure logic for acuity, cover, motility, pupils, retinoscopy, navigation, and optional WebMCP exposure |
+| `web/interaction/xrSessionOwner.ts` | Test VR asynchronous request/attachment ownership, cancellation and stale-session cleanup |
+| `web/voice/useVoiceSession.ts`, `server/voice/session.mjs`, `server/voice/google.mjs` | Cancellable microphone/socket/provider lifecycle, one utterance/turn authority, current-context routing and stale-output rejection |
 | `web/interaction/useXRClinicRuntime.ts` | Shared physical WebXR controller/tool/input/placement/tracking/teleport loop, optional lesson equipment, persistent power and supported working poses; no lesson answers or case scoring |
 | `web/scene/XRClinicRuntimeView.tsx`, `XRClinicPanels.tsx`, `XRScopeView.tsx` | Shared canonical instruments/controllers/pads, hand controls, headset observation panels and B/Y scope viewing |
 | `web/interaction/clinicPatient.ts`, `xrHirschbergPractice.ts` | Canonical patient anchors and pure conversion of existing Hirschberg landmarks/submission gates |
@@ -270,3 +272,7 @@ Update documentation in the same change when behavior changes:
 - this file when architecture, conventions, verification, or contributor guidance changes.
 
 When documentation and implementation disagree, verify the implementation and clinical source of truth, then correct both deliberately. Do not assume either is automatically authoritative for clinical correctness.
+
+## Voice response ownership
+
+`shared/practiceVoice.json` is the shared Practice phrase/acknowledgement catalog used by browser and gateway. Active Practice controllers register stable `voiceIds` on their gated lesson actions with `usePracticeVoiceProcedure`; report text must be a patient reply, never coaching, counters, or recorded scores. Report questions must not turn flippers or record findings. Audio assets require both exact text-hash and voice matches; changing response wording must not reuse mismatched recordings. Test chart requests must match the supported active examination.

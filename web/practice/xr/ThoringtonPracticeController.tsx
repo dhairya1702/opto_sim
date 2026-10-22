@@ -1,3 +1,4 @@
+import { usePracticeVoiceProcedure } from "../../voice/usePracticeVoiceProcedure";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Vector3 } from "three";
@@ -137,7 +138,7 @@ export function ThoringtonPracticeController({ active, preview = false, inputMod
     : statusDetail}`;
   const guidance = thoringtonGuidedStep(run, spatial);
   const actions = [
-    { label: run.reportInstruction ? "REPORTING INSTRUCTION GIVEN ✓" : "ASK NUMBER AND SIDE", run: ask,
+    { voiceIds: ["fixate-target", "request-report"], label: run.reportInstruction ? "REPORTING INSTRUCTION GIVEN ✓" : "ASK NUMBER AND SIDE", run: ask,
       active: run.reportInstruction, disabled: Boolean(run.capture) },
     { label: "FIT NEAR CORRECTION", run: () => placeAtSocket("subjective", "sensory-correction"), active: spatial.correctionFitted },
     { label: `FIT MADDOX ROD · ${current.axis === "horizontal" ? "HORIZONTAL" : "VERTICAL"} GROOVES`,
@@ -156,6 +157,7 @@ export function ThoringtonPracticeController({ active, preview = false, inputMod
   ];
   const records = run.records.map(record => `${record.capture.caseId} · ${record.capture.axis}: signed ${record.capture.signedCoordinate > 0 ? "+" : ""}${record.capture.signedCoordinate} at ${record.capture.actualCardDistanceCm.toFixed(1)} cm · report ${record.capture.rawReportedSide} · entered ${record.submittedMagnitude}Δ ${record.submittedInterpretation}`);
   const voiceReport = run.capture ? `Arun reports ${run.capture.report}` : undefined;
+  usePracticeVoiceProcedure("thorington", active && !preview, { actions, voiceReport: voiceReport });
   useEffect(() => { onMirror?.({ title: "Modified Thorington", voiceReport, findingPosition: { current: run.trialIndex + 1, total: 2 },
     status, ready: entryReady, entryReady, reportLines: records, fields, actions, lesson, reset, record, next: run.phase === "complete" ? nextCase : undefined, cancel });
   }, [onMirror, voiceReport, status, entryReady, records.join("|"), run, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, runtime.tools]);

@@ -1,3 +1,4 @@
+import { invokePracticeVoiceAction } from "../voice/practiceActions";
 import { createElement } from "react";
 import { act } from "@react-three/fiber";
 import { Mesh, Quaternion, Vector3 } from "three";
@@ -94,43 +95,52 @@ async function lesson(kind: LibraryKind, preview = false, attemptKind?: Practice
   return { ...sim, boardActionLabels, mirror: () => mirror!, complete, leave, action, fit, enter, tick, settle, prepare, noTest, physicalTargetSwitch, physicalPrismFlip, prismTurnControl, physicalLensFlip, lensTurnControl, prismCell, holdNearPenlight };
 }
 describe("mounted remaining shared-clinic XR modules", () => {
+  it("runs push-up voice instructions through the mounted ruler gate and reads without recording", async () => {
+    const sim = await lesson("push-up");
+    expect(await invokePracticeVoiceAction("push-up", "fixate-target")).toMatchObject({ accepted: false });
+    await sim.fit("subjective"); await sim.fit("cover", "sensory-occlude-OS"); await sim.fit("push-up-rule", "library-push-up-spectacle");
+    await act(async () => { expect(await invokePracticeVoiceAction("push-up", "fixate-target")).toMatchObject({ accepted: true }); });
+    expect(sim.mirror().actions.find(action => action.voiceIds?.includes("fixate-target"))?.active).toBe(true);
+    expect(await invokePracticeVoiceAction("push-up", "request-report")).toMatchObject({ accepted: true, spokenText: "The letters are clear." });
+    sim.noTest(); expect(sim.complete).not.toHaveBeenCalled();
+  });
   it("shows the seven-step Push-up coach and highlights only in Guided mode", async () => {
     const guided = await lesson("push-up", false, "guided");
-    expect(guided.labels().join(" ")).toContain("GUIDED STEP 1 / 7");
+    expect(guided.guidedStep()).toBe("0");
     let guidedHighlights = 0; guided.state.scene.traverse(object => { if (object.userData.xrInstructionalHighlight) guidedHighlights++; });
     expect(guidedHighlights).toBeGreaterThan(0);
     await dispose?.(); dispose = undefined;
     const test = await lesson("push-up", false, "test");
-    expect(test.labels().join(" ")).not.toContain("GUIDED STEP");
+    expect(test.guidedStep()).toBeUndefined();
     let testHighlights = 0; test.state.scene.traverse(object => { if (object.userData.xrInstructionalHighlight) testHighlights++; });
     expect(testHighlights).toBe(0);
   });
   it("stocks the monocular minus-lens holder and keeps its eight-step coach out of Test", async () => {
     const guided = await lesson("minus-lens", true, "guided");
     expect(guided.tool("minus-lens-holder")).toBeDefined();
-    expect(guided.labels().join(" ")).toContain("GUIDED STEP 1 / 8");
+    expect(guided.guidedStep()).toBe("0");
     expect(guided.labels().join(" ")).toContain("C D H N O");
     await dispose?.(); dispose = undefined;
     const test = await lesson("minus-lens", true, "test");
-    expect(test.labels().join(" ")).not.toContain("GUIDED STEP");
+    expect(test.guidedStep()).toBeUndefined();
     expect(test.mirror().status).not.toContain("−4.00 D");
   });
   it("stocks the face-on binocular NRA/PRA holder and keeps its ten-step coach out of Test", async () => {
     const guided = await lesson("relative", true, "guided");
     expect(guided.tool("trial-lens")).toBeDefined();
-    expect(guided.labels().join(" ")).toContain("GUIDED STEP 1 / 10");
+    expect(guided.guidedStep()).toBe("0");
     expect(guided.labels().join(" ")).toContain("C D H N O");
     let apertures = 0; guided.tool("trial-lens").traverse(object => { if (object.userData.xrRelativeAccommodationAperture) apertures++; });
     expect(apertures).toBe(2);
     await dispose?.(); dispose = undefined;
     const test = await lesson("relative", true, "test");
-    expect(test.labels().join(" ")).not.toContain("GUIDED STEP");
+    expect(test.guidedStep()).toBeUndefined();
     let highlights = 0; test.state.scene.traverse(object => { if (object.userData.xrInstructionalHighlight) highlights++; });
     expect(highlights).toBe(0);
   });
   it("shows the nine-step Maddox coach and only the current fitting guide in Guided preview", async () => {
     const guided = await lesson("maddox", true, "guided");
-    expect(guided.labels()).toContain("GUIDED · STEP 1 OF 9");
+    expect(guided.guidedStep()).toBe("distance-horizontal-correction");
     let highlights = 0; guided.state.scene.traverse(object => { if (object.userData.xrInstructionalHighlight) highlights++; });
     expect(highlights).toBeGreaterThan(0);
     const fittingGuides: string[] = [];
@@ -139,18 +149,18 @@ describe("mounted remaining shared-clinic XR modules", () => {
   });
   it("keeps independent Maddox Test preview free of coach and instructional highlights", async () => {
     const test = await lesson("maddox", true, "test");
-    expect(test.labels().join(" ")).not.toContain("GUIDED · STEP");
+    expect(test.guidedStep()).toBeUndefined();
     let highlights = 0; test.state.scene.traverse(object => { if (object.userData.xrInstructionalHighlight) highlights++; });
     expect(highlights).toBe(0);
   });
   it("shows Thorington coaching and fitting guides only in Guided preview", async () => {
     const guided = await lesson("thorington", true, "guided");
-    expect(guided.labels()).toContain("GUIDED · STEP 1 OF 10");
+    expect(guided.guidedStep()).toBe("case-a-horizontal-correction");
     let guidedHighlights = 0; guided.state.scene.traverse(object => { if (object.userData.xrInstructionalHighlight) guidedHighlights++; });
     expect(guidedHighlights).toBeGreaterThan(0);
     await dispose?.(); dispose = undefined;
     const test = await lesson("thorington", true, "test");
-    expect(test.labels().join(" ")).not.toContain("GUIDED · STEP");
+    expect(test.guidedStep()).toBeUndefined();
     let testHighlights = 0; test.state.scene.traverse(object => { if (object.userData.xrInstructionalHighlight) testHighlights++; });
     expect(testHighlights).toBe(0);
   });
@@ -172,7 +182,7 @@ describe("mounted remaining shared-clinic XR modules", () => {
   });
   it("completes all four Maddox trials with physical distance/near target, starting prism and independent recording", async () => {
     const sim = await lesson("maddox"); await sim.fit("subjective"); await sim.fit("maddox", "sensory-maddox-horizontal"); await sim.fit("worth", "sensory-worth-distance");
-    expect(sim.labels()).toContain("TRIAL 1/4 · DISTANCE · HORIZONTAL");
+    expect(sim.mirror().findingPosition).toEqual({ current: 1, total: 4 });
     expect(sim.labels()).toContain("Turn on the distance target");
     expect(sim.labels()).toContain("POWER"); expect(sim.labels()).toContain("OFF");
     let switchHighlights = 0; sim.tool("worth").traverse(object => { if (object.userData.xrInstructionalHighlight) switchHighlights++; });
@@ -310,11 +320,11 @@ describe("mounted remaining shared-clinic XR modules", () => {
   it("stocks the dedicated rotary prism and keeps its ten-step coach out of independent Test", async () => {
     const guided = await lesson("horizontal-distance", true, "guided");
     expect(guided.tool("vergence-prism")).toBeDefined();
-    expect(guided.labels().join(" ")).toContain("GUIDED STEP 1 / 10");
+    expect(guided.guidedStep()).toBe("0");
     expect(guided.labels().join(" ")).toContain("0–30 ROTARY");
     await dispose?.(); dispose = undefined;
     const test = await lesson("horizontal-distance", true, "test");
-    expect(test.labels().join(" ")).not.toContain("GUIDED STEP");
+    expect(test.guidedStep()).toBeUndefined();
     expect(test.mirror().status).not.toMatch(/7Δ|19Δ|9Δ|12Δ/);
   });
   it("uses the free-hand trigger beside the rotary dial and pulses haptics at integer demand", async () => {
@@ -402,12 +412,12 @@ describe("mounted remaining shared-clinic XR modules", () => {
   it("stocks the near target and rotary prism, with Guided coaching concealed in Test", async () => {
     const guided = await lesson("horizontal-near", true, "guided");
     expect(guided.tool("near")).toBeDefined(); expect(guided.tool("vergence-prism")).toBeDefined(); expect(() => guided.tool("prism")).toThrow();
-    expect(guided.labels().join(" ")).toContain("GUIDED STEP 1 / 10");
+    expect(guided.guidedStep()).toBe("0");
     let isolated = 0; guided.tool("near").traverse(object => { if (object.userData.xrPreparedIsolatedNearTarget) isolated++; });
     expect(isolated).toBeGreaterThan(0);
     await dispose?.(); dispose = undefined;
     const test = await lesson("horizontal-near", true, "test");
-    expect(test.labels().join(" ")).not.toContain("GUIDED STEP"); expect(test.mirror().status).not.toMatch(/13Δ|17Δ|21Δ|11Δ/);
+    expect(test.guidedStep()).toBeUndefined(); expect(test.mirror().status).not.toMatch(/13Δ|17Δ|21Δ|11Δ/);
   });
   it("requires the prepared near target to be released onto its stand", async () => {
     const sim = await lesson("horizontal-near", false, "guided"); await sim.fit("subjective");
@@ -448,11 +458,11 @@ describe("mounted remaining shared-clinic XR modules", () => {
   it("stocks the rotary prism for vertical distance and conceals coaching in Test", async () => {
     const guided = await lesson("vertical-distance", true, "guided");
     expect(guided.tool("vergence-prism")).toBeDefined(); expect(() => guided.tool("prism")).toThrow();
-    expect(guided.labels().join(" ")).toContain("GUIDED STEP 1 / 10");
+    expect(guided.guidedStep()).toBe("0");
     expect(guided.labels().join(" ")).toContain("BI · BU · BO · BD");
     await dispose?.(); dispose = undefined;
     const test = await lesson("vertical-distance", true, "test");
-    expect(test.labels().join(" ")).not.toContain("GUIDED STEP"); expect(test.mirror().status).not.toMatch(/4Δ|2Δ/);
+    expect(test.guidedStep()).toBeUndefined(); expect(test.mirror().status).not.toMatch(/4Δ|2Δ/);
     let highlights = 0; test.state.scene.traverse(object => { if (object.userData.xrInstructionalHighlight) highlights++; });
     expect(highlights).toBe(0);
   });
@@ -531,18 +541,18 @@ describe("mounted remaining shared-clinic XR modules", () => {
     expect(sim.tool("npc-rule")).toBeDefined(); await sim.fit("npc-rule", "library-npc-spectacle");
     expect(sim.mirror().actions.map(action => action.label)).toContain("GIVE CLEAR / SINGLE INSTRUCTION");
     await sim.action("GIVE CLEAR / SINGLE INSTRUCTION"); expect(sim.mirror().status).toContain("40.0 cm");
-    expect(sim.labels().join(" ")).toContain("GUIDED STEP"); sim.noTest();
+    expect(sim.guidedStep()).toBe("5"); sim.noTest();
     await sim.at(1, [0, 1.545, -.111]); await sim.event(1, "selectstart"); await sim.tick(260);
     for (let cm = 39.5; cm >= 35; cm -= .5) {
       await sim.at(1, [0, 1.545, -.511 + cm / 100]); await sim.tick(250);
     }
     expect(sim.mirror().status).toContain("approach");
-    expect(sim.labels().join(" ")).toContain("GUIDED STEP 7 / 10 · Move inward");
+    expect(sim.labels().join(" ")).toContain("Move inward");
     expect(sim.labels().join(" ")).not.toContain("Set the start distance");
   });
   it("keeps NPC Test free of coaching and fitting highlights", async () => {
     const sim = await lesson("npc", true, "test");
-    expect(sim.labels().join(" ")).not.toContain("GUIDED STEP");
+    expect(sim.guidedStep()).toBeUndefined();
     let highlights = 0; sim.state.scene.traverse(object => { if (object.userData.xrInstructionalHighlight) highlights++; });
     expect(highlights).toBe(0); expect(sim.mirror().status).not.toContain("objective"); sim.noTest();
   });
@@ -633,6 +643,9 @@ describe("mounted remaining shared-clinic XR modules", () => {
     expect(sim.mirror().status).toContain("not credited"); expect(sim.mirror().status).toContain("0 cycles");
     await sim.tick(1500); await sim.physicalLensFlip(); await sim.tick(1800); await sim.physicalLensFlip();
     expect(sim.mirror().status).toContain("1 cycles"); expect(sim.haptics[0]).toHaveBeenCalledTimes(4);
+    // Procedure Controls and voice may repeat fixation while the timer is live.
+    await sim.action("ESTABLISH FIXATION");
+    expect(sim.boardActionLabels()).toEqual([]);
     await sim.tick(60000); expect(sim.mirror().ready).toBe(true);
     await sim.putDown(1); await sim.step(1 / 72, 12);
     expect(sim.labels().join(" ")).toContain("Record the frozen count");
@@ -744,13 +757,13 @@ describe("mounted remaining shared-clinic XR modules", () => {
     expect(sim.boardActionLabels()).toEqual(["PATIENT REPORT · WHAT DO YOU SEE?", "DIAL −0.25 D · ACCESSIBILITY"]);
     for (let i = 0; i < 9; i++) {
       await sim.action("DIAL −0.25 D · ACCESSIBILITY");
-      expect(sim.labels().join(" ")).toContain("GUIDED STEP 9 / 10 · Measure PRA");
+      expect(sim.labels().join(" ")).toContain("Measure PRA");
       expect(sim.labels().join(" ")).not.toContain("Return to baseline");
     }
     expect(sim.labels().join(" ")).toContain("Hold the power steady");
     await sim.tick(1200); expect(sim.mirror().ready).toBe(true);
     await sim.putDown(1); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(true);
-    expect(sim.labels().join(" ")).toContain("GUIDED STEP 10 / 10 · Record NRA and PRA");
+    expect(sim.labels().join(" ")).toContain("Record NRA and PRA");
     expect(sim.boardActionLabels()).toEqual([]);
     await sim.enter({ nra: "2", pra: "-2.25" }); expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
   });
@@ -828,10 +841,10 @@ describe("mounted remaining shared-clinic XR modules", () => {
     for (let i = 0; i < 8; i++) await sim.action("DIAL +0.25 D · ACCESSIBILITY"); await sim.tick(1200);
     for (let i = 0; i < 8; i++) await sim.action("DIAL −0.25 D · ACCESSIBILITY"); await sim.action("CONFIRM CLEAR BASELINE AT 0.00 D");
     for (let i = 0; i < 9; i++) await sim.action("DIAL −0.25 D · ACCESSIBILITY"); await sim.tick(1200);
-    await sim.putDown(1); await sim.panel(1); await sim.click(1, sim.button("RECORD FINDING"));
+    await sim.putDown(1); await sim.panel(1); await sim.click(1, sim.button("OBSERVATION"));
     await sim.click(1, sim.button("ENTRY +1 D")); await sim.click(1, sim.button("ENTRY +1 D")); expect(sim.mirror().lesson.entries.nra).toBe("2");
     await sim.click(1, sim.button("NEXT ENTRIES")); await sim.click(1, sim.button("ENTRY −1 D")); await sim.click(1, sim.button("ENTRY −1 D")); await sim.click(1, sim.button("ENTRY −0.25 D"));
-    expect(sim.mirror().lesson.entries).toEqual({ nra: "2", pra: "-2.25" }); await sim.click(1, sim.button("SUBMIT / CHECK")); expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
+    expect(sim.mirror().lesson.entries).toEqual({ nra: "2", pra: "-2.25" }); await sim.click(1, sim.button("SUBMIT")); expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
   });
   it.each(["maddox", "thorington", "npc", "push-up"] as const)("keeps %s preview and late exit callbacks from awarding completion", async kind => {
     const sim = await lesson(kind, true); await act(async () => sim.mirror().record()); expect(sim.mirror().ready).toBe(false); expect(sim.controls()).toHaveLength(0); await sim.exit(); await sim.event(1, "selectstart"); await act(async () => sim.mirror().record()); expect(sim.complete).not.toHaveBeenCalled(); sim.noTest();

@@ -26,7 +26,7 @@ describe("XR motility guided step bubble", () => {
 
   it("shows and advances a rear-wall step bubble in Guided Practice", async () => {
     const sim = await clinic({ renderAdapter: adapter("guided") }); dispose = sim.dispose;
-    expect(sim.labels()).toContain("GUIDED · STEP 1 OF 6");
+    expect(sim.guidedStep()).toBe("tool");
     expect(sim.labels()).toContain("Pick up the penlight");
     expect(sim.labels()).not.toContain("CONSULTATION 01");
 
@@ -39,8 +39,8 @@ describe("XR motility guided step bubble", () => {
     });
     expect(bubble).toBeDefined(); expect(board).toBeDefined(); expect(acuity).toBeDefined(); expect(welcome).toBeUndefined();
     expect(bubble!.position.x).toBeCloseTo(.05);
-    expect(bubble!.scale.toArray()).toEqual([.88, .88, .88]);
-    expect(new Box3().setFromObject(acuity!).getCenter(new Vector3()).x).toBeCloseTo(-1.02);
+    expect(bubble!.scale.toArray()).toEqual([1, 1, 1]);
+    expect(new Box3().setFromObject(acuity!).getCenter(new Vector3()).x).toBeCloseTo(-1.22);
     expect(board!.position.x).toBeCloseTo(1.25);
     const bubbleBounds = new Box3().setFromObject(bubble!);
     const boardBounds = new Box3().setFromObject(board!);
@@ -49,23 +49,23 @@ describe("XR motility guided step bubble", () => {
     expect(boardBounds.min.y).toBeGreaterThan(.25);
 
     await sim.pickup(0, "pupils");
-    expect(sim.labels()).toContain("GUIDED · STEP 2 OF 6");
+    expect(sim.guidedStep()).toBe("instruct");
     expect(sim.labels()).toContain("Instruct Arun");
 
     await sim.click(1, sim.button("FOLLOW LIGHT · HEAD STILL"));
-    expect(sim.labels()).toContain("GUIDED · STEP 3 OF 6");
+    expect(sim.guidedStep()).toBe("primary");
     expect(sim.labels()).toContain("Establish primary gaze");
 
     await sim.event(0, "selectstart");
     await sim.at(0, [0, 1.5, -.086]);
     await sim.step(1 / 72, 60);
-    expect(sim.labels()).toContain("GUIDED · STEP 4 OF 6");
+    expect(sim.guidedStep()).toBe("pattern");
     expect(sim.labels()).toContain("Complete the H-pattern");
   });
 
   it("does not expose next-step coaching in independent Test attempts", async () => {
     const sim = await clinic({ renderAdapter: adapter("test") }); dispose = sim.dispose;
-    expect(sim.labels().some(label => label.startsWith("GUIDED · STEP"))).toBe(false);
+    expect(sim.guidedStep()).toBeUndefined();
     expect(sim.labels()).not.toContain("Pick up the penlight");
     expect(sim.labels()).not.toContain("○ Up");
     expect(sim.labels()).not.toContain("SHOW GAZE GUIDE");

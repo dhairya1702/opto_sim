@@ -83,6 +83,7 @@ export function configureVerticalFusionalRun(run: VerticalFusionalRun, action: "
   if (action === "fit-correction") return Object.freeze({ ...run, correctionFitted: true, feedback: "Distance correction fitted." });
   if (action === "establish-target") return Object.freeze({ ...run, targetEstablished: true,
     feedback: "Prepared mirrored isolated target established one line larger than the poorer eye's best-corrected acuity." });
+  if (action === "give-instruction" && run.instructionArmed) return run;
   if (action === "give-instruction") return Object.freeze({ ...run, instructionArmed: true, phase: run.phase === "setup" ? "baseline" : run.phase,
     feedback: "Reporting armed. Align the rotary prism before OD at zero BU." });
   return Object.freeze({ ...run, prismHeld: true, released: false, feedback: "Align the patient-facing aperture before OD at zero BU." });
@@ -131,7 +132,7 @@ export function sampleVerticalFusionalRun(run: VerticalFusionalRun, sample: Vert
   const issue = setupIssue(run, sample);
   if (issue) {
     const active = ["increase", "decrease-start", "decrease", "zero-reset"].includes(run.phase);
-    return active ? resetUnfinishedBase(run, issue) : Object.freeze({ ...run, prismHeld: sample.prismHeld, feedback: issue, report: "" });
+    return active ? resetUnfinishedBase(run, issue) : Object.freeze({ ...run, prismHeld: sample.prismHeld, baselineStableSinceMs: null, endpointStableSinceMs: null, zeroStableSinceMs: null, feedback: issue, report: "" });
   }
   let current = run.prismHeld === sample.prismHeld ? run : Object.freeze({ ...run, prismHeld: sample.prismHeld });
   if (current.phase === "setup") current = Object.freeze({ ...current, phase: "baseline" });

@@ -200,3 +200,13 @@ describe("horizontal near fusional vergence procedure", () => {
     expect(cancelled.record).toBeNull();
   });
 });
+
+it.each(["alignedOD", "targetEstablished", "tracking", "correctionFitted"] as const)("requires fresh vergence baseline dwell after invalid %s", field => {
+  let run = sampleNearFusionalRun(configured(), valid(0, 0, "BI"));
+  run = sampleNearFusionalRun(run, valid(200, 0, "BI", { [field]: false }));
+  expect(run.baselineStableSinceMs).toBeNull();
+  run = sampleNearFusionalRun(run, valid(300, 0, "BI")); expect(run.phase).toBe("baseline");
+  run = sampleNearFusionalRun(run, valid(549, 0, "BI")); expect(run.phase).toBe("baseline");
+  run = sampleNearFusionalRun(run, valid(550, 0, "BI")); expect(run.phase).toBe("increase");
+  expect(configureNearFusionalRun(run, "give-instruction")).toBe(run);
+});

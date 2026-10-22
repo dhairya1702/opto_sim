@@ -20,35 +20,35 @@ describe("guided optic lesson bubbles", () => {
       active, scenario: "od", onComplete: complete, onNext: vi.fn(), onExit: vi.fn(),
     })) });
     dispose = sim.dispose;
-    expect(sim.labels()).toContain("GUIDED · STEP 1 OF 6");
+    expect(sim.guidedStep()).toBe("tool");
     expect(sim.labels()).toContain("Pick up the ophthalmoscope");
 
     await sim.pickup(0, "fundus");
-    expect(sim.labels()).toContain("GUIDED · STEP 2 OF 6");
+    expect(sim.guidedStep()).toBe("instruct");
     expect(sim.labels()).toContain("Instruct Arun");
 
     await sim.click(1, sim.button("LOOK AT THE LIGHT"));
-    expect(sim.labels()).toContain("GUIDED · STEP 3 OF 6");
+    expect(sim.guidedStep()).toBe("aperture");
     expect(sim.labels()).toContain("Select the large aperture");
 
     await sim.cycleAperture(1);
-    expect(sim.labels()).toContain("GUIDED · STEP 4 OF 6");
+    expect(sim.guidedStep()).toBe("illuminate");
     expect(sim.labels()).toContain("Illuminate both pupils");
 
     await sim.at(0, [0, 1.33, .459]);
     await sim.event(0, "selectstart");
     await sim.step(1 / 72, 12);
-    expect(sim.labels()).toContain("GUIDED · STEP 5 OF 6");
+    expect(sim.guidedStep()).toBe("inspect");
     expect(sim.labels()).toContain("Inspect both red reflexes");
 
     await sim.scope(0); await sim.step(1 / 72, 12);
-    expect(sim.labels()).toContain("GUIDED · STEP 6 OF 6");
+    expect(sim.guidedStep()).toBe("record");
     expect(sim.labels()).toContain("Record the comparison");
     await sim.click(1, sim.button("OD BRIGHTER"));
-    expect(sim.labels()).toContain("Your reflex comparison is selected.");
-    await sim.click(1, sim.button("SUBMIT / CHECK"));
+    expect(sim.labels()).toContain("Press SUBMIT");
+    await sim.click(1, sim.button("SUBMIT"));
     expect(complete).toHaveBeenCalledTimes(1);
-    expect(sim.labels()).toContain("GUIDED · COMPLETE");
+    expect(sim.labels()).toContain("Complete");
   });
 
   it("advances Hirschberg from pickup through aligned capture and explicit interpretation", async () => {
@@ -61,33 +61,33 @@ describe("guided optic lesson bubbles", () => {
       onComplete: complete, onNext: vi.fn(), onExit: vi.fn(),
     })) });
     dispose = sim.dispose;
-    expect(sim.labels()).toContain("GUIDED · STEP 1 OF 6");
+    expect(sim.guidedStep()).toBe("tool");
     expect(sim.labels()).toContain("Pick up the penlight");
 
     await sim.pickup(0, "pupils");
-    expect(sim.labels()).toContain("GUIDED · STEP 2 OF 6");
+    expect(sim.guidedStep()).toBe("instruct");
     expect(sim.labels()).toContain("Instruct Arun");
     await sim.click(1, sim.button("LOOK AT THE LIGHT"));
-    expect(sim.labels()).toContain("GUIDED · STEP 3 OF 6");
+    expect(sim.guidedStep()).toBe("position");
     expect(sim.labels()).toContain("Set the penlight position");
 
     sim.grips[0].rotation.x = Math.PI / 2;
     sim.viewerCamera.rotation.y = .4;
     await sim.at(0, [0, 1.5, .064]);
     await sim.event(0, "selectstart"); await sim.step(1 / 72, 12);
-    expect(sim.labels()).toContain("GUIDED · STEP 4 OF 6");
+    expect(sim.guidedStep()).toBe("inspect");
     expect(sim.labels()).toContain("Align and inspect");
 
     sim.viewerCamera.rotation.y = 0; await sim.step(1 / 72, 12);
-    expect(sim.labels()).toContain("GUIDED · STEP 5 OF 6");
+    expect(sim.guidedStep()).toBe("interpret");
     expect(sim.labels()).toContain("Interpret the reflexes");
     await sim.click(1, sim.button("NO DEVIATION"));
     await sim.click(1, sim.button("CENTRED · 0°"));
-    expect(sim.labels()).toContain("GUIDED · STEP 6 OF 6");
+    expect(sim.guidedStep()).toBe("record");
     expect(sim.labels()).toContain("Record the interpretation");
-    await sim.click(1, sim.button("SUBMIT / CHECK"));
+    await sim.click(1, sim.button("SUBMIT"));
     expect(complete).toHaveBeenCalledTimes(1);
-    expect(sim.labels()).toContain("GUIDED · COMPLETE");
+    expect(sim.labels()).toContain("Complete");
   });
 
   it.each(["bruckner", "hirschberg"] as const)("does not show the %s coach during independent Test", async lesson => {
@@ -101,6 +101,6 @@ describe("guided optic lesson bubbles", () => {
       });
     const sim = await clinic({ renderAdapter: () => withAttempt("test", child) });
     dispose = sim.dispose;
-    expect(sim.labels().some(label => label.startsWith("GUIDED · STEP"))).toBe(false);
+    expect(sim.guidedStep()).toBeUndefined();
   });
 });

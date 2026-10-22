@@ -1,3 +1,4 @@
+import { usePracticeVoiceProcedure } from "../../voice/usePracticeVoiceProcedure";
 import { XRGuidedStepBubble } from "../../scene/XRGuidedStepBubble";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
@@ -142,8 +143,8 @@ export function NPCPracticeController({ active, preview = false, inputMode = "xr
       const tool = runtime.toolsRef.current.subjective;
       if (!isPatientFitted(runtime.toolsRef.current, "subjective")) runtime.updateTools({ ...runtime.toolsRef.current, subjective: { ...tool, placement: { kind: "socket", position: [0, 1.5, -.511], rotation: [0, 0, 0, 1], socketId: "sensory-correction", fittingLayer: "correction" }, revision: (tool.revision ?? 0) + 1 } });
     } },
-    { label: "GIVE CLEAR / SINGLE INSTRUCTION", active: state.run.instructionArmed, disabled: !state.run.ruleDocked, run: instruct },
-    { label: "PATIENT REPORT · WHAT DO YOU SEE?", run: () => publish() },
+    { voiceIds: ["fixate-target"], label: "GIVE CLEAR / SINGLE INSTRUCTION", active: state.run.instructionArmed, disabled: !state.run.ruleDocked, run: instruct },
+    { voiceIds: ["request-report"], label: "PATIENT REPORT · WHAT DO YOU SEE?", run: () => publish() },
     { label: "MARK OBSERVED ENDPOINT", disabled: state.run.phase !== "approach" && state.run.phase !== "recovery", run: mark },
     { label: "RESTART CURRENT TRIAL", run: restart },
     ...(state.run.captures.length === 3 && !state.run.released ? [{ label: "REMOVE / RELEASE RULE", run: removeRule }] : []),
@@ -152,6 +153,7 @@ export function NPCPracticeController({ active, preview = false, inputMode = "xr
   const xrStatus = `${state.run.captures.length}/3 trials · ${neutralPhase} · ${state.run.feedback}`;
   const status = `${state.run.captures.length}/3 trials · accessible carriage reading ${state.distance.toFixed(1)} cm from spectacle plane · ${neutralPhase} · ${state.run.feedback}`;
   const voiceReport = npcPatientReport(state.run, state.distance);
+  usePracticeVoiceProcedure("npc", active && !preview, { actions, voiceReport: voiceReport });
   useEffect(() => { onMirror?.({ title: LIBRARY_TITLES.npc, findingPosition: { current: caseIndex.current + 1, total: 2 }, status, ready: entryReady,
     entryReady, fields, actions, lesson, reset, record, next: state.run.record ? next : undefined, cancel, reportLines: state.history, voiceReport });
   }, [onMirror, status, entryReady, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
