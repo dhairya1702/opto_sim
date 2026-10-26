@@ -142,7 +142,7 @@ export function AccommodationPracticeController({ active, preview = false, input
   }, [onMirror, status, entryReady, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
 
   return <>
-    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="ACCOMMODATIVE FACILITY" instructionalEquipment={attemptKind === "guided" && coach.index === 4 ? ["lens-flipper"] : []} instrumentSettings={{ "lens-flipper": {
+    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="ACCOMMODATIVE FACILITY" showWallInstructions={false} instructionalEquipment={attemptKind === "guided" && coach.index === 4 ? ["lens-flipper"] : []} instrumentSettings={{ "lens-flipper": {
       side: state.run.side,
       onFlip: inputMode === "xr" && runtime.tools["lens-flipper"].placement.kind === "held" ? flip : undefined,
     } }} />

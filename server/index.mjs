@@ -30,8 +30,8 @@ export function createOptoServer(config = loadConfig(), overrides = {}) {
     });
   });
   const audit = setInterval(() => sessions.forEach(session => session.audit()), 30_000); audit.unref();
-  server.on("close", () => { clearInterval(audit); sessions.forEach(session => session.close(1001, "server shutdown")); });
-  return { app, server, sessions };
+  server.on("close", () => { clearInterval(audit); sessions.forEach(session => session.close(1001, "server shutdown")); void speech.close(); });
+  return { app, server, sessions, speech };
 }
 
 function createIpClass(ip) { return ip.includes(":") ? "ipv6" : "ipv4"; }
@@ -57,6 +57,16 @@ export function voiceUpgradeDecision(request, config, sessionCount, sessionsByIp
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const config = loadConfig(); const { server } = createOptoServer(config);
+  let shuttingDown = false;
+  const shutdown = () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    server.close(error => {
+      if (error) { console.error(error); process.exitCode = 1; }
+    });
+  };
+  process.once("SIGTERM", shutdown);
+  process.once("SIGINT", shutdown);
   server.listen(config.port, "0.0.0.0", () => {
     console.log(JSON.stringify({ component: "server", event: "listening", port: config.port }));
     if (perfLogEnabled()) console.log("[perf] PERF_LOG=1: printing reports from ?perf=1 clients on this network.");

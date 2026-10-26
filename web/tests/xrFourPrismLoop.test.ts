@@ -1,4 +1,5 @@
 import { createElement } from "react";
+import { Raycaster, Vector3 } from "three";
 import { act } from "@react-three/fiber";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { clinic } from "./helpers/xrClinicHarness";
@@ -23,6 +24,16 @@ async function lesson(kind: PracticeAttemptKind = "guided", preview = false, sce
     if (!item) throw new Error(`Missing action ${label}`);
     await act(async () => item.run()); await sim.step(1 / 72, 12);
   };
+  const power = async () => {
+    let button: import("three").Object3D | undefined;
+    sim.state.scene.traverse(object => { if (object.userData.xrDistanceDisplaySwitch) button = object; });
+    if (!button) throw new Error("Missing distance display switch");
+    await sim.click(0, button);
+    await sim.step(1 / 72, 12);
+    sim.rays[0].position.set(-.3, 1.2, .5);
+    sim.rays[0].rotation.set(0, 0, 0);
+    await sim.step();
+  };
   const fit = async () => {
     const socket = SENSORY_SOCKETS.find(candidate => candidate.id === "sensory-correction")!;
     await sim.pickup(0, "subjective"); await sim.at(0, socket.position); await sim.putDown(0); await sim.step(1 / 72, 12);
@@ -31,13 +42,13 @@ async function lesson(kind: PracticeAttemptKind = "guided", preview = false, sce
   const selectBase = async (eye: "OD" | "OS") => sim.thumbstick(1, eye === "OD" ? -1 : 1, "horizontal");
   const prism = async (eye: "OD" | "OS") => { await sim.at(1, [eye === "OD" ? -.048 : .048, eye === "OD" ? 1.6 : 1.4, -.492]); };
   const prepare = async () => {
-    await fit(); await action("LOOK AT THE ISOLATED LETTER");
+    await fit(); await power(); await action("LOOK AT THE ISOLATED LETTER");
     sim.viewerCamera.position.set(0, 1.5, .65); await sim.pickup(1, "four-prism"); await orient("OD");
   };
   const bilateral = async () => {
-    await orient("OD"); await prism("OD"); await sim.step(1 / 72, 175);
+    await orient("OD"); await prism("OD"); await sim.step(1 / 72, 220);
     await sim.at(1, [.4, 1.4, -.492]); await sim.step(1 / 72, 3);
-    await orient("OS"); await prism("OS"); await sim.step(1 / 72, 175);
+    await orient("OS"); await prism("OS"); await sim.step(1 / 72, 220);
   };
   const observations = async (scenario: "normal" | "suppression") => {
     await act(async () => {
@@ -47,11 +58,11 @@ async function lesson(kind: PracticeAttemptKind = "guided", preview = false, sce
     });
     await sim.step(1 / 72, 12);
   };
-  return { ...sim, mirror: () => mirror!, mirrorUpdates, complete, leave, action, fit, orient, selectBase, prism, prepare, bilateral, observations };
+  return { ...sim, mirror: () => mirror!, mirrorUpdates, complete, leave, action, power, fit, orient, selectBase, prism, prepare, bilateral, observations };
 }
 
 describe("mounted shared-clinic 4Δ base-out Practice", () => {
-  it("shows the nine-step Guided coach in preview and removes it from independent Test", async () => {
+  it("shows the ten-step Guided coach in preview and removes it from independent Test", async () => {
     const guided = await lesson("guided", true);
     expect(guided.guidedStep()).toBe("fit");
     const model = guided.tool("four-prism");
@@ -65,13 +76,63 @@ describe("mounted shared-clinic 4Δ base-out Practice", () => {
     expect(test.labels().join(" ")).not.toContain("Point the base");
   });
 
+  it.each(["guided", "test"] as const)("starts with the target off and gates fixation on explicit presentation in %s", async kind => {
+    const sim = await lesson(kind);
+    const targets: import("three").Object3D[] = [];
+    sim.state.scene.traverse(object => { if (object.userData.xrIsolatedLetter) targets.push(object); });
+    expect(targets).toHaveLength(1);
+    expect(targets[0].visible).toBe(false);
+    expect(sim.mirror().actions.some(action => action.label === "SWITCH TARGET ON")).toBe(false);
+    await sim.power();
+    expect(targets[0].visible).toBe(false);
+    await sim.fit();
+    await sim.action("LOOK AT THE ISOLATED LETTER");
+    expect(sim.mirror().status).toContain("Switch on the distance target");
+    expect(sim.mirror().actions.find(action => action.label === "LOOK AT THE ISOLATED LETTER")?.disabled).toBe(true);
+    expect(sim.mirror().ready).toBe(false);
+    await sim.power();
+    expect(targets[0].visible).toBe(true);
+    expect(sim.mirror().status).toContain("Ask Arun to look");
+    expect(sim.mirror().ready).toBe(false);
+    await sim.action("LOOK AT THE ISOLATED LETTER");
+    expect(sim.mirror().status).toContain("Pick up the 4Δ prism");
+    await sim.power();
+    expect(targets[0].visible).toBe(false);
+    expect(sim.mirror().actions.find(action => action.label === "LOOK AT THE ISOLATED LETTER")?.disabled).toBe(true);
+    await sim.power();
+    expect(targets[0].visible).toBe(true);
+    expect(sim.mirror().status).toContain("Ask Arun to look");
+    await act(async () => sim.mirror().reset()); await sim.step(1 / 72, 12);
+    expect(targets[0].visible).toBe(false);
+  });
+
+  it("keeps the enlarged prism labels clear of the handle and readable from both faces", async () => {
+    const sim = await lesson();
+    const model = sim.tool("four-prism");
+    const pills: import("three").Object3D[] = [];
+    model.traverse(object => { if (object.userData.xrLabelPill) pills.push(object); });
+    expect(pills).toHaveLength(2);
+    model.updateWorldMatrix(true, true);
+    for (const pill of pills) {
+      expect(pill.position.y - pill.userData.height / 2).toBeGreaterThan(.044);
+      expect(pill.userData).toMatchObject({ width: .13, height: .036 });
+      const centre = pill.getWorldPosition(new Vector3());
+      const normal = new Vector3(0, 0, 1).transformDirection(pill.matrixWorld);
+      const hits = new Raycaster(centre.clone().addScaledVector(normal, .10), normal.negate()).intersectObject(model, true);
+      expect(hits.length).toBeGreaterThan(0);
+      let ancestor: import("three").Object3D | null = hits[0].object;
+      while (ancestor && ancestor !== pill) ancestor = ancestor.parent;
+      expect(ancestor).toBe(pill);
+    }
+  });
+
   it("requires opposite physical base orientation, full withdrawal and records exactly once", async () => {
     const sim = await lesson(); await sim.prepare();
     await sim.orient("OS"); await sim.prism("OD"); await sim.step(1 / 72, 180); expect(sim.mirror().ready).toBe(false);
-    await sim.orient("OD"); await sim.step(1 / 72, 175); expect(sim.mirror().status).toContain("withdraw");
+    await sim.orient("OD"); await sim.step(1 / 72, 220); expect(sim.mirror().status).toContain("Remove Prism");
     const firstPulseCount = sim.haptics[1].mock.calls.length; expect(firstPulseCount).toBeGreaterThanOrEqual(1);
-    sim.rays[1].rotation.z = 0; sim.grips[1].position.set(.048, 1.4, -.492); await sim.step(1 / 72, 175); expect(sim.mirror().ready).toBe(false);
-    await sim.at(1, [.4, 1.4, -.492]); await sim.step(1 / 72, 3); await sim.prism("OS"); await sim.step(1 / 72, 175);
+    sim.rays[1].rotation.z = 0; sim.grips[1].position.set(.048, 1.4, -.492); await sim.step(1 / 72, 220); expect(sim.mirror().ready).toBe(false);
+    await sim.at(1, [.4, 1.4, -.492]); await sim.step(1 / 72, 3); await sim.prism("OS"); await sim.step(1 / 72, 220);
     expect(sim.mirror().ready).toBe(true); expect(sim.haptics[1].mock.calls.length).toBe(firstPulseCount + 1);
     await sim.putDown(1); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(true);
     await sim.observations("normal"); expect(sim.mirror().fields.map(field => field.id)).toEqual(["interpretation"]);
@@ -87,11 +148,11 @@ describe("mounted shared-clinic 4Δ base-out Practice", () => {
     await sim.step(1 / 72, 72);
     expect(sim.mirrorUpdates.mock.calls.length).toBeGreaterThanOrEqual(5);
     expect(sim.mirrorUpdates.mock.calls.length).toBeLessThanOrEqual(12);
-    expect(sim.mirror().status).not.toContain("OD captured");
-    await sim.step(1 / 72, 101);
-    expect(sim.mirror().status).toContain("OD captured");
+    expect(sim.mirror().status).not.toContain("Remove Prism");
+    await sim.step(1 / 72, 145);
+    expect(sim.mirror().status).toContain("Remove Prism");
     await sim.at(1, [.4, 1.4, -.492]); await sim.step(1 / 72, 3);
-    await sim.orient("OS"); await sim.prism("OS"); await sim.step(1 / 72, 175);
+    await sim.orient("OS"); await sim.prism("OS"); await sim.step(1 / 72, 220);
     expect(sim.mirror().ready).toBe(true);
     await sim.observations("normal");
     expect(sim.mirror().fields.map(field => field.id)).toEqual(["interpretation"]);
@@ -102,29 +163,29 @@ describe("mounted shared-clinic 4Δ base-out Practice", () => {
   });
 
   it("switches the fixed prism's base arrow with the held-controller thumbstick", async () => {
-    const sim = await lesson(); await sim.fit(); await sim.action("LOOK AT THE ISOLATED LETTER");
+    const sim = await lesson(); await sim.fit(); await sim.power(); await sim.action("LOOK AT THE ISOLATED LETTER");
     sim.viewerCamera.position.set(0, 1.5, .65); await sim.pickup(1, "four-prism");
     let pill: import("three").Object3D | undefined;
     sim.tool("four-prism").traverse(object => { if (object.userData.xrLabelPill) pill = object; });
-    expect(pill?.userData).toMatchObject({ width: .10, height: .026 });
-    expect(sim.labels().some(label => label.includes("BASE →"))).toBe(true);
+    expect(pill).toBeUndefined();
+    expect(sim.labels().some(label => label.includes("BASE →"))).toBe(false);
     const haptics = sim.haptics[1].mock.calls.length;
-    await sim.selectBase("OD"); expect(sim.labels().some(label => label.includes("← BASE"))).toBe(true);
+    await sim.selectBase("OD"); expect(sim.labels().some(label => label.includes("← BASE"))).toBe(false);
     expect(sim.haptics[1]).toHaveBeenCalledTimes(haptics + 1);
     sim.rays[1].rotation.z = 0; await sim.step();
-    await sim.at(1, [-.048, 1.4, -.492]); await sim.step(1 / 72, 175); expect(sim.mirror().status).toContain("withdraw");
+    await sim.at(1, [-.048, 1.4, -.492]); await sim.step(1 / 72, 220); expect(sim.mirror().status).toContain("Remove Prism");
     await sim.at(1, [.4, 1.4, -.492]); await sim.step(1 / 72, 3);
-    await sim.selectBase("OS"); expect(sim.labels().some(label => label.includes("BASE →"))).toBe(true);
-    await sim.prism("OS"); await sim.step(1 / 72, 175); expect(sim.mirror().ready).toBe(true);
+    await sim.selectBase("OS"); expect(sim.labels().some(label => label.includes("BASE →"))).toBe(false);
+    await sim.prism("OS"); await sim.step(1 / 72, 220); expect(sim.mirror().ready).toBe(true);
   });
 
   it("preserves completed OD through tracking loss but requires fresh fixation", async () => {
-    const sim = await lesson(); await sim.prepare(); await sim.prism("OD"); await sim.step(1 / 72, 175);
-    expect(sim.mirror().status).toContain("withdraw");
+    const sim = await lesson(); await sim.prepare(); await sim.prism("OD"); await sim.step(1 / 72, 220);
+    expect(sim.mirror().status).toContain("Remove Prism");
     sim.tracked[1] = false; await sim.step(); sim.tracked[1] = true; await sim.step(1 / 72, 12);
     expect(sim.mirror().status).toContain("isolated letter");
     await sim.action("LOOK AT THE ISOLATED LETTER");
-    await sim.at(1, [.4, 1.4, -.492]); await sim.step(1 / 72, 3); await sim.orient("OS"); await sim.prism("OS"); await sim.step(1 / 72, 175);
+    await sim.at(1, [.4, 1.4, -.492]); await sim.step(1 / 72, 3); await sim.orient("OS"); await sim.prism("OS"); await sim.step(1 / 72, 220);
     expect(sim.mirror().ready).toBe(true);
   });
 

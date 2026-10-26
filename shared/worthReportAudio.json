@@ -1,0 +1,37 @@
+{
+  "I see four dots: one red, two green, and one mixed/white.": {
+    "file": "cHJhY3RpY2U6d29ydGg6cmVwb3J0OmRlOWViYmQ4ZDQ3OGVmNjE.mp3",
+    "textHash": "de9ebbd8d478ef61546933aa54ffc0102066ab7e4844734a8bd8939cfda4a473",
+    "voice": "Charon"
+  },
+  "I see two red dots, arranged vertically.": {
+    "file": "cHJhY3RpY2U6d29ydGg6cmVwb3J0OjcyYWIxNmRjOTEzMDNhMzQ.mp3",
+    "textHash": "72ab16dc91303a345dcb6e61ac5fcdb8fd8baf4156304e05eb6f1563cb67c289",
+    "voice": "Charon"
+  },
+  "I see three green dots.": {
+    "file": "cHJhY3RpY2U6d29ydGg6cmVwb3J0OjBhODM5ODQ2MzM4MGRhNjc.mp3",
+    "textHash": "0a8398463380da670eaa6e1e2f268f93f5088175b19747ecce914e0188bebd15",
+    "voice": "Charon"
+  },
+  "I see five dots; the red dots are to the right of the green dots.": {
+    "file": "cHJhY3RpY2U6d29ydGg6cmVwb3J0Ojk5ZTBjYTcwNGE4NTAwNTQ.mp3",
+    "textHash": "99e0ca704a85005451437b5337b82a25df9cde6eec82025f72ef169f3f001d47",
+    "voice": "Charon"
+  },
+  "I see five dots; the red dots are to the left of the green dots.": {
+    "file": "cHJhY3RpY2U6d29ydGg6cmVwb3J0OmMzZjcxNjhmOTdiMGY3NTM.mp3",
+    "textHash": "c3f7168f97b0f753b553abcbb8f8d610159faeb9d2761c6abdee9da76b7e6ef9",
+    "voice": "Charon"
+  },
+  "I see five dots; the red dots are above the green dots.": {
+    "file": "cHJhY3RpY2U6d29ydGg6cmVwb3J0OmQwNDU4ODgzMGQ3ZDQ4Mzc.mp3",
+    "textHash": "d04588830d7d4837124f908670225e511a67f2f2e681b51db8243a711c1107be",
+    "voice": "Charon"
+  },
+  "I see five dots; the red dots are below the green dots.": {
+    "file": "cHJhY3RpY2U6d29ydGg6cmVwb3J0OmEzYjNjNWUwOTg5ZWMwMjg.mp3",
+    "textHash": "a3b3c5e0989ec0283b72299fef17d820f87316eef2bfa984de805dbd991a70a3",
+    "voice": "Charon"
+  }
+}

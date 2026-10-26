@@ -6,7 +6,9 @@ import type { ConsultationToolId } from "../interaction/xrConsultationTools";
 import type { XRClinicRuntime } from "../interaction/useXRClinicRuntime";
 
 export function XRSign(props: Parameters<typeof RoomSign>[0]) {
-  return <RoomSign {...props} fit />;
+  const size = props.size ?? [.7, .23];
+  const resolutionTier = props.resolutionTier ?? (size[0] >= .45 || size[1] >= .12 ? "panel" : "compact");
+  return <RoomSign {...props} fit resolutionTier={resolutionTier} />;
 }
 
 export function XRRoundedPanel({ width, height, radius, color, position = [0, 0, 0], rotation = [0, 0, 0], userData }: {

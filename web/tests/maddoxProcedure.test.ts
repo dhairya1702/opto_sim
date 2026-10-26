@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   MADDOX_PRISM_CELLS, MADDOX_PRISM_CELL_Y, MADDOX_TRIALS, armMaddoxReport, cancelMaddoxEntry,
   captureMaddox, enterMaddox, interruptMaddox, maddoxBaseFromRoll, maddoxFittingGuideSocketIds, maddoxGuidedStep, maddoxGrooveCorrect,
-  maddoxNearestCell, maddoxPatientReport, maddoxSetupIssue, newMaddoxRun, sampleMaddox, submitMaddox, type MaddoxSpatialSample,
+  maddoxNearLightCondition, maddoxNearestCell, maddoxPatientReport, maddoxSetupIssue, newMaddoxRun, sampleMaddox, submitMaddox, type MaddoxSpatialSample,
 } from "../interaction/maddoxProcedure";
 
 const sample = (overrides: Partial<MaddoxSpatialSample> = {}): MaddoxSpatialSample => ({
@@ -39,6 +39,49 @@ describe("shared Maddox procedure", () => {
       expect(sampleMaddox(run, wrong, 0, "guided").feedback).toBe(guided);
       expect(captureMaddox(run, wrong, "guided").feedback).toBe(guided);
       expect(captureMaddox(run, wrong, "test").capture).toBeNull();
+    }
+  });
+
+  it("checks near distance and aim independently without the old 10 cm centre-line restriction", () => {
+    const position = [.15, 1.5, -.511 + Math.sqrt(.4 ** 2 - .15 ** 2)] as const;
+    const forward = position.map((value, i) => ([0, 1.5, -.511][i] - value) / .4) as [number, number, number];
+    expect(maddoxNearLightCondition({ position, forward })).toMatchObject({ ready: true, distanceReady: true, aimReady: true });
+    expect(maddoxNearLightCondition({ position, forward: [1, 0, 0] })).toMatchObject({ ready: false, distanceReady: true, aimReady: false });
+    expect(maddoxNearLightCondition({ position: [0, 1.5, .1], forward: [0, 0, -1] })).toMatchObject({ ready: false, distanceReady: false, aimReady: true });
+    expect(maddoxNearLightCondition(null).ready).toBe(false);
+    const trial = MADDOX_TRIALS[2];
+    expect(maddoxSetupIssue(sample({ targetDistanceReady: false }), trial)).toContain("38–42 cm");
+    expect(maddoxSetupIssue(sample({ targetDistanceReady: true, targetAimReady: false }), trial)).toContain("Aim the penlight");
+    expect(maddoxSetupIssue(sample({ targetSite: "near", targetPowered: false }), trial)).toContain("trigger");
+  });
+
+  it("pauses near reporting on brief pose jitter, clears dwell and still gates capture", () => {
+    const ready = sample({ targetSite: "near", distanceCm: 40 });
+    let run = armMaddoxReport({ ...newMaddoxRun(), trialIndex: 2 }, ready);
+    run = sampleMaddox(run, ready, 0);
+    run = sampleMaddox(run, ready, 250);
+    run = sampleMaddox(run, { ...ready, cell: 6 }, 300);
+    run = sampleMaddox(run, { ...ready, cell: 6 }, 550);
+    expect(run.report).toContain("passes through");
+    const invalid = { ...ready, cell: 6 as const, targetReady: false, targetDistanceReady: false };
+    run = sampleMaddox(run, invalid, 600);
+    expect(run).toMatchObject({ introduced20: true, reportInstruction: true, stableSinceMs: null, report: "" });
+    expect(captureMaddox(run, invalid).capture).toBeNull();
+    run = sampleMaddox(run, { ...ready, cell: 6 }, 700);
+    expect(captureMaddox(run, { ...ready, cell: 6 }).capture).toBeNull();
+    run = sampleMaddox(run, { ...ready, cell: 6 }, 950);
+    expect(captureMaddox(run, { ...ready, cell: 6 }).capture).not.toBeNull();
+    run = sampleMaddox(run, invalid, 1000);
+    run = sampleMaddox(run, invalid, 1200);
+    expect(run).toMatchObject({ introduced20: false, reportInstruction: false, stableSinceMs: null });
+  });
+
+  it("does not soften tracking, illumination or prism failures during a near trial", () => {
+    const ready = sample({ targetSite: "near", distanceCm: 40 });
+    let run = armMaddoxReport({ ...newMaddoxRun(), trialIndex: 2 }, ready);
+    run = sampleMaddox(run, ready, 0); run = sampleMaddox(run, ready, 250);
+    for (const invalid of [{ tracking: false }, { targetPowered: false }, { prismAligned: false }]) {
+      expect(sampleMaddox(run, { ...ready, ...invalid }, 300)).toMatchObject({ introduced20: false, reportInstruction: false });
     }
   });
 
@@ -87,6 +130,13 @@ describe("shared Maddox procedure", () => {
     run = sampleMaddox(run, sample({ cell: 6, base: "BO" }), 550);
     expect(run.report).toContain("farther away");
     expect(captureMaddox(run, sample({ cell: 6, base: "BO" })).capture).toBeNull();
+  });
+
+  it("uses grammatical vertical streak reports", () => {
+    const trial = MADDOX_TRIALS[1];
+    expect(maddoxPatientReport(trial, 2, "BU")).toBe("The streak is above the light.");
+    expect(maddoxPatientReport(trial, 6, "BU")).toBe("The streak is below the light.");
+    expect(maddoxPatientReport(trial, 4, "BD")).toBe("The streak is below the light and moves farther away.");
   });
 
   it("requires reporting, a stable 20Δ introduction and stable coincidence", () => {

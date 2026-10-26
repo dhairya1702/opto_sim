@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { consultationXRArrival } from "../interaction/xrConsultationNavigation";
 import { stations, walkable } from "../interaction/navigation";
 import { ALL_CLINIC_TOOLS, CASE_INDEPENDENT_CONSULTATION_EQUIPMENT, CONSULTATION_TOOLS, consultationToolDefinition } from "../interaction/xrConsultationTools";
-import { INSTRUMENT_KIT } from "../interaction/clinicLayout";
+import { INSTRUMENT_KIT, INSTRUMENT_KIT_FAR_LEG_ARRIVAL } from "../interaction/clinicLayout";
 import { coverProcedure } from "../interaction/cover";
 import { clinic } from "./helpers/xrClinicHarness";
 
@@ -43,9 +43,12 @@ describe("mounted consultation two-controller walkthrough", () => {
       const arrival = consultationXRArrival(id, station.position);
       expect(arrival[1]).toBe(0);
       expect(walkable(arrival[0], arrival[2])).toBe(true);
-      if (id === "trolley") for (const tool of CONSULTATION_TOOLS) {
-        expect(Math.hypot(tool.home[0] - arrival[0], tool.home[2] - arrival[2]), tool.label).toBeLessThan(1.35);
-      }
+    }
+    // The two leg-side pads jointly cover the cart instead of one central pad reaching every tool.
+    for (const tool of CONSULTATION_TOOLS) {
+      const nearest = Math.min(...[INSTRUMENT_KIT.xrArrival, INSTRUMENT_KIT_FAR_LEG_ARRIVAL]
+        .map(pad => Math.hypot(tool.home[0] - pad[0], tool.home[2] - pad[2])));
+      expect(nearest, tool.label).toBeLessThan(1.35);
     }
     expect(stations.find(station => station.id === "trolley")?.position).toEqual([...INSTRUMENT_KIT.desktopPosition]);
   });

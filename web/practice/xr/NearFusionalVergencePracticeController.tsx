@@ -250,7 +250,7 @@ export function NearFusionalVergencePracticeController({ active, preview = false
   }, [onMirror, status, entryReady, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
 
   return <>
-    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="HORIZONTAL NEAR VERGENCE"
+    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="HORIZONTAL NEAR VERGENCE" showWallInstructions={false}
       showInstructionalHighlights={disclosure.showHighlights}
       instrumentSettings={{ near: { isolatedTarget: true }, "vergence-prism": { power: state.power, base: state.base ?? undefined,
         highlightAperture: disclosure.showHighlights && coach.index === 4, highlightDial: disclosure.showHighlights && coach.index >= 5 && coach.index <= 8 } }} />

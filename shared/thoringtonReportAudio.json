@@ -1,0 +1,22 @@
+{
+  "6, right.": {
+    "file": "cHJhY3RpY2U6dGhvcmluZ3RvbjpyZXBvcnQ6MGVmOGUzMDgzOWU1NWUyYg.mp3",
+    "textHash": "0ef8e30839e55e2bf208bdb13c9917c7b159bc7667601bfbf71402539ebb2175",
+    "voice": "Charon"
+  },
+  "4, above.": {
+    "file": "cHJhY3RpY2U6dGhvcmluZ3RvbjpyZXBvcnQ6MTg3MWQyZDM4ZDk5NGY3ZA.mp3",
+    "textHash": "1871d2d38d994f7d81f85ae91d1ca56ac0d77aabf13f509c605443a8b24674d7",
+    "voice": "Charon"
+  },
+  "8, left.": {
+    "file": "cHJhY3RpY2U6dGhvcmluZ3RvbjpyZXBvcnQ6OTU5NGYzNmM3ZmZiNzg2OQ.mp3",
+    "textHash": "9594f36c7ffb78691bd78e6ecb34b4194f7a1f49f8c2950266e1cfac8f3a781f",
+    "voice": "Charon"
+  },
+  "3, below.": {
+    "file": "cHJhY3RpY2U6dGhvcmluZ3RvbjpyZXBvcnQ6YWYzMTk5ZjdlMjk3N2RiMg.mp3",
+    "textHash": "af3199f7e2977db28ea973f506e3d46677468660f27c9ec724f10bc4aaad9f75",
+    "voice": "Charon"
+  }
+}

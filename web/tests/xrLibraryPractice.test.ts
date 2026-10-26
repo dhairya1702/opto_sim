@@ -4,7 +4,7 @@ import { newVergenceFacility, flipVergenceFacility } from "../interaction/xrVerg
 import { accommodationEyes, pushUpEndpoint, newAccommodationFacility, flipAccommodationFacility } from "../interaction/xrAccommodationPractice";
 import { MINUS_LENS_EYES } from "../interaction/minusLensProcedure";
 import { PUSH_UP_EYES } from "../interaction/pushUpProcedure";
-import { libraryDistance, libraryOpticPlacement, libraryNear, libraryOcclusion, libraryLightThroughCard, libraryEquipment, librarySockets, LIBRARY_TITLES } from "../interaction/xrLibraryEquipment";
+import { libraryRodOrientation, libraryDistance, libraryOpticPlacement, libraryNear, libraryOcclusion, libraryLightThroughCard, libraryEquipment, librarySockets, LIBRARY_TITLES } from "../interaction/xrLibraryEquipment";
 import { consultationToolDefinition, initialConsultationTools, grabConsultationTool, releaseConsultationTool } from "../interaction/xrConsultationTools";
 import { SENSORY_NEAR_TARGET } from "../interaction/xrSensoryEquipment";
 describe("remaining XR library sequences and geometry", () => {
@@ -45,8 +45,14 @@ describe("remaining XR library sequences and geometry", () => {
   it("keeps both Maddox socket rotations on the same OD lens centre and rejects an intermediate roll", () => {
     expect(consultationToolDefinition("maddox").heldPose).toBe("ray");
     const sockets = librarySockets("maddox").filter(socket => socket.tool === "maddox");
-    expect(sockets.map(socket => socket.id)).toEqual(["sensory-maddox-horizontal", "sensory-maddox-vertical"]);
+    expect(sockets.map(socket => socket.id)).toEqual(["sensory-maddox-horizontal", "sensory-maddox-vertical", "sensory-maddox-vertical-reverse"]);
     for (const socket of sockets) {
+      const fitted = releaseConsultationTool(grabConsultationTool(initialConsultationTools(), "maddox", "left"), "left",
+        { position: socket.position, rotation: socket.rotation }, [], librarySockets("maddox"), libraryEquipment("maddox")).state;
+      if (fitted.maddox.placement.kind !== "socket") throw new Error("Expected fitted Maddox rod");
+      expect(fitted.maddox.placement.socketId).toBe(socket.id);
+      expect(fitted.maddox.placement.rotation).toEqual(socket.rotation);
+      expect(libraryRodOrientation(fitted)).toBe(socket.id.endsWith("horizontal") ? 0 : 90);
       const centre = new Vector3(0, .10, 0).applyQuaternion(new Quaternion(...socket.rotation)).add(new Vector3(...socket.position));
       expect(centre.toArray()).toEqual(expect.arrayContaining([expect.closeTo(-.048, 6), expect.closeTo(1.5, 6), expect.closeTo(-.475, 6)]));
     }

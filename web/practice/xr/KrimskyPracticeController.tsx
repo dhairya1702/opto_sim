@@ -25,8 +25,9 @@ export function KrimskyPracticeController({ active, preview = false, inputMode =
   const guided = attemptSettings?.kind === "guided";
   const { gl, camera } = useThree();
   const [index, setIndex] = useState(0);
-  const finding = krimskyPracticeCases[index];
-  const method = finding.method;
+  const method = attemptSettings?.krimskyMethod ?? "standard";
+  const findings = useMemo(() => krimskyPracticeCases.filter(finding => finding.method === method), [method]);
+  const finding = findings[index];
   const lesson = usePracticeLesson(onComplete);
   const [setup, setSetup] = useState(() => initialSetup(method));
   const setupRef = useRef(setup);
@@ -171,10 +172,10 @@ export function KrimskyPracticeController({ active, preview = false, inputMode =
   };
   const next = () => {
     if (!lesson.awarded.current) return;
-    const nextIndex = (index + 1) % krimskyPracticeCases.length;
+    const nextIndex = (index + 1) % findings.length;
     reset();
-    // Synchronize the new case's method before the next physical frame.
-    const nextSetup = initialSetup(krimskyPracticeCases[nextIndex].method);
+    // Keep the selected method when advancing to another finding.
+    const nextSetup = initialSetup(method);
     updateSetup(nextSetup); setIndex(nextIndex);
   };
   const viewingIssue = krimskyViewingIssue(technique, runtime.frameValid.current, runtime.tools.pupils.powered);
@@ -206,6 +207,7 @@ export function KrimskyPracticeController({ active, preview = false, inputMode =
   const guidance = krimskyGuidedStep({
     viewingIssue,
     requiredEye: krimskyEye(setup.method),
+    method: setup.method,
     baseSelected: setup.base === "BI" || setup.base === "BO",
     penlightHeld: runtime.tools.pupils.placement.kind === "held",
     fixation: setup.fixation,
@@ -219,7 +221,7 @@ export function KrimskyPracticeController({ active, preview = false, inputMode =
     recorded: lesson.recorded,
   });
   usePracticeVoiceProcedure("krimsky", active && !preview, { actions, voiceReport: undefined });
-  useEffect(() => { onMirror?.({ title: setup.method === "modified" ? "Modified Krimsky" : "Krimsky", findingPosition: { current: index + 1, total: krimskyPracticeCases.length },
+  useEffect(() => { onMirror?.({ title: setup.method === "modified" ? "Modified Krimsky" : "Standard Krimsky", findingPosition: { current: index + 1, total: findings.length },
     status: captured ? status : `${status} · selected prism ${setup.power}Δ ${setup.base || "base unselected"}`, ready, entryReady: ready, fields, actions: [...actions, ...accessiblePrismConfiguration], lesson, reset, record, next, cancel }); },
     [onMirror, status, ready, technique.correctionReady, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, index, setup, runtime.tools.prism.placement.kind, prismAnchorPower]);
   return <>

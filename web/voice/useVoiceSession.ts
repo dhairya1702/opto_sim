@@ -1,9 +1,11 @@
-import { voiceAssetMatches } from "./audioAssets";
+import { voiceAssetMatches, type VoiceAsset } from "./audioAssets";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { VoiceCommand, VoiceCommandResult, VoiceContext, VoiceStatus } from "./contracts";
 import { validVoiceCommand } from "./contracts";
 import { VOICE_AVAILABLE } from "./config";
 import { VoiceOutputArbiter } from "./outputArbiter";
+import { announcePatientAudio, PATIENT_AUDIO_START } from "./patientAudioChannel";
+import { perfCount } from "../perf/perfFlag";
 
 type ServerMessage =
   | { type: "status"; status: VoiceStatus; message?: string; voiceName?: string }
@@ -13,7 +15,31 @@ type ServerMessage =
   | { type: "audio"; data: string; mimeType: string; output: "canonical" | "gemini"; turn: number }
   | { type: "error"; code: string; message: string };
 
-type VoiceAssetIndex = Record<string, { file: string; textHash: string; voice: string }>;
+type VoiceAssetIndex = Record<string, VoiceAsset>;
+type VoiceAssetIndexRequest = { signal?: AbortSignal; promise: Promise<VoiceAssetIndex | null> };
+
+const VOICE_ASSET_FILE = /^[a-zA-Z0-9_-]+\.mp3$/;
+const VOICE_ASSET_HASH = /^[a-f0-9]{64}$/;
+const VOICE_SOCKET_BACKPRESSURE_BYTES = 256 * 1024;
+type PcmWorkletFrame = { pcm: ArrayBuffer; rms: number };
+
+function validatedVoiceAssetIndex(value: unknown): VoiceAssetIndex | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const index: VoiceAssetIndex = {};
+  for (const [key, candidate] of Object.entries(value)) {
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) continue;
+    const asset = candidate as Partial<VoiceAsset>;
+    if (typeof asset.file !== "string" || !VOICE_ASSET_FILE.test(asset.file)
+      || typeof asset.textHash !== "string" || !VOICE_ASSET_HASH.test(asset.textHash)
+      || typeof asset.voice !== "string" || !asset.voice) continue;
+    index[key] = { file: asset.file, textHash: asset.textHash, voice: asset.voice };
+  }
+  return Object.keys(index).length ? index : null;
+}
+
+function voiceAssetUrl(asset: VoiceAsset) {
+  return `/audio/voice/${encodeURIComponent(asset.file)}?v=${asset.textHash.slice(0, 16)}`;
+}
 
 export function useVoiceSession(context: VoiceContext, onCommand: (command: VoiceCommand) => VoiceCommandResult | Promise<VoiceCommandResult>) {
   const [status, setStatus] = useState<VoiceStatus>("locked");
@@ -37,9 +63,9 @@ export function useVoiceSession(context: VoiceContext, onCommand: (command: Voic
   const contextRef = useRef(context);
   const commandRef = useRef(onCommand);
   const arbiter = useRef(new VoiceOutputArbiter());
-  const assetIndex = useRef<VoiceAssetIndex>({});
+  const assetIndex = useRef<VoiceAssetIndex | null>(null);
+  const assetIndexRequest = useRef<VoiceAssetIndexRequest | null>(null);
   const voiceName = useRef<string | undefined>(undefined);
-  const assetUrls = useRef(new Map<string, string>());
   contextRef.current = context;
   commandRef.current = onCommand;
 
@@ -47,6 +73,16 @@ export function useVoiceSession(context: VoiceContext, onCommand: (command: Voic
     arbiter.current.stop();
     document.querySelectorAll<HTMLAudioElement>("audio[data-opto-voice]").forEach((audio) => { audio.pause(); audio.remove(); });
   }, []);
+
+  const setCaptureActive = useCallback((active: boolean) => {
+    worklet.current?.port.postMessage({ type: "active", active });
+  }, []);
+
+  useEffect(() => {
+    const onPatientAudio = (event: Event) => { if ((event as CustomEvent).detail === "report") stopPlayback(); };
+    window.addEventListener(PATIENT_AUDIO_START, onPatientAudio);
+    return () => window.removeEventListener(PATIENT_AUDIO_START, onPatientAudio);
+  }, [stopPlayback]);
 
   const play = useCallback((data: string, mimeType: string, output: "canonical" | "gemini", outputTurn: number) => {
     const outputArbiter = arbiter.current;
@@ -57,64 +93,65 @@ export function useVoiceSession(context: VoiceContext, onCommand: (command: Voic
     const stop = () => { audio.pause(); audio.remove(); };
     if (output === "canonical") arbiter.current.preferCanonical(outputTurn);
     if (!arbiter.current.play(outputTurn, output, stop)) return;
+    announcePatientAudio("voice");
     setStatus("speaking");
     document.body.append(audio);
     audio.addEventListener("ended", () => { audio.remove(); if (current()) setStatus("listening"); }, { once: true });
     void audio.play().catch(() => { audio.remove(); if (current()) { setStatus("error"); setMessage("Patient audio could not play. Check browser audio permissions."); } });
   }, []);
 
-  const preloadVoiceAssets = useCallback(async (signal: AbortSignal) => {
-    if (assetUrls.current.size) return;
-    try {
-      const indexResponse = await fetch("/audio/voice/index.json", { credentials: "same-origin", cache: "force-cache", signal });
-      if (!indexResponse.ok) return;
-      const index = await indexResponse.json() as VoiceAssetIndex;
-      if (signal.aborted) return;
-      assetIndex.current = index;
-      await Promise.all(Object.entries(index).map(async ([key, asset]) => {
-        if (!asset || typeof asset.file !== "string" || !/^[a-zA-Z0-9_-]+\.mp3$/.test(asset.file)) return;
-        const response = await fetch(`/audio/voice/${asset.file}`, { credentials: "same-origin", cache: "force-cache", signal });
-        if (!response.ok) return;
-        const blob = await response.blob();
-        if (signal.aborted || !mounted.current) return;
-        const previous = assetUrls.current.get(key);
-        if (previous) URL.revokeObjectURL(previous);
-        assetUrls.current.set(key, URL.createObjectURL(blob));
-      }));
-    } catch { /* Runtime TTS remains the fallback when static audio is unavailable. */ }
+  const loadVoiceAssetIndex = useCallback((signal?: AbortSignal): Promise<VoiceAssetIndex | null> => {
+    if (assetIndex.current) return Promise.resolve(assetIndex.current);
+    const pending = assetIndexRequest.current;
+    if (pending && !pending.signal?.aborted) return pending.promise;
+    let request!: VoiceAssetIndexRequest;
+    const promise = (async () => {
+      try {
+        const response = await fetch("/audio/voice/index.json", { credentials: "same-origin", cache: "force-cache", signal });
+        if (!response.ok || signal?.aborted) return null;
+        const index = validatedVoiceAssetIndex(await response.json());
+        if (!index || signal?.aborted || !mounted.current) return null;
+        assetIndex.current = index;
+        return index;
+      } catch {
+        return null;
+      } finally {
+        if (assetIndexRequest.current === request) assetIndexRequest.current = null;
+      }
+    })();
+    request = { signal, promise };
+    assetIndexRequest.current = request;
+    return promise;
   }, []);
 
-  const playPreloaded = useCallback(async (keys: string[], outputTurn: number, spokenText: string) => {
+  const playIndexedAsset = useCallback(async (keys: string[], outputTurn: number, spokenText: string) => {
     // Compound replies use runtime TTS; a cache identifier alone never proves text identity.
-    if (keys.length !== 1 || !await voiceAssetMatches(assetIndex.current[keys[0]], spokenText, voiceName.current)) return false;
-    const urls = keys.flatMap(key => {
-      const url = assetUrls.current.get(key);
-      return url ? [url] : [];
-    });
+    if (keys.length !== 1) return false;
+    const sessionGeneration = generation.current;
     const outputArbiter = arbiter.current;
-    if (!urls.length || urls.length !== keys.length || !outputArbiter.startTurn(outputTurn)) return false;
-    let current: HTMLAudioElement | null = null;
+    const current = () => mounted.current && !manuallyMuted.current && generation.current === sessionGeneration
+      && arbiter.current === outputArbiter && outputArbiter.isCurrent(outputTurn);
+    const index = assetIndex.current ?? await loadVoiceAssetIndex(startupAbort.current?.signal);
+    const asset = index?.[keys[0]];
+    if (!current() || !asset || !await voiceAssetMatches(asset, spokenText, voiceName.current) || !current()) return false;
+    if (!outputArbiter.startTurn(outputTurn)) return false;
+    const audio = new Audio(voiceAssetUrl(asset));
+    audio.dataset.optoVoice = "canonical";
     let stopped = false;
-    const stop = () => { stopped = true; current?.pause(); current?.remove(); };
+    const stop = () => { stopped = true; audio.pause(); audio.remove(); };
     outputArbiter.preferCanonical(outputTurn);
     if (!outputArbiter.play(outputTurn, "canonical", stop)) return false;
+    announcePatientAudio("voice");
     setStatus("speaking");
-    const playAt = async (index: number): Promise<void> => {
-      if (stopped || arbiter.current !== outputArbiter || !outputArbiter.isCurrent(outputTurn) || index >= urls.length) {
-        if (!stopped && !manuallyMuted.current && arbiter.current === outputArbiter && outputArbiter.isCurrent(outputTurn)) setStatus("listening");
-        return;
-      }
-      const audio = new Audio(urls[index]);
-      current = audio; audio.dataset.optoVoice = "canonical"; document.body.append(audio);
-      audio.addEventListener("ended", () => { audio.remove(); void playAt(index + 1).catch(() => { stop(); if (mounted.current && arbiter.current === outputArbiter && outputArbiter.isCurrent(outputTurn)) { setStatus("error"); setMessage("Patient audio could not play. Typed controls remain available."); } }); }, { once: true });
-      await audio.play();
-    };
-    try { await playAt(0); return true; }
+    document.body.append(audio);
+    audio.addEventListener("ended", () => { audio.remove(); if (!stopped && current()) setStatus("listening"); }, { once: true });
+    try { await audio.play(); return current(); }
     catch { stop(); if (outputArbiter.isCurrent(outputTurn)) outputArbiter.stop(); return false; }
-  }, []);
+  }, [loadVoiceAssetIndex]);
 
   const connect = useCallback(() => {
     if (!mounted.current || manuallyMuted.current || !stream.current) return;
+    setCaptureActive(false);
     if (reconnect.current !== undefined) clearTimeout(reconnect.current);
     reconnect.current = undefined;
     const previous = socket.current;
@@ -134,6 +171,7 @@ export function useVoiceSession(context: VoiceContext, onCommand: (command: Voic
       if (!valid()) { ws.close(1000, "obsolete"); return; }
       attempts.current = 0;
       ws.send(JSON.stringify({ type: "hello", context: contextRef.current, sampleRate: audioContext.current?.sampleRate ?? 48000 }));
+      setCaptureActive(true);
       setStatus("listening"); setMessage("Microphone active. Speaking interrupts patient audio.");
     });
     ws.addEventListener("message", async (event) => {
@@ -153,7 +191,7 @@ export function useVoiceSession(context: VoiceContext, onCommand: (command: Voic
           const result = await commandRef.current(data.command);
           if (!valid() || !arbiter.current.isCurrent(data.turn)) return;
           const keys = result.cacheKeys?.length ? result.cacheKeys : result.cacheKey ? [result.cacheKey] : [];
-          const clientAudio = !result.suppressAudio && keys.length > 0 ? await playPreloaded(keys, data.turn, result.spokenText) : false;
+          const clientAudio = !result.suppressAudio && keys.length > 0 ? await playIndexedAsset(keys, data.turn, result.spokenText) : false;
           if (!valid() || !arbiter.current.isCurrent(data.turn)) return;
           if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "command-result", utteranceId: data.command.utteranceId, result, clientAudio }));
         } catch {
@@ -163,6 +201,7 @@ export function useVoiceSession(context: VoiceContext, onCommand: (command: Voic
     });
     ws.addEventListener("close", (event) => {
       if (!valid()) return;
+      setCaptureActive(false);
       socket.current = null; stopPlayback();
       if (event.code === 1000) { setStatus("error"); setMessage("Voice session ended. Select enable voice to reconnect."); return; }
       if (!stream.current) return;
@@ -172,10 +211,11 @@ export function useVoiceSession(context: VoiceContext, onCommand: (command: Voic
       const delay = Math.min(8000, 500 * 2 ** (attempts.current - 1));
       reconnect.current = window.setTimeout(connect, delay);
     });
-  }, [play, playPreloaded, stopPlayback]);
+  }, [play, playIndexedAsset, setCaptureActive, stopPlayback]);
 
   const release = useCallback(() => {
     ++generation.current; starting.current = null; manuallyMuted.current = true;
+    setCaptureActive(false);
     startupAbort.current?.abort(); startupAbort.current = null;
     if (reconnect.current !== undefined) clearTimeout(reconnect.current);
     reconnect.current = undefined;
@@ -186,7 +226,7 @@ export function useVoiceSession(context: VoiceContext, onCommand: (command: Voic
     const audio = audioContext.current; audioContext.current = null;
     if (audio) void audio.close().catch(() => undefined);
     stopPlayback();
-  }, [stopPlayback]);
+  }, [setCaptureActive, stopPlayback]);
 
   const enable = useCallback(async () => {
     if (!mounted.current || starting.current !== null) return false;
@@ -213,15 +253,16 @@ export function useVoiceSession(context: VoiceContext, onCommand: (command: Voic
       const node = new AudioWorkletNode(audio, "opto-pcm-capture"); worklet.current = node;
       const input = audio.createMediaStreamSource(media); source.current = input;
       input.connect(node);
-      node.port.onmessage = (event: MessageEvent<ArrayBuffer>) => {
+      node.port.onmessage = (event: MessageEvent<PcmWorkletFrame>) => {
         if (!valid() || socket.current?.readyState !== WebSocket.OPEN || manuallyMuted.current) return;
-        const samples = new Int16Array(event.data);
-        let energy = 0;
-        for (const sample of samples) energy += sample * sample;
-        if (Math.sqrt(energy / Math.max(1, samples.length)) > 1400) stopPlayback();
-        socket.current.send(event.data);
+        const { pcm, rms } = event.data;
+        if (!(pcm instanceof ArrayBuffer) || !Number.isFinite(rms)) return;
+        if (rms > 1400) stopPlayback();
+        if (socket.current.bufferedAmount > VOICE_SOCKET_BACKPRESSURE_BYTES) { perfCount("PCM frames dropped"); return; }
+        perfCount("PCM frames emitted");
+        socket.current.send(pcm);
       };
-      connect(); void preloadVoiceAssets(abort.signal); return true;
+      connect(); void loadVoiceAssetIndex(abort.signal); return true;
     } catch (reason) {
       if (valid()) {
         release();
@@ -235,7 +276,7 @@ export function useVoiceSession(context: VoiceContext, onCommand: (command: Voic
       }
       if (starting.current === token) starting.current = null;
     }
-  }, [connect, preloadVoiceAssets, release, stopPlayback]);
+  }, [connect, loadVoiceAssetIndex, release, stopPlayback]);
 
   const mute = useCallback(() => {
     release(); setPartial("");
@@ -251,7 +292,6 @@ export function useVoiceSession(context: VoiceContext, onCommand: (command: Voic
     mounted.current = true;
     return () => {
       mounted.current = false; release();
-      assetUrls.current.forEach(url => URL.revokeObjectURL(url)); assetUrls.current.clear();
     };
   }, [release]);
   useEffect(() => {

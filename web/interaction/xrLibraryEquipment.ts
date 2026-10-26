@@ -24,9 +24,10 @@ export function libraryEquipment(kind: LibraryKind): readonly ConsultationToolId
 const rootPoint = (id: ConsultationToolId, point: ToolPoint): ToolPoint => point.map((v, i) => v - consultationToolDefinition(id).workingPoint[i]) as unknown as ToolPoint;
 export const LIBRARY_SOCKETS: readonly PlacementSocket[] = [
   ...SENSORY_SOCKETS, PRACTICE_NEAR_SOCKET,
-  // Both roots put the rotated local lens centre [0,.10,0] at exactly the same OD point.
+  // All roots put the rotated local lens centre [0,.10,0] at exactly the same OD point.
   { id: "sensory-maddox-horizontal", tool: "maddox", position: [-.048, 1.4, -.475], rotation: [0, 0, 0, 1], radius: .045, orientationToleranceRad: Math.PI / 6, fittingLayer: "filters" },
   { id: "sensory-maddox-vertical", tool: "maddox", position: [.052, 1.5, -.475], rotation: [0, 0, Math.SQRT1_2, Math.SQRT1_2], radius: .045, orientationToleranceRad: Math.PI / 6, fittingLayer: "filters" },
+  { id: "sensory-maddox-vertical-reverse", tool: "maddox", position: [-.148, 1.5, -.475], rotation: [0, 0, -Math.SQRT1_2, Math.SQRT1_2], radius: .045, orientationToleranceRad: Math.PI / 6, fittingLayer: "filters" },
   ...(["OD", "OS"] as const).map(eye => ({ id: `sensory-occlude-${eye}`, tool: "cover" as const, position: rootPoint("cover", [CLINIC_PATIENT_EYES[eye][0], 1.5, -.46]), rotation: [0, 0, 0, 1] as const, radius: .025, orientationToleranceRad: Math.PI / 6, fittingLayer: "occlusion" as const })),
   { id: "library-thorington-near", tool: "thorington", position: rootPoint("thorington", SENSORY_NEAR_TARGET), rotation: [0, 0, 0, 1], radius: .10, orientationToleranceRad: Math.PI / 6 },
   { id: "library-npc-spectacle", tool: "npc-rule", position: [0, 1.5, -.511], rotation: [0, 0, 0, 1], radius: .055, orientationToleranceRad: Math.PI / 10, fittingLayer: "measurement" },
@@ -41,7 +42,7 @@ export function libraryOcclusion(tools: ConsultationTools, eye: LibraryEye) {
 export function libraryRodOrientation(tools: ConsultationTools): 0 | 90 | null {
   if (tools.maddox.placement.kind !== "socket") return null;
   if (tools.maddox.placement.socketId === "sensory-maddox-horizontal") return 0;
-  if (tools.maddox.placement.socketId === "sensory-maddox-vertical") return 90;
+  if (tools.maddox.placement.socketId === "sensory-maddox-vertical" || tools.maddox.placement.socketId === "sensory-maddox-vertical-reverse") return 90;
   return null;
 }
 export function libraryRodFitted(tools: ConsultationTools) { return libraryRodOrientation(tools) !== null; }

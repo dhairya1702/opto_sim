@@ -1,3 +1,6 @@
+import { usePatientReportSpeech } from "../../voice/usePatientReportSpeech";
+import { XRWorkingDistanceLabel } from "../../scene/XRWorkingDistanceLabel";
+import { wrapGuidedStepLines } from "../../scene/XRGuidedStepBubble";
 import { usePracticeVoiceProcedure } from "../../voice/usePracticeVoiceProcedure";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
@@ -5,7 +8,7 @@ import { Vector3 } from "three";
 import {
   THORINGTON_CASES, armThoringtonReport, cancelThoringtonEntry, classifyThoringtonCard, enterThorington,
   interruptThorington, newThoringtonRun, nextThoringtonCase, sampleThorington, submitThorington,
-  thoringtonGuidedStep, thoringtonLightIntersection, thoringtonStatusDetail, thoringtonTestStatus,
+  thoringtonDistanceReady, thoringtonGrooveCorrect, thoringtonGuidedStep, thoringtonLightIntersection, thoringtonSetupIssue, thoringtonStatusDetail, thoringtonTestStatus,
   type ThoringtonInterpretation, type ThoringtonReportedSide, type ThoringtonRun, type ThoringtonSpatialSample,
 } from "../../interaction/thoringtonProcedure";
 import { CLINIC_EYE_MIDPOINT } from "../../interaction/clinicPatient";
@@ -71,7 +74,7 @@ export function ThoringtonPracticeController({ active, preview = false, inputMod
       cardPresent: Boolean(cardPose), cardHeldOrSupported, cardDistanceCm: cardCondition?.distanceCm ?? 0,
       cardFacing: Boolean(cardCondition?.patientFacing), cardUpright: Boolean(cardCondition?.upright), penlightHeld,
       penlightPowered: penlightHeld && tools.pupils.powered, penlightExaminerSide: Boolean(lightCondition?.examinerSide),
-      penlightTowardPatient: Boolean(lightCondition?.towardPatient), apertureHit: Boolean(lightCondition?.apertureHit),
+      penlightTowardPatient: Boolean(lightCondition?.towardPatient), apertureHit: Boolean(lightCondition?.apertureHit), penlightWithinReach: lightCondition?.withinReach,
       fixationInstruction: fixation.current, tracking: live && runtime.frameValid.current };
   }, [live, runtime]);
 
@@ -81,10 +84,14 @@ export function ThoringtonPracticeController({ active, preview = false, inputMod
     clock.current += dt;
     if (clock.current < .04) return;
     clock.current = 0;
-    const nextSample = physicalSample();
+    let nextSample = physicalSample();
     const nextRun = sampleThorington(runRef.current, nextSample, performance.now());
     if (nextRun !== runRef.current) {
-      if (runRef.current.capture && !nextRun.capture) { fixation.current = false; lesson.clearPending(); }
+      if (runRef.current.reportInstruction && !nextRun.reportInstruction || runRef.current.capture && !nextRun.capture) {
+        fixation.current = false;
+        nextSample = { ...nextSample, fixationInstruction: false };
+        lesson.clearPending();
+      }
       setRun(nextRun);
     }
     publishSample(nextSample);
@@ -97,8 +104,11 @@ export function ThoringtonPracticeController({ active, preview = false, inputMod
 
   const ask = () => {
     if (!live || runRef.current.capture || lesson.awarded.current) return;
+    const currentTrial = THORINGTON_CASES[runRef.current.caseIndex].trials[runRef.current.trialIndex];
+    const sample = physicalSample();
+    if (thoringtonSetupIssue(sample, currentTrial, runRef.current.requiredRodRefitRevision) !== "Ask Arun to fixate and report the numbered line and side.") return;
     fixation.current = true;
-    const nextSample = { ...physicalSample(), fixationInstruction: true };
+    const nextSample = { ...sample, fixationInstruction: true };
     publishSample(nextSample);
     const next = armThoringtonReport(runRef.current, nextSample); setRun(next);
     if (!next.reportInstruction) lesson.explain(next.feedback);
@@ -137,9 +147,11 @@ export function ThoringtonPracticeController({ active, preview = false, inputMod
     ? toolsDown ? "Captured; enter magnitude, raw side, and interpretation." : "Captured; put the card and penlight down before entry."
     : statusDetail}`;
   const guidance = thoringtonGuidedStep(run, spatial);
-  const actions = [
-    { voiceIds: ["fixate-target", "request-report"], label: run.reportInstruction ? "REPORTING INSTRUCTION GIVEN ✓" : "ASK NUMBER AND SIDE", run: ask,
-      active: run.reportInstruction, disabled: Boolean(run.capture) },
+  const setupIssue = thoringtonSetupIssue(spatial, current, run.requiredRodRefitRevision);
+  const showAsk = live && !run.reportInstruction && !run.capture && run.phase !== "complete" && setupIssue === "Ask Arun to fixate and report the numbered line and side.";
+  const askAction = { voiceIds: ["fixate-target", "request-report"], label: run.reportInstruction ? "REPORTING INSTRUCTION GIVEN ✓" : "ASK ARUN TO FIXATE / REPORT", run: ask,
+    active: run.reportInstruction, disabled: Boolean(run.capture) };
+  const actions = [...(showAsk ? [askAction] : []),
     { label: "FIT NEAR CORRECTION", run: () => placeAtSocket("subjective", "sensory-correction"), active: spatial.correctionFitted },
     { label: `FIT MADDOX ROD · ${current.axis === "horizontal" ? "HORIZONTAL" : "VERTICAL"} GROOVES`,
       run: () => placeAtSocket("maddox", current.axis === "horizontal" ? "sensory-maddox-horizontal" : "sensory-maddox-vertical"),
@@ -151,30 +163,39 @@ export function ThoringtonPracticeController({ active, preview = false, inputMod
   const interpretationChoices: readonly ThoringtonInterpretation[] = current.axis === "horizontal"
     ? ["orthophoria", "esophoria", "exophoria"] : ["orthophoria", "left-hyperphoria", "right-hyperphoria"];
   const fields: LessonField[] = [
-    { id: "magnitude", label: "Reported magnitude", choices: [], number: { min: 0, max: 10, unit: "Δ", step: 1 } },
-    { id: "side", label: "Arun's reported side", choices: sideChoices.map(value => [value, value]) },
-    { id: "interpretation", label: "Clinical interpretation", choices: interpretationChoices.map(value => [value, value]) },
+    { id: "magnitude", label: "Number Arun reported (Δ)", columns: 3, choices: Array.from({ length: 11 }, (_, value) => [String(value), `${value}Δ`]) },
+    { id: "side", label: "Arun's reported side", columns: 3, choices: sideChoices.map(value => [value, value === "through" ? "Through centre" : value]) },
+    { id: "interpretation", label: "Clinical interpretation", columns: 3, choices: interpretationChoices.map(value => [value, value.replaceAll("-", " ")]) },
   ];
   const records = run.records.map(record => `${record.capture.caseId} · ${record.capture.axis}: signed ${record.capture.signedCoordinate > 0 ? "+" : ""}${record.capture.signedCoordinate} at ${record.capture.actualCardDistanceCm.toFixed(1)} cm · report ${record.capture.rawReportedSide} · entered ${record.submittedMagnitude}Δ ${record.submittedInterpretation}`);
-  const voiceReport = run.capture ? `Arun reports ${run.capture.report}` : undefined;
+  const voiceReport = run.capture?.report;
+  const audioMessage = usePatientReportSpeech(live, run.capture ? `${run.caseIndex}:${run.trialIndex}:${run.setupRevision}` : "", voiceReport ?? "");
+  const fittingGuideSocketIds = !spatial.correctionFitted ? ["sensory-correction"]
+    : !spatial.rodFitted || spatial.rodFitRevision <= run.requiredRodRefitRevision || !thoringtonGrooveCorrect(current.axis, spatial.grooveDegrees)
+      ? [current.axis === "horizontal" ? "sensory-maddox-horizontal" : "sensory-maddox-vertical"] : [];
   usePracticeVoiceProcedure("thorington", active && !preview, { actions, voiceReport: voiceReport });
   useEffect(() => { onMirror?.({ title: "Modified Thorington", voiceReport, findingPosition: { current: run.trialIndex + 1, total: 2 },
     status, ready: entryReady, entryReady, reportLines: records, fields, actions, lesson, reset, record, next: run.phase === "complete" ? nextCase : undefined, cancel });
   }, [onMirror, voiceReport, status, entryReady, records.join("|"), run, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, runtime.tools]);
 
   return <>
-    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="MODIFIED THORINGTON"
+    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="MODIFIED THORINGTON" showWallInstructions={false}
       showInstructionalHighlights={guided} instrumentSettings={{ maddox: { angle: 0 } }} />
-    {(live || preview) && <><LibraryEquipmentTray active={live} equipment={runtime.equipment} showFittingGuides={guided} /><LibraryNearStand card="thorington" /></>}
+    {(live || preview) && <><LibraryEquipmentTray active={live} equipment={runtime.equipment} showFittingGuides={guided} fittingGuideSocketIds={fittingGuideSocketIds} /><LibraryNearStand card="thorington" /></>}
     {(live || preview) && guided && <XRGuidedStepBubble stepId={guidance.id} stepNumber={guidance.index + 1} total={10} title={guidance.title} lines={guidance.lines} complete={guidance.complete} />}
-    {live && run.capture && <XRSign text={["FICTIONAL PATIENT-REPORTED VIEW", "ENLARGED ILLUSTRATION · NOT A CALIBRATED VISUAL TEST", run.capture.report]}
-      p={[.56, 1.74, -.10]} size={[.68, .25]} bg="#07151b" fg="#eefbf7" />}
+    {live && guided && !run.capture && <XRWorkingDistanceLabel runtime={runtime} tool="thorington"
+      distanceCm={spatial.cardDistanceCm} ready={thoringtonDistanceReady(spatial.cardDistanceCm)} />}
     <PracticeLessonUI runtime={runtime} active={live} title="Modified Thorington" status={status} tools={["thorington", "pupils"]}
-      actions={actions} fields={fields} lesson={lesson} ready={entryReady} entryReady={entryReady} onRecord={record} onReset={reset}
+      actions={actions} directActions={showAsk ? [askAction] : []} forceBoardVisible recordingOnlyBoard recordingFieldTop={.52}
+      boardReport={entryReady ? undefined : <>{run.capture && <XRSign transparentBackground
+        text={["ARUN SAYS · FICTIONAL PATIENT", ...wrapGuidedStepLines([run.capture.report], 42)]}
+        p={[0, 0, 0]} size={[.70, .22]} bg="#102329" fg="#eefbf7" />}</>}
+      boardFindingLines={!entryReady && run.capture && audioMessage ? [audioMessage] : []}
+      fields={fields} lesson={lesson} ready={entryReady} entryReady={entryReady} onRecord={record} onReset={reset}
       onNext={run.phase === "complete" ? nextCase : undefined} onExit={onExit} onCancel={cancel}
       help={guided ? ["Fit near correction and physically fit the Maddox rod before OD.", "Use horizontal grooves first; remove, roll 90°, and refit for vertical.",
         "Hold or support the combined card 38–42 cm away, upright and facing Arun.", "Hold the penlight trigger and aim from the examiner side through the real 10 mm aperture.",
-        "Ask for number and side, maintain geometry for 250 ms, then put both tools down.", "Enter magnitude, raw side, and interpretation independently. All geometry remains an unvalidated draft."]
+        "Select ASK ARUN TO FIXATE / REPORT. Hold the valid setup steady briefly; Arun speaks and the report is captured automatically. Then put both tools down.", "Enter magnitude, raw side, and interpretation independently. All geometry remains an unvalidated draft."]
         : ["Grip, trigger, controller, keyboard, voice, and recording controls remain available as accessibility guidance.", "Complete the physical procedure and record the captured observation."]} />
   </>;
 }

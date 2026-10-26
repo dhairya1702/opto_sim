@@ -183,7 +183,7 @@ export function MinusLensPracticeController({ active, preview = false, inputMode
   const highlighted = coach.index === 0 ? ["subjective" as const] : coach.index === 1 ? ["near" as const]
     : coach.index === 2 ? ["cover" as const] : coach.index === 3 ? ["minus-lens-holder" as const] : [];
   return <>
-    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="MINUS-LENS AMPLITUDE"
+    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="MINUS-LENS AMPLITUDE" showWallInstructions={false}
       instructionalEquipment={disclosure.showHighlights ? highlighted : []}
       instrumentSettings={{ near: { readableTarget: true }, "minus-lens-holder": { power: state.run.powerD,
         highlightAperture: disclosure.showHighlights && coach.index === 3, highlightDial: disclosure.showHighlights && coach.index === 6 } }} />

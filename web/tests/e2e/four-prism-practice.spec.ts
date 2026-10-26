@@ -13,11 +13,11 @@ async function launch(page: Page, kind: "Guided Practice" | "Test") {
 
 test("desktop Guided 4Δ comparison enforces physical orientation, withdrawal and bilateral entry", async ({ page }) => {
   const dialog = await launch(page, "Guided Practice");
-  await expect(dialog.locator(".clinical-coach")).toContainText(/STEP 1 OF 9/i);
-  await expect(dialog.getByText("Dedicated fixed 4Δ prism")).toBeVisible();
-  await dialog.getByRole("button", { name: "Fit best distance correction" }).click();
-  await dialog.getByRole("button", { name: "Look at the isolated letter" }).click();
-  await dialog.getByRole("button", { name: "Pick up dedicated 4Δ prism" }).click();
+  await expect(dialog.locator(".clinical-coach")).toContainText(/STEP 1 OF 10/i);
+  await expect(dialog.getByText("Pick up the 4Δ prism")).toBeVisible();
+  await dialog.getByRole("button", { name: "FIT THE TRIAL FRAME" }).click();
+  await dialog.getByRole("button", { name: "DISTANCE DISPLAY POWER" }).click();
+  await dialog.getByRole("button", { name: "LOOK AT THE ISOLATED LETTER" }).click();
 
   await dialog.getByLabel("Physical prism base orientation").fill("0");
   await dialog.getByRole("button", { name: "Place OD" }).click();
@@ -25,13 +25,13 @@ test("desktop Guided 4Δ comparison enforces physical orientation, withdrawal an
   await expect(dialog.getByText(/OD —/)).toBeVisible();
 
   await dialog.getByLabel("Physical prism base orientation").fill("180");
-  await page.waitForTimeout(2700);
+  await page.waitForTimeout(3200);
   await expect(dialog.getByText(/OD ✓/)).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Place OS" })).toBeDisabled();
   await dialog.getByRole("button", { name: "Withdraw prism" }).click();
   await dialog.getByLabel("Physical prism base orientation").fill("0");
   await dialog.getByRole("button", { name: "Place OS" }).click();
-  await page.waitForTimeout(2700);
+  await page.waitForTimeout(3200);
   await expect(dialog.getByText(/OS ✓/)).toBeVisible();
 
   const observationSelects = dialog.locator(".clinical-observation select");
@@ -50,4 +50,21 @@ test("desktop independent 4Δ Test hides coaching and authored findings", async 
   await expect(dialog).not.toContainText(/version without refixation|central suppression of OS|normal response/i);
   await expect(dialog.getByRole("button", { name: "Place OS" })).toBeDisabled();
   await expect(dialog.getByLabel("Physical prism base orientation")).toBeVisible();
+});
+
+test("shared 4Δ clinic presents the target explicitly before fixation", async ({ page }) => {
+  const dialog = await launch(page, "Guided Practice");
+  const controls = dialog.getByRole("complementary", { name: "Practice clinic controls" });
+  const fixation = controls.getByRole("button", { name: "LOOK AT THE ISOLATED LETTER", exact: true });
+  const power = controls.getByRole("button", { name: "DISTANCE DISPLAY POWER", exact: true });
+  await expect(fixation).toBeDisabled();
+  await expect(power).toBeDisabled();
+  await controls.getByRole("button", { name: "FIT THE TRIAL FRAME", exact: true }).click();
+  await expect(power).toBeEnabled();
+  await expect(fixation).toBeDisabled();
+  await power.click();
+  await expect(fixation).toBeEnabled();
+  await expect(power).toBeEnabled();
+  await fixation.click();
+  await expect(controls).toContainText("Pick up the 4Δ prism.");
 });

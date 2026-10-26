@@ -276,3 +276,7 @@ When documentation and implementation disagree, verify the implementation and cl
 ## Voice response ownership
 
 `shared/practiceVoice.json` is the shared Practice phrase/acknowledgement catalog used by browser and gateway. Active Practice controllers register stable `voiceIds` on their gated lesson actions with `usePracticeVoiceProcedure`; report text must be a patient reply, never coaching, counters, or recorded scores. Report questions must not turn flippers or record findings. Audio assets require both exact text-hash and voice matches; changing response wording must not reuse mismatched recordings. Test chart requests must match the supported active examination.
+
+Maddox stable prism reports use `usePatientReportSpeech` for automatic playback of bundled Google-generated Charon MP3s independently of the microphone toggle. Speak only the existing engine-produced report, key playback by trial/setup revision/power/base, and cancel invalidated or obsolete output. `patientAudioChannel` coordinates this output with the optional voice session. Never start microphone capture as a side effect of a patient report.
+
+Maddox and Modified Thorington automatic patient reports use exact-text/hash/voice-matched Charon MP3s through `usePatientReportSpeech`, independently of microphone settings. Keep setup coaching outside the right-wall patient-reply slot, hide that slot during recording, and preserve each procedure’s capture rules.

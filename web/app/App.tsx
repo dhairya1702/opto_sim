@@ -29,8 +29,6 @@ import { Notebook } from "../ui/Notebook";
 import { Submission } from "../ui/Submission";
 import { Debrief } from "../ui/Debrief";
 import { ExaminationView, type ExaminationAnimation } from "../scene/ExaminationView";
-import { ModeSelection, type ExperienceMode } from "../ui/ModeSelection";
-import { PracticeMode } from "../practice/PracticeMode";
 import { scriptedPatient } from "../patient/scripted";
 import { VoiceControl } from "../voice/VoiceControl";
 import { useVoiceSession } from "../voice/useVoiceSession";
@@ -53,14 +51,7 @@ type PanelName =
   | "leave"
   | null;
 const uid = () => crypto.randomUUID();
-export function App() {
-  const [mode, setMode] = useState<ExperienceMode | null>(null);
-  if (!mode) return <ModeSelection onSelect={setMode} />;
-  if (mode === "practice") return <PracticeMode onExit={() => setMode(null)} />;
-  return <TestEncounter onExit={() => setMode(null)} />;
-}
-
-function TestEncounter({ onExit }: { onExit: () => void }) {
+export function TestEncounter({ onExit }: { onExit: () => void }) {
   const [session, setSession] = useState(() => newSession(c, uid()));
   const [panel, setPanel] = useState<PanelName>("briefing");
   const panelBeforeLeave = useRef<PanelName>(null);

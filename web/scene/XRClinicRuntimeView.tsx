@@ -6,14 +6,14 @@ import { ConsultationInstruments } from "./ConsultationInstruments";
 import { XRLabelPill, XRSign as Sign } from "./XRClinicPanels";
 import { stations } from "../interaction/navigation";
 import { consultationXRArrival } from "../interaction/xrConsultationNavigation";
-import { AUXILIARY_INSTRUMENT_KIT } from "../interaction/clinicLayout";
+import { AUXILIARY_INSTRUMENT_KIT, AUXILIARY_INSTRUMENT_KIT_FAR_LEG_ARRIVAL } from "../interaction/clinicLayout";
 import { consultationToolDefinition, consultationPickupLabel, toolInHand, type ConsultationToolId } from "../interaction/xrConsultationTools";
 import type { XRClinicRuntime, XRClinicHand } from "../interaction/useXRClinicRuntime";
 import type { FundusScopeView, BrucknerScopeView } from "./XRScopeOptics";
 import { XRScopeView } from "./XRScopeView";
 import { perfRender } from "../perf/perfFlag";
 import { Html } from "@react-three/drei";
-export function XRClinicRuntimeView({ runtime, active, preview = false, title = "VR CONSULTATION", instruction = "Explore freely · A/X · patient menu", showWallInstructions = true, showInstructionalHighlights = true, cleanHands = false, helperHand, helperReady = false, fundusView, brucknerView, sensoryStation, sensoryFixationLetter = false, instrumentSettings, selectableEquipment, instructionalEquipment = [] }: {
+export function XRClinicRuntimeView({ runtime, active, preview = false, title = "VR CONSULTATION", instruction = "Explore freely · A/X · patient menu", showWallInstructions = true, showInstructionalHighlights = true, cleanHands = false, helperHand, helperReady = false, fundusView, brucknerView, sensoryStation, sensoryFixationLetter = false, distanceLetterPowered = true, onDistanceLetterPowerChange, highlightDistanceLetterPower = false, instrumentSettings, selectableEquipment, instructionalEquipment = [] }: {
   instrumentSettings?: ClinicInstrumentSettings;
   selectableEquipment?: readonly ConsultationToolId[];
   /** Existing canonical instruments to highlight in place during Guided coaching. */
@@ -21,6 +21,9 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
   runtime: XRClinicRuntime;
   sensoryStation?: "worth" | "stereo" | "four-prism";
   sensoryFixationLetter?: boolean;
+  distanceLetterPowered?: boolean;
+  onDistanceLetterPowerChange?: (powered: boolean) => void;
+  highlightDistanceLetterPower?: boolean;
   active: boolean;
   preview?: boolean;
   title?: string;
@@ -65,11 +68,11 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
       <XRTeleportRing />
     </group>;
     })}
-    {showGuides && <group position={[AUXILIARY_INSTRUMENT_KIT.xrArrival[0], .012, AUXILIARY_INSTRUMENT_KIT.xrArrival[2]]} userData={active ? { xrTeleport: [...AUXILIARY_INSTRUMENT_KIT.xrArrival] } : { xrPreviewPad: true }}>
+    {showGuides && [AUXILIARY_INSTRUMENT_KIT.xrArrival, AUXILIARY_INSTRUMENT_KIT_FAR_LEG_ARRIVAL].map(arrival => <group key={arrival[2]} position={[arrival[0], .012, arrival[2]]} userData={active ? { xrTeleport: [...arrival] } : { xrPreviewPad: true }}>
       <XRTeleportRing />
-    </group>}
+    </group>)}
     {(active || preview) && <>
-      <SensoryClinicStation active={active} runtime={runtime} distanceLetter={sensoryStation === "four-prism"} fixationLetter={sensoryFixationLetter} showFittingGuides={showInstructionalHighlights} />
+      <SensoryClinicStation active={active} runtime={runtime} distanceLetter={sensoryStation === "four-prism"} distanceLetterPowered={distanceLetterPowered} onDistanceLetterPowerChange={onDistanceLetterPowerChange} highlightDistanceLetterPower={highlightDistanceLetterPower} fixationLetter={sensoryFixationLetter} showFittingGuides={showInstructionalHighlights} />
       <ConsultationInstruments equipment={runtime.equipment} selectable={selectableEquipment} scopeControl={{ aperture: runtime.scopeAperture, cycle: runtime.cycleScopeAperture }} settings={instrumentSettings} toolLabel={runtime.toolLabel} fundusView={fundusView} brucknerView={brucknerView} state={tools} highlighted={[...new Set([...highlighted, ...instructionalEquipment])]} returnedAt={returnedAt} register={registerTool} />
       {active && (["left", "right"] as const).map(hand => <group key={hand} visible={false}
         ref={object => { if (object) runtime.placementMarkers.current.set(hand, object); else runtime.placementMarkers.current.delete(hand); }}

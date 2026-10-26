@@ -10,6 +10,11 @@ export const worthReports: Record<WorthFinding, string> = {
   "right-hyper": "Five dots; the red dots are below the green dots.",
 };
 
+export function worthPatientReport(finding: WorthFinding) {
+  const report = worthReports[finding];
+  return `I see ${report.charAt(0).toLowerCase()}${report.slice(1)}`;
+}
+
 export function interpretWorth(finding: WorthFinding) {
   return finding === "fusion" ? "flat-fusion" : finding === "suppress-os" ? "left-suppression" : finding === "suppress-od" ? "right-suppression" : finding;
 }

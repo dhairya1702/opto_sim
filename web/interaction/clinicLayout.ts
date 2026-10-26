@@ -6,7 +6,7 @@ export const INSTRUMENT_KIT = {
   depth: .60,
   surfaceY: .8775,
   lowerShelfY: .4175,
-  xrArrival: [-.70, 0, .82] as const,
+  xrArrival: [-.78, 0, 1.60] as const,
   desktopPosition: [-.48, 1.6, 1.32] as const,
   lookAt: [-1.47, .96, .65] as const,
 };
@@ -20,7 +20,7 @@ export const AUXILIARY_INSTRUMENT_KIT = {
   depth: .60,
   surfaceY: .8775,
   lowerShelfY: .4175,
-  xrArrival: [.70, 0, .82] as const,
+  xrArrival: [.78, 0, 1.60] as const,
   desktopPosition: [.48, 1.6, 1.32] as const,
   lookAt: [1.47, .96, .65] as const,
 };
@@ -48,3 +48,10 @@ export function auxiliaryInstrumentKitPoint(x: number, y: number, z: number): [n
     AUXILIARY_INSTRUMENT_KIT.z - sine * x + cosine * z,
   ];
 }
+
+/** Floor pads beside the two aisle-facing legs, clear of the cart footprint. */
+export const INSTRUMENT_KIT_FAR_LEG_ARRIVAL = [-.78, 0, -.30] as const;
+export const AUXILIARY_INSTRUMENT_KIT_FAR_LEG_ARRIVAL = [.78, 0, -.30] as const;
+
+/** Central approach within reach of the near stand, clear of the patient chair. */
+export const PATIENT_NEAR_STAND_ARRIVAL = [0, 0, .40] as const;

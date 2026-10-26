@@ -8,11 +8,12 @@ import { usePracticeAttempt } from "./PracticeAttemptContext";
 import { perfRender } from "../perf/perfFlag";
 import type { ClinicInputMode } from "../interaction/useXRClinicRuntime";
 
-export function HirschbergVRStage({ scenario, finding, findingPosition, onClose, onDesktop, onComplete, onNext, inputMode = "xr" }: {
+export type HirschbergVRStageProps = {
   scenario: OpticScenario; finding: HirschbergPracticeFinding;
   findingPosition: { current: number; total: number };
   onClose: () => void; onDesktop?: () => void; onComplete: () => void; onNext: () => void; inputMode?: ClinicInputMode;
-}) {
+};
+export function HirschbergVRStage({ scenario, finding, findingPosition, onClose, onDesktop, onComplete, onNext, inputMode = "xr" }: HirschbergVRStageProps) {
   perfRender("HirschbergVRStage");
   const { settings } = usePracticeAttempt();
   const guided = settings?.kind !== "test";

@@ -4,14 +4,15 @@ import {
   authoredFourPrismObservation, cancelFourPrismRun, clearFourPrismFixation, confirmFourPrismWithdrawal,
   establishFourPrismFixation, exitFourPrismRun, finalizeFourPrismRun, fourPrismBaseAlignmentError,
   fourPrismGuidedStep, handleFourPrismTool, initialFourPrismRun, interruptFourPrismEye,
-  markFourPrismObservation, repeatFourPrismComparison, resetFourPrismRun, reviseFourPrismFitting,
-  seededFourPrismDeck, submitFourPrismInterpretation, type FourPrismRunState, type FourPrismSample,
+  markFourPrismObservation, presentFourPrismTarget, repeatFourPrismComparison, resetFourPrismRun, reviseFourPrismFitting,
+  seededFourPrismDeck, setFourPrismTargetPower, submitFourPrismInterpretation, type FourPrismRunState, type FourPrismSample,
 } from "../interaction/xrFourPrismPractice";
 
 const position = { OD: [-.048, 1.5, -.48], OS: [.048, 1.5, -.48] } as const;
 function prepared(scenario: "normal" | "suppression" = "normal") {
   let state = initialFourPrismRun(scenario);
   state = reviseFourPrismFitting(state, true, 1);
+  state = presentFourPrismTarget(state);
   state = establishFourPrismFixation(state);
   return handleFourPrismTool(state, true, 1);
 }
@@ -23,7 +24,7 @@ function sample(state: FourPrismRunState, eye = state.expectedEye, patch: Partia
     boAlignmentErrorRad: fourPrismBaseAlignmentError([...baseAxis], eye), sampledDurationMs: 100, ...patch };
 }
 function capture(state: FourPrismRunState, eye = state.expectedEye) {
-  for (let index = 0; index < 24; index++) state = advanceFourPrismSample(state, sample(state, eye));
+  for (let index = 0; index < 30; index++) state = advanceFourPrismSample(state, sample(state, eye));
   return state;
 }
 function bilateral(scenario: "normal" | "suppression" = "normal") {
@@ -33,6 +34,17 @@ function bilateral(scenario: "normal" | "suppression" = "normal") {
 }
 
 describe("shared 4Δ base-out procedure", () => {
+  it("invalidates captured observations and fixation when the display is switched off", () => {
+    const captured = capture(prepared());
+    expect(captured.eyeCaptures.OD).toBeDefined();
+    const off = setFourPrismTargetPower(captured, false);
+    expect(off).toMatchObject({ targetOn: false, fixationSetupRevision: null, dwellMs: 0, expectedEye: "OD", eyeCaptures: {}, eyeRecords: {}, completedRun: null });
+    const on = setFourPrismTargetPower(off, true);
+    expect(on.targetOn).toBe(true);
+    expect(on.fixationSetupRevision).toBeNull();
+    expect(on.eyeCaptures).toEqual({});
+  });
+
   it("reuses unchanged tool and interruption state while preserving real transitions", () => {
     const initial = initialFourPrismRun();
     expect(handleFourPrismTool(initial, false)).toBe(initial);
@@ -56,21 +68,38 @@ describe("shared 4Δ base-out procedure", () => {
     expect(handleFourPrismTool(complete, false, complete.prismToolRevision)).toBe(complete);
   });
 
-  it("exposes all nine guided phases without revealing a case answer", () => {
-    expect(FOUR_PRISM_GUIDED_STEP_COUNT).toBe(9);
+  it("exposes all ten guided phases without revealing a case answer", () => {
+    expect(FOUR_PRISM_GUIDED_STEP_COUNT).toBe(10);
     let state = initialFourPrismRun();
     expect(fourPrismGuidedStep(state)).toMatchObject({ index: 0, id: "fit" });
-    state = reviseFourPrismFitting(state, true, 1); expect(fourPrismGuidedStep(state).index).toBe(1);
-    state = establishFourPrismFixation(state); expect(fourPrismGuidedStep(state).index).toBe(2);
-    state = handleFourPrismTool(state, true, 1); expect(fourPrismGuidedStep(state).index).toBe(3);
-    state = advanceFourPrismSample(state, sample(state)); expect(fourPrismGuidedStep(state).index).toBe(4);
-    state = capture(state); expect(fourPrismGuidedStep(state).index).toBe(5);
-    state = confirmFourPrismWithdrawal(state, [.4, 1.5, -.48], [0, 0, -1]); expect(fourPrismGuidedStep(state).index).toBe(6);
-    state = capture(state); expect(fourPrismGuidedStep(state).index).toBe(7);
+    state = reviseFourPrismFitting(state, true, 1); expect(fourPrismGuidedStep(state).id).toBe("target");
+    state = presentFourPrismTarget(state); expect(fourPrismGuidedStep(state).index).toBe(2);
+    state = establishFourPrismFixation(state); expect(fourPrismGuidedStep(state).index).toBe(3);
+    state = handleFourPrismTool(state, true, 1); expect(fourPrismGuidedStep(state).index).toBe(4);
+    state = advanceFourPrismSample(state, sample(state)); expect(fourPrismGuidedStep(state).index).toBe(5);
+    state = capture(state); expect(fourPrismGuidedStep(state).index).toBe(6);
+    state = confirmFourPrismWithdrawal(state, [.4, 1.5, -.48], [0, 0, -1]); expect(fourPrismGuidedStep(state).index).toBe(7);
+    state = capture(state); expect(fourPrismGuidedStep(state).index).toBe(8);
     state = markFourPrismObservation(state, "OD", "version-with-refixation");
     state = markFourPrismObservation(state, "OS", "version-with-refixation"); state = finalizeFourPrismRun(state);
-    expect(fourPrismGuidedStep(state).index).toBe(8);
-    state = submitFourPrismInterpretation(state, "normal"); expect(fourPrismGuidedStep(state)).toMatchObject({ index: 8, complete: true });
+    expect(fourPrismGuidedStep(state).index).toBe(9);
+    state = submitFourPrismInterpretation(state, "normal"); expect(fourPrismGuidedStep(state)).toMatchObject({ index: 9, complete: true });
+  });
+
+  it("requires target presentation before fixation or observation and resets it for a fresh run", () => {
+    const initial = initialFourPrismRun();
+    expect(presentFourPrismTarget(initial)).toBe(initial);
+    const fitted = reviseFourPrismFitting(initial, true, 1);
+    expect(fitted.targetOn).toBe(false);
+    expect(establishFourPrismFixation(fitted)).toBe(fitted);
+    const powered = presentFourPrismTarget(fitted);
+    expect(powered.targetOn).toBe(true);
+    expect(powered.fixationSetupRevision).toBeNull();
+    expect(powered.eyeCaptures).toEqual({});
+    expect(presentFourPrismTarget(powered)).toBe(powered);
+    expect(establishFourPrismFixation(powered).fixationSetupRevision).toBe(powered.setupRevision);
+    expect(resetFourPrismRun(powered).targetOn).toBe(false);
+    expect(presentFourPrismTarget(exitFourPrismRun(powered))).toMatchObject({ active: false, targetOn: false });
   });
 
   it("uses opposite physical temporal base axes with an inclusive authored tolerance", () => {
@@ -87,10 +116,13 @@ describe("shared 4Δ base-out procedure", () => {
   it("requires exact uninterrupted rendered sampling, OD first and full withdrawal", () => {
     let state = prepared();
     state = advanceFourPrismSample(state, sample(state, "OS")); expect(state.dwellMs).toBe(0);
-    for (let index = 0; index < 23; index++) state = advanceFourPrismSample(state, sample(state));
-    expect(state.eyeCaptures.OD).toBeUndefined(); expect(state.dwellMs).toBe(2300);
+    for (let index = 0; index < 29; index++) state = advanceFourPrismSample(state, sample(state));
+    expect(state.eyeCaptures.OD).toBeUndefined(); expect(state.dwellMs).toBe(2900);
+    expect(fourPrismGuidedStep(state)).toMatchObject({ title: "Observe OD", lines: ["Maintain the view."] });
     state = advanceFourPrismSample(state, sample(state, "OD", { sampledDurationMs: 1000 }));
-    expect(state.eyeCaptures.OD?.observedDurationMs).toBe(2400);
+    expect(state.eyeCaptures.OD?.observedDurationMs).toBe(3000);
+    expect(state.notice).toBe("");
+    expect(fourPrismGuidedStep(state)).toMatchObject({ title: "Remove Prism", lines: [] });
     const od = state.eyeCaptures.OD;
     state = advanceFourPrismSample(state, sample(state, "OS")); expect(state.eyeCaptures.OS).toBeUndefined();
     state = confirmFourPrismWithdrawal(state, [.4, 1.5, -.48], [0, 0, -1]);

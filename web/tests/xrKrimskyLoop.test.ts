@@ -11,14 +11,14 @@ import { PracticeAttemptProvider, type PracticeAttemptKind } from "../practice/P
 
 let dispose: (() => Promise<void>) | undefined;
 afterEach(async () => { await dispose?.(); dispose = undefined; vi.unstubAllGlobals(); });
-async function lesson(attemptKind?: PracticeAttemptKind) {
+async function lesson(attemptKind?: PracticeAttemptKind, krimskyMethod: "standard" | "modified" = "standard") {
   let mirror: BatchMirror;
   const onMirror = (next: BatchMirror) => { mirror = next; };
   const complete = vi.fn(), leave = vi.fn();
   const sim = await clinic({ renderAdapter: ({ active }) => {
     const controller = createElement(KrimskyPracticeController, { active, onComplete: complete, onExit: leave, onMirror });
     return attemptKind ? createElement(PracticeAttemptProvider, {
-      value: { settings: { kind: attemptKind, interaction: "vr", voice: "disabled" }, setSettings: vi.fn() }, children: controller,
+      value: { settings: { kind: attemptKind, interaction: "vr", voice: "disabled", krimskyMethod }, setSettings: vi.fn() }, children: controller,
     }) : controller;
   } });
   dispose = sim.dispose;
@@ -208,9 +208,9 @@ describe("mounted Krimsky Practice in the shared clinic", () => {
     sim.mirror().record(); expect(sim.complete).toHaveBeenCalledTimes(1);
     expect(sim.record).not.toHaveBeenCalled(); expect(sim.encounter().results).toHaveLength(0);
   });
-  it("traverses standard and modified cases, requires the appropriate eye and records both authored endpoints", async () => {
-    const sim = await lesson();
-    for (const [method, base, power] of [["standard", "BI", 20], ["modified", "BI", 20], ["standard", "BO", 15], ["modified", "BO", 15]] as const) {
+  it.each(["standard", "modified"] as const)("preserves selected %s method through both findings and wraparound", async method => {
+    const sim = await lesson("guided", method);
+    for (const [base, power] of [["BI", 20], ["BO", 15], ["BI", 20]] as const) {
       const eye = method === "standard" ? "OS" : "OD";
       const wrongEye = eye === "OS" ? "OD" : "OS";
       await sim.light();
@@ -226,7 +226,7 @@ describe("mounted Krimsky Practice in the shared clinic", () => {
       expect(sim.mirror().ready).toBe(false); expect(sim.mirror().lesson.entries).toEqual({});
       await sim.event(0, "selectend"); await sim.putDown(0); await sim.putDown(1);
     }
-    expect(sim.complete).toHaveBeenCalledTimes(4); expect(sim.record).not.toHaveBeenCalled();
+    expect(sim.complete).toHaveBeenCalledTimes(3); expect(sim.record).not.toHaveBeenCalled();
   });
   it("requires the penlight and physically held prism without any timed baseline gate", async () => {
     const sim = await lesson(); await sim.pickup(0, "objective"); await sim.at(0, [0, 1.33, -.041]); await sim.event(0, "selectstart");

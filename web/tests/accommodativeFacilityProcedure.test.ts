@@ -131,3 +131,11 @@ it("keeps repeated fixation and start commands harmless during a timed run", () 
   expect(run.capture).toEqual({ eye: "OD", cycles: 1 });
   expect(establishFacilityFixation(run, ready(60001))).toBe(run);
 });
+
+it("rejects a blank entry when the frozen facility count is zero", () => {
+  let run = startAccommodativeFacility(establishFacilityFixation(newAccommodativeFacilityRun(), ready(0)), ready(0));
+  run = sampleAccommodativeFacility(run, ready(60_000));
+  expect(run.capture).toEqual({ eye: "OD", cycles: 0 });
+  const blank = submitAccommodativeFacility(run, "   ");
+  expect(blank).toMatchObject({ phase: "captured", records: [], feedback: "Enter the frozen full-cycle count." });
+});

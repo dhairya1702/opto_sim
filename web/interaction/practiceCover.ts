@@ -95,4 +95,10 @@ export const coverScenarios = [
     model: { kind: "tropia", deviatingEye: "OS", deviation: { h: -20, v: 0 } } },
   { id: "exophoria", label: "Exophoria", feedback: "The covered eye drifted outward after fusion was broken, then moved inward to refixate immediately on uncovering.",
     model: { kind: "phoria", deviation: { h: 10, v: 0 } } },
+  { id: "right-esotropia", label: "Right unilateral esotropia", feedback: "When OS was covered, OD moved outward to take fixation and returned inward when OS was uncovered.",
+    model: { kind: "tropia", deviatingEye: "OD", deviation: { h: -20, v: 0 } } },
+  { id: "left-exotropia", label: "Left unilateral exotropia", feedback: "When OD was covered, OS moved inward to take fixation and returned outward when OD was uncovered.",
+    model: { kind: "tropia", deviatingEye: "OS", deviation: { h: 20, v: 0 } } },
+  { id: "right-exotropia", label: "Right unilateral exotropia", feedback: "When OS was covered, OD moved inward to take fixation and returned outward when OS was uncovered.",
+    model: { kind: "tropia", deviatingEye: "OD", deviation: { h: 20, v: 0 } } },
 ] as const satisfies readonly { id: string; label: string; feedback: string; model: CoverDeviationModel }[];

@@ -8,6 +8,7 @@ import { MotilityPracticeController } from "../practice/xr/MotilityPracticeContr
 import { CoverPracticeController } from "../practice/xr/CoverPracticeController";
 import type { BatchMirror } from "../practice/xr/PracticeLessonUI";
 import { brucknerReflexVisual, type BrucknerScenario } from "../interaction/brucknerPractice";
+import { coverScenarios } from "../interaction/practiceCover";
 import { coverTeachingIrisOffset } from "../interaction/coverDeviation";
 import { gazePositions, motilityScenarios, type MotilityScenarioId } from "../interaction/motility";
 import { PRISM_BAR_WORKING_Y, consultationToolDefinition } from "../interaction/xrConsultationTools";
@@ -664,6 +665,38 @@ describe("new Practice lessons in the shared clinic", () => {
     await sim.click(0, sim.button("ORTHOPHORIA")); await sim.click(0, sim.button("SUBMIT"));
     expect(sim.complete).toHaveBeenCalledTimes(1);
   });
+  it("cycles all six cover–uncover findings, records distance and near independently, and resets on wraparound", async () => {
+    const sim = await lesson("cover-uncover");
+    expect(coverScenarios.map(item => item.id)).toEqual([
+      "orthophoria", "left-esotropia", "exophoria", "right-esotropia", "left-exotropia", "right-exotropia",
+    ]);
+    for (const [index, finding] of coverScenarios.entries()) {
+      expect(sim.mirror().findingPosition).toEqual({ current: index + 1, total: 6 });
+      await sim.prepareDistanceTarget();
+      for (const endpoint of ["DISTANCE", "NEAR"] as const) {
+        await sim.pickup(1, "cover"); await sim.action(`LOOK AT THE ${endpoint} TARGET`);
+        expect(sim.mirror().ready).toBe(false);
+        await sim.coverSequence(); expect(sim.mirror().ready).toBe(true);
+        await sim.panel(1); await sim.click(1, sim.button("OBSERVATION"));
+        await sim.click(1, sim.button(finding.label.toUpperCase()));
+        await sim.click(1, sim.button("SUBMIT"));
+        if (endpoint === "DISTANCE") {
+          expect(sim.complete).toHaveBeenCalledTimes(index);
+          await sim.putDown(1); await sim.moveTargetNear();
+        }
+      }
+      expect(sim.complete).toHaveBeenCalledTimes(index + 1);
+      expect(sim.mirror().lesson.feedback).toContain(finding.feedback);
+      await sim.click(1, sim.button("NEW PATIENT FINDING"));
+      await sim.putDown(0); await sim.putDown(1);
+      expect(sim.mirror().ready).toBe(false);
+      expect(sim.mirror().lesson.entries).toEqual({});
+      expect(sim.mirror().reportLines).toEqual([]);
+    }
+    expect(sim.mirror().findingPosition).toEqual({ current: 1, total: 6 });
+    expect(sim.record).not.toHaveBeenCalled();
+    expect(sim.encounter().results).toHaveLength(0);
+  }, 20_000);
   it("alternating cover counts released-paddle exposure without erasing completed observations", async () => {
     const sim = await lesson("alternate-cover"); await sim.prepareDistanceTarget();
     await sim.pickup(1, "cover"); await sim.action("LOOK AT THE DISTANCE TARGET");

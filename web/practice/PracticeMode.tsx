@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   BookOpenCheck,
@@ -18,10 +18,11 @@ import {
   MicOff,
   Ruler,
 } from "lucide-react";
+import type { KrimskyMethod } from "../interaction/krimsky";
 import type { BrucknerScenario } from "../interaction/brucknerPractice";
 import { motilityScenarios } from "../interaction/motility";
-import { PracticeBatchVRStage } from "./xr/PracticeBatchVRStage";
-import { HirschbergVRStage } from "./HirschbergVRStage";
+import type { PracticeBatchVRStageProps } from "./xr/PracticeBatchVRStage";
+import type { HirschbergVRStageProps } from "./HirschbergVRStage";
 import { useVoiceSession } from "../voice/useVoiceSession";
 import { VoiceStatusContext } from "../voice/VoiceStatusContext";
 import { PracticeVoiceControlProvider } from "../voice/PracticeVoiceControl";
@@ -53,6 +54,12 @@ type Skill = {
   available: boolean;
 };
 
+const LazyPracticeBatchVRStage = lazy(() => import("./xr/PracticeBatchVRStage").then(module => ({ default: module.PracticeBatchVRStage })));
+const LazyHirschbergVRStage = lazy(() => import("./HirschbergVRStage").then(module => ({ default: module.HirschbergVRStage })));
+function ClinicLoading() { return <p className="notice" role="status">Preparing the clinical simulator…</p>; }
+function PracticeBatchVRStage(props: PracticeBatchVRStageProps) { return <Suspense fallback={<ClinicLoading />}><LazyPracticeBatchVRStage {...props} /></Suspense>; }
+function HirschbergVRStage(props: HirschbergVRStageProps) { return <Suspense fallback={<ClinicLoading />}><LazyHirschbergVRStage {...props} /></Suspense>; }
+
 const skills: Skill[] = [
   { id: "motility", index: "1.1", name: "Extraocular motilities", equipment: "Penlight", duration: "6–8 min", available: true },
   { id: "bruckner", index: "1.2", name: "Bruckner test", equipment: "Direct ophthalmoscope", duration: "4–6 min", available: true },
@@ -75,15 +82,17 @@ const skills: Skill[] = [
 
 const practiceSection = (index: string) => ({ "1": "Motor alignment", "2": "Sensory status", "3": "Latent deviation", "4": "Vergence", "5": "Accommodation" })[index[0]] ?? "Clinical skills";
 
-function PracticeAttemptSetup({ onDesktop, onVR }: { onDesktop: () => void; onVR: () => void; repeat?: boolean }) {
+function PracticeAttemptSetup({ onDesktop, onVR, chooseKrimskyMethod = false }: { onDesktop: () => void; onVR: () => void; repeat?: boolean; chooseKrimskyMethod?: boolean }) {
   const { setSettings } = usePracticeAttempt();
   const [kind, setKind] = useState<PracticeAttemptKind | null>(null);
   const [interaction, setInteraction] = useState<PracticeInteractionMode | null>(null);
   const [voice, setVoice] = useState<PracticeVoicePreference | null>(null);
 
+  const [krimskyMethod, setKrimskyMethod] = useState<KrimskyMethod | null>(null);
+
   const start = () => {
-    if (!kind || !interaction || !voice) return;
-    setSettings({ kind, interaction, voice });
+    if (!kind || !interaction || !voice || (chooseKrimskyMethod && !krimskyMethod)) return;
+    setSettings({ kind, interaction, voice, ...(chooseKrimskyMethod && krimskyMethod ? { krimskyMethod } : {}) });
     if (interaction === "vr") onVR();
     else onDesktop();
   };
@@ -91,24 +100,33 @@ function PracticeAttemptSetup({ onDesktop, onVR }: { onDesktop: () => void; onVR
   return (
     <div className="practice-attempt-launcher">
       <div className="practice-action-buttons attempt-kind-buttons" aria-label="Attempt type">
-        <button className={kind === "guided" ? "primary selected" : "primary"} onClick={() => { setKind("guided"); setInteraction(null); setVoice(null); }}>
+        <button className={kind === "guided" ? "primary selected" : "primary"} onClick={() => { setKind("guided"); setInteraction(null); setVoice(null); setKrimskyMethod(null); }}>
           <GraduationCap size={17} /> Guided Practice
         </button>
-        <button className={kind === "test" ? "secondary selected" : "secondary"} onClick={() => { setKind("test"); setInteraction(null); setVoice(null); }}>
+        <button className={kind === "test" ? "secondary selected" : "secondary"} onClick={() => { setKind("test"); setInteraction(null); setVoice(null); setKrimskyMethod(null); }}>
           <BookOpenCheck size={17} /> Test
         </button>
       </div>
       {kind && (
         <div className="attempt-setup" role="group" aria-label={`${kind === "guided" ? "Guided Practice" : "Test"} setup`}>
+          {chooseKrimskyMethod && <div role="group" aria-label="Krimsky method">
+            <p className="eyebrow">1 · METHOD</p>
+            <div className="attempt-option-row">
+              <button className={krimskyMethod === "standard" ? "selected" : ""} aria-pressed={krimskyMethod === "standard"} onClick={() => setKrimskyMethod("standard")}>Standard Krimsky</button>
+              <button className={krimskyMethod === "modified" ? "selected" : ""} aria-pressed={krimskyMethod === "modified"} onClick={() => setKrimskyMethod("modified")}>Modified Krimsky</button>
+            </div>
+            <p>Standard: prism over the deviating eye. Modified: prism over the fixating eye; observe the other eye’s reflex.</p>
+          </div>}
+          {(!chooseKrimskyMethod || krimskyMethod) && <>
           <div>
-            <p className="eyebrow">1 · CONTROLS</p>
+            <p className="eyebrow">{chooseKrimskyMethod ? 2 : 1} · CONTROLS</p>
             <div className="attempt-option-row">
               <button className={interaction === "desktop" ? "selected" : ""} aria-pressed={interaction === "desktop"} onClick={() => setInteraction("desktop")}><Keyboard size={17} /> Keyboard + mouse</button>
               <button className={interaction === "vr" ? "selected" : ""} aria-pressed={interaction === "vr"} onClick={() => setInteraction("vr")}><Headset size={17} /> VR mode</button>
             </div>
           </div>
           <div>
-            <p className="eyebrow">2 · VOICE</p>
+            <p className="eyebrow">{chooseKrimskyMethod ? 3 : 2} · VOICE</p>
             <div className="attempt-option-row">
               <button className={voice === "enabled" ? "selected" : ""} aria-pressed={voice === "enabled"} onClick={() => setVoice("enabled")}><Mic size={17} /> Enable voice</button>
               <button className={voice === "disabled" ? "selected" : ""} aria-pressed={voice === "disabled"} onClick={() => setVoice("disabled")}><MicOff size={17} /> Disable voice</button>
@@ -117,6 +135,7 @@ function PracticeAttemptSetup({ onDesktop, onVR }: { onDesktop: () => void; onVR
           <button className="primary attempt-start" disabled={!interaction || !voice} onClick={start}>
             Start {kind === "guided" ? "Guided Practice" : "Test"} <ChevronRight size={17} />
           </button>
+          </>}
         </div>
       )}
     </div>
@@ -307,13 +326,14 @@ function VergenceModule({mode,onComplete}:{mode:VergenceMode;onComplete:()=>void
 function AccommodationModule({mode,onComplete}:{mode:AccommodationMode;onComplete:()=>void}){const[clinicMode,setClinicMode]=useState<ClinicInputMode|null>(null);const d={"push-up":["5.1","Amplitude of accommodation · push-up","Move the near card closer until first sustained blur; measure NPA from the spectacle plane and convert with 100/cm."],"minus-lens":["5.2","Amplitude · minus lens to blur","At 40 cm add −0.25 D monocularly until sustained blur; amplitude is minus added plus 2.50 D."],relative:["5.3","Negative and positive relative accommodation","At 40 cm add +0.25 D binocularly to NRA blur, return to baseline, then −0.25 D to PRA blur."],"accommodative-facility":["5.4","Accommodative facility","At 40 cm flip ±2.00 D after each clear report; one plus/minus pair is one cycle."]}[mode];return <><div className="practice-lesson-head"><div><p className="eyebrow">ACCOMMODATION · {d[0]}</p><h1>{d[1]}</h1><p>{d[2]}</p></div></div><div className="lesson-columns"><div><TeachingBlock title="Procedure"><p>{d[2]} Test OD, OS, and binocularly where specified, using correction and a line one larger than best near acuity.</p></TeachingBlock><TeachingBlock title="Reference"><p>Hofstetter: minimum 15−0.25(age), average 18.5−0.30(age), maximum 25−0.40(age). Monocular amplitudes should be within 1 D. Adult facility references: 11 cpm monocular and 10 cpm binocular.</p></TeachingBlock></div></div><div className="practice-action-panel immersive"><div><p className="eyebrow">FIRST-PERSON ATTEMPT</p><h2>Perform the accommodation test</h2><p>Choose guidance or independent testing, then select controls and voice for this accommodation attempt.</p></div><div className="practice-action-buttons"><PracticeLaunchButton onDesktop={()=>setClinicMode("desktop")} onVR={() => setClinicMode("xr")} /></div></div>{clinicMode&&<PracticeBatchVRStage key={clinicMode} kind={mode} inputMode={clinicMode} onClose={()=>setClinicMode(null)} onDesktop={clinicMode==="xr"?()=>setClinicMode("desktop"):undefined} onComplete={onComplete}/>}</>}
 function KrimskyModule({ onComplete }: { onComplete: () => void }) {
   const [clinicMode, setClinicMode] = useState<ClinicInputMode | null>(null);
-  return <><div className="practice-lesson-head"><div><p className="eyebrow">BINOCULAR VISION · 1.4</p><h1>Krimsky test</h1><p>Extend the Hirschberg observation by matching corneal reflex positions with a neutralising prism.</p></div></div><TeachingBlock title="Procedure">{steps(["Ask the patient to fixate the penlight at approximately 50 cm and compare the corneal reflexes.", "View with one examiner eye to reduce parallax.", "For Krimsky, place the prism before the deviating eye. In this trainer, OS deviates and OD fixates.", "Choose base in for an exodeviation or base out for an esodeviation. Increase prism until the reflexes match in relative position.", "Record prism power, base, eye, working distance and method.", "For modified Krimsky, place the prism before the fixating eye. This variant is useful when the deviating eye provides an unreliable reflex or has very poor acuity."])}</TeachingBlock><p>The trainer uses the supplied source’s naming convention. Clinical terminology and the illustrative optical model require clinician review.</p><div className="practice-action-panel immersive"><div><p className="eyebrow">FIRST-PERSON ATTEMPT</p><h2>Neutralise the corneal reflex displacement</h2><p>Choose guidance or independent testing, then select controls and voice for this Krimsky attempt.</p></div><div className="practice-action-buttons"><PracticeLaunchButton onDesktop={() => setClinicMode("desktop")} onVR={() => setClinicMode("xr")} /></div></div>{clinicMode && <PracticeBatchVRStage key={clinicMode} kind="krimsky" inputMode={clinicMode} onClose={() => setClinicMode(null)} onDesktop={clinicMode === "xr" ? () => setClinicMode("desktop") : undefined} onComplete={onComplete} />}</>;
+  return <><div className="practice-lesson-head"><div><p className="eyebrow">BINOCULAR VISION · 1.4</p><h1>Krimsky test</h1><p>Extend the Hirschberg observation by matching corneal reflex positions with a neutralising prism.</p></div></div><TeachingBlock title="Procedure">{steps(["Ask the patient to fixate the penlight at approximately 50 cm and compare the corneal reflexes.", "View with one examiner eye to reduce parallax.", "For Krimsky, place the prism before the deviating eye. In this trainer, OS deviates and OD fixates.", "Choose base in for an exodeviation or base out for an esodeviation. Increase prism until the reflexes match in relative position.", "Record prism power, base, eye, working distance and method.", "For modified Krimsky, place the prism before the fixating eye. This variant is useful when the deviating eye provides an unreliable reflex or has very poor acuity."])}</TeachingBlock><p>The trainer uses the supplied source’s naming convention. Clinical terminology and the illustrative optical model require clinician review.</p><div className="practice-action-panel immersive"><div><p className="eyebrow">FIRST-PERSON ATTEMPT</p><h2>Neutralise the corneal reflex displacement</h2><p>Choose guidance or independent testing, then select controls and voice for this Krimsky attempt.</p></div><div className="practice-action-buttons"><PracticeLaunchButton chooseKrimskyMethod onDesktop={() => setClinicMode("desktop")} onVR={() => setClinicMode("xr")} /></div></div>{clinicMode && <PracticeBatchVRStage key={clinicMode} kind="krimsky" inputMode={clinicMode} onClose={() => setClinicMode(null)} onDesktop={clinicMode === "xr" ? () => setClinicMode("desktop") : undefined} onComplete={onComplete} />}</>;
 }
 
 export function PracticeMode({ onExit }: { onExit: () => void }) {
   const [selected, setSelected] = useState<SkillId>("motility");
   const [completed, setCompleted] = useState<SkillId[]>([]);
   const [attemptSettings, setAttemptSettings] = useState<PracticeAttemptSettings | null>(null);
+  const [attemptActive, setAttemptActive] = useState(false);
   const voiceSessionId = useRef(crypto.randomUUID());
   const voiceContext = useMemo(() => ({
     mode: "practice" as const,
@@ -329,24 +349,34 @@ export function PracticeMode({ onExit }: { onExit: () => void }) {
     return invokePracticeVoiceAction(selected as PracticeLessonId, command.actionId);
   }, [selected]);
   const voice = useVoiceSession(voiceContext, handleVoiceCommand);
-  const lastVoiceChoice = useRef<PracticeVoicePreference | null>(null);
+  const ownsVoice = useRef(false);
   useEffect(() => {
-    const choice = attemptSettings?.voice ?? null;
-    if (!choice || choice === lastVoiceChoice.current) return;
-    lastVoiceChoice.current = choice;
-    if (choice === "enabled") void voice.enable();
+    const shouldOwnVoice = attemptActive && attemptSettings?.voice === "enabled";
+    if (shouldOwnVoice === ownsVoice.current) return;
+    ownsVoice.current = shouldOwnVoice;
+    if (shouldOwnVoice) void voice.enable();
     else voice.mute();
-  }, [attemptSettings, voice.enable, voice.mute]);
+  }, [attemptActive, attemptSettings?.voice, voice.enable, voice.mute]);
   useEffect(() => {
+    setAttemptActive(false);
     setAttemptSettings(null);
-    lastVoiceChoice.current = null;
   }, [selected]);
   const updateAttemptSettings = useCallback((next: PracticeAttemptSettings) => {
-    lastVoiceChoice.current = null;
+    setAttemptActive(false);
     setAttemptSettings(next);
   }, []);
-  const attemptContext = useMemo(() => ({ settings: attemptSettings, setSettings: updateAttemptSettings }), [attemptSettings, updateAttemptSettings]);
-  const voiceControls = useMemo(() => ({ ...voice, visible: attemptSettings?.voice === "enabled" }), [attemptSettings?.voice, voice]);
+  const attemptContext = useMemo(() => ({ settings: attemptSettings, setSettings: updateAttemptSettings, setAttemptActive }), [attemptSettings, updateAttemptSettings]);
+  const voiceControls = useMemo(() => ({ ...voice, visible: attemptActive && attemptSettings?.voice === "enabled" }), [attemptActive, attemptSettings?.voice, voice]);
+  const chooseSkill = useCallback((id: SkillId) => {
+    setAttemptActive(false);
+    setSelected(id);
+  }, []);
+  const leavePractice = useCallback(() => {
+    ownsVoice.current = false;
+    setAttemptActive(false);
+    voice.mute();
+    onExit();
+  }, [onExit, voice.mute]);
   const complete = (id: SkillId) => setCompleted(items => items.includes(id) ? items : [...items, id]);
   const skill = skills.find(item => item.id === selected)!;
   const selectedIndex = skills.findIndex(item => item.id === selected);
@@ -365,9 +395,9 @@ export function PracticeMode({ onExit }: { onExit: () => void }) {
     <PracticeVoiceControlProvider controls={voiceControls}>
     <VoiceStatusContext.Provider value={voice.status}>
     <main className={`practice-shell ${attemptSettings?.kind === "test" ? "practice-test-attempt" : ""}`}>
-      <header className="practice-header"><button className="practice-wordmark" onClick={onExit}><span>opto<span className="wordmark-dot">.</span></span><small>Practice</small></button><div className="practice-progress"><GraduationCap size={18} /><span>Binocular vision</span><progress aria-label="Practice modules completed" value={completed.length} max={skills.filter(item => item.available).length} /><b>{completed.length}/{skills.filter(item => item.available).length} modules practised</b></div><button className="secondary" onClick={onExit}><ArrowLeft size={16} /> Modes</button></header>
+      <header className="practice-header"><button className="practice-wordmark" onClick={leavePractice}><span>opto<span className="wordmark-dot">.</span></span><small>Practice</small></button><div className="practice-progress"><GraduationCap size={18} /><span>Binocular vision</span><progress aria-label="Practice modules completed" value={completed.length} max={skills.filter(item => item.available).length} /><b>{completed.length}/{skills.filter(item => item.available).length} modules practised</b></div><button className="secondary" onClick={leavePractice}><ArrowLeft size={16} /> Modes</button></header>
       <div className="practice-layout">
-        <aside className="practice-nav"><p className="eyebrow">PRACTICE LIBRARY</p><h2>Assessment of binocular vision</h2><p className="small muted">Choose a test to learn its purpose, sequence, observations, and recording.</p><nav>{skills.map((item, index) => <Fragment key={item.id}>{(index === 0 || practiceSection(skills[index - 1].index) !== practiceSection(item.index)) && <p className="practice-nav-section">{practiceSection(item.index)}</p>}<button disabled={!item.available} className={selected === item.id ? "selected" : ""} onClick={() => setSelected(item.id)}><span className="practice-index">{item.index}</span><span><b>{item.name}</b><small>{item.equipment} · {item.duration}</small></span>{completed.includes(item.id) ? <CheckCircle2 className="completed-icon" size={17} /> : item.available ? <ChevronRight size={16} /> : <LockKeyhole size={15} />}</button></Fragment>)}</nav><div className="practice-scope"><b>Training scope</b><p>Guided educational simulations. They support supervised learning and do not certify clinical technique.</p></div></aside>
+        <aside className="practice-nav"><p className="eyebrow">PRACTICE LIBRARY</p><h2>Assessment of binocular vision</h2><p className="small muted">Choose a test to learn its purpose, sequence, observations, and recording.</p><nav>{skills.map((item, index) => <Fragment key={item.id}>{(index === 0 || practiceSection(skills[index - 1].index) !== practiceSection(item.index)) && <p className="practice-nav-section">{practiceSection(item.index)}</p>}<button disabled={!item.available} className={selected === item.id ? "selected" : ""} onClick={() => chooseSkill(item.id)}><span className="practice-index">{item.index}</span><span><b>{item.name}</b><small>{item.equipment} · {item.duration}</small></span>{completed.includes(item.id) ? <CheckCircle2 className="completed-icon" size={17} /> : item.available ? <ChevronRight size={16} /> : <LockKeyhole size={15} />}</button></Fragment>)}</nav><div className="practice-scope"><b>Training scope</b><p>Guided educational simulations. They support supervised learning and do not certify clinical technique.</p></div></aside>
         <article className="practice-content" key={selected}>
           {skill.available && selected === "motility" && <MotilityModule onComplete={() => complete("motility")} />}
           {skill.available && selected === "bruckner" && <BrucknerModule onComplete={() => complete("bruckner")} />}
@@ -389,7 +419,7 @@ export function PracticeMode({ onExit }: { onExit: () => void }) {
           {skill.available && selected === "minus-lens" && <AccommodationModule mode="minus-lens" onComplete={() => complete("minus-lens")} />}
           {skill.available && selected === "relative" && <AccommodationModule mode="relative" onComplete={() => complete("relative")} />}
           {skill.available && selected === "accommodative-facility" && <AccommodationModule mode="accommodative-facility" onComplete={() => complete("accommodative-facility")} />}
-          {completed.includes(selected) && <section className="practice-module-complete" aria-live="polite"><CheckCircle2 size={22} /><div><b>{completionTitle}</b><p>{completionCopy}</p></div>{nextSkill && <button className="primary" onClick={() => setSelected(nextSkill.id)}>Next uncompleted · {nextSkill.name}<ChevronRight size={16} /></button>}</section>}
+          {completed.includes(selected) && <section className="practice-module-complete" aria-live="polite"><CheckCircle2 size={22} /><div><b>{completionTitle}</b><p>{completionCopy}</p></div>{nextSkill && <button className="primary" onClick={() => chooseSkill(nextSkill.id)}>Next uncompleted · {nextSkill.name}<ChevronRight size={16} /></button>}</section>}
         </article>
       </div>
     </main>

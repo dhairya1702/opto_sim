@@ -29,6 +29,17 @@ async function foundation(kind?: "worth" | "stereo", preview = false) {
 }
 
 describe("sensory shared runtime foundation", () => {
+  it.each(["worth", "stereo"] as const)("uses only the shared clinic teleport rings for %s", async kind => {
+    const sim = await foundation(kind);
+    const pads: string[] = [];
+    sim.state.scene.traverse(object => {
+      if (object.userData.xrTeleport) pads.push(JSON.stringify(object.userData.xrTeleport));
+    });
+    expect(pads).toHaveLength(6);
+    expect(new Set(pads).size).toBe(6);
+    expect(pads).not.toContain(JSON.stringify([0, 0, .25]));
+    expect(pads).not.toContain(JSON.stringify([.65, 0, -.16]));
+  });
   it("holds after grip release, preserves the trigger, and places only on a fresh second squeeze", async () => {
     const sim = await foundation();
     await sim.at(0, consultationToolDefinition("pupils").home);

@@ -1,4 +1,3 @@
-import { XRTeleportRing } from "./XRTeleportRing";
 import { useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { CatmullRomCurve3, DoubleSide, MathUtils, Path, Shape, Vector2, Vector3, type Group } from "three";
@@ -342,7 +341,7 @@ export function LibraryInstrumentModel({ id, setting = {} }: { id: ConsultationT
   return null;
 }
 
-export function LibraryEquipmentTray({ active = false, equipment = [], showFittingGuides = true, fittingGuideSocketIds }: {
+export function LibraryEquipmentTray({ equipment = [], showFittingGuides = true, fittingGuideSocketIds }: {
   active?: boolean;
   equipment?: readonly ConsultationToolId[];
   showFittingGuides?: boolean;
@@ -350,11 +349,9 @@ export function LibraryEquipmentTray({ active = false, equipment = [], showFitti
 }) {
   const fittingGuides = LIBRARY_SOCKETS.filter(socket => socket.fittingLayer
     && equipment.includes(socket.tool)
+    && socket.id !== "sensory-maddox-vertical-reverse"
     && (!fittingGuideSocketIds || fittingGuideSocketIds.includes(socket.id)));
   return <>
-    {([[0, .25, "PATIENT FITTING"]] as const).map(([x, z, label]) => <group key={label} position={[x, .012, z]} userData={active ? { xrTeleport: [x, 0, z] } : { xrPreviewPad: true }}>
-      <XRTeleportRing innerRadius={.19} outerRadius={.26} opacity={.65} />
-    </group>)}
     {showFittingGuides && fittingGuides.map(socket => {
       const maddox = socket.id === "sensory-maddox-horizontal" || socket.id === "sensory-maddox-vertical";
       const position = maddox ? [CLINIC_PATIENT_EYES.OD[0], CLINIC_PATIENT_EYES.OD[1], -.46] as const : socket.position;

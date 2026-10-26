@@ -4,6 +4,16 @@ import { Raycaster, Vector2, Vector3 } from "three";
 import type { StationId } from "../domain/types";
 import { stations, walkable } from "./navigation";
 import { stationUnderRay, examUnderRay } from "./targeting";
+
+export function bindControllerPointerCancellation(target: EventTarget, cancel: EventListener) {
+  target.addEventListener("pointercancel", cancel);
+  target.addEventListener("lostpointercapture", cancel);
+  return () => {
+    target.removeEventListener("pointercancel", cancel);
+    target.removeEventListener("lostpointercapture", cancel);
+  };
+}
+
 export function Controller({
   active,
   onTarget,
@@ -142,6 +152,7 @@ export function Controller({
     canvas.addEventListener("pointerdown", down);
     window.addEventListener("pointermove", move);
     canvas.addEventListener("pointerup", up);
+    const removePointerCancellation = bindControllerPointerCancellation(canvas, clear);
     return () => {
       window.removeEventListener("keydown", keydown);
       window.removeEventListener("keyup", keyup);
@@ -151,6 +162,7 @@ export function Controller({
       canvas.removeEventListener("pointerdown", down);
       window.removeEventListener("pointermove", move);
       canvas.removeEventListener("pointerup", up);
+      removePointerCancellation();
       clear();
     };
   }, [camera, clinicControls, gl, pointerLock, scene]);

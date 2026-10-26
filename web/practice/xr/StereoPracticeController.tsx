@@ -187,8 +187,10 @@ export function StereoPracticeController({ active, preview = false, inputMode = 
   const entryReady = Boolean(run.capture && run.records.length === run.capture.records.length);
   const ready = active && !preview && entryReady && spatial.correction && spatial.filters;
   const voiceReport = run.reply ? `The ${stereoCircleNames[run.reply.selected]} circle looks raised.` : undefined;
-  const history = run.records.map(record => `${record.level} arcsec · patient said ${record.reportedCircle} · correct circle ${record.targetCircle} · ${record.classification}`);
-  const readingLines = run.records.map(record => `${record.level}″ · ${record.reportedCircle[0]?.toUpperCase()} / ${record.targetCircle[0]?.toUpperCase()} · ${record.classification}`);
+  // Keep the full run for threshold capture, but show results only for the current page.
+  const visibleRecords = run.capture ? run.records : run.confirmed ? run.records.slice(-1) : [];
+  const history = visibleRecords.map(record => `${record.level} arcsec · patient said ${record.reportedCircle} · correct circle ${record.targetCircle} · ${record.classification}`);
+  const readingLines = visibleRecords.map(record => `${record.level}″ · ${record.reportedCircle[0]?.toUpperCase()} / ${record.targetCircle[0]?.toUpperCase()} · ${record.classification}`);
   const boardReadings = run.capture ? ["Level · said / key · result", ...readingLines] : readingLines.slice(-1);
   const key = stereoCircleNames[run.reply?.target ?? stereoTargets[run.page] ?? 0];
   const status = !spatial.correction ? "Near correction is not fitted."
@@ -224,7 +226,7 @@ export function StereoPracticeController({ active, preview = false, inputMode = 
     { label: "SUPPORT BOOKLET AT 40 CM", active: spatial.supported && spatial.ready, run: () => placeAtSocket("stereo", "sensory-stereo-near") },
   );
   const directActions = !spatial.ready ? [] : !run.fixation ? [fixationAction] : !run.reply ? [askAction]
-    : !run.confirmed ? markActions : run.capture ? [] : [turnAction];
+    : !run.confirmed ? markActions : [];
   const guidance = stereoGuidedStep({
     correctionFitted: spatial.correction,
     filtersFitted: spatial.filters,

@@ -120,7 +120,7 @@ describe("Hirschberg in the shared consultation clinic", () => {
       if (material instanceof THREE.MeshBasicMaterial && material.map instanceof THREE.CanvasTexture) labelTextures.push(material.map);
     });
     expect(labelTextures.length).toBeGreaterThan(0);
-    expect(labelTextures.every(texture => texture.image.width >= 1536 && texture.image.height >= 160)).toBe(true);
+    expect(labelTextures.every(texture => texture.image.width >= 512 && texture.image.width <= 1024 && texture.image.height >= 64)).toBe(true);
     expect(labelTextures.every(texture => !texture.generateMipmaps && texture.minFilter === THREE.LinearFilter)).toBe(true);
     const anchored = board!.position.clone();
     sim.viewerCamera.rotation.y = .35; sim.viewerCamera.position.x += .15;

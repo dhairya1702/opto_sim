@@ -1,4 +1,5 @@
 import { usePracticeVoiceProcedure } from "../../voice/usePracticeVoiceProcedure";
+import { usePatientReportSpeech } from "../../voice/usePatientReportSpeech";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { worthCases, worthDots } from "../../interaction/worth";
@@ -12,6 +13,7 @@ import { XRGuidedStepBubble, wrapGuidedStepLines } from "../../scene/XRGuidedSte
 import { XRSign } from "../../scene/XRClinicPanels";
 import { PracticeLessonUI, usePracticeLesson, type BatchMirror, type LessonAction, type LessonField } from "./PracticeLessonUI";
 import { usePracticeAttempt } from "../PracticeAttemptContext";
+import { worthPatientReport } from "../../interaction/sensory";
 
 const fields: LessonField[] = [
   { id: "count", label: "Number of reported dots", choices: [2, 3, 4, 5].map(value => [String(value), `${value} dots`] as const) },
@@ -135,6 +137,9 @@ export function WorthPracticeController({ active, preview = false, inputMode = "
   const next = () => { if (active && !preview) { reset(); setIndex(value => (value + 1) % worthCases.length); } };
   const history = `Near ${records.near ? "recorded" : "pending"} · distance ${records.distance ? "recorded" : "pending"}`;
   const conditionLabel = technique.endpoint === "distance" ? "simulated mirrored 6 m path" : `${Math.round(technique.distanceCm)} cm`;
+  const voiceReport = captured ? worthPatientReport(captured.finding) : undefined;
+  const audioMessage = usePatientReportSpeech(active && !preview, captured
+    ? `${captured.attempt}:${captured.revision}:${captured.endpoint}:${captured.actualDistanceCm}` : "", voiceReport ?? "");
   const status = (captured ? `${captured.report} · captured ${captured.endpoint ?? "intermediate"} at ${Math.round(captured.actualDistanceCm)} cm`
     : !isPatientFitted(runtime.tools, "subjective") ? "Fit the trial frame with correction to the patient."
     : !isPatientFitted(runtime.tools, "red-green") ? "Fit red OD / green OS glasses to the patient."
@@ -142,7 +147,7 @@ export function WorthPracticeController({ active, preview = false, inputMode = "
     : !technique.facing ? "Aim either illuminated face toward the patient or seat it in the distance dock."
     : !technique.endpoint ? `Reposition the target from ${Math.round(technique.distanceCm)} cm to the 40 cm stand or the tagged distance dock.`
     : technique.endpoint && fixationEndpoint !== technique.endpoint ? `Ask Arun to look at the ${technique.endpoint === "near" ? "near" : "mirrored distance"} target.`
-    : `${conditionLabel} · ask count, colours and positions`) + ` · ${history}${restartNotice ? ` · ${restartNotice}` : ""}`;
+    : `${conditionLabel} · ask count, colours and positions`) + ` · ${history}${restartNotice ? ` · ${restartNotice}` : ""}${audioMessage ? ` · ${audioMessage}` : ""}`;
   const requestedPower = !runtime.tools.worth.powered;
   const powerAction: LessonAction = { voiceIds: [requestedPower ? "target-on" : "target-off"], label: requestedPower ? "SWITCH TARGET ON" : "SWITCH TARGET OFF", active: runtime.tools.worth.powered, disabled: lesson.recorded,
     run: () => setPower(requestedPower) };
@@ -178,7 +183,6 @@ export function WorthPracticeController({ active, preview = false, inputMode = "
   const directActions = captured ? [] : !runtime.tools.worth.powered ? [powerAction]
     : technique.endpoint && fixationEndpoint !== technique.endpoint ? [fixationAction]
       : technique.endpoint && !captured ? [reportAction] : [];
-  const voiceReport = captured ? `I see ${captured.report.charAt(0).toLowerCase()}${captured.report.slice(1)}` : undefined;
   usePracticeVoiceProcedure("worth", active && !preview, { actions, voiceReport: voiceReport });
   useEffect(() => { onMirror?.({ title: "Worth four dot", voiceReport, reportLines: Object.values(records).map(record => `${record.capture.endpoint}: ${record.capture.report} Entered ${record.submittedCount} dots · ${record.submittedInterpretation}`), findingPosition: { current: index + 1, total: worthCases.length }, status, ready,
     entryReady: ready, fields, actions, lesson, reset, record, next, cancel }); },

@@ -143,6 +143,7 @@ export function restartAccommodativeFacilityEye(run: AccommodativeFacilityRun) {
 
 export function submitAccommodativeFacility(run: AccommodativeFacilityRun, cyclesEntry: string) {
   if (!run.capture || run.phase !== "captured") return Object.freeze({ ...run, feedback: "Complete the timed run before recording." });
+  if (!cyclesEntry.trim()) return Object.freeze({ ...run, feedback: "Enter the frozen full-cycle count." });
   const cycles = Number(cyclesEntry);
   if (!Number.isFinite(cycles) || cycles !== run.capture.cycles)
     return Object.freeze({ ...run, feedback: "Check the frozen full-cycle count." });

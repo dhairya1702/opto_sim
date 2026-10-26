@@ -1,6 +1,6 @@
 import { Component, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Canvas } from "@react-three/fiber";
-import { Glasses, X } from "lucide-react";
+import { X } from "lucide-react";
 import type { WebGLRenderer } from "three";
 import { ConsultationInterior } from "../../scene/Room";
 import { Controller } from "../../interaction/Controller";
@@ -31,7 +31,7 @@ export function PracticeVRClinic({ title, findingPosition, onClose, onDesktop, i
   mirror?: ReactNode;
 }) {
   perfRender("PracticeVRClinic");
-  const { settings } = usePracticeAttempt();
+  const { settings, setAttemptActive } = usePracticeAttempt();
   useEffect(() => { perfEvent(`lesson ${title}`); }, [title]);
   const guided = settings?.kind !== "test";
   const voiceStatus = useVoiceStatus();
@@ -39,20 +39,24 @@ export function PracticeVRClinic({ title, findingPosition, onClose, onDesktop, i
   const renderer = useRef<WebGLRenderer | null>(null);
   const { session, mounted, closing, generation } = usePracticeXRSessionLifetime();
   const startingRef = useRef(false);
-  const [support, setSupport] = useState<"checking" | "supported" | "unavailable">(inputMode === "desktop" ? "unavailable" : "checking");
   const [starting, setStarting] = useState(false);
   const [active, setActive] = useState(inputMode === "desktop");
-  const [preview, setPreview] = useState(false);
   const [failed, setFailed] = useState(false);
   const [error, setError] = useState("");
   const [visit, setVisit] = useState<{ id: StationId; seq: number } | null>(null);
   const end = useCallback(async () => {
     if (closing.current) return;
     closing.current = true;
+    setAttemptActive?.(false);
+    setActive(false);
     const current = session.current; session.current = null;
     try { await current?.end(); } catch { /* already ended by the headset */ }
     finally { if (mounted.current) { setActive(false); onClose(); } }
-  }, [onClose]);
+  }, [onClose, setAttemptActive]);
+  useEffect(() => {
+    setAttemptActive?.(active);
+    return () => setAttemptActive?.(false);
+  }, [active, setAttemptActive]);
   useEffect(() => {
     const node = dialog.current;
     const previous = document.activeElement as HTMLElement | null;
@@ -62,34 +66,26 @@ export function PracticeVRClinic({ title, findingPosition, onClose, onDesktop, i
     };
   }, []);
   useEffect(() => {
-    if (inputMode === "desktop") return;
-    let cancelled = false;
-    void navigator.xr?.isSessionSupported("immersive-vr").then(available => {
-      if (!cancelled) setSupport(available ? "supported" : "unavailable");
-    }).catch(() => { if (!cancelled) setSupport("unavailable"); });
-    if (!navigator.xr) setSupport("unavailable");
-    return () => { cancelled = true; };
-  }, [inputMode]);
-  useEffect(() => {
     const canvas = renderer.current?.domElement;
-    const lost = (event: Event) => { event.preventDefault(); setFailed(true); void session.current?.end(); };
+    const lost = (event: Event) => { event.preventDefault(); setAttemptActive?.(false); setActive(false); setFailed(true); void session.current?.end(); };
     canvas?.addEventListener("webglcontextlost", lost);
     return () => canvas?.removeEventListener("webglcontextlost", lost);
-  }, [active, preview, starting]);
+  }, [active, setAttemptActive, starting]);
   const enter = async () => {
     if (startingRef.current || session.current || closing.current) return;
-    startingRef.current = true; setStarting(true); setError(""); setPreview(false);
+    startingRef.current = true; setStarting(true); setError("");
     const attempt = generation.current;
     const current = () => mounted.current && !closing.current && generation.current === attempt;
     let next: XRSession | null = null;
     try {
-      if (!navigator.xr || !renderer.current || failed) throw new Error("The VR renderer is unavailable. Use the desktop clinical view.");
+      if (!navigator.xr) throw new Error("VR is unavailable in this browser. Open this page in your headset browser over HTTPS, or close and choose Keyboard + mouse.");
+      if (!renderer.current || failed) throw new Error("The 3D clinic is unavailable. Close and choose Keyboard + mouse.");
       next = await navigator.xr.requestSession("immersive-vr", { requiredFeatures: ["local-floor"] });
       if (!current()) { await next.end(); return; }
       session.current = next;
       next.addEventListener("end", () => {
         if (!current() || session.current !== next) return;
-        session.current = null; setActive(false);
+        session.current = null; setAttemptActive?.(false); setActive(false);
       }, { once: true });
       renderer.current.xr.setReferenceSpaceType("local-floor");
       await renderer.current.xr.setSession(next);
@@ -97,7 +93,7 @@ export function PracticeVRClinic({ title, findingPosition, onClose, onDesktop, i
       renderer.current.xr.setFoveation(.6); setActive(true);
     } catch (reason) {
       if (next) { if (session.current === next) session.current = null; await next.end().catch(() => undefined); }
-      if (current()) setError(reason instanceof Error ? reason.message : "VR could not start. Try again or use the desktop clinical view.");
+      if (current()) setError(reason instanceof Error ? reason.message : "VR could not start. Try again, or close and choose Keyboard + mouse.");
     } finally {
       startingRef.current = false; if (mounted.current) setStarting(false);
     }
@@ -105,47 +101,39 @@ export function PracticeVRClinic({ title, findingPosition, onClose, onDesktop, i
   return <dialog ref={dialog} className="clinical-practice-dialog xr-practice-dialog" aria-labelledby="practice-vr-title"
     onCancel={event => { event.preventDefault(); void end(); }}>
     <header className="clinical-stage-header">
-      <div><p className="eyebrow">SHARED CLINIC · {inputMode === "desktop" ? "DESKTOP" : "VR"} · {guided ? "GUIDED PRACTICE" : "TEST"}</p><h1 id="practice-vr-title">{title} · {inputMode === "desktop" ? "Desktop" : "VR"}</h1></div>
-      <div className="clinical-stage-distance"><span>Finding</span><strong>{findingPosition.current}/{findingPosition.total}</strong></div>
-      <PracticeVoiceControl />
+      <div>{active && <p className="eyebrow">SHARED CLINIC · {inputMode === "desktop" ? "DESKTOP" : "VR"} · {guided ? "GUIDED PRACTICE" : "TEST"}</p>}<h1 id="practice-vr-title">{title}{active && ` · ${inputMode === "desktop" ? "Desktop" : "VR"}`}</h1></div>
+      {active && <div className="clinical-stage-distance"><span>Finding</span><strong>{findingPosition.current}/{findingPosition.total}</strong></div>}
+      {active && <PracticeVoiceControl />}
       <button className="secondary" onClick={() => void end()}><X size={16} /> Close</button>
     </header>
-    <div className="xr-practice-body">
+    <div className={`xr-practice-body${active ? " xr-practice-body-with-controls" : ""}`}>
       <div className="xr-canvas-wrap">
-        <PracticeSceneBoundary onFailure={() => { setFailed(true); void session.current?.end(); }}>
+        <PracticeSceneBoundary onFailure={() => { setAttemptActive?.(false); setActive(false); setFailed(true); void session.current?.end(); }}>
           <Suspense fallback={<PracticeWebGLFallback />}>
-            <Canvas shadows dpr={[1, 1.35]} camera={{ position: [0, 1.6, 1.65], fov: 66, near: .01, far: 20 }}
-              onCreated={({ gl }) => { renderer.current = gl; gl.xr.enabled = true; gl.domElement.tabIndex = 0; gl.domElement.setAttribute("aria-label", "Practice clinic layout; drag to look and use WASD to move in preview"); }} fallback={<PracticeWebGLFallback />}>
-              {perfEnabled && <PerfFrameProbe />}
-              <ConsultationInterior xr={inputMode === "xr"} />
-              <XRVoiceIndicator status={voiceStatus} />
-              <Controller active={(inputMode === "desktop" && active) || (preview && !active)} clinicControls={inputMode === "desktop"} pointerLock={inputMode === "desktop"} onTarget={() => undefined}
-                onInteract={id => setVisit(previous => ({ id, seq: (previous?.seq ?? 0) + 1 }))} visit={visit} />
-              {children({ active, preview, inputMode, exit: () => void end() })}
+            <Canvas shadows={active} frameloop={active ? "always" : "demand"} dpr={[1, 1.35]} camera={{ position: [0, 1.6, 1.65], fov: 66, near: .01, far: 20 }}
+              onCreated={({ gl }) => { renderer.current = gl; gl.xr.enabled = true; gl.domElement.tabIndex = 0; gl.domElement.setAttribute("aria-label", "Practice clinic"); }} fallback={<PracticeWebGLFallback />}>
+              {active && <>
+                {perfEnabled && <PerfFrameProbe />}
+                <ConsultationInterior xr={inputMode === "xr"} />
+                <XRVoiceIndicator status={voiceStatus} />
+                <Controller active={inputMode === "desktop"} clinicControls={inputMode === "desktop"} pointerLock={inputMode === "desktop"} onTarget={() => undefined}
+                  onInteract={id => setVisit(previous => ({ id, seq: (previous?.seq ?? 0) + 1 }))} visit={visit} />
+                {children({ active: true, preview: false, inputMode, exit: () => void end() })}
+              </>}
             </Canvas>
           </Suspense>
         </PracticeSceneBoundary>
-        {inputMode === "xr" && !active && !preview && <div className="xr-preflight">
-          <Glasses size={34} />
-          <div><p className="eyebrow">THE SAME CLINIC AS CONSULTATION</p><h2>{title} in the shared VR clinic</h2>
-            <p>Squeeze the side grip once beside an instrument to pick it up, then relax your grip. Squeeze again to put it down at the placement guide. Use the trigger to operate it. {guided ? "Next-step help and recording are available inside the clinic." : "This is an independent attempt; recording remains available inside the clinic."}</p></div>
-          <div className="xr-preflight-actions">
-            <button className="primary" disabled={support !== "supported" || starting || failed} onClick={() => void enter()}>{starting ? "Starting VR…" : support === "checking" ? "Checking headset…" : support === "supported" ? "Enter VR" : "VR headset unavailable"} <Glasses size={17} /></button>
-            <button className="secondary" disabled={failed} onClick={() => setPreview(true)}>Preview clinic layout</button>
-            {onDesktop && <button className="secondary" onClick={onDesktop}>Desktop clinical view</button>}
-          </div>
-          <p className="small">Use Quest Browser over HTTPS. The layout preview does not emulate tracked hands or record Practice completion.</p>
+        {inputMode === "xr" && !active && <div className="xr-preflight">
+          <h2>{title}</h2>
+          <button className="primary" disabled={starting || failed} aria-busy={starting} onClick={() => void enter()}>Enter</button>
           {error && <p className="notice" role="alert">{error}</p>}
-          {failed && <p className="notice" role="alert">The 3D clinic is unavailable. Continue with the desktop clinical view.</p>}
+          {failed && <p className="notice" role="alert">The 3D clinic is unavailable. Close and choose Keyboard + mouse.</p>}
+          {(error || failed) && onDesktop && <button className="secondary" onClick={onDesktop}>Use keyboard + mouse</button>}
         </div>}
-        {preview && <p className="viewport-controls">Clinic layout preview · WASD + mouse · E / click to visit stations · tracked tools require a headset</p>}
         {inputMode === "desktop" && active && <p className="viewport-controls">Click clinic to restore controls · Escape releases pointer lock · Tab keeps native navigation</p>}
       </div>
-      {(active || preview) && <aside className="xr-mirror-panel" aria-label="Practice clinic controls">
-        {preview ? <><p className="eyebrow">CLINIC LAYOUT PREVIEW</p><p>Inspect the shared clinic. Use the desktop clinical view for a mouse/keyboard attempt.</p>
-          <div className="xr-station-controls"><button onClick={() => setVisit(previous => ({ id: "trolley", seq: (previous?.seq ?? 0) + 1 }))}>Instrument trolley</button><button onClick={() => setVisit(previous => ({ id: "patient", seq: (previous?.seq ?? 0) + 1 }))}>Patient</button></div>
-          <button className="primary full" disabled={support !== "supported" || starting || failed} onClick={() => void enter()}>Enter VR</button>
-          {onDesktop && <button className="secondary full" onClick={onDesktop}>Desktop clinical view</button>}</> : mirror}
+      {active && <aside className="xr-mirror-panel" aria-label="Practice clinic controls">
+        {mirror}
         <button className="secondary full" onClick={() => void end()}>Exit clinic</button>
       </aside>}
     </div>

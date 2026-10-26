@@ -10,7 +10,7 @@ import { XRPracticeFindingsBoard } from "../../scene/XRPracticeFindingsBoard";
 import { useXRPracticeResult, XRPracticeResultHUD } from "../../scene/XRPracticeResultHUD";
 
 export type LessonAction = { voiceIds?: string[]; label: string; run: () => void; active?: boolean; disabled?: boolean };
-export type LessonField = { id: string; label: string; choices: readonly (readonly [string, string])[]; number?: { min: number; max: number; unit: string; step?: number } };
+export type LessonField = { id: string; label: string; choices: readonly (readonly [string, string])[]; columns?: 2 | 3; number?: { min: number; max: number; unit: string; step?: number } };
 export function usePracticeLesson(onComplete: () => void) {
   const { result, showResult, clearResult } = useXRPracticeResult();
   const [mode, setMode] = useState<"none" | "menu" | "help" | "record" | "settings">("none");
@@ -72,12 +72,12 @@ export function BatchLessonMirror({ mirror }: { mirror: BatchMirror }) {
   </>;
 }
 const numericSteps = (field: LessonField) => [...new Set([-(field.number?.step ?? 1), field.number?.step ?? 1, -1, 1, -5, 5])];
-const fieldRows = (field: LessonField) => (field.number ? Math.ceil(numericSteps(field).length / 2) + 1 : Math.ceil(field.choices.length / 2)) + .5;
-export function PracticeLessonUI({ runtime, active, title, status, help, tools, actions, fields, lesson, entryReady, ready, onRecord, onReset, onNext, onExit, settings, onCancel, directActions, forceBoardVisible = false, wallOnly = false, boardStatusLines, boardFindingLines, boardReport, recordingOnlyBoard: recordingOnlyOverride }: {
+const fieldRows = (field: LessonField) => (field.number ? Math.ceil(numericSteps(field).length / 2) + 1 : Math.ceil(field.choices.length / (field.columns ?? 2))) + .5;
+export function PracticeLessonUI({ runtime, active, title, status, help, tools, actions, fields, lesson, entryReady, ready, onRecord, onReset, onNext, onExit, settings, onCancel, directActions, forceBoardVisible = false, wallOnly = false, boardStatusLines, boardFindingLines, boardReport, recordingFieldTop, recordingOnlyBoard: recordingOnlyOverride }: {
   runtime: XRClinicRuntime; active: boolean; title: string; status: string; help: string[];
   tools: ConsultationToolId[]; actions: LessonAction[]; directActions?: LessonAction[]; fields: LessonField[]; lesson: PracticeLesson;
   entryReady: boolean; ready: boolean; onRecord: () => void; onReset: () => void; onNext?: () => void; onExit: () => void; settings?: ReactNode; onCancel?: () => void;
-  forceBoardVisible?: boolean; wallOnly?: boolean; boardStatusLines?: readonly string[]; boardFindingLines?: readonly string[]; boardReport?: ReactNode; recordingOnlyBoard?: boolean;
+  forceBoardVisible?: boolean; wallOnly?: boolean; boardStatusLines?: readonly string[]; boardFindingLines?: readonly string[]; boardReport?: ReactNode; recordingFieldTop?: number; recordingOnlyBoard?: boolean;
 }) {
   const { settings: attemptSettings } = usePracticeAttempt();
   const recordingOnlyBoard = attemptSettings?.kind === "guided" || recordingOnlyOverride === true;
@@ -98,8 +98,8 @@ export function PracticeLessonUI({ runtime, active, title, status, help, tools, 
   const boardActions = directActions ?? actions.slice(0, 2);
   const statusHeight = boardLines.length ? Math.max(.08, (boardLines.length + 1) * .045) : 0;
   const statusTop = boardReport ? .04 - boardActions.length * .09 : .285;
-  const observationY = boardReport ? statusTop - statusHeight - .045 : .35;
-  const fieldTop = boardReport ? observationY - .12 : boardLines.length ? statusTop - statusHeight - .075 : .23;
+  const observationY = showObservation && recordingFieldTop !== undefined ? recordingFieldTop + .12 : boardReport ? statusTop - statusHeight - .045 : .35;
+  const fieldTop = showObservation && recordingFieldTop !== undefined ? recordingFieldTop : boardReport ? observationY - .12 : boardLines.length ? statusTop - statusHeight - .075 : .23;
   const fieldShift = .16 - fieldTop;
   const recordBottom = showObservation
     ? Math.min(-.315 - fieldShift, fieldTop - recordRows * .08 - (paginated ? .12 : .035))
@@ -127,7 +127,7 @@ export function PracticeLessonUI({ runtime, active, title, status, help, tools, 
         <XRPanelButton label="RESET" position={[0, .46, .02]} width={.22} onClick={onReset} />
         <XRPanelButton label="EXIT" position={[.24, .46, .02]} width={.22} onClick={onExit} />
       </> : <>
-        <XRPanelButton label={runtime.inputMode === "desktop" ? "EXIT CLINIC" : "EXIT VR"} position={[.28, .46, .02]} width={.18} onClick={onExit} />
+        <XRPanelButton label={runtime.inputMode === "desktop" ? "EXIT CLINIC" : "EXIT VR"} position={[.38, .90, .02]} width={.16} onClick={onExit} />
       </>}
       {showObservation && <>
       {visibleFields.map((field, fieldIndex) => {
@@ -145,7 +145,7 @@ export function PracticeLessonUI({ runtime, active, title, status, help, tools, 
               }} />)}
             <XRPanelButton label="CLEAR ENTRY" position={[0, top - Math.ceil(numericSteps(field).length / 2) * .08, .012]} width={.70} disabled={!entryReady || lesson.recorded} onClick={() => lesson.choose(field.id, "")} />
           </>}
-          {field.choices.map(([value, label], i) => <XRPanelButton key={value} label={label.toUpperCase()} position={[i % 2 ? .18 : -.18, top - Math.floor(i / 2) * .08, .012]} width={.34}
+          {field.choices.map(([value, label], i) => <XRPanelButton key={value} label={label.toUpperCase()} position={[(i % (field.columns ?? 2) - ((field.columns ?? 2) - 1) / 2) * (field.columns === 3 ? .24 : .36), top - Math.floor(i / (field.columns ?? 2)) * .08, .012]} width={field.columns === 3 ? .22 : .34}
             active={lesson.entries[field.id] === value} disabled={!entryReady || lesson.recorded} onClick={() => lesson.choose(field.id, value)} />)}
         </group>;
       })}

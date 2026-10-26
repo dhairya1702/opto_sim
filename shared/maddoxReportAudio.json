@@ -1,0 +1,47 @@
+{
+  "The streak is left of the light.": {
+    "file": "cHJhY3RpY2U6bWFkZG94OnJlcG9ydDozZjM2MTRlYzhlZTU5MGU2.mp3",
+    "textHash": "3f3614ec8ee590e659ee3116bf2ccfa264c0cb25df1e568346b280201ab6759b",
+    "voice": "Charon"
+  },
+  "The streak is right of the light and moves farther away.": {
+    "file": "cHJhY3RpY2U6bWFkZG94OnJlcG9ydDo1ZGViZTk2MDA3ZGQ2MmE0.mp3",
+    "textHash": "5debe96007dd62a41364047054432f70ff42d98d2df3585aa1aefdfeeb441785",
+    "voice": "Charon"
+  },
+  "The vertical streak does not move toward the light on this prism axis.": {
+    "file": "cHJhY3RpY2U6bWFkZG94OnJlcG9ydDpiMWRlNGJjYzRlODI5OGM1.mp3",
+    "textHash": "b1de4bcc4e8298c55ac37d97e2eb731acb02f542b2d404695339d755d07b685c",
+    "voice": "Charon"
+  },
+  "The streak passes through the light.": {
+    "file": "cHJhY3RpY2U6bWFkZG94OnJlcG9ydDpkOTFmM2E4MjE1NzAyNzIw.mp3",
+    "textHash": "d91f3a821570272049840255fa227febbd611ba231471efb29e61f5c40481043",
+    "voice": "Charon"
+  },
+  "The streak is right of the light.": {
+    "file": "cHJhY3RpY2U6bWFkZG94OnJlcG9ydDo1OGIwNTIyNjY0Y2Y0ZWZl.mp3",
+    "textHash": "58b0522664cf4efe8049a99b450512d94709c4fecf03bff5ef0e794b742d42f1",
+    "voice": "Charon"
+  },
+  "The horizontal streak does not move toward the light on this prism axis.": {
+    "file": "cHJhY3RpY2U6bWFkZG94OnJlcG9ydDoxNzRjY2JkMDRkZWIwYjQy.mp3",
+    "textHash": "174ccbd04deb0b4273e8c0b265a0fd43c53ce8a4c6a2f32d2ca2f6e11869289e",
+    "voice": "Charon"
+  },
+  "The streak is above the light.": {
+    "file": "cHJhY3RpY2U6bWFkZG94OnJlcG9ydDoyOTk2ODUwZGZhNzgxMDNj.mp3",
+    "textHash": "2996850dfa78103cbd5be69ad7580c4889bcdea259266fbecfaa0ca64b34c3d5",
+    "voice": "Charon"
+  },
+  "The streak is below the light and moves farther away.": {
+    "file": "cHJhY3RpY2U6bWFkZG94OnJlcG9ydDphNzdhNmJjZDNiOTA4YTli.mp3",
+    "textHash": "a77a6bcd3b908a9bd9ac596afef1d25e6c8973c929a8357562c8343eebeb3781",
+    "voice": "Charon"
+  },
+  "The streak is below the light.": {
+    "file": "cHJhY3RpY2U6bWFkZG94OnJlcG9ydDoxMDA4OTQ4MWIxMDMwMmRi.mp3",
+    "textHash": "10089481b10302dbc7e623d7041e6c59ac7d4ae216845f77a76f6200c525c53b",
+    "voice": "Charon"
+  }
+}

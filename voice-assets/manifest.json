@@ -73,6 +73,26 @@
     { "key": "practice:ack:report-clear", "text": "It is clear and single now." },
     { "key": "practice:ack:examiner-close-right-eye", "text": "Left examiner-eye view active." },
     { "key": "practice:ack:examiner-close-left-eye", "text": "Right examiner-eye view active." },
-    { "key": "practice:ack:examiner-open-both-eyes", "text": "Binocular examiner view restored." }
+    { "key": "practice:ack:examiner-open-both-eyes", "text": "Binocular examiner view restored." },
+    {"key":"practice:maddox:report:3f3614ec8ee590e6","text":"The streak is left of the light."},
+    {"key":"practice:maddox:report:5debe96007dd62a4","text":"The streak is right of the light and moves farther away."},
+    {"key":"practice:maddox:report:b1de4bcc4e8298c5","text":"The vertical streak does not move toward the light on this prism axis."},
+    {"key":"practice:maddox:report:d91f3a8215702720","text":"The streak passes through the light."},
+    {"key":"practice:maddox:report:58b0522664cf4efe","text":"The streak is right of the light."},
+    {"key":"practice:maddox:report:174ccbd04deb0b42","text":"The horizontal streak does not move toward the light on this prism axis."},
+    {"key":"practice:maddox:report:2996850dfa78103c","text":"The streak is above the light."},
+    {"key":"practice:maddox:report:a77a6bcd3b908a9b","text":"The streak is below the light and moves farther away."},
+    {"key":"practice:maddox:report:10089481b10302db","text":"The streak is below the light."},
+    {"key":"practice:thorington:report:0ef8e30839e55e2b","text":"6, right."},
+    {"key":"practice:thorington:report:1871d2d38d994f7d","text":"4, above."},
+    {"key":"practice:thorington:report:9594f36c7ffb7869","text":"8, left."},
+    {"key":"practice:thorington:report:af3199f7e2977db2","text":"3, below."},
+    {"key":"practice:worth:report:de9ebbd8d478ef61","text":"I see four dots: one red, two green, and one mixed/white."},
+    {"key":"practice:worth:report:72ab16dc91303a34","text":"I see two red dots, arranged vertically."},
+    {"key":"practice:worth:report:0a8398463380da67","text":"I see three green dots."},
+    {"key":"practice:worth:report:99e0ca704a850054","text":"I see five dots; the red dots are to the right of the green dots."},
+    {"key":"practice:worth:report:c3f7168f97b0f753","text":"I see five dots; the red dots are to the left of the green dots."},
+    {"key":"practice:worth:report:d04588830d7d4837","text":"I see five dots; the red dots are above the green dots."},
+    {"key":"practice:worth:report:a3b3c5e0989ec028","text":"I see five dots; the red dots are below the green dots."}
   ]
 }

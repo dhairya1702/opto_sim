@@ -50,6 +50,29 @@ describe("sustained cover-test deviations", () => {
     expect(poses.OS.h).toBeCloseTo(-20, 0); // unilateral: OS returns in when OD is uncovered
   });
 
+  it.each([
+    ["left-esotropia", "OS", "OD", -20],
+    ["right-esotropia", "OD", "OS", -20],
+    ["left-exotropia", "OS", "OD", 20],
+    ["right-exotropia", "OD", "OS", 20],
+  ] as const)("shows %s at rest, refixates only when the fellow eye is covered, and returns on uncovering", (id, eye, fellow, amount) => {
+    const finding = model(id);
+    const initial = coverEyeTargets(finding, "away");
+    expect(initial[eye]).toEqual({ h: amount, v: 0 });
+    expect(initial[fellow]).toEqual({ h: 0, v: 0 });
+    expect(coverEyeTargets(finding, eye)).toEqual(initial);
+    const refixated = settle(finding, fellow, initial, .2);
+    expect(refixated[eye].h).toBeCloseTo(0, 1);
+    expect(refixated[fellow].h).toBeCloseTo(amount, 1);
+    const returned = settle(finding, "away", refixated, .2);
+    expect(returned[eye].h).toBeCloseTo(amount, 1);
+    expect(returned[fellow].h).toBeCloseTo(0, 1);
+    const baselineX = coverTeachingIrisOffset(eye, initial[eye])[0];
+    const refixationX = coverTeachingIrisOffset(eye, refixated[eye])[0];
+    expect(Math.abs(refixationX)).toBeLessThan(Math.abs(baselineX));
+    expect(Math.sign(baselineX)).toBe((eye === "OD" ? -1 : 1) * Math.sign(amount));
+  });
+
   it("lets an exophoric eye drift out slowly behind the cover and recover on uncovering", () => {
     const xp = model("exophoria");
     expect(coverEyeTargets(xp, "away")).toEqual(straightPoses());

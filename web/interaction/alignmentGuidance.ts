@@ -12,6 +12,7 @@ export const KRIMSKY_GUIDED_STEP_COUNT = 7;
 export type KrimskyGuidedState = {
   viewingIssue?: { title: string; lines: string[] } | null;
   requiredEye?: "OD" | "OS";
+  method?: "standard" | "modified";
   baseSelected?: boolean;
   penlightHeld: boolean;
   fixation: boolean;
@@ -60,7 +61,9 @@ export function krimskyGuidedStep(state: KrimskyGuidedState): AlignmentGuidedSte
   };
   if (!state.prismAligned) return {
     id: "neutralise", index: 4, title: "Align the selected prism cell",
-    lines: [`Move the gold-ringed cell over ${state.requiredEye ?? "the required eye"}.`, "Green confirms prism placement; keep the light and view aligned too."], complete: false,
+    lines: [`Move the gold-ringed cell over ${state.requiredEye ?? "the required eye"}.`,
+      state.method === "modified" ? "Modified: prism over the fixating eye; observe the other eye’s reflex."
+        : "Standard: prism over the deviating eye. Keep the light and view aligned."], complete: false,
   };
   if (state.baseSelected === false) return {
     id: "neutralise", index: 4, title: "Select the prism direction",

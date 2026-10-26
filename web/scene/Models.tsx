@@ -16,21 +16,25 @@ export function Box({
   c = "#eef0ed",
   r = [0, 0, 0],
   radius = 0,
+  castShadow = false,
+  receiveShadow = false,
 }: {
   p?: V;
   s?: V;
   c?: string;
   r?: V;
   radius?: number;
+  castShadow?: boolean;
+  receiveShadow?: boolean;
 }) {
   const material = <meshStandardMaterial color={c} roughness={0.72} />;
   if (radius > 0) {
-    return <RoundedBox position={p} rotation={r} args={s} radius={Math.min(radius, Math.min(...s) * .45)} smoothness={4} castShadow receiveShadow>
+    return <RoundedBox position={p} rotation={r} args={s} radius={Math.min(radius, Math.min(...s) * .45)} smoothness={4} castShadow={castShadow} receiveShadow={receiveShadow}>
       {material}
     </RoundedBox>;
   }
   return (
-    <mesh position={p} rotation={r} castShadow receiveShadow>
+    <mesh position={p} rotation={r} castShadow={castShadow} receiveShadow={receiveShadow}>
       <boxGeometry args={s} />
       {material}
     </mesh>
@@ -42,15 +46,19 @@ export function Cylinder({
   h = 0.3,
   c = "#7f8d8c",
   r = [0, 0, 0],
+  castShadow = false,
+  receiveShadow = false,
 }: {
   p?: V;
   radius?: number;
   h?: number;
   c?: string;
   r?: V;
+  castShadow?: boolean;
+  receiveShadow?: boolean;
 }) {
   return (
-    <mesh position={p} rotation={r} castShadow receiveShadow>
+    <mesh position={p} rotation={r} castShadow={castShadow} receiveShadow={receiveShadow}>
       <cylinderGeometry args={[radius, radius, h, 20]} />
       <meshStandardMaterial color={c} metalness={0.3} roughness={0.4} />
     </mesh>
@@ -96,6 +104,15 @@ export function Ring({
     </mesh>
   );
 }
+export type SignResolutionTier = "compact" | "panel" | "detail";
+const signTextureCache = new Map<string, { texture: CanvasTexture; references: number }>();
+
+export function signTextureDimensions(size: [number, number], tier: SignResolutionTier, fitted: boolean) {
+  if (!fitted) return { width: 1024, height: 640 };
+  const width = tier === "detail" ? 1536 : tier === "panel" ? 1024 : 512;
+  return { width, height: Math.max(64, Math.round(width * size[1] / Math.max(.001, size[0]))) };
+}
+
 export function Sign({
   text,
   p,
@@ -105,6 +122,7 @@ export function Sign({
   rotation = [0, 0, 0],
   fit = false,
   transparentBackground = false,
+  resolutionTier = "panel",
 }: {
   text: string[];
   p: V;
@@ -116,11 +134,17 @@ export function Sign({
   fit?: boolean;
   /** Draw only glyphs so a shaped panel behind the texture defines the silhouette. */
   transparentBackground?: boolean;
+  /** Pixel budget for fitted text. Reserve detail for labels that truly need it. */
+  resolutionTier?: SignResolutionTier;
 }) {
+  const key = JSON.stringify([text, bg, fg, fit, transparentBackground, fit ? size : null, resolutionTier]);
   const texture = useMemo(() => {
+    const cached = signTextureCache.get(key);
+    if (cached) return cached.texture;
     const canvas = document.createElement("canvas");
-    canvas.width = fit ? 1536 : 1024;
-    canvas.height = fit ? Math.max(160, Math.round(1536 * size[1] / size[0])) : 640;
+    const dimensions = signTextureDimensions(size, resolutionTier, fit);
+    canvas.width = dimensions.width;
+    canvas.height = dimensions.height;
     const ctx = canvas.getContext("2d")!;
     if (!transparentBackground) {
       ctx.fillStyle = bg;
@@ -139,6 +163,7 @@ export function Sign({
       ctx.fillText(t, canvas.width / 2, (canvas.height * (i + 1)) / (text.length + 1));
     });
     perfCount("sign texture");
+    perfCount("sign texels", canvas.width * canvas.height);
     const tex = new CanvasTexture(canvas);
     tex.colorSpace = SRGBColorSpace;
     if (fit) {
@@ -151,9 +176,26 @@ export function Sign({
     } else {
       tex.anisotropy = 8;
     }
+    signTextureCache.set(key, { texture: tex, references: 0 });
     return tex;
-  }, [text.join("|"), bg, fg, fit, transparentBackground, fit ? size[0] : 0, fit ? size[1] : 0]);
-  useEffect(() => () => texture.dispose(), [texture]);
+  }, [key]);
+  useEffect(() => {
+    const cached = signTextureCache.get(key);
+    if (!cached || cached.texture !== texture) signTextureCache.set(key, { texture, references: 1 });
+    else cached.references += 1;
+    return () => {
+      const current = signTextureCache.get(key);
+      if (!current || current.texture !== texture) return;
+      current.references -= 1;
+      if (current.references > 0) return;
+      // StrictMode immediately replays effects. Defer disposal by one microtask
+      // so the replay can reacquire the same GPU texture before it is destroyed.
+      queueMicrotask(() => {
+        const latest = signTextureCache.get(key);
+        if (latest === current && latest.references <= 0) { latest.texture.dispose(); signTextureCache.delete(key); }
+      });
+    };
+  }, [key, texture]);
   return (
     <mesh position={p} rotation={rotation}>
       <planeGeometry args={size} />
@@ -221,7 +263,7 @@ function ClinicFloor() {
   </>;
 }
 
-export function ConsultingRoomShell() {
+export function ConsultingRoomShell({ xr = false }: { xr?: boolean }) {
   return <>
     <color attach="background" args={["#cfd8d4"]} />
     <ambientLight color="#fff8ed" intensity={0.38} />
@@ -231,7 +273,7 @@ export function ConsultingRoomShell() {
       color="#fff4e6"
       intensity={1.45}
       castShadow
-      shadow-mapSize={[1024, 1024]}
+      shadow-mapSize={[xr ? 512 : 1024, xr ? 512 : 1024]}
       shadow-camera-left={-4}
       shadow-camera-right={4}
       shadow-camera-top={4}
@@ -410,12 +452,11 @@ export function NearVisionCard({ p = [0, 0, 0], r = [0, 0, 0], isolated = false 
 }
 
 type TrolleyKit = Pick<typeof INSTRUMENT_KIT, "x" | "z" | "width" | "depth" | "surfaceY" | "lowerShelfY">;
-export function Trolley({ held, portable = true, kit = INSTRUMENT_KIT, rotationY = INSTRUMENT_KIT_ROTATION_Y, label = "LEFT-SIDE INSTRUMENT KIT" }: {
+export function Trolley({ held, portable = true, kit = INSTRUMENT_KIT, rotationY = INSTRUMENT_KIT_ROTATION_Y }: {
   held?: string;
   portable?: boolean;
   kit?: TrolleyKit;
   rotationY?: number;
-  label?: string;
 }) {
   return (
     <group position={[kit.x, 0, kit.z]} rotation={[0, rotationY, 0]}>
@@ -470,7 +511,6 @@ export function Trolley({ held, portable = true, kit = INSTRUMENT_KIT, rotationY
           <NearVisionCard p={[.33, .899, .08]} />
         </group>
       )}
-      <Sign text={[label]} p={[0, .78, kit.depth / 2 + .004]} size={[.62, .07]} />
     </group>
   );
 }

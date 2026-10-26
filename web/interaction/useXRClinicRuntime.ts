@@ -14,7 +14,7 @@ import {
 } from "./xrConsultationTools";
 import { SENSORY_SURFACES, type SensoryWorkingPose } from "./xrSensoryEquipment";
 import { nextScopeAperture, SCOPE_SELECTOR_REACH_M, type ScopeAperture } from "./xrScopeEquipment";
-import { perfEvent, perfRender } from "../perf/perfFlag";
+import { perfCount, perfEvent, perfRender } from "../perf/perfFlag";
 import {
   clearDesktopClinicTransient, desktopClinicAdjustmentStep, desktopClinicShortcut,
   desktopAccommodationHeldPose, desktopAssistedSocketId, initialDesktopClinicInput, isEditableClinicTarget, setDesktopClinicActivation,
@@ -107,12 +107,23 @@ export function useXRClinicRuntime(options: Options) {
     return false;
   }, [slots]);
   const objects = useRef(new Map<ConsultationToolId, Group>());
+  const raycastTargets = useRef(new Set<Object3D>());
+  const discoveredRaycastTargets = useRef(new Set<Object3D>());
+  const priorityRaycastTargets = useRef(new Set<Object3D>());
+  const registerRaycastTarget = useCallback((object: Object3D, priority = false) => {
+    raycastTargets.current.add(object);
+    if (priority) priorityRaycastTargets.current.add(object);
+    return () => { raycastTargets.current.delete(object); priorityRaycastTargets.current.delete(object); };
+  }, []);
   const placementMarkers = useRef(new Map<Hand, Group>());
   const hidePlacementMarkers = useCallback(() => {
     placementMarkers.current.forEach(marker => { marker.visible = false; });
   }, []);
   const registerTool = useCallback((id: ConsultationToolId, object: Group | null) => {
-    if (object) objects.current.set(id, object); else objects.current.delete(id);
+    const previous = objects.current.get(id);
+    if (previous && previous !== object) raycastTargets.current.delete(previous);
+    if (object) { objects.current.set(id, object); raycastTargets.current.add(object); }
+    else objects.current.delete(id);
   }, []);
   const updateTools = useCallback((next: ConsultationTools) => {
     if (next === toolsRef.current) return;
@@ -172,6 +183,8 @@ export function useXRClinicRuntime(options: Options) {
   const clinicYaw = useRef(0);
   const initialArrival = useRef(true);
   const raycaster = useMemo(() => new Raycaster(), []);
+  const rayFrame = useRef(0);
+  const rayHitCache = useRef(new Map<ControllerSlot, { frame: number; hit: RaycastHit | null }>());
   const origin = useMemo(() => new Vector3(), []);
   const direction = useMemo(() => new Vector3(0, 0, -1), []);
   const quaternion = useMemo(() => new Quaternion(), []);
@@ -287,7 +300,30 @@ export function useXRClinicRuntime(options: Options) {
   };
   const pickupHintRef = useRef(pickupHint);
   pickupHintRef.current = pickupHint;
+  useEffect(() => {
+    const discovered = new Set<Object3D>();
+    const priority = new Set<Object3D>();
+    scene.traverse(object => {
+      const data = object.userData;
+      const interactive = Boolean(data.station || data.xrTeleport || data.xrPanel || data.xrToolControls
+        || data.xrInteractiveSurface || data.consultationToolId || data.xrAction || data.xrInstrumentControl);
+      if (!interactive) return;
+      let ancestor = object.parent;
+      while (ancestor && ancestor !== scene) {
+        if (discovered.has(ancestor) || raycastTargets.current.has(ancestor)) return;
+        ancestor = ancestor.parent;
+      }
+      discovered.add(object);
+      if (data.xrPriorityPanel) priority.add(object);
+    });
+    discoveredRaycastTargets.current = discovered;
+    priorityRaycastTargets.current = priority;
+    perfCount("ray target audit");
+    perfCount("registered ray targets", raycastTargets.current.size + discovered.size);
+  });
+
   useFrame(({ camera }, dt, frame) => {
+    rayFrame.current += 1;
     if (!activeRef.current) { frameValid.current = false; return; }
     const reference = gl.xr.getReferenceSpace();
     const visible = inputMode === "desktop" ? document.visibilityState !== "hidden" : gl.xr.getSession()?.visibilityState === "visible";
@@ -527,15 +563,20 @@ export function useXRClinicRuntime(options: Options) {
   });
 
   const priorityHitScratch = useMemo(() => ({ inverse: new Matrix4(), ray: new Ray(), point: new Vector3() }), []);
-  function rayHit(slot: ControllerSlot) {
+  type RaycastHit = { object: Object3D; point: Vector3; distance: number };
+  function rayHit(slot: ControllerSlot, fresh = false): RaycastHit | null {
+    const cached = rayHitCache.current.get(slot);
+    if (!fresh && cached?.frame === rayFrame.current) return cached.hit;
     slot.ray.getWorldPosition(origin);
     slot.ray.getWorldQuaternion(quaternion);
     direction.set(0, 0, -1).applyQuaternion(quaternion).normalize();
     raycaster.set(origin, direction);
+    raycaster.far = findingsPanels.current.size > 0 ? 5 : 3;
     // Head-following result actions need a geometric hit area independent of
     // decorative meshes, material sides and the wall editor behind them.
     let priorityHit: { object: Object3D; point: Vector3; distance: number } | null = null;
-    scene.traverseVisible(object => {
+    priorityRaycastTargets.current.forEach(object => {
+      if (!object.visible) return;
       if (!object.userData.xrButton || !object.userData.xrAction || !ancestorData(object).priorityPanel) return;
       object.updateWorldMatrix(true, false);
       const scratch = priorityHitScratch;
@@ -551,8 +592,10 @@ export function useXRClinicRuntime(options: Options) {
       const distance = raycaster.ray.origin.distanceTo(scratch.point);
       if (!priorityHit || distance < priorityHit.distance) priorityHit = { object, point: scratch.point.clone(), distance };
     });
-    if (priorityHit) return priorityHit;
-    const intersections = raycaster.intersectObject(scene, true).filter(intersection => {
+    if (priorityHit) { rayHitCache.current.set(slot, { frame: rayFrame.current, hit: priorityHit }); return priorityHit; }
+    const candidates = [...raycastTargets.current, ...discoveredRaycastTargets.current].filter((object, index, all) => all.indexOf(object) === index);
+    perfCount("raycast candidate roots", candidates.length);
+    const intersections = raycaster.intersectObjects(candidates, true).filter(intersection => {
       let object: Object3D | null = intersection.object;
       let interactive = false;
       while (object) {
@@ -568,19 +611,33 @@ export function useXRClinicRuntime(options: Options) {
       const data = ancestorData(hit.object);
       return data.priorityPanel && data.action;
     });
-    if (priorityActionHit) return priorityActionHit;
+    if (priorityActionHit) { rayHitCache.current.set(slot, { frame: rayFrame.current, hit: priorityActionHit }); return priorityActionHit; }
     // A deliberately aimed nearby physical selector takes precedence over
     // intervening placement previews or equipment; selectEnd still enforces
     // free-hand ownership and physical reach before invoking it.
+    const findingsAction = intersections.find(hit => {
+      if (!ancestorData(hit.object).action) return false;
+      let object: Object3D | null = hit.object;
+      while (object) { if (object.userData.xrPersistentFindings) return true; object = object.parent; }
+      return false;
+    });
     const instrumentControl = intersections.find(hit => ancestorData(hit.object).instrumentControl);
-    if (instrumentControl) return instrumentControl;
+    if (instrumentControl) {
+      slot.grip.getWorldPosition(workingOrigin);
+      // A nearby physical selector remains usable. A distant target/dock must
+      // not steal a deliberate press on the findings board behind it.
+      if (!findingsAction || workingOrigin.distanceTo(instrumentControl.point) <= SCOPE_SELECTOR_REACH_M) {
+        rayHitCache.current.set(slot, { frame: rayFrame.current, hit: instrumentControl }); return instrumentControl;
+      }
+    }
+    if (findingsAction) { rayHitCache.current.set(slot, { frame: rayFrame.current, hit: findingsAction }); return findingsAction; }
     if (editorOpen) {
       const editorHit = intersections.find(hit => {
         let object: Object3D | null = hit.object;
         while (object) { if (object.userData.xrObservationEditor) return true; object = object.parent; }
         return false;
       });
-      if (editorHit) return editorHit;
+      if (editorHit) { rayHitCache.current.set(slot, { frame: rayFrame.current, hit: editorHit }); return editorHit; }
     }
     // Tool-side controls are visible overlays, just like the explicitly opened editor.
     const toolControl = intersections.find(hit => {
@@ -588,7 +645,9 @@ export function useXRClinicRuntime(options: Options) {
       while (object) { if (object.userData.xrToolControls) return true; object = object.parent; }
       return false;
     });
-    return toolControl ?? intersections[0];
+    const hit = toolControl ?? intersections[0] ?? null;
+    rayHitCache.current.set(slot, { frame: rayFrame.current, hit });
+    return hit;
   }
 
   const desktopAdjustment = useCallback((step: -1 | 1, axis: "horizontal" | "vertical" = "vertical") => {
@@ -893,7 +952,7 @@ export function useXRClinicRuntime(options: Options) {
         const id = toolInHand(toolsRef.current, slot.hand);
         // A held instrument owns that hand's trigger. Wall/menu controls require
         // the free hand so a board behind the patient cannot steal illumination.
-        const hit = rayHitRef.current(slot);
+        const hit = rayHitRef.current(slot, true);
         // A deliberately aimed physical selector is resolved as a control first;
         // selectEnd then enforces free-hand ownership and proximity.
         const hitData = ancestorData(hit?.object ?? null);
@@ -937,7 +996,9 @@ export function useXRClinicRuntime(options: Options) {
           if (accepted !== false && data.instrumentControl && slot.hand) pulseHand(slot.hand, .35, 40);
         }
         else if (data.teleport) { pauseTechnique(); teleport(data.teleport); }
-        else optionsRef.current.onSelection?.(data);
+        // The patient is scenery, not a menu button. Free-hand trigger presses
+        // must not open lesson/consultation panels; A/X owns menu opening.
+        else if (data.station !== "patient") optionsRef.current.onSelection?.(data);
       };
       const ray = slot.ray as Object3D & { addEventListener: (type: string, listener: (event: unknown) => void) => void; removeEventListener: (type: string, listener: (event: unknown) => void) => void };
       const events = { connected, disconnected, squeezestart: squeezeStart, squeezeend: squeezeEnd, selectstart: selectStart, selectend: selectEnd };
@@ -948,7 +1009,7 @@ export function useXRClinicRuntime(options: Options) {
   }, [closeScopeView, closeUtilityPanel, direction, hidePlacementMarkers, origin, pauseTechnique, pulseHand, quaternion, resolvePlacement, slots, teleport, updateTools, workingOrigin]);
 
   return {
-    tools, toolsRef, slots, objects, toolControls, findingsPanels, frameValid, scopeAperture, scopeApertureRef, cycleScopeAperture, scopeViewHand, scopeViewHandRef, closeScopeView, toggleScopeView, utilityOpen, closeUtilityPanel, toggleUtilityPanel, highlighted, pickupHints, returnedAt,
+    tools, toolsRef, slots, objects, toolControls, findingsPanels, raycastTargets, registerRaycastTarget, frameValid, scopeAperture, scopeApertureRef, cycleScopeAperture, scopeViewHand, scopeViewHandRef, closeScopeView, toggleScopeView, utilityOpen, closeUtilityPanel, toggleUtilityPanel, highlighted, pickupHints, returnedAt,
     handlingMessage, setHandlingMessage, hoverMarker, placementMarkers, registerTool, updateTools, stopLights, resetClinic, closePanels,
     origin, direction, quaternion, workingPose, supportedWorkingPose, handStatus, pulseHand, teleport, recenterClinic, equipment, toolLabel, setToolPower,
     inputMode, desktopActiveHand, desktopAim, desktopTogglePickup, desktopAdjustment, setDesktopHeldPose,

@@ -1,3 +1,4 @@
+import type { KrimskyMethod } from "../interaction/krimsky";
 import { createContext, useContext, type ReactNode } from "react";
 
 export type PracticeAttemptKind = "guided" | "test";
@@ -6,6 +7,7 @@ export type PracticeVoicePreference = "enabled" | "disabled";
 
 export type PracticeAttemptSettings = {
   kind: PracticeAttemptKind;
+  krimskyMethod?: KrimskyMethod;
   interaction: PracticeInteractionMode;
   voice: PracticeVoicePreference;
 };
@@ -13,6 +15,8 @@ export type PracticeAttemptSettings = {
 type PracticeAttemptContextValue = {
   settings: PracticeAttemptSettings | null;
   setSettings: (settings: PracticeAttemptSettings) => void;
+  /** The mounted clinic owns live attempt resources only while it is active. */
+  setAttemptActive?: (active: boolean) => void;
 };
 
 const PracticeAttemptContext = createContext<PracticeAttemptContextValue | null>(null);

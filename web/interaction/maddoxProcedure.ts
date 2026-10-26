@@ -1,3 +1,5 @@
+import type { SensoryWorkingPose } from "./xrSensoryEquipment";
+
 export type MaddoxSite = "distance" | "near";
 export type MaddoxAxis = "horizontal" | "vertical";
 export type MaddoxBase = "BI" | "BO" | "BU" | "BD";
@@ -7,6 +9,20 @@ export const MADDOX_PRISM_CELLS = [2, 4, 6, 8, 10, 12, 15, 20] as const;
 export type MaddoxPrismPower = typeof MADDOX_PRISM_CELLS[number];
 export const MADDOX_ORIENTATION_TOLERANCE_DEG = 30;
 export const MADDOX_REPORT_DWELL_MS = 250;
+export const MADDOX_NEAR_JITTER_MS = 200;
+
+/** Illustrative near-light geometry: distance and aim are independent, without a hidden centre-line gate. */
+export function maddoxNearLightCondition(pose: SensoryWorkingPose | null) {
+  if (!pose) return { distanceCm: 0, distanceReady: false, aimReady: false, ready: false };
+  const delta = [0 - pose.position[0], 1.5 - pose.position[1], -.511 - pose.position[2]];
+  const distance = Math.hypot(...delta);
+  const distanceCm = distance * 100;
+  const forwardLength = Math.hypot(...pose.forward);
+  const aimReady = distance > 0 && forwardLength > 0 && pose.position[2] > -.511
+    && delta.reduce((sum, v, i) => sum + v * pose.forward[i], 0) / (distance * forwardLength) >= Math.cos(Math.PI / 6);
+  const distanceReady = distanceCm >= 38 && distanceCm <= 42;
+  return { distanceCm, distanceReady, aimReady, ready: distanceReady && aimReady };
+}
 export const MADDOX_GUIDED_STEP_COUNT = 9;
 
 export type MaddoxTrial = Readonly<{
@@ -31,6 +47,8 @@ export type MaddoxSpatialSample = Readonly<{
   grooveDegrees: number | null;
   targetReady: boolean;
   targetPowered: boolean;
+  targetDistanceReady?: boolean;
+  targetAimReady?: boolean;
   targetSite: MaddoxSite | null;
   distanceCm: number;
   fixationInstruction: boolean;
@@ -67,6 +85,7 @@ export type MaddoxRun = Readonly<{
   stableCell: MaddoxPrismPower | null;
   stableBase: MaddoxBase | null;
   stableSinceMs: number | null;
+  nearInvalidSinceMs: number | null;
   report: string;
   capture: MaddoxCapture | null;
   entryPower: string;
@@ -82,7 +101,7 @@ export type MaddoxGuidedStep = Readonly<{ id: string; title: string; lines: read
 export function newMaddoxRun(records: readonly MaddoxRecord[] = []): MaddoxRun {
   const complete = records.length >= MADDOX_TRIALS.length;
   return Object.freeze({ trialIndex: Math.min(records.length, MADDOX_TRIALS.length - 1), phase: complete ? "complete" : "setup", reportInstruction: false,
-    introduced20: false, stableCell: null, stableBase: null, stableSinceMs: null, report: "", capture: null, entryPower: "", entryBase: "", records: Object.freeze([...records]),
+    introduced20: false, stableCell: null, stableBase: null, stableSinceMs: null, nearInvalidSinceMs: null, report: "", capture: null, entryPower: "", entryBase: "", records: Object.freeze([...records]),
     setupRevision: 0, completionAwarded: complete, feedback: "" });
 }
 
@@ -98,6 +117,10 @@ export function maddoxSetupIssue(sample: MaddoxSpatialSample, trial: MaddoxTrial
   if (!sample.correctionFitted) return "Fit the trial frame over both eyes.";
   if (!sample.rodFitted) return "Fit the Maddox rod before OD.";
   if (!maddoxGrooveCorrect(trial.axis, sample.grooveDegrees)) return `Remove, roll and refit the rod with ${trial.axis} grooves.`;
+  if (trial.site === "near") {
+    if (sample.targetDistanceReady === false) return "Move the penlight to 38–42 cm; check the distance beside its ray.";
+    if (sample.targetAimReady === false) return "Aim the penlight toward Arun's eyes; keep it in front of him.";
+  }
   if (!sample.targetReady || sample.targetSite !== trial.site) return trial.site === "distance"
     ? "Pick up the point target and place it on the Distance Target Dock beside Arun."
     : "Pick up the penlight and hold it 38–42 cm in front of Arun's eyes, aimed toward him.";
@@ -124,11 +147,12 @@ export function maddoxPatientReport(trial: MaddoxTrial, power: MaddoxPrismPower,
   if (correctDirection && residual === 0) return "The streak passes through the light.";
   const positive = trial.axis === "horizontal" ? "right" : "below";
   const negative = trial.axis === "horizontal" ? "left" : "above";
-  return `The streak is ${residual > 0 ? positive : negative} of the light${correctDirection ? "." : " and moves farther away."}`;
+  const relation = trial.axis === "horizontal" ? `${residual > 0 ? positive : negative} of` : residual > 0 ? positive : negative;
+  return `The streak is ${relation} the light${correctDirection ? "." : " and moves farther away."}`;
 }
 
 const resetCurrent = (run: MaddoxRun, feedback: string, revision = run.setupRevision + 1): MaddoxRun => Object.freeze({ ...run,
-  phase: "instruction", reportInstruction: false, introduced20: false, stableCell: null, stableBase: null, stableSinceMs: null, report: "", capture: null,
+  phase: "instruction", reportInstruction: false, introduced20: false, stableCell: null, stableBase: null, stableSinceMs: null, nearInvalidSinceMs: null, report: "", capture: null,
   entryPower: "", entryBase: "", setupRevision: revision, feedback,
 });
 
@@ -149,17 +173,26 @@ export function sampleMaddox(run: MaddoxRun, sample: MaddoxSpatialSample, nowMs:
     ? maddoxSetupIssue({ ...sample, base: trial.base }, trial, kind)
     : maddoxSetupIssue(sample, trial, kind);
   if (issue) {
-    if (run.introduced20 || run.stableCell !== null) return resetCurrent(run, issue);
-    return Object.freeze({ ...run, phase: run.reportInstruction ? "introduction" : "setup", stableCell: null, stableBase: null, stableSinceMs: null, report: "", feedback: issue });
+    // A brief light-pose miss pauses reporting and discards dwell immediately.
+    // Other invalid setup and explicit runtime interruptions still reset normally.
+    const nearPoseOnly = trial.site === "near" && !sample.targetReady && run.reportInstruction
+      && !maddoxSetupIssue({ ...sample, targetReady: true, targetSite: "near", targetDistanceReady: true, targetAimReady: true,
+        base: run.introduced20 ? trial.base : sample.base }, trial, kind);
+    const nearInvalidSinceMs = run.nearInvalidSinceMs ?? nowMs;
+    if (nearPoseOnly && nowMs - nearInvalidSinceMs < MADDOX_NEAR_JITTER_MS) return Object.freeze({ ...run,
+      stableCell: null, stableBase: null, stableSinceMs: null, nearInvalidSinceMs, report: "", feedback: issue });
+    if (nearPoseOnly || run.introduced20 || run.stableCell !== null) return resetCurrent(run, issue);
+    return Object.freeze({ ...run, phase: run.reportInstruction ? "introduction" : "setup", stableCell: null, stableBase: null, stableSinceMs: null, nearInvalidSinceMs: null, report: "", feedback: issue });
   }
+  if (run.nearInvalidSinceMs !== null && nowMs - run.nearInvalidSinceMs >= MADDOX_NEAR_JITTER_MS) return resetCurrent(run, "Reposition the near penlight and ask Arun to fixate again.");
   if (!run.reportInstruction) return Object.freeze({ ...run, phase: "instruction", feedback: "Ask Arun to fixate and report before introducing prism." });
-  if (!run.introduced20 && sample.cell !== 20) return Object.freeze({ ...run, phase: "introduction", stableCell: null, stableBase: null, stableSinceMs: null, report: "", feedback: "Introduce and stably centre the 20Δ cell first." });
+  if (!run.introduced20 && sample.cell !== 20) return Object.freeze({ ...run, phase: "introduction", stableCell: null, stableBase: null, stableSinceMs: null, nearInvalidSinceMs: null, report: "", feedback: "Introduce and stably centre the 20Δ cell first." });
   const same = run.stableCell === sample.cell && run.stableBase === sample.base;
   const stableSinceMs = same ? run.stableSinceMs : nowMs;
   const stable = stableSinceMs !== null && nowMs - stableSinceMs >= MADDOX_REPORT_DWELL_MS;
   const introduced20 = run.introduced20 || (sample.cell === 20 && stable);
   const report = stable && sample.cell !== null ? maddoxPatientReport(trial, sample.cell, sample.base ?? trial.base) : same ? run.report : "";
-  return Object.freeze({ ...run, phase: introduced20 ? "neutralisation" : "introduction", introduced20, stableCell: sample.cell, stableBase: sample.base, stableSinceMs, report,
+  return Object.freeze({ ...run, phase: introduced20 ? "neutralisation" : "introduction", introduced20, nearInvalidSinceMs: null, stableCell: sample.cell, stableBase: sample.base, stableSinceMs, report,
     feedback: stable ? report : `Hold the ${sample.cell}Δ cell steady for Arun's report.` });
 }
 
@@ -204,16 +237,16 @@ export function maddoxGuidedStep(run: MaddoxRun, sample: MaddoxSpatialSample): M
       ? { title: "Dock the distance target", lines: ["Pick up the point target from the left instrument table.", "Place it on the DISTANCE TARGET DOCK beside Arun."] }
       : { title: "Turn on the distance target", lines: ["Press the highlighted POWER switch on either side of the target.", "Confirm that the white point appears in the mirror."] }
     : !correctTarget
-      ? { title: "Position the near penlight", lines: ["Pick up the penlight and aim it toward Arun.", "Hold it 38–42 cm in front of his eyes."] }
+      ? { title: "Position the near penlight", lines: [sample.targetDistanceReady === false ? "Move the penlight to 38–42 cm; watch the distance beside its ray." : sample.targetAimReady === false ? "Aim the penlight toward Arun’s eyes while keeping it in front of him." : "Pick up the penlight and aim it toward Arun.", "Hold it 38–42 cm in front of his eyes; the distance readout turns green."] }
       : { title: "Turn on the near penlight", lines: ["Hold the penlight trigger to keep its light on.", "Keep it aimed toward Arun for this measurement."] };
   const checks = [
     ["correction", "Fit the trial frame", ["Pick up the trial frame from the instrument table.", "Place it over both of Arun's eyes."], sample.correctionFitted],
     ["rod", `Fit the rod for the ${trial.axis} test`, ["Place the red Maddox lens over Arun's right eye (OD).", `Rotate it to match the single ${trial.axis} guide.`], sample.rodFitted && maddoxGrooveCorrect(trial.axis, sample.grooveDegrees)],
     ["target", targetGuidance.title, targetGuidance.lines, correctTarget && sample.targetPowered],
-    ["instruction", "Ask for the report", ["Ask Arun to fixate and report where the streak lies.", "Continue until he says it passes through the light."], run.reportInstruction],
+    ["instruction", "Ask for the report", ["Select ASK ARUN TO FIXATE / REPORT on the right-side panel.", "Read his replies in ARUN SAYS on that panel."], run.reportInstruction],
     ["pickup", "Pick up the prism bar", ["Use the free hand to pick up the stepped prism bar."], sample.prismHeld],
     ["introduce", "Introduce 20Δ", ["Centre the prism's working ring over OD.", `Use up/down for 20Δ; ${trial.axis === "horizontal" ? "left selects BI and right selects BO" : "left selects BU and right selects BD"}.`], run.introduced20],
-    ["reduce", "Reduce through the cells", ["Press the prism-hand thumbstick down to reduce power.", "Keep the working ring centred over OD until Arun reports coincidence."], run.report === "The streak passes through the light."],
+    ["reduce", "Reduce through the cells", ["Press the prism-hand thumbstick down to reduce power.", "Keep each cell centred briefly; read ARUN SAYS on the right-side panel."], run.report === "The streak passes through the light."],
     ["capture", "Capture coincidence", ["Press the prism-hand trigger only when Arun reports coincidence."], Boolean(run.capture)],
     ["record", "Record independently", ["Put the tools down.", "Enter the captured prism power and base without a preselected answer."], run.records.length > run.trialIndex || run.phase === "complete"],
   ] as const;

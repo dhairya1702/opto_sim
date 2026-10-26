@@ -56,6 +56,17 @@ async function lesson(attemptKind: PracticeAttemptKind = "guided", preview = fal
 }
 
 describe("stereopsis Practice in the real shared XR loop", () => {
+  it("does not open the stereopsis menu from empty-hand patient clicks", async () => {
+    const sim = await lesson();
+    sim.rays[0].position.set(0, 1.5, .1); sim.rays[0].rotation.set(0, 0, 0);
+    await sim.step();
+    for (let press = 0; press < 3; press++) {
+      await sim.event(0, "selectstart"); await sim.event(0, "selectend");
+    }
+    expect(sim.mirror().lesson.mode).toBe("none");
+    await sim.panel(0);
+    expect(sim.mirror().lesson.mode).toBe("menu");
+  });
   it("shows the nine-step Guided coach immediately and keeps the examiner key off the patient face", async () => {
     const sim = await lesson("guided", true);
     expect(sim.guidedStep()).toBe("fit-correction");
@@ -105,6 +116,8 @@ describe("stereopsis Practice in the real shared XR loop", () => {
 
   it("uses one physical page-turn transition with free-hand proximity and one haptic", async () => {
     const sim = await lesson(); await sim.fit(); await sim.book(false); await sim.answer(0);
+    expect(sim.labels()).not.toContain("TURN PAGE");
+    expect(sim.labels().join(" ")).toContain("800″");
     const control = sim.button("BOOKLET TURN PAGE");
     await sim.click(1, control);
     expect(sim.labels()).toContain("800 arcsec");
@@ -112,6 +125,15 @@ describe("stereopsis Practice in the real shared XR loop", () => {
     await sim.at(1, point); await sim.click(1, control);
     expect(sim.labels()).toContain("400 arcsec");
     expect(sim.haptics[1]).toHaveBeenCalledTimes(1);
+    expect(sim.mirror().reportLines).toEqual([]);
+    expect(sim.mirror().voiceReport).toBeUndefined();
+    expect(sim.mirror().status).not.toContain("Automatically marked");
+    expect(sim.labels().join(" ")).not.toContain("800″");
+    await sim.action("LOOK AT THE CIRCLES");
+    await sim.action("ASK WHICH CIRCLE IS RAISED");
+    expect(sim.mirror().voiceReport).toBe("The left circle looks raised.");
+    expect(sim.mirror().reportLines).toEqual([]);
+    expect(sim.labels().join(" ")).not.toContain("800″");
     await sim.click(1, control);
     expect(sim.labels()).toContain("400 arcsec");
     expect(sim.haptics[1]).toHaveBeenCalledTimes(1);
@@ -124,7 +146,7 @@ describe("stereopsis Practice in the real shared XR loop", () => {
     if (!socket) throw new Error("Missing stand");
     await sim.at(0, [0, 1.5, .05]); await sim.step(1 / 72, 12);
     await sim.at(0, socket.position); await sim.step(1 / 72, 12);
-    expect(sim.mirror().reportLines).toEqual(["800 arcsec · patient said middle · correct circle middle · correct"]);
+    expect(sim.mirror().reportLines).toEqual([]);
     expect(sim.mirror().voiceReport).toBeUndefined();
     expect(sim.mirror().status).toContain("Ask Arun to look");
     await sim.action("ASK WHICH CIRCLE IS RAISED");

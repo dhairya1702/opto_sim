@@ -260,20 +260,11 @@
       "phrases": [
         "what do you see",
         "tell me what you see",
-        "how many dots",
-        "what colours do you see",
-        "tell me where the dots are",
         "report now",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see"
+        "what number do you see",
+        "which number does the streak pass through",
+        "tell me the number and side",
+        "where is the streak"
       ],
       "acknowledgement": "I can report what I see now that the examination setup is ready."
     }

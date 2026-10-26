@@ -128,7 +128,7 @@ export function VergencePracticeController({ kind, active, preview = false, inpu
   usePracticeVoiceProcedure(kind, active && !preview, { actions, voiceReport: state.ready && timed.current && !capture.current ? (performance.now() - timed.current.presented >= vergenceFacilityDelay[timed.current.side] ? "It is clear and single now." : "It is not clear and single yet.") : undefined });
   useEffect(() => { onMirror?.({ title: LIBRARY_TITLES[kind], findingPosition: { current: baseIndex.current + 1, total: isPrism ? 2 : 1 }, status, ready, entryReady: ready, fields, actions, lesson, reset, record, cancel, reportLines: state.history }); }, [onMirror, status, ready, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
   return <>
-    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title={LIBRARY_TITLES[kind].toUpperCase()} sensoryStation={!near ? "four-prism" : undefined} instrumentSettings={{ "prism-flipper": {
+    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title={LIBRARY_TITLES[kind].toUpperCase()} showWallInstructions={false} sensoryStation={!near ? "four-prism" : undefined} instrumentSettings={{ "prism-flipper": {
       side: state.side, onFlip: runtime.tools["prism-flipper"].placement.kind === "held" ? flip : undefined,
     }, prism: { power: state.settings.power, base: state.settings.base } }} />
     {(live || preview) && <><LibraryEquipmentTray active={live} equipment={runtime.equipment} />{near && <LibraryNearStand />}</>}

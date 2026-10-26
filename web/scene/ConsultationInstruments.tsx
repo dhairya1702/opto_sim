@@ -15,14 +15,14 @@ import { MADDOX_PRISM_CELLS, MADDOX_PRISM_CELL_Y } from "../interaction/maddoxPr
 import { perfRender } from "../perf/perfFlag";
 
 /** One canonical model per instrument, shared by resting and held placement. */
-export function ConsultationInstrumentModel({ id, powered, fundusView, brucknerView, scopeControl, settings }: { settings?: ClinicInstrumentSettings; scopeControl?: OphthalmoscopeControl; id: ConsultationToolId; powered: boolean; fundusView?: FundusScopeView; brucknerView?: BrucknerScopeView }) {
+export function ConsultationInstrumentModel({ id, powered, held = false, fundusView, brucknerView, scopeControl, settings }: { settings?: ClinicInstrumentSettings; scopeControl?: OphthalmoscopeControl; id: ConsultationToolId; powered: boolean; held?: boolean; fundusView?: FundusScopeView; brucknerView?: BrucknerScopeView }) {
   const lightTarget = useMemo(() => {
     const target = new Object3D();
     target.position.set(0, .7, 0);
     return target;
   }, []);
   if (["maddox", "thorington", "trial-lens", "minus-lens-holder", "lens-flipper", "prism-flipper", "vergence-prism", "fixation", "npc-rule", "push-up-rule"].includes(id)) return <LibraryInstrumentModel id={id} setting={settings?.[id]} />;
-  if (["worth", "red-green", "polarised", "stereo", "four-prism"].includes(id)) return <SensoryInstrumentModel id={id} powered={powered} point={settings?.[id]?.point} fixationLetter={settings?.[id]?.fixationLetter}
+  if (["worth", "red-green", "polarised", "stereo", "four-prism"].includes(id)) return <SensoryInstrumentModel id={id} powered={powered} held={held} point={settings?.[id]?.point} fixationLetter={settings?.[id]?.fixationLetter}
     base={settings?.[id]?.base} onPowerChange={settings?.[id]?.onPowerChange} highlightPowerSwitch={settings?.[id]?.highlightPowerSwitch} />;
   if (id === "prism") {
     const maddoxProfile = settings?.prism?.profile === "maddox";
@@ -119,7 +119,7 @@ function InstrumentInstance({ id, state, highlighted, returnedAt, register, sele
     position={placement.kind === "held" ? undefined : [...placement.position]}
     quaternion={placement.kind === "held" ? undefined : [...placement.rotation]}
     userData={{ consultationToolId: id, examId: selectable ? id : undefined, xrIgnoreRay: placement.kind === "held", station: "trolley" }}>
-    <ConsultationInstrumentModel id={id} powered={tool.powered} fundusView={fundusView} brucknerView={brucknerView} scopeControl={scopeControl} settings={settings} />
+    <ConsultationInstrumentModel id={id} powered={tool.powered} held={placement.kind === "held"} fundusView={fundusView} brucknerView={brucknerView} scopeControl={scopeControl} settings={settings} />
     {highlighted && <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
       <ringGeometry args={[.025, .036, 20]} /><meshBasicMaterial color="#8df5d3" side={DoubleSide} depthTest={false} />
     </mesh>}

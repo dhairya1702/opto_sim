@@ -80,7 +80,7 @@ export function ConsultationInterior({ held, xr = false }: { held?: Consultation
   );
   return (
     <>
-      <ConsultingRoomShell />
+      <ConsultingRoomShell xr={xr} />
       <group userData={{ station: "patient" }}>
         <Patient xr={xr} />
       </group>
@@ -88,7 +88,7 @@ export function ConsultationInterior({ held, xr = false }: { held?: Consultation
         <Trolley held={held} portable={false} />
       </group>
       <group userData={{ station: "trolley" }}>
-        <Trolley portable={false} kit={AUXILIARY_INSTRUMENT_KIT} rotationY={AUXILIARY_INSTRUMENT_KIT_ROTATION_Y} label="RIGHT-SIDE EXTENDED INSTRUMENT KIT" />
+        <Trolley portable={false} kit={AUXILIARY_INSTRUMENT_KIT} rotationY={AUXILIARY_INSTRUMENT_KIT_ROTATION_Y} />
       </group>
       {!xr && <ConsultationInstruments state={desktopTools} equipment={desktopEquipment} selectable={CASE_INDEPENDENT_CONSULTATION_EQUIPMENT}
         castsShadow={false} highlighted={[]} returnedAt={{}} register={registerStaticTool} />}

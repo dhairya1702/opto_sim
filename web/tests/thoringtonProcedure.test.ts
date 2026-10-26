@@ -82,13 +82,32 @@ describe("shared Modified Thorington procedure", () => {
     expect(sampleThorington(run, sample({ cardDistanceCm: 41 }), 900)).toBe(run);
   });
 
-  it("resets unfinished dwell on jitter, trigger loss, missed aperture, and tracking interruption", () => {
-    for (const change of [{ cardDistanceCm: 37.9 }, { penlightPowered: false }, { apertureHit: false }, { tracking: false }]) {
+  it("resets unfinished dwell immediately on trigger loss and tracking interruption", () => {
+    for (const change of [{ penlightPowered: false }, { tracking: false }]) {
       let run = armThoringtonReport(newThoringtonRun(), sample());
       run = sampleThorington(run, sample(), 0);
       run = sampleThorington(run, sample(change), 200);
       expect(run.reportInstruction).toBe(false); expect(run.stableSinceMs).toBeNull(); expect(run.capture).toBeNull();
     }
+  });
+
+  it.each([{ cardDistanceCm: 37.9 }, { apertureHit: false }, { penlightWithinReach: false }, { cardUpright: false }])("pauses briefly on pose jitter without retaining dwell: %j", change => {
+    let run = armThoringtonReport(newThoringtonRun(), sample());
+    run = sampleThorington(run, sample(), 0);
+    run = sampleThorington(run, sample(change), 200);
+    expect(run).toMatchObject({ reportInstruction: true, stableSinceMs: null, capture: null });
+    const paused = run;
+    run = sampleThorington(run, sample(), 300);
+    expect(sampleThorington(run, sample(), 549).capture).toBeNull();
+    expect(sampleThorington(run, sample(), 550).capture).not.toBeNull();
+    expect(sampleThorington(paused, sample(change), 400)).toMatchObject({ reportInstruction: false, stableSinceMs: null, capture: null });
+    expect(sampleThorington(paused, sample(), 400).reportInstruction).toBe(false);
+  });
+
+  it("distinguishes light-to-card distance from aperture aim", () => {
+    const run = armThoringtonReport(newThoringtonRun(), sample({ penlightWithinReach: false, apertureHit: false }));
+    expect(run.feedback).toContain("within 30 cm");
+    expect(armThoringtonReport(newThoringtonRun(), sample({ penlightWithinReach: true, apertureHit: false })).feedback).toContain("central aperture");
   });
 
   it("grades magnitude, raw side, and interpretation separately without defaults", () => {

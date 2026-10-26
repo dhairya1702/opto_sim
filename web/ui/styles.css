@@ -1345,8 +1345,12 @@ kbd {
   min-height: 0;
   height: calc(100dvh - 78px);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 330px;
+  grid-template-columns: minmax(0, 1fr);
   background: #071419;
+}
+
+.xr-practice-body-with-controls {
+  grid-template-columns: minmax(0, 1fr) 330px;
 }
 
 .xr-canvas-wrap {
@@ -1397,6 +1401,15 @@ kbd {
 .xr-preflight h2,
 .xr-preflight p {
   margin: .25rem 0 0;
+}
+.xr-preflight h2 {
+  text-align: center;
+}
+.xr-preflight > .primary {
+  width: min(220px, 100%);
+  justify-self: center;
+  min-height: 42px;
+  padding: .65rem 1rem;
 }
 
 .xr-preflight-actions,

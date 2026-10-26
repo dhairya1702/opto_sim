@@ -159,7 +159,7 @@ export function NPCPracticeController({ active, preview = false, inputMode = "xr
   }, [onMirror, status, entryReady, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
 
   return <>
-    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="NEAR POINT OF CONVERGENCE"
+    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="NEAR POINT OF CONVERGENCE" showWallInstructions={false}
       instrumentSettings={{ "npc-rule": { distanceCm: state.distance, highlightCarriage: disclosure.showHighlights && coach.index >= 3 && coach.index <= 8 } }} />
     {(live || preview) && <LibraryEquipmentTray active={live} equipment={runtime.equipment} showFittingGuides={disclosure.showHighlights} />}
     {live && <XRSign text={["FICTIONAL PATIENT · CURRENT RESPONSE", voiceReport]} p={[.55, 1.75, -.10]} size={[.55, .20]} bg="#07151b" fg="#eefbf7" />}

@@ -4,8 +4,8 @@ import { Group, Quaternion, Vector3 } from "three";
 import type { XRClinicRuntime } from "../interaction/useXRClinicRuntime";
 import { XRSign } from "./XRClinicPanels";
 
-/** Small Guided readout beside the pointer; distance comes from the light pose. */
-export function XRWorkingDistanceLabel({ runtime, tool, distanceCm, ready, eye }: { runtime: XRClinicRuntime; tool: "fundus" | "pupils"; distanceCm: number; ready: boolean; eye?: "OD" | "OS" }) {
+/** Small Guided readout beside the pointer; distance comes from the instrument working pose. */
+export function XRWorkingDistanceLabel({ runtime, tool, distanceCm, ready, eye }: { runtime: XRClinicRuntime; tool: "fundus" | "pupils" | "thorington"; distanceCm: number; ready: boolean; eye?: "OD" | "OS" }) {
   const root = useRef<Group>(null);
   const pose = useMemo(() => ({ position: new Vector3(), forward: new Vector3(), rotation: new Quaternion() }), []);
   useFrame(({ gl, camera }) => {

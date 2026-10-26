@@ -198,7 +198,7 @@ export function RelativeAccommodationPracticeController({ active, preview = fals
 
   const highlighted = coach.index === 0 ? ["subjective" as const] : coach.index === 1 ? ["near" as const] : coach.index === 2 ? ["trial-lens" as const] : [];
   return <>
-    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="NRA / PRA"
+    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="NRA / PRA" showWallInstructions={false}
       instructionalEquipment={disclosure.showHighlights ? highlighted : []}
       instrumentSettings={{ near: { readableTarget: true }, "trial-lens": { power: state.run.powerD,
         highlightAperture: disclosure.showHighlights && coach.index === 2,

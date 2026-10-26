@@ -193,7 +193,7 @@ export function VerticalFusionalVergencePracticeController({ active, preview = f
   }, [onMirror, status, entryReady, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
 
   return <>
-    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="VERTICAL DISTANCE VERGENCE" sensoryFixationLetter
+    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="VERTICAL DISTANCE VERGENCE" showWallInstructions={false} sensoryFixationLetter
       showInstructionalHighlights={disclosure.showHighlights} instrumentSettings={{ worth: { fixationLetter: true, onPowerChange: powered => { if (live) runtime.setToolPower("worth", powered); } }, "vergence-prism": { power: state.power, base: state.base ?? undefined,
         highlightAperture: disclosure.showHighlights && coach.index === 4, highlightDial: disclosure.showHighlights && coach.index >= 5 && coach.index <= 8 } }} />
     {(live || preview) && <LibraryEquipmentTray active={live} equipment={runtime.equipment} showFittingGuides={disclosure.showHighlights} />}

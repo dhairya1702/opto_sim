@@ -160,7 +160,7 @@ export function PushUpPracticeController({ active, preview = false, inputMode = 
 
   const highlighted = coach.index === 0 ? ["subjective" as const] : coach.index === 1 ? ["cover" as const] : coach.index === 2 ? ["push-up-rule" as const] : [];
   return <>
-    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="PUSH-UP AMPLITUDE"
+    <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="PUSH-UP AMPLITUDE" showWallInstructions={false}
       instructionalEquipment={disclosure.showHighlights ? highlighted : []}
       instrumentSettings={{ "push-up-rule": { distanceCm: state.distance, highlightCarriage: disclosure.showHighlights && coach.index >= 4 && coach.index <= 5,
         highlightStart: disclosure.showHighlights && coach.index === 4 } }} />

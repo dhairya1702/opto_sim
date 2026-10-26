@@ -10,10 +10,10 @@ import { consultationToolDefinition, grabConsultationTool, initialConsultationTo
 
 let dispose: (() => Promise<void>) | undefined;
 afterEach(async () => { await dispose?.(); dispose = undefined; vi.unstubAllGlobals(); });
-async function setup(kind: LibraryKind = "maddox") {
+async function setup(kind: LibraryKind = "maddox", onSelection = vi.fn(), onMenu = vi.fn()) {
   let runtime: XRClinicRuntime;
   function Probe({ active }: { active: boolean }) {
-    runtime = useXRClinicRuntime({ active, equipment: libraryEquipment(kind), placementSockets: librarySockets(kind) });
+    runtime = useXRClinicRuntime({ active, equipment: libraryEquipment(kind), placementSockets: librarySockets(kind), onSelection, onMenu });
     return createElement(XRClinicRuntimeView, { runtime, active, sensoryStation: kind === "horizontal-distance" ? "four-prism" : undefined });
   }
   const sim = await clinic({ renderAdapter: ({ active }) => createElement(Probe, { active }) });
@@ -28,6 +28,25 @@ function rayTo(scene: Object3D, target: Vector3, direction: Vector3) {
   return new Raycaster(target.clone().addScaledVector(direction, -.05), direction).intersectObject(scene, true).filter(hit => visible(hit.object));
 }
 describe("XR review regressions against mounted scene geometry", () => {
+  it.each([0, 1])("ignores repeated empty-hand trigger presses on the patient from controller %s but retains A/X menus", async hand => {
+    const onSelection = vi.fn(), onMenu = vi.fn();
+    const sim = await setup("maddox", onSelection, onMenu);
+    sim.rays[hand].position.set(0, 1.5, .1);
+    sim.rays[hand].rotation.set(0, 0, 0);
+    await sim.step();
+    for (let press = 0; press < 3; press++) {
+      await sim.event(hand, "selectstart");
+      expect(sim.runtime().slots[hand].pendingSelection?.data.station).toBe("patient");
+      await sim.event(hand, "selectend");
+    }
+    expect(onSelection).not.toHaveBeenCalled();
+    expect(onMenu).not.toHaveBeenCalled();
+    await sim.panel(hand);
+    expect(onMenu).toHaveBeenLastCalledWith(true);
+    await sim.panel(hand);
+    expect(onMenu).toHaveBeenLastCalledWith(false);
+    expect(sim.encounter().results).toHaveLength(0);
+  });
   it("mounts the shared arrival instructions on the clinic wall instead of in front of the headset", async () => {
     const sim = await setup();
     let welcome: Object3D | undefined;

@@ -29,6 +29,15 @@ describe("alignment guided coaches", () => {
     expect(krimskyGuidedStep(krimsky({ comparisonCaptured: true, recorded: true })).complete).toBe(true);
   });
 
+  it("explains the selected Krimsky method at prism placement", () => {
+    for (const method of ["standard", "modified"] as const) {
+      const step = krimskyGuidedStep(krimsky({ method, requiredEye: method === "standard" ? "OS" : "OD",
+        penlightHeld: true, fixation: true, examinerEyeSelected: true, prismHeld: true }));
+      expect(step.lines[0]).toContain(method === "standard" ? "OS" : "OD");
+      expect(step.lines[1]).toContain(method === "standard" ? "deviating eye" : "fixating eye");
+    }
+  });
+
   it("advances cover–uncover through separate distance and near observations", () => {
     expect(coverGuidedStep(cover({ targetEndpoint: null, targetReady: false, targetPowered: false })).id).toBe("target-distance");
     expect(coverGuidedStep(cover({ targetHeld: true, targetEndpoint: null, targetReady: false, targetPowered: false })).id).toBe("position-distance");

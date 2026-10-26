@@ -1,6 +1,6 @@
 export type PrismEye = "OD" | "OS";
 export type PrismCase = "normal" | "suppression";
-export const prismObservationMs = 2400;
+export const prismObservationMs = 3000;
 export function prismEyeAt(x: number, y: number): PrismEye | null {
   if (Math.hypot(x + 0.22, y - 0.2) < 0.085) return "OD";
   if (Math.hypot(x - 0.22, y - 0.2) < 0.085) return "OS";

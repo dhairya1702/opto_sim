@@ -1,4 +1,3 @@
-import { XRTeleportRing } from "./XRTeleportRing";
 import { CatmullRomCurve3, DoubleSide, Vector2, Vector3 } from "three";
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
@@ -107,7 +106,7 @@ function StereoBooklet() {
 }
 
 /** Fixed-power teaching prism. Local +X is the physical base axis used by the procedure engine. */
-function FourDioptrePrism({ base = "right" }: { base?: string }) {
+function FourDioptrePrism({ base = "right", showLabel = true }: { base?: string; showLabel?: boolean }) {
   const left = base === "left";
   return <group userData={{ xrFourPrism: true, xrPrismPower: 4, xrPrismBaseAxis: [left ? -1 : 1, 0, 0] }}>
     <SensoryGrip position={[0, -.005, 0]} />
@@ -115,12 +114,14 @@ function FourDioptrePrism({ base = "right" }: { base?: string }) {
       <mesh rotation={[Math.PI / 2, 0, 0]} castShadow><cylinderGeometry args={[.044, .044, .018, 40]} /><meshStandardMaterial color="#b9e8e1" transparent opacity={.62} roughness={.12} /></mesh>
       <mesh position={[0, 0, -.011]}><torusGeometry args={[.035, .004, 10, 40]} /><meshStandardMaterial color="#d8a94f" metalness={.35} roughness={.35} /></mesh>
       <mesh position={[left ? -.052 : .052, 0, 0]} rotation={[0, 0, left ? Math.PI / 2 : -Math.PI / 2]}><coneGeometry args={[.012, .035, 3]} /><meshStandardMaterial color="#f1c35e" /></mesh>
-      <XRLabelPill label={left ? "← BASE · 4Δ" : "4Δ · BASE →"} position={[0, -.058, .013]} width={.10} height={.026} />
+      {showLabel && ([-1, 1] as const).map(face => <XRLabelPill key={face} label={left !== (face === -1) ? "← BASE · 4Δ" : "4Δ · BASE →"}
+        position={[0, .070, face * .018]} rotation={[0, face === -1 ? Math.PI : 0, 0]} width={.13} height={.036}
+        background="#f4f1df" foreground="#173a3e" />)}
     </group>
   </group>;
 }
 
-export function SensoryInstrumentModel({ id, powered, point, fixationLetter, base, onPowerChange, highlightPowerSwitch = false }: { id: ConsultationToolId; powered: boolean; point?: boolean; fixationLetter?: boolean; base?: string; onPowerChange?: (powered: boolean) => void; highlightPowerSwitch?: boolean }) {
+export function SensoryInstrumentModel({ id, powered, point, fixationLetter, base, held = false, onPowerChange, highlightPowerSwitch = false }: { id: ConsultationToolId; powered: boolean; point?: boolean; fixationLetter?: boolean; base?: string; held?: boolean; onPowerChange?: (powered: boolean) => void; highlightPowerSwitch?: boolean }) {
   if (id === "worth") return <group>
     <SensoryGrip />
     <Box p={[0, .12, 0]} s={[.135, .135, .024]} c="#24383b" radius={.042} />
@@ -130,12 +131,12 @@ export function SensoryInstrumentModel({ id, powered, point, fixationLetter, bas
     <WorthPowerSwitch powered={powered} face="back" onPowerChange={onPowerChange} highlight={highlightPowerSwitch} />
   </group>;
   if (id === "stereo") return <StereoBooklet />;
-  if (id === "four-prism") return <FourDioptrePrism base={base} />;
+  if (id === "four-prism") return <FourDioptrePrism base={base} showLabel={!held} />;
   return <SensoryGlasses redGreen={id === "red-green"} />;
 }
 
 /** Lightweight illustrative virtual image; one physical target retains all ownership. */
-function MirrorDisplay({ runtime, letter, fixationLetter = false }: { runtime: XRClinicRuntime; letter: boolean; fixationLetter?: boolean }) {
+function MirrorDisplay({ runtime, letter, fixationLetter = false, distanceLetterPowered = true }: { runtime: XRClinicRuntime; letter: boolean; fixationLetter?: boolean; distanceLetterPowered?: boolean }) {
   const image = useRef<Group>(null);
 
   useFrame(() => {
@@ -151,10 +152,30 @@ function MirrorDisplay({ runtime, letter, fixationLetter = false }: { runtime: X
     image.current.scale.setScalar(Math.hypot(...SENSORY_MIRROR.center.map((v, i) => v - CLINIC_EYE_MIDPOINT[i])) / (path.distanceCm / 100));
     image.current.rotation.set(0, Math.PI, 0);
   });
-  if (letter) return <Sign text={["E", "ILLUSTRATIVE ISOLATED LETTER"]} p={[.31, 1.5, SENSORY_MIRROR.center[2] - .027]} rotation={[0, Math.PI, 0]} size={[.28, .22]} bg="#f7f7e8" fg="#183335" />;
+  if (letter) return <group visible={distanceLetterPowered} userData={{ xrIsolatedLetter: true }}><Sign text={["E", "ILLUSTRATIVE ISOLATED LETTER"]} p={[.31, 1.5, SENSORY_MIRROR.center[2] - .027]} rotation={[0, Math.PI, 0]} size={[.28, .22]} bg="#f7f7e8" fg="#183335" /></group>;
   return <group ref={image} visible={false} userData={{ xrIgnoreRay: true }}><WorthTargetFace mirror point={runtime.equipment.includes("maddox")} fixationLetter={fixationLetter} /></group>;
 }
-export function SensoryClinicStation({ runtime, distanceLetter = false, fixationLetter = false, active = false, showFittingGuides = true }: { runtime: XRClinicRuntime; distanceLetter?: boolean; fixationLetter?: boolean; active?: boolean; showFittingGuides?: boolean }) {
+function DistanceDisplayPowerSwitch({ powered, onPowerChange, highlight }: {
+  powered: boolean; onPowerChange?: (powered: boolean) => void; highlight: boolean;
+}) {
+  const toggle = () => onPowerChange?.(!powered);
+  return <group position={[SENSORY_MIRROR.center[0] + SENSORY_MIRROR.width / 2 + .025, 1.5, SENSORY_MIRROR.center[2] - .045]}
+    rotation={[0, Math.PI, 0]} userData={{ xrDistanceDisplaySwitch: true, xrInteractiveSurface: true,
+      xrButton: true, xrWidth: .10, xrHeight: .14, xrLabel: "DISTANCE DISPLAY POWER", xrAction: toggle }}
+    onClick={event => { event.stopPropagation(); toggle(); }}>
+    <mesh><boxGeometry args={[.10, .14, .025]} /><meshStandardMaterial color="#173a3e" /></mesh>
+    <XRLabelPill label="POWER" position={[0, .044, .014]} width={.086} height={.027} />
+    <mesh position={[0, -.005, .021]} rotation={[Math.PI / 2, 0, 0]}>
+      <cylinderGeometry args={[.023, .023, .018, 24]} />
+      <meshStandardMaterial color={powered ? "#5ee0a8" : "#df665c"} />
+    </mesh>
+    <XRLabelPill label={powered ? "ON" : "OFF"} position={[0, -.048, .014]} width={.065} height={.025} />
+    {highlight && <mesh position={[0, 0, .034]} userData={{ xrInstructionalHighlight: true }}>
+      <ringGeometry args={[.085, .094, 36]} /><meshBasicMaterial color="#fff19a" side={DoubleSide} depthTest={false} />
+    </mesh>}
+  </group>;
+}
+export function SensoryClinicStation({ runtime, distanceLetter = false, distanceLetterPowered = true, onDistanceLetterPowerChange, highlightDistanceLetterPower = false, fixationLetter = false, active = false, showFittingGuides = true }: { runtime: XRClinicRuntime; distanceLetter?: boolean; distanceLetterPowered?: boolean; onDistanceLetterPowerChange?: (powered: boolean) => void; highlightDistanceLetterPower?: boolean; fixationLetter?: boolean; active?: boolean; showFittingGuides?: boolean }) {
   const sensory = runtime.equipment.some(id => ["worth", "red-green", "polarised", "stereo", "four-prism"].includes(id));
   if (!sensory && !distanceLetter) return null;
   const near = runtime.equipment.some(id => id === "worth" || id === "stereo");
@@ -170,7 +191,9 @@ export function SensoryClinicStation({ runtime, distanceLetter = false, fixation
         <Box p={[...SENSORY_MIRROR.center]} s={[SENSORY_MIRROR.width + .05, SENSORY_MIRROR.height + .05, .035]} c="#375f63" />
         <Box p={[SENSORY_MIRROR.center[0], SENSORY_MIRROR.center[1], SENSORY_MIRROR.center[2] - .019]} s={[SENSORY_MIRROR.width, SENSORY_MIRROR.height, .006]} c="#b2ced0" />
         <Sign text={["SIMULATED MIRRORED 6 M PATH", "ILLUSTRATIVE · NOT CALIBRATED OPTICS"]} p={[.32, 1.08, 2.274]} rotation={[0, Math.PI, 0]} size={[.9, .12]} bg="#173a3e" fg="#e8fff9" />
-        <MirrorDisplay runtime={runtime} letter={distanceLetter} fixationLetter={fixationLetter} />
+        {distanceLetter && <DistanceDisplayPowerSwitch powered={distanceLetterPowered}
+          onPowerChange={active ? onDistanceLetterPowerChange : undefined} highlight={highlightDistanceLetterPower} />}
+        <MirrorDisplay runtime={runtime} letter={distanceLetter} distanceLetterPowered={distanceLetterPowered} fixationLetter={fixationLetter} />
         {runtime.equipment.includes("worth") && <>
           <Cylinder p={[SENSORY_DISTANCE_TARGET[0], .68, SENSORY_DISTANCE_TARGET[2]]} h={1.3} radius={.012} c="#768e8c" />
           <Box p={[SENSORY_DISTANCE_TARGET[0], 1.35, SENSORY_DISTANCE_TARGET[2] - .015]} s={[.16, .02, .10]} c="#456e69" />
@@ -178,9 +201,6 @@ export function SensoryClinicStation({ runtime, distanceLetter = false, fixation
         </>}
       </group>
     </group> : null}
-    {([[0, .25, "PATIENT FITTING"], [.65, -.16, "DISTANCE TARGET DOCK"]] as const).filter(([, , label]) => label !== "DISTANCE TARGET DOCK" || runtime.equipment.includes("worth")).map(([x, z, label]) => <group key={label} position={[x, .012, z]} userData={active ? { xrTeleport: [x, 0, z] } : { xrPreviewPad: true }}>
-      <XRTeleportRing innerRadius={.14} outerRadius={.20} opacity={.65} />
-    </group>)}
     {/* Fitting cues retain a small bridge/grip target and never reveal the authored finding. */}
     {showFittingGuides && SENSORY_SOCKETS.filter(socket => socket.fittingLayer && runtime.equipment.includes(socket.tool)).map(socket => <group key={socket.id} position={[...socket.position]} userData={{ xrIgnoreRay: true, xrInstructionalHighlight: true }}>
       <mesh><ringGeometry args={[.009, .012, 20]} /><meshBasicMaterial color={socket.fittingLayer === "correction" ? "#f1da96" : "#8bcaba"} transparent opacity={.45} side={DoubleSide} /></mesh>

@@ -9,6 +9,7 @@ export const THORINGTON_CARD_DISTANCE_CM = Object.freeze({ min: 38, max: 42 });
 export const THORINGTON_CARD_ANGLE_TOLERANCE_DEG = 30;
 export const THORINGTON_LIGHT_MAX_DISTANCE_M = .30;
 export const THORINGTON_STABILITY_DWELL_MS = 250;
+export const THORINGTON_POSE_JITTER_MS = 200;
 export const THORINGTON_SCALE = Object.freeze(Array.from({ length: 21 }, (_, index) => index - 10));
 
 export type ThoringtonTrial = Readonly<{
@@ -56,6 +57,7 @@ export type ThoringtonSpatialSample = Readonly<{
   penlightExaminerSide: boolean;
   penlightTowardPatient: boolean;
   apertureHit: boolean;
+  penlightWithinReach?: boolean;
   fixationInstruction: boolean;
   tracking: boolean;
 }>;
@@ -85,6 +87,7 @@ export type ThoringtonRun = Readonly<{
   phase: ThoringtonPhase;
   reportInstruction: boolean;
   stableSinceMs: number | null;
+  poseInvalidSinceMs: number | null;
   capture: ThoringtonCapture | null;
   entryMagnitude: string;
   entrySide: ThoringtonReportedSide | "";
@@ -100,7 +103,7 @@ export type ThoringtonGuidedStep = Readonly<{ id: string; title: string; lines: 
 
 export function newThoringtonRun(caseIndex = 0, completionAwarded = false): ThoringtonRun {
   return Object.freeze({ caseIndex: ((caseIndex % THORINGTON_CASES.length) + THORINGTON_CASES.length) % THORINGTON_CASES.length,
-    trialIndex: 0, phase: "setup", reportInstruction: false, stableSinceMs: null, capture: null,
+    trialIndex: 0, phase: "setup", reportInstruction: false, stableSinceMs: null, poseInvalidSinceMs: null, capture: null,
     entryMagnitude: "", entrySide: "", entryInterpretation: "", records: Object.freeze([]), setupRevision: 0,
     requiredRodRefitRevision: -1, completionAwarded, feedback: "" });
 }
@@ -164,13 +167,14 @@ export function thoringtonSetupIssue(sample: ThoringtonSpatialSample, trialValue
   if (!sample.penlightPowered) return "Keep the penlight trigger depressed.";
   if (!sample.penlightExaminerSide) return "Keep the penlight on the examiner side of the card.";
   if (!sample.penlightTowardPatient) return "Point the penlight through the card toward Arun.";
+  if (sample.penlightWithinReach === false) return "Move the penlight closer to the card; keep the light path to its aperture within 30 cm.";
   if (!sample.apertureHit) return "Aim the penlight ray through the actual 10 mm central aperture.";
   if (!sample.fixationInstruction) return "Ask Arun to fixate and report the numbered line and side.";
   return "";
 }
 
 const resetCurrent = (run: ThoringtonRun, feedback: string, incrementRevision = true): ThoringtonRun => Object.freeze({ ...run,
-  phase: "instruction", reportInstruction: false, stableSinceMs: null, capture: null, entryMagnitude: "", entrySide: "", entryInterpretation: "",
+  phase: "instruction", reportInstruction: false, stableSinceMs: null, poseInvalidSinceMs: null, capture: null, entryMagnitude: "", entrySide: "", entryInterpretation: "",
   setupRevision: run.setupRevision + (incrementRevision ? 1 : 0), feedback,
 });
 
@@ -183,7 +187,7 @@ export function armThoringtonReport(run: ThoringtonRun, sample: ThoringtonSpatia
     feedback: "Instruction given. Maintain the complete physical setup for 250 ms." });
 }
 
-const reportFor = (trialValue: ThoringtonTrial) => `${trialValue.magnitude}, ${trialValue.reportedSide}.`;
+export const thoringtonPatientReport = (trialValue: ThoringtonTrial) => `${trialValue.magnitude}, ${trialValue.reportedSide}.`;
 
 export function sampleThorington(run: ThoringtonRun, sample: ThoringtonSpatialSample, nowMs: number): ThoringtonRun {
   if (run.phase === "complete") return run;
@@ -196,17 +200,25 @@ export function sampleThorington(run: ThoringtonRun, sample: ThoringtonSpatialSa
   }
   const issue = thoringtonSetupIssue(sample, current, run.requiredRodRefitRevision);
   if (issue) {
+    // Geometry misses pause the request briefly, but never retain dwell credit.
+    const poseOnly = run.reportInstruction && !thoringtonSetupIssue({ ...sample,
+      cardDistanceCm: 40, cardFacing: true, cardUpright: true, penlightExaminerSide: true,
+      penlightTowardPatient: true, penlightWithinReach: true, apertureHit: true }, current, run.requiredRodRefitRevision);
+    const poseInvalidSinceMs = run.poseInvalidSinceMs ?? nowMs;
+    if (poseOnly && nowMs - poseInvalidSinceMs < THORINGTON_POSE_JITTER_MS) return Object.freeze({ ...run,
+      phase: "stability", stableSinceMs: null, poseInvalidSinceMs, feedback: issue });
     if (run.reportInstruction || run.stableSinceMs !== null) return resetCurrent(run, `${issue} Restart from the reporting instruction.`);
     return Object.freeze({ ...run, phase: "setup", stableSinceMs: null, feedback: issue });
   }
   if (!run.reportInstruction) return Object.freeze({ ...run, phase: "instruction", feedback: "Ask Arun to fixate and report the numbered line and side." });
+  if (run.poseInvalidSinceMs !== null && nowMs - run.poseInvalidSinceMs >= THORINGTON_POSE_JITTER_MS) return resetCurrent(run, "Reposition the card and light, then ask Arun to fixate again.");
   const stableSinceMs = run.stableSinceMs ?? nowMs;
-  if (nowMs - stableSinceMs < THORINGTON_STABILITY_DWELL_MS) return Object.freeze({ ...run, phase: "stability", stableSinceMs,
+  if (nowMs - stableSinceMs < THORINGTON_STABILITY_DWELL_MS) return Object.freeze({ ...run, phase: "stability", stableSinceMs, poseInvalidSinceMs: null,
     feedback: `Hold the valid card and light geometry steady for ${Math.max(0, Math.ceil(THORINGTON_STABILITY_DWELL_MS - (nowMs - stableSinceMs)))} ms.` });
   const capture: ThoringtonCapture = Object.freeze({ caseId: THORINGTON_CASES[run.caseIndex].id, axis: current.axis,
     actualCardDistanceCm: sample.cardDistanceCm, signedCoordinate: current.signedCoordinate, rawReportedSide: current.reportedSide,
-    report: reportFor(current), setupRevision: run.setupRevision, correctionRevision: sample.correctionRevision, rodFitRevision: sample.rodFitRevision });
-  return Object.freeze({ ...run, phase: "captured", stableSinceMs, capture,
+    report: thoringtonPatientReport(current), setupRevision: run.setupRevision, correctionRevision: sample.correctionRevision, rodFitRevision: sample.rodFitRevision });
+  return Object.freeze({ ...run, phase: "captured", stableSinceMs, poseInvalidSinceMs: null, capture,
     feedback: "Report captured. Put the card and penlight down, then transcribe and interpret it independently." });
 }
 
@@ -228,7 +240,7 @@ export function submitThorington(run: ThoringtonRun): ThoringtonRun {
   const records = Object.freeze([...run.records, record]);
   if (records.length === 2) return Object.freeze({ ...run, records, phase: "complete", completionAwarded: true,
     feedback: "Both axes recorded. The other authored case is now available." });
-  return Object.freeze({ ...run, records, trialIndex: 1, phase: "setup", reportInstruction: false, stableSinceMs: null, capture: null,
+  return Object.freeze({ ...run, records, trialIndex: 1, phase: "setup", reportInstruction: false, stableSinceMs: null, poseInvalidSinceMs: null, capture: null,
     entryMagnitude: "", entrySide: "", entryInterpretation: "", requiredRodRefitRevision: capture.rodFitRevision,
     setupRevision: run.setupRevision + 1, feedback: "Horizontal recorded. Remove the rod, roll it 90°, and refit it for vertical measurement." });
 }
@@ -248,12 +260,12 @@ export function thoringtonGuidedStep(run: ThoringtonRun, sample: ThoringtonSpati
     ["rod", "Physically fit the rod", "Pick up the Maddox rod and fit its lens centre before OD.", sample.rodFitted && sample.rodFitRevision > run.requiredRodRefitRevision],
     ["grooves", "Set the groove direction", `Remove, roll and refit the rod with ${current.axis} grooves.`, thoringtonGrooveCorrect(current.axis, sample.grooveDegrees)],
     ["card", "Pick up or support the card", "Use the combined cross card in hand or on its support stand.", sample.cardPresent && sample.cardHeldOrSupported],
-    ["card-geometry", "Set card geometry", "Place it 38–42 cm away, upright, with its numbered surface facing Arun.", cardGeometry],
-    ["light", "Hold and aim the penlight", "Hold its trigger and aim from the examiner side through the 10 mm aperture toward Arun.", lightGeometry],
-    ["instruction", "Ask for number and side", "Explicitly ask Arun to fixate and report the numbered line and side.", run.reportInstruction],
-    ["stability", "Maintain stability", "Keep every physical check valid for 250 ms; any interruption restarts the instruction.", run.stableSinceMs !== null],
+    ["card-geometry", "Set card geometry", !thoringtonDistanceReady(sample.cardDistanceCm) ? "Move the card to 38–42 cm; watch the distance beside its ray." : !sample.cardFacing ? "Turn the numbered card surface toward Arun." : "Keep the combined cross card upright.", cardGeometry],
+    ["light", "Hold and aim the penlight", thoringtonSetupIssue({ ...sample, fixationInstruction: true }, current, run.requiredRodRefitRevision) || "Hold the lit penlight through the central aperture toward Arun.", lightGeometry],
+    ["instruction", "Ask for number and side", "Select ASK ARUN TO FIXATE / REPORT on the right-side panel.", run.reportInstruction],
+    ["stability", "Maintain stability", "Keep the card and lit penlight steady briefly. Arun’s reply is captured automatically.", run.stableSinceMs !== null],
     ["capture", "Preserve the report", "The number and side are now immutable. Put the card and light down.", Boolean(run.capture)],
-    ["record", "Transcribe and interpret", "Enter magnitude, raw side, and clinical interpretation without defaults.", run.records.length > run.trialIndex || run.phase === "complete"],
+    ["record", "Transcribe and interpret", "Put the card and penlight down, then enter number, reported side and interpretation.", run.records.length > run.trialIndex || run.phase === "complete"],
   ] as const;
   const index = run.capture || run.phase === "complete" ? checks.length - 1 : Math.max(0, checks.findIndex(check => !check[3]));
   const step = checks[index];
@@ -286,6 +298,7 @@ export function thoringtonTestStatus(run: ThoringtonRun, sample: ThoringtonSpati
   if (!sample.penlightHeld) return "Penlight pickup is incomplete.";
   if (!sample.penlightPowered) return "Trigger illumination is not ready.";
   if (!sample.penlightExaminerSide || !sample.penlightTowardPatient) return "Penlight side/direction is not ready.";
+  if (sample.penlightWithinReach === false) return "Penlight-to-card distance is not ready.";
   if (!sample.apertureHit) return "Aperture aim is not ready.";
   if (!run.reportInstruction) return "Fixation/reporting instruction is required.";
   return "Stability dwell is in progress.";
