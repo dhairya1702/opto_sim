@@ -1,5 +1,19 @@
 # Instrument interaction update
 
+## Report-panel material reuse (28 October 2026)
+
+`XRPanelClip` now retains one clipping patch per descendant material across report-content commits. Text, colour and position changes leave retained shader hooks and program cache keys intact; width and height update a shared uniform value, while the existing per-frame inverse matrix keeps clipping in panel coordinates. Newly attached materials are patched, materials no longer used by the panel are restored, and unmount restores the remaining original hooks. Multiple meshes or material-array entries using the same material receive one patch.
+
+Mounted regression checks exercise ten changing report-text commits with zero clipping-material invalidations, resizing and transformed panel coordinates, preservation of existing shader hooks/cache keys, material replacement/removal, independent panel uniforms and unmount cleanup. The opt-in performance logger includes numeric `report material patch` and `report material restore` counts. Content and procedure/recording gates are unchanged. E2E is excluded at the user's request; GPU compilation and physical Quest frame-time validation remain pending.
+
+## Pickup performance (27 October 2026)
+
+The shared Practice/Test clinic now memoizes each canonical instrument using its own tool state and settings. Stable root callbacks avoid unregistering and registering models on unrelated UI updates; callback changes in instrument settings still reach the visible controls. Tool ownership, transfer, placement and technique interruptions retain their existing behavior.
+
+Raycast discovery runs once at runtime mount and follows Three.js child attachment/removal events. Cached roots omit descendants already covered by another root; a separate button index supports result-overlay priority. Visibility, enabled actions, panel priority and physical poses are checked live. Findings-board registration has explicit cleanup. New interactive surfaces must carry a stable interaction marker on attachment (such as `xrButton` or `xrInteractiveSurface`) or register explicitly with the runtime.
+
+For the same mounted penlight pickup and 12 following frames, instrument renders fall from 50 to 1 and whole-scene audits from 2 to 0; one target-index rebuild handles the newly mounted controls. Raycast root work and label-texture counts are unchanged in that sequence. Regression checks cover index reuse, late attachment, reparenting, cleanup/restart, current settings/callbacks and the mounted controller workflows. E2E is excluded at the user's request. Physical Quest frame-time validation remains pending.
+
 ## VR and voice lifecycle ownership (21 October 2026)
 
 Test VR startup is owned by a generation-checked `XRSessionOwner`. Exit/restart/unmount cancels pending requests; late sessions are ended, renderer attachment is checked again before activation, and stale end events cannot deactivate a newer session. Practice's existing session guards now also track effect-lifetime generations.

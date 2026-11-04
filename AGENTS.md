@@ -248,6 +248,7 @@ Visuals are currently original procedural geometry/code-generated assets. Check 
 - Three.js is intentionally separated into build chunks, but the production build currently reports a chunk above Vite's 500 kB warning threshold.
 - Preserve lazy-loading/code-splitting opportunities when adding large scenes or assets.
 - Avoid per-frame React state updates where refs or shader uniforms are sufficient.
+- Shared-clinic raycast candidates are indexed by `xrRaycastRegistry.ts` on scene attachment/removal. Give interactive objects stable markers (for example `xrButton` or `xrInteractiveSurface`) before attachment, or explicitly register them through `registerRaycastTarget` and retain its cleanup. Read changing actions/visibility/priority live; avoid restoring whole-scene scans on React updates.
 - Dispose of Three.js resources and remove global listeners/timers during cleanup.
 - Keep representative low-power trainee hardware and device-pixel-ratio limits in mind.
 - Avoid `meshPhysicalMaterial` `transmission`: each transmissive object in view adds a full-scene render per eye. Use `meshStandardMaterial` with `transparent`/`opacity` for lenses and prisms.

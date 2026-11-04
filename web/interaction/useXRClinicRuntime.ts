@@ -15,6 +15,7 @@ import {
 import { SENSORY_SURFACES, type SensoryWorkingPose } from "./xrSensoryEquipment";
 import { nextScopeAperture, SCOPE_SELECTOR_REACH_M, type ScopeAperture } from "./xrScopeEquipment";
 import { perfCount, perfEvent, perfRender } from "../perf/perfFlag";
+import { XRRaycastRegistry } from "./xrRaycastRegistry";
 import {
   clearDesktopClinicTransient, desktopClinicAdjustmentStep, desktopClinicShortcut,
   desktopAccommodationHeldPose, desktopAssistedSocketId, initialDesktopClinicInput, isEditableClinicTarget, setDesktopClinicActivation,
@@ -107,22 +108,14 @@ export function useXRClinicRuntime(options: Options) {
     return false;
   }, [slots]);
   const objects = useRef(new Map<ConsultationToolId, Group>());
-  const raycastTargets = useRef(new Set<Object3D>());
-  const discoveredRaycastTargets = useRef(new Set<Object3D>());
-  const priorityRaycastTargets = useRef(new Set<Object3D>());
-  const registerRaycastTarget = useCallback((object: Object3D, priority = false) => {
-    raycastTargets.current.add(object);
-    if (priority) priorityRaycastTargets.current.add(object);
-    return () => { raycastTargets.current.delete(object); priorityRaycastTargets.current.delete(object); };
-  }, []);
+  const raycastRegistry = useMemo(() => new XRRaycastRegistry(scene), [scene]);
+  const registerRaycastTarget = useCallback((object: Object3D) => raycastRegistry.register(object), [raycastRegistry]);
   const placementMarkers = useRef(new Map<Hand, Group>());
   const hidePlacementMarkers = useCallback(() => {
     placementMarkers.current.forEach(marker => { marker.visible = false; });
   }, []);
   const registerTool = useCallback((id: ConsultationToolId, object: Group | null) => {
-    const previous = objects.current.get(id);
-    if (previous && previous !== object) raycastTargets.current.delete(previous);
-    if (object) { objects.current.set(id, object); raycastTargets.current.add(object); }
+    if (object) objects.current.set(id, object);
     else objects.current.delete(id);
   }, []);
   const updateTools = useCallback((next: ConsultationTools) => {
@@ -300,27 +293,7 @@ export function useXRClinicRuntime(options: Options) {
   };
   const pickupHintRef = useRef(pickupHint);
   pickupHintRef.current = pickupHint;
-  useEffect(() => {
-    const discovered = new Set<Object3D>();
-    const priority = new Set<Object3D>();
-    scene.traverse(object => {
-      const data = object.userData;
-      const interactive = Boolean(data.station || data.xrTeleport || data.xrPanel || data.xrToolControls
-        || data.xrInteractiveSurface || data.consultationToolId || data.xrAction || data.xrInstrumentControl);
-      if (!interactive) return;
-      let ancestor = object.parent;
-      while (ancestor && ancestor !== scene) {
-        if (discovered.has(ancestor) || raycastTargets.current.has(ancestor)) return;
-        ancestor = ancestor.parent;
-      }
-      discovered.add(object);
-      if (data.xrPriorityPanel) priority.add(object);
-    });
-    discoveredRaycastTargets.current = discovered;
-    priorityRaycastTargets.current = priority;
-    perfCount("ray target audit");
-    perfCount("registered ray targets", raycastTargets.current.size + discovered.size);
-  });
+  useEffect(() => raycastRegistry.start(), [raycastRegistry]);
 
   useFrame(({ camera }, dt, frame) => {
     rayFrame.current += 1;
@@ -575,8 +548,10 @@ export function useXRClinicRuntime(options: Options) {
     // Head-following result actions need a geometric hit area independent of
     // decorative meshes, material sides and the wall editor behind them.
     let priorityHit: { object: Object3D; point: Vector3; distance: number } | null = null;
-    priorityRaycastTargets.current.forEach(object => {
-      if (!object.visible) return;
+    const targets = raycastRegistry.snapshot();
+    if (raycastRegistry.hasPriorityPanel()) targets.buttons.forEach(object => {
+      let ancestor: Object3D | null = object;
+      while (ancestor) { if (!ancestor.visible) return; ancestor = ancestor.parent; }
       if (!object.userData.xrButton || !object.userData.xrAction || !ancestorData(object).priorityPanel) return;
       object.updateWorldMatrix(true, false);
       const scratch = priorityHitScratch;
@@ -593,7 +568,7 @@ export function useXRClinicRuntime(options: Options) {
       if (!priorityHit || distance < priorityHit.distance) priorityHit = { object, point: scratch.point.clone(), distance };
     });
     if (priorityHit) { rayHitCache.current.set(slot, { frame: rayFrame.current, hit: priorityHit }); return priorityHit; }
-    const candidates = [...raycastTargets.current, ...discoveredRaycastTargets.current].filter((object, index, all) => all.indexOf(object) === index);
+    const candidates = targets.roots;
     perfCount("raycast candidate roots", candidates.length);
     const intersections = raycaster.intersectObjects(candidates, true).filter(intersection => {
       let object: Object3D | null = intersection.object;
@@ -1009,7 +984,7 @@ export function useXRClinicRuntime(options: Options) {
   }, [closeScopeView, closeUtilityPanel, direction, hidePlacementMarkers, origin, pauseTechnique, pulseHand, quaternion, resolvePlacement, slots, teleport, updateTools, workingOrigin]);
 
   return {
-    tools, toolsRef, slots, objects, toolControls, findingsPanels, raycastTargets, registerRaycastTarget, frameValid, scopeAperture, scopeApertureRef, cycleScopeAperture, scopeViewHand, scopeViewHandRef, closeScopeView, toggleScopeView, utilityOpen, closeUtilityPanel, toggleUtilityPanel, highlighted, pickupHints, returnedAt,
+    tools, toolsRef, slots, objects, toolControls, findingsPanels, registerRaycastTarget, frameValid, scopeAperture, scopeApertureRef, cycleScopeAperture, scopeViewHand, scopeViewHandRef, closeScopeView, toggleScopeView, utilityOpen, closeUtilityPanel, toggleUtilityPanel, highlighted, pickupHints, returnedAt,
     handlingMessage, setHandlingMessage, hoverMarker, placementMarkers, registerTool, updateTools, stopLights, resetClinic, closePanels,
     origin, direction, quaternion, workingPose, supportedWorkingPose, handStatus, pulseHand, teleport, recenterClinic, equipment, toolLabel, setToolPower,
     inputMode, desktopActiveHand, desktopAim, desktopTogglePickup, desktopAdjustment, setDesktopHeldPose,

@@ -14,18 +14,20 @@ export function XRPracticeFindingsBoard({ runtime, active, tools, hidden = false
   const [shown, setShown] = useState(false);
   const revisions = useRef(new Map<ConsultationToolId, number>());
   const root = useRef<Group | null>(null);
+  const unregister = useRef<(() => void) | undefined>(undefined);
   const key = tools.join("|");
   const register = useCallback((object: Group | null) => {
     if (root.current) {
       runtime.findingsPanels.current.delete(root.current);
-      runtime.raycastTargets.current.delete(root.current);
     }
+    unregister.current?.();
+    unregister.current = undefined;
     root.current = object;
     if (object) {
       runtime.findingsPanels.current.add(object);
-      runtime.raycastTargets.current.add(object);
+      unregister.current = runtime.registerRaycastTarget(object);
     }
-  }, [runtime.findingsPanels, runtime.raycastTargets]);
+  }, [runtime.findingsPanels, runtime.registerRaycastTarget]);
   useEffect(() => {
     if (!active || tools.every(id => runtime.tools[id].revision === 0)) { setShown(false); revisions.current.clear(); return; }
     for (const id of tools) {
