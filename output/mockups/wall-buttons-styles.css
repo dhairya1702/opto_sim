@@ -1,0 +1,13 @@
+#opto-wall-preview .wall-cover {position:absolute;left:59.2%;top:20.7%;width:14.5%;height:14.7%;background:linear-gradient(105deg,#22302d,#202c28);}
+#opto-wall-preview .wall-in-room {position:absolute;left:59.6%;top:21%;width:13.7%;}
+#opto-wall-preview .wall-controls {container-type:inline-size;display:grid;gap:3.5cqw;}
+#opto-wall-preview .wall-controls .glass-action {display:block;width:100%;min-height:0;padding:3.3cqw 1cqw;border:1px solid #bddbd44d;border-radius:4cqw;background:linear-gradient(165deg,#4a6660e8 0%,#304c44eb 38%,#1a332cf5 100%);box-shadow:inset 0 1px 0 #ffffff45,0 4px 9px #0003;color:#f0faf6;font-size:2.95cqw;line-height:1.35;font-weight:600;letter-spacing:.03em;cursor:default;}
+#opto-wall-preview .wall-controls .glass-action:not(:disabled):hover {border-color:#d6fff0aa;background:linear-gradient(165deg,#627f74,#3d6354 45%,#284b3f);}
+#opto-wall-preview .wall-controls .glass-action:disabled {background:linear-gradient(165deg,#34453f,#2b3934);color:#91a69b;border-color:#a6c1b320;box-shadow:inset 0 1px 0 #ffffff10;}
+#opto-wall-preview .wall-footer {display:grid;grid-template-columns:repeat(3,1fr);gap:3cqw;}
+#opto-wall-preview .detail-preview {background:radial-gradient(ellipse at top,#34433e,#1d2925);padding:26px 24px 35px;}
+#opto-wall-preview .detail-label {font-size:13px;color:#bacdc4;margin-bottom:22px;text-align:center;}
+#opto-wall-preview .detail-preview .wall-controls {max-width:440px;margin:auto;}
+#opto-wall-preview[data-style="light"] .wall-controls .glass-action {color:#183c2d;border-color:#ffffffa6;background:linear-gradient(165deg,#f4fff5f2,#d1e3d5eb 60%,#bfd6c6ed);box-shadow:inset 0 1px 0 #ffffff,0 4px 9px #0003;}
+#opto-wall-preview[data-style="light"] .wall-controls .glass-action:disabled {color:#697e71;background:linear-gradient(165deg,#aebfb1,#99aea0);border-color:#e5f5e733;box-shadow:none;}
+@media(max-width:550px){#opto-wall-preview .wall-cover {left:calc(50% + 57px);top:85px;width:90px;height:61px;}#opto-wall-preview .wall-in-room {left:calc(50% + 59px);top:86px;width:84px;}#opto-wall-preview .detail-preview {padding:22px 16px 30px;}}

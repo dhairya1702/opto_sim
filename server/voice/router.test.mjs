@@ -32,6 +32,38 @@ describe("voice gateway security", () => {
 });
 
 describe("deterministic voice routing", () => {
+  it.each([
+    "Follow my light",
+    "Could you please follow this light with just your eyes?",
+    "Keep your head still and track my penlight as I move it",
+    "Don't move your head, follow my finger with your eyes",
+    "Please follow the small bright light",
+    "Keep your eyes on my light and follow it as it moves",
+  ])("accepts natural motility instructions in both modes: %s", transcript => {
+    const practice = { mode: "practice", lessonId: "motility", allowedActions: ["follow-target", "report-symptoms"] };
+    expect(routeDeterministic(transcript, practice, "p")).toMatchObject({ kind: "practice-action", actionId: "follow-target" });
+    expect(routeDeterministic(transcript, testContext, "t")).toMatchObject({ kind: "patient-instruction", instructionId: "follow-target" });
+  });
+  it.each([
+    ["bruckner", "fixate-light", "Could you look directly at my penlight please?"],
+    ["hirschberg", "fixate-light", "Focus on this light for me"],
+    ["cover-uncover", "fixate-target", "Please keep looking at that letter"],
+    ["stereopsis", "fixate-target", "Look carefully at these circles please"],
+    ["worth", "request-report", "Can you tell me how many coloured dots you can see?"],
+    ["thorington", "request-report", "Which number is the red line going through?"],
+    ["motility", "report-symptoms", "Did you feel pain or discomfort while following my light?"],
+    ["facility", "report-clear", "Does the target look clear and single now?"],
+  ])("accepts paraphrases in %s", (lessonId, actionId, transcript) => {
+    expect(routeDeterministic(transcript, { mode: "practice", lessonId, allowedActions: [actionId] }, "p"))
+      .toMatchObject({ kind: "practice-action", lessonId, actionId });
+  });
+  it.each(["Don't follow the light", "Stop following the light", "Do not look at my light", "I can't follow the light", "What happens if I follow the light?", "Follow up next week", "The light is bright"])("does not turn non-instructions into Practice actions: %s", transcript => {
+    const command = routeDeterministic(transcript, { mode: "practice", lessonId: "motility", allowedActions: ["follow-target", "report-symptoms"] }, "p");
+    expect(command?.kind).not.toBe("practice-action");
+  });
+  it("lets unmatched Test eye instructions reach semantic interpretation", () => {
+    expect(routeDeterministic("Let your eyes stay centred on the spot I am pointing to", testContext, "t")).toBeNull();
+  });
   it("normalizes paraphrases, compound questions, and patient instructions", () => {
     expect(routeDeterministic("WHEN did it start — and is it in both eyes?", testContext, "u1")).toMatchObject({ kind: "history", factIds: ["onset", "laterality"] });
     expect(routeDeterministic("Please follow the light with your eyes", testContext, "u2")).toMatchObject({ kind: "patient-instruction", instructionId: "follow-target" });

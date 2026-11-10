@@ -4,9 +4,14 @@
       "id": "follow-target",
       "phrases": [
         "follow the target",
-        "follow the light"
+        "follow the light",
+        "follow my light",
+        "follow my finger",
+        "track the light",
+        "move your eyes with the light"
       ],
-      "acknowledgement": "Okay, I will follow it with my eyes."
+      "acknowledgement": "Okay, I will follow it with my eyes.",
+      "description": "Ask the patient to follow the moving light or finger, keeping the head still. This is a patient instruction, not a request for a current report."
     },
     {
       "id": "report-symptoms",
@@ -18,7 +23,8 @@
         "symptoms",
         "double vision"
       ],
-      "acknowledgement": "I will tell you if I notice double vision, pain, or discomfort."
+      "acknowledgement": "I will tell you if I notice double vision, pain, or discomfort.",
+      "description": "Ask the patient about double vision, pain or discomfort during the motility examination. Use the existing gated symptom response."
     }
   ],
   "bruckner": [
@@ -28,7 +34,8 @@
         "look at the light",
         "fixate the light"
       ],
-      "acknowledgement": "Okay, I am looking at the light."
+      "acknowledgement": "Okay, I am looking at the light.",
+      "description": "Ask the patient to look steadily at the illuminated light. This is a patient instruction, not a request for a current report."
     }
   ],
   "hirschberg": [
@@ -38,7 +45,8 @@
         "look at the light",
         "fixate the light"
       ],
-      "acknowledgement": "Okay, I am looking at the light."
+      "acknowledgement": "Okay, I am looking at the light.",
+      "description": "Ask the patient to look steadily at the illuminated light. This is a patient instruction, not a request for a current report."
     }
   ],
   "krimsky": [
@@ -48,7 +56,8 @@
         "look at the light",
         "fixate the light"
       ],
-      "acknowledgement": "Okay, I am looking at the light."
+      "acknowledgement": "Okay, I am looking at the light.",
+      "description": "Ask the patient to look steadily at the illuminated light. This is a patient instruction, not a request for a current report."
     },
     {
       "id": "examiner-close-right-eye",
@@ -57,7 +66,8 @@
         "use my left eye",
         "left examiner eye"
       ],
-      "acknowledgement": "Left examiner-eye view active."
+      "acknowledgement": "Left examiner-eye view active.",
+      "description": "The examiner closes their own right eye or uses only their left eye. Select the left examiner view; do not close the patient's eye."
     },
     {
       "id": "examiner-close-left-eye",
@@ -66,7 +76,8 @@
         "use my right eye",
         "right examiner eye"
       ],
-      "acknowledgement": "Right examiner-eye view active."
+      "acknowledgement": "Right examiner-eye view active.",
+      "description": "The examiner closes their own left eye or uses only their right eye. Select the right examiner view; do not close the patient's eye."
     },
     {
       "id": "examiner-open-both-eyes",
@@ -76,7 +87,8 @@
         "use both eyes",
         "binocular view"
       ],
-      "acknowledgement": "Binocular examiner view restored."
+      "acknowledgement": "Binocular examiner view restored.",
+      "description": "The examiner reopens their own eyes to restore the binocular examiner view. Do not act on instructions explicitly addressed to the patient's eyes."
     }
   ],
   "cover-uncover": [
@@ -87,11 +99,10 @@
         "fixate the target",
         "keep looking at the dots",
         "look at the light",
-        "fixate the light",
-        "look at the light",
         "fixate the light"
       ],
-      "acknowledgement": "Okay, I am looking at the target."
+      "acknowledgement": "Okay, I am looking at the target.",
+      "description": "Ask the patient to look steadily at the distance or near fixation target. This is a patient instruction, not a request for a current report."
     }
   ],
   "alternate-cover": [
@@ -102,11 +113,10 @@
         "fixate the target",
         "keep looking at the dots",
         "look at the light",
-        "fixate the light",
-        "look at the light",
         "fixate the light"
       ],
-      "acknowledgement": "Okay, I am looking at the target."
+      "acknowledgement": "Okay, I am looking at the target.",
+      "description": "Ask the patient to look steadily at the distance or near fixation target. This is a patient instruction, not a request for a current report."
     }
   ],
   "worth": [
@@ -118,7 +128,8 @@
         "switch the worth target on",
         "switch the target on"
       ],
-      "acknowledgement": "Worth target switched on."
+      "acknowledgement": "Worth target switched on.",
+      "description": "Switch on the Worth target, not the room lights. This controls the existing target power action only."
     },
     {
       "id": "target-off",
@@ -128,7 +139,8 @@
         "switch the worth target off",
         "switch the target off"
       ],
-      "acknowledgement": "Worth target switched off."
+      "acknowledgement": "Worth target switched off.",
+      "description": "Switch off the Worth target, not the room lights. This controls the existing target power action only."
     },
     {
       "id": "fixate-target",
@@ -137,33 +149,21 @@
         "fixate the target",
         "keep looking at the dots",
         "look at the light",
-        "fixate the light",
-        "look at the light",
         "fixate the light"
       ],
-      "acknowledgement": "Okay, I am looking at the target."
+      "acknowledgement": "Okay, I am looking at the target.",
+      "description": "Ask the patient to look steadily at the Worth four-dot target. This is a patient instruction, not a request for a current report."
     },
     {
       "id": "request-report",
       "phrases": [
         "what do you see",
-        "tell me what you see",
-        "how many dots",
-        "what colours do you see",
-        "tell me where the dots are",
-        "report now",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see"
+        "how many dots can you see",
+        "what colours are the dots",
+        "where are the dots"
       ],
-      "acknowledgement": "I can report what I see now that the examination setup is ready."
+      "acknowledgement": "I can report what I see now that the examination setup is ready.",
+      "description": "Ask for the current number, colours and positions of the dots. This asks about the current percept; a future request to tell the examiner when vision changes is an instruction instead."
     }
   ],
   "stereopsis": [
@@ -175,20 +175,19 @@
         "fixate the circles",
         "keep looking at the circles"
       ],
-      "acknowledgement": "Okay, I’m looking at the circles."
+      "acknowledgement": "Okay, I’m looking at the circles.",
+      "description": "Ask the patient to look steadily at the circles in the stereo booklet. This is a patient instruction, not a request for a current report."
     },
     {
       "id": "request-report",
       "phrases": [
-        "which circle appears raised",
-        "which circle is raised",
-        "which circle is closer",
-        "does one circle stand out",
         "what do you see",
-        "tell me what you see",
-        "what colors do you see"
+        "which circle appears raised",
+        "which circle is closer",
+        "does one circle stand out"
       ],
-      "acknowledgement": "I can report what I see now that the examination setup is ready."
+      "acknowledgement": "I can report what I see now that the examination setup is ready.",
+      "description": "Ask which circle appears raised, closer, or stands out. This asks about the current percept; a future request to tell the examiner when vision changes is an instruction instead."
     }
   ],
   "four-prism": [
@@ -201,7 +200,8 @@
         "look at the letter",
         "fixate the letter"
       ],
-      "acknowledgement": "Okay, I’m looking at the letter and keeping it single."
+      "acknowledgement": "Okay, I’m looking at the letter and keeping it single.",
+      "description": "Ask the patient to look steadily at the isolated letter, keeping it single. This is a patient instruction, not a request for a current report."
     }
   ],
   "maddox": [
@@ -210,35 +210,22 @@
       "phrases": [
         "look at the target",
         "fixate the target",
-        "keep looking at the dots",
-        "look at the light",
-        "fixate the light",
         "look at the light",
         "fixate the light"
       ],
-      "acknowledgement": "Okay, I am looking at the target."
+      "acknowledgement": "Okay, I am looking at the target.",
+      "description": "Ask the patient to look steadily at the point light and report the line/light relationship. This is a patient instruction, not a request for a current report."
     },
     {
       "id": "request-report",
       "phrases": [
         "what do you see",
-        "tell me what you see",
-        "how many dots",
-        "what colours do you see",
-        "tell me where the dots are",
-        "report now",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see"
+        "where is the line compared to the light",
+        "does the line pass through the light",
+        "are the line and light aligned"
       ],
-      "acknowledgement": "I can report what I see now that the examination setup is ready."
+      "acknowledgement": "I can report what I see now that the examination setup is ready.",
+      "description": "Ask for the current streak or line position relative to the point light, including coincidence. This asks about the current percept; a future request to tell the examiner when vision changes is an instruction instead."
     }
   ],
   "thorington": [
@@ -247,26 +234,22 @@
       "phrases": [
         "look at the target",
         "fixate the target",
-        "keep looking at the dots",
-        "look at the light",
-        "fixate the light",
         "look at the light",
         "fixate the light"
       ],
-      "acknowledgement": "Okay, I am looking at the target."
+      "acknowledgement": "Okay, I am looking at the target.",
+      "description": "Ask the patient to look steadily at the card and report the streak number and side. This is a patient instruction, not a request for a current report."
     },
     {
       "id": "request-report",
       "phrases": [
         "what do you see",
-        "tell me what you see",
-        "report now",
-        "what number do you see",
         "which number does the streak pass through",
         "tell me the number and side",
         "where is the streak"
       ],
-      "acknowledgement": "I can report what I see now that the examination setup is ready."
+      "acknowledgement": "I can report what I see now that the examination setup is ready.",
+      "description": "Ask which number the streak crosses and which side it is on. This asks about the current percept; a future request to tell the examiner when vision changes is an instruction instead."
     }
   ],
   "npc": [
@@ -279,32 +262,20 @@
         "tell me when it becomes double",
         "keep the target clear and single"
       ],
-      "acknowledgement": "Okay, I am looking at the target."
+      "acknowledgement": "Okay, I am looking at the target.",
+      "description": "Ask the patient to look steadily at the near target, keeping it clear and single and reporting when it becomes double. This is a patient instruction, not a request for a current report."
     },
     {
       "id": "request-report",
       "phrases": [
         "what do you see",
-        "tell me what you see",
-        "how many dots",
-        "what colours do you see",
-        "tell me where the dots are",
-        "report now",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
         "is it clear",
         "is it double",
-        "has it blurred"
+        "has it blurred",
+        "are the letters blurry now"
       ],
-      "acknowledgement": "I can report what I see now that the examination setup is ready."
+      "acknowledgement": "I can report what I see now that the examination setup is ready.",
+      "description": "Ask whether the current target or letters are clear, blurred, double or single. Read only the current procedure-produced patient report. This asks about the current percept; a future request to tell the examiner when vision changes is an instruction instead."
     }
   ],
   "horizontal-distance": [
@@ -317,32 +288,20 @@
         "report blur double and recovery",
         "tell me when it blurs doubles and becomes single again"
       ],
-      "acknowledgement": "Okay, I am looking at the target."
+      "acknowledgement": "Okay, I am looking at the target.",
+      "description": "Ask the patient to look steadily at the distance target and report blur, double vision, and recovery to single. This is a patient instruction, not a request for a current report."
     },
     {
       "id": "request-report",
       "phrases": [
         "what do you see",
-        "tell me what you see",
-        "how many dots",
-        "what colours do you see",
-        "tell me where the dots are",
-        "report now",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
         "is it clear",
         "is it double",
-        "has it blurred"
+        "has it blurred",
+        "are the letters blurry now"
       ],
-      "acknowledgement": "I can report what I see now that the examination setup is ready."
+      "acknowledgement": "I can report what I see now that the examination setup is ready.",
+      "description": "Ask whether the current target or letters are clear, blurred, double or single. Read only the current procedure-produced patient report. This asks about the current percept; a future request to tell the examiner when vision changes is an instruction instead."
     }
   ],
   "vertical-distance": [
@@ -355,32 +314,20 @@
         "report double and recovery",
         "tell me when it doubles and becomes single again"
       ],
-      "acknowledgement": "Okay, I am looking at the target and will report sustained double vision and when it becomes single again."
+      "acknowledgement": "Okay, I am looking at the target and will report sustained double vision and when it becomes single again.",
+      "description": "Ask the patient to look steadily at the distance target and report double vision and recovery to single. This is a patient instruction, not a request for a current report."
     },
     {
       "id": "request-report",
       "phrases": [
         "what do you see",
-        "tell me what you see",
-        "how many dots",
-        "what colours do you see",
-        "tell me where the dots are",
-        "report now",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
         "is it clear",
         "is it double",
-        "has it blurred"
+        "has it blurred",
+        "are the letters blurry now"
       ],
-      "acknowledgement": "I can report what I see now that the examination setup is ready."
+      "acknowledgement": "I can report what I see now that the examination setup is ready.",
+      "description": "Ask whether the current target or letters are clear, blurred, double or single. Read only the current procedure-produced patient report. This asks about the current percept; a future request to tell the examiner when vision changes is an instruction instead."
     }
   ],
   "horizontal-near": [
@@ -392,32 +339,20 @@
         "tell me when it first blurs becomes double and becomes single again",
         "report near blur double and recovery"
       ],
-      "acknowledgement": "Okay, I am looking at the near target and will report sustained blur, double vision, and when it becomes single again."
+      "acknowledgement": "Okay, I am looking at the near target and will report sustained blur, double vision, and when it becomes single again.",
+      "description": "Ask the patient to look steadily at the near target and report blur, double vision, and recovery to single. This is a patient instruction, not a request for a current report."
     },
     {
       "id": "request-report",
       "phrases": [
         "what do you see",
-        "tell me what you see",
-        "how many dots",
-        "what colours do you see",
-        "tell me where the dots are",
-        "report now",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
         "is it clear",
         "is it double",
-        "has it blurred"
+        "has it blurred",
+        "are the letters blurry now"
       ],
-      "acknowledgement": "I can report what I see now that the examination setup is ready."
+      "acknowledgement": "I can report what I see now that the examination setup is ready.",
+      "description": "Ask whether the current target or letters are clear, blurred, double or single. Read only the current procedure-produced patient report. This asks about the current percept; a future request to tell the examiner when vision changes is an instruction instead."
     }
   ],
   "facility": [
@@ -426,13 +361,11 @@
       "phrases": [
         "look at the target",
         "fixate the target",
-        "keep looking at the dots",
-        "look at the light",
-        "fixate the light",
         "look at the light",
         "fixate the light"
       ],
-      "acknowledgement": "Okay, I am looking at the target."
+      "acknowledgement": "Okay, I am looking at the target.",
+      "description": "Ask the patient to look steadily at the target, keeping it clear and single. This is a patient instruction, not a request for a current report."
     },
     {
       "id": "report-clear",
@@ -442,7 +375,8 @@
         "can you clear",
         "clear now"
       ],
-      "acknowledgement": "It is clear and single now."
+      "acknowledgement": "It is clear and single now.",
+      "description": "Ask whether the current target or letters have become clear (and single where the procedure reports this). Read the existing patient response only; never turn a flipper or advance a run."
     }
   ],
   "push-up": [
@@ -454,32 +388,20 @@
         "tell me when it first becomes blurred",
         "report the first sustained blur"
       ],
-      "acknowledgement": "Okay, I am reading the line and will report the first blur that remains blurred."
+      "acknowledgement": "Okay, I am reading the line and will report the first blur that remains blurred.",
+      "description": "Ask the patient to look steadily at the near letters and report the first sustained blur. This is a patient instruction, not a request for a current report."
     },
     {
       "id": "request-report",
       "phrases": [
         "what do you see",
-        "tell me what you see",
-        "how many dots",
-        "what colours do you see",
-        "tell me where the dots are",
-        "report now",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
         "is it clear",
         "is it double",
-        "has it blurred"
+        "has it blurred",
+        "are the letters blurry now"
       ],
-      "acknowledgement": "I can report what I see now that the examination setup is ready."
+      "acknowledgement": "I can report what I see now that the examination setup is ready.",
+      "description": "Ask whether the current target or letters are clear, blurred, double or single. Read only the current procedure-produced patient report. This asks about the current percept; a future request to tell the examiner when vision changes is an instruction instead."
     }
   ],
   "minus-lens": [
@@ -491,32 +413,20 @@
         "tell me when it first becomes blurred",
         "report the first sustained blur"
       ],
-      "acknowledgement": "Okay, I am reading the line and will report the first blur that remains blurred."
+      "acknowledgement": "Okay, I am reading the line and will report the first blur that remains blurred.",
+      "description": "Ask the patient to look steadily at the near letters and report the first sustained blur. This is a patient instruction, not a request for a current report."
     },
     {
       "id": "request-report",
       "phrases": [
         "what do you see",
-        "tell me what you see",
-        "how many dots",
-        "what colours do you see",
-        "tell me where the dots are",
-        "report now",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
         "is it clear",
         "is it double",
-        "has it blurred"
+        "has it blurred",
+        "are the letters blurry now"
       ],
-      "acknowledgement": "I can report what I see now that the examination setup is ready."
+      "acknowledgement": "I can report what I see now that the examination setup is ready.",
+      "description": "Ask whether the current target or letters are clear, blurred, double or single. Read only the current procedure-produced patient report. This asks about the current percept; a future request to tell the examiner when vision changes is an instruction instead."
     }
   ],
   "relative": [
@@ -528,47 +438,32 @@
         "tell me when it first becomes blurred",
         "report the first sustained blur"
       ],
-      "acknowledgement": "Okay, I will keep the line clear and single and report the first blur that remains blurred."
+      "acknowledgement": "Okay, I will keep the line clear and single and report the first blur that remains blurred.",
+      "description": "Ask the patient to look steadily at the near line, keeping it clear and single and reporting sustained blur. This is a patient instruction, not a request for a current report."
     },
     {
       "id": "request-report",
       "phrases": [
         "what do you see",
-        "tell me what you see",
-        "how many dots",
-        "what colours do you see",
-        "tell me where the dots are",
-        "report now",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
-        "what colors do you see",
         "is it clear",
         "is it double",
-        "has it blurred"
+        "has it blurred",
+        "are the letters blurry now"
       ],
-      "acknowledgement": "I can report what I see now that the examination setup is ready."
+      "acknowledgement": "I can report what I see now that the examination setup is ready.",
+      "description": "Ask whether the current target or letters are clear, blurred, double or single. Read only the current procedure-produced patient report. This asks about the current percept; a future request to tell the examiner when vision changes is an instruction instead."
     }
   ],
   "accommodative-facility": [
     {
       "id": "fixate-target",
       "phrases": [
-        "look at the target",
-        "fixate the target",
-        "keep looking at the dots",
-        "look at the light",
-        "fixate the light",
-        "look at the light",
-        "fixate the light"
+        "look at the letters",
+        "keep the letters clear",
+        "focus on the target"
       ],
-      "acknowledgement": "Okay, I am looking at the target."
+      "acknowledgement": "Okay, I am looking at the target.",
+      "description": "Ask the patient to look steadily at the letters, keeping them clear. This is a patient instruction, not a request for a current report."
     },
     {
       "id": "report-clear",
@@ -578,7 +473,8 @@
         "can you clear",
         "clear now"
       ],
-      "acknowledgement": "It is clear and single now."
+      "acknowledgement": "It is clear and single now.",
+      "description": "Ask whether the current target or letters have become clear (and single where the procedure reports this). Read the existing patient response only; never turn a flipper or advance a run."
     }
   ]
 }

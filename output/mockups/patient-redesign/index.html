@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Opto — Patient design study</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#101b19;color:#edf1e8;font-synthesis:none}*{box-sizing:border-box}body{margin:0}button,input{font:inherit}button{cursor:pointer}button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #d0e9bc;outline-offset:4px}header,main,footer{max-width:1440px;margin:auto}header{display:flex;justify-content:space-between;align-items:center;padding:27px 42px;border-bottom:1px solid #2a3832}.brand{font-size:24px;letter-spacing:-1px;font-weight:650}.brand i{display:inline-block;width:13px;height:13px;border:3px solid #b3c9a1;border-radius:50%;margin-right:9px}.meta{text-transform:uppercase;letter-spacing:2px;font-size:10px;color:#a7b3a8}.intro{padding:35px 42px 27px;display:flex;justify-content:space-between;align-items:end;gap:30px}h1{font-size:clamp(27px,3vw,42px);letter-spacing:-1.5px;font-weight:450;line-height:1.12;margin:10px 0 13px}.intro p{margin:0;color:#a9b7ad;font-size:14px;line-height:1.6;max-width:620px}.pill{font-size:11px;white-space:nowrap;border:1px solid #3a4c3f;border-radius:30px;padding:10px 15px;color:#c2d6b4}.toolbar{margin:0 42px 18px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}.tabs{display:flex;gap:4px;padding:4px;background:#1b2822;border:1px solid #314136;border-radius:10px}.tabs button{border:0;background:none;color:#aab9ac;padding:9px 16px;font-size:12px;border-radius:7px}.tabs button[aria-pressed=true]{background:#d2dfbd;color:#223526}.toggle{font-size:12px;color:#a8b6aa;display:flex;gap:9px;align-items:center;cursor:pointer}.toggle input{accent-color:#c9deb5;width:15px;height:15px}.comparison{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:0 42px}.panel{border:1px solid #34453b;border-radius:13px;overflow:hidden;background:#1c2e29;min-width:0}.panel-head{display:flex;justify-content:space-between;gap:12px;align-items:center;background:#17241e;padding:15px 19px;font-size:12px}.panel-head strong{font-weight:550}.panel-head span{font-size:10px;color:#8fa08f;letter-spacing:1.3px;text-transform:uppercase}.stage{height:min(65vw,680px);min-height:360px;overflow:hidden;position:relative;background:#233b34;display:flex;align-items:center;justify-content:center}.before img{height:100%;width:100%;object-fit:contain;object-position:center center;transition:transform .4s}.after svg{width:100%;height:100%;display:block}.stage-note{position:absolute;bottom:16px;left:17px;background:#11251bdb;color:#c9d7c6;border:1px solid #71826755;font-size:10px;letter-spacing:.5px;padding:8px 11px;border-radius:5px;pointer-events:none}.before[data-view=face] img{transform:scale(3.4);transform-origin:50% 12%}.panel-footer{padding:17px 19px;background:#17241e;min-height:83px}.panel-footer b{display:block;font-size:13px;font-weight:500;margin-bottom:6px}.panel-footer p{font-size:12px;color:#95a699;line-height:1.5;margin:0}.notes{display:grid;grid-template-columns:repeat(4,1fr);gap:25px;padding:32px 42px 35px}.note .number{font-size:11px;color:#8fa27b;margin-bottom:11px}.note h2{font-size:14px;font-weight:500;margin:0 0 8px}.note p{margin:0;font-size:12px;line-height:1.65;color:#97a89c}.next{margin:0 42px 34px;padding:20px 24px;border:1px solid #33473a;border-radius:10px;display:flex;gap:20px;justify-content:space-between;align-items:center;background:#19291f}.next p{margin:0;font-size:12px;line-height:1.7;max-width:840px;color:#b3c1b2}.next strong{color:#e2e9d9;font-weight:500}.next a{color:#d1e3bc;font-size:12px;white-space:nowrap;text-decoration:none;border-bottom:1px solid #6b815f;padding-bottom:3px}footer{padding:0 42px 26px;color:#7f9483;font-size:10px;display:flex;justify-content:space-between;gap:20px}.face-guide{display:none}.after[data-view=chair] .patient{display:none}.after[data-view=chair] .stage-note{display:block}.after[data-annotations=true][data-view=full] .annotations{display:block!important}@media(max-width:720px){header{padding:20px}.intro{padding:25px 20px;display:block}.pill{display:inline-block;margin-top:15px}.toolbar{margin:0 20px 14px}.tabs button{padding:8px 10px}.comparison{margin:0 20px;gap:10px}.panel-head{padding:12px;font-size:11px}.panel-head span{display:none}.stage{height:65vw;min-height:280px}.panel-footer{padding:12px;min-height:110px}.stage-note{font-size:8px;left:8px;bottom:8px;padding:6px}.notes{grid-template-columns:1fr 1fr;padding:25px 20px;gap:25px}.next{margin:0 20px 25px;padding:18px;display:block}.next a{display:inline-block;margin-top:14px}footer{padding:0 20px 25px}}@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style></head><body>
+<header><div class="brand"><i aria-hidden="true"></i>opto</div><div class="meta">Patient & chair · Design study 01</div></header>
+<main><section class="intro"><div><div class="meta">A more believable person</div><h1>Human proportions.<br>A calmer clinical presence.</h1><p>The same fictional patient, rethought around anatomy, relaxed posture and clothing that follows the body.</p></div><div class="pill">Editable HTML / SVG concept</div></section>
+<div class="toolbar"><div class="tabs" role="group" aria-label="Preview detail"><button type="button" data-view="full" aria-pressed="true">Full patient</button><button type="button" data-view="face" aria-pressed="false">Face & eyes</button><button type="button" data-view="chair" aria-pressed="false">Chair study</button></div><label class="toggle"><input id="annotations" type="checkbox">Show design notes</label></div>
+<section class="comparison" aria-label="Before and proposed design comparison"><article class="panel before" data-view="full"><div class="panel-head"><strong>Before</strong><span>Current simulator screenshot</span></div><div class="stage"><img src="before.png" alt="Current procedural patient with cylindrical limbs, round hands and block-shaped chair"><span class="stage-note">Your original screenshot</span></div><div class="panel-footer"><b>Separate shapes read as separate parts.</b><p>Rounded torso, tubular limbs, sphere-like hands and an oversized chair.</p></div></article>
+<article class="panel after" data-view="full" data-annotations="false"><div class="panel-head"><strong>Proposed direction</strong><span>Anatomy first · soft realism</span></div><div class="stage" id="proposed"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 850" role="img" aria-labelledby="title desc">
+<title id="title">Proposed fictional patient and examination chair</title><desc id="desc">An original vector concept of a naturally proportioned young adult with shaped eyelids, fitted clothing, fingers and a slim upholstered examination chair. A visual design study, not a clinical anatomy reference or a finished 3D asset.</desc>
+<defs>
+ <linearGradient id="wall" x2="1" y2="1"><stop stop-color="#374e4a"/><stop offset="1" stop-color="#172c29"/></linearGradient>
+ <radialGradient id="wallLight"><stop stop-color="#83978a" stop-opacity=".23"/><stop offset="1" stop-color="#718b7b" stop-opacity="0"/></radialGradient>
+ <linearGradient id="floor" x2="0" y2="1"><stop stop-color="#b8b2a2"/><stop offset="1" stop-color="#ded6c3"/></linearGradient>
+ <linearGradient id="chair" x1="0" y1="0" x2="1" y2=".6"><stop stop-color="#5d7773"/><stop offset=".45" stop-color="#3a5854"/><stop offset="1" stop-color="#233d39"/></linearGradient>
+ <linearGradient id="chairEdge" x2="1" y2="0"><stop stop-color="#17332e"/><stop offset=".55" stop-color="#48615a"/><stop offset="1" stop-color="#162e29"/></linearGradient>
+ <linearGradient id="metal" x2="1" y2="0"><stop stop-color="#515d58"/><stop offset=".22" stop-color="#aab1a6"/><stop offset=".45" stop-color="#e6e8dc"/><stop offset=".7" stop-color="#909e94"/><stop offset="1" stop-color="#465b50"/></linearGradient>
+ <linearGradient id="base" x2="0" y2="1"><stop stop-color="#c6cfc1"/><stop offset=".4" stop-color="#85988a"/><stop offset="1" stop-color="#53665b"/></linearGradient>
+ <linearGradient id="shirt" x1=".1" y1=".1" x2=".9" y2=".9"><stop stop-color="#bccbd0"/><stop offset=".35" stop-color="#a2b7bf"/><stop offset=".7" stop-color="#809ba6"/><stop offset="1" stop-color="#526f7a"/></linearGradient>
+ <linearGradient id="sleeve" x2="1" y2=".5"><stop stop-color="#bac9cd"/><stop offset=".55" stop-color="#91aab4"/><stop offset="1" stop-color="#66818d"/></linearGradient>
+ <linearGradient id="jeans" x1=".1" y1="0" x2=".9" y2=".4"><stop stop-color="#394c60"/><stop offset=".45" stop-color="#2c4055"/><stop offset="1" stop-color="#192d40"/></linearGradient>
+ <linearGradient id="shin" x2="1" y2=".1"><stop stop-color="#203448"/><stop offset=".4" stop-color="#344b60"/><stop offset=".75" stop-color="#263c50"/><stop offset="1" stop-color="#182d40"/></linearGradient>
+ <linearGradient id="skin" x1=".1" y1=".15" x2=".95" y2=".7"><stop stop-color="#bf916c"/><stop offset=".35" stop-color="#b5835f"/><stop offset=".75" stop-color="#986543"/><stop offset="1" stop-color="#754b32"/></linearGradient>
+ <radialGradient id="face" cx=".35" cy=".32" r=".8"><stop stop-color="#cfa17a"/><stop offset=".45" stop-color="#b98561"/><stop offset=".78" stop-color="#996545"/><stop offset="1" stop-color="#795035"/></radialGradient>
+ <linearGradient id="neck" x2="0" y2="1"><stop stop-color="#6e442d"/><stop offset=".5" stop-color="#a17150"/><stop offset="1" stop-color="#bc8c67"/></linearGradient>
+ <linearGradient id="nose" x2="1" y2=".2"><stop stop-color="#ba875e" stop-opacity="0"/><stop offset=".45" stop-color="#d0a17c"/><stop offset=".68" stop-color="#ba865f"/><stop offset="1" stop-color="#8d5c3f" stop-opacity=".8"/></linearGradient>
+ <linearGradient id="hair" x2=".8" y2="1"><stop stop-color="#3c332c"/><stop offset=".3" stop-color="#292925"/><stop offset="1" stop-color="#161e1b"/></linearGradient>
+ <linearGradient id="shoe" x2=".5" y2="1"><stop stop-color="#465350"/><stop offset=".4" stop-color="#293833"/><stop offset="1" stop-color="#16221e"/></linearGradient>
+ <radialGradient id="iris"><stop stop-color="#171c16"/><stop offset=".55" stop-color="#57412b"/><stop offset=".85" stop-color="#74513a"/><stop offset="1" stop-color="#2e3026"/></radialGradient>
+ <filter id="blur"><feGaussianBlur stdDeviation="13"/></filter>
+ <filter id="soft"><feGaussianBlur stdDeviation="2"/></filter>
+ <pattern id="fabric" width="4" height="4" patternUnits="userSpaceOnUse"><path d="M0 1h4M1 0v4" stroke="#fff" stroke-opacity=".025" stroke-width=".6"/></pattern>
+ <clipPath id="faceClip"><path d="M247 128Q245 102 268 92Q303 76 337 101Q356 115 354 146L351 185Q347 208 328 221Q302 237 278 223Q251 207 247 179Z"/></clipPath>
+</defs>
+<!-- Quiet clinic background -->
+<g class="room"><path fill="url(#wall)" d="M0 0h600v642H0z"/><ellipse cx="240" cy="270" rx="400" ry="420" fill="url(#wallLight)"/><path d="M0 632H600V850H0Z" fill="url(#floor)"/><path d="M0 632h600" stroke="#d0d3c1" stroke-opacity=".5" stroke-width="7"/><g stroke="#948c79" stroke-opacity=".2" fill="none"><path d="M0 696h600M0 783h600M150 632L85 850M450 632l65 218M300 632v218"/></g></g>
+<ellipse cx="302" cy="791" rx="176" ry="30" fill="#10231c" opacity=".23" filter="url(#blur)"/>
+<!-- Chair: tapered continuous cushions, thin supports, compact pedestal -->
+<g class="chair">
+ <path d="M273 620H327L334 768Q302 788 266 767Z" fill="url(#metal)"/><path d="M274 658h52v47h-52z" fill="#2b4137" opacity=".35"/>
+ <path d="M206 767Q300 740 394 767L415 789Q302 826 185 790Z" fill="url(#base)"/><path d="M185 790Q300 827 415 789v7Q304 832 186 797Z" fill="#53665b"/><ellipse cx="300" cy="770" rx="39" ry="12" fill="#c1ccbf"/>
+ <path d="M211 204Q208 188 229 184L372 184Q393 187 392 211L380 464Q376 487 352 493H245Q221 488 219 464Z" fill="url(#chairEdge)"/>
+ <path d="M225 199Q300 183 378 200L369 430Q367 454 348 463H254Q234 455 233 433Z" fill="url(#chair)" stroke="#6d8580" stroke-opacity=".6" stroke-width="1.5"/>
+ <path d="M241 216Q299 205 362 217M244 418Q300 429 359 419" fill="none" stroke="#73918a" stroke-opacity=".35" stroke-width="2"/>
+ <rect x="251" y="161" width="98" height="51" rx="17" fill="url(#chairEdge)"/><rect x="255" y="157" width="90" height="48" rx="16" fill="url(#chair)" stroke="#82978e" stroke-opacity=".25"/>
+ <path d="M206 471Q301 448 395 472L406 585Q402 610 375 614H226Q199 612 193 589Z" fill="url(#chairEdge)"/><path d="M211 477Q302 459 389 478L394 562Q389 578 370 582H231Q211 579 207 563Z" fill="url(#chair)"/><path d="M215 562Q300 579 386 562" fill="none" stroke="#78938a" stroke-opacity=".4"/>
+ <g fill="none" stroke="url(#metal)" stroke-width="13" stroke-linecap="round"><path d="M208 532L174 500v-61"/><path d="M392 532l34-32v-61"/></g>
+ <path d="M161 413Q181 405 211 415L220 448Q218 460 202 461L169 459Q157 456 156 444Z" fill="url(#chairEdge)"/><path d="M159 415Q185 408 209 417L214 438Q187 447 158 438Z" fill="url(#chair)"/>
+ <path d="M389 415Q419 405 439 413L444 444Q443 456 431 459L398 461Q382 460 380 448Z" fill="url(#chairEdge)"/><path d="M391 417Q415 408 441 415L442 438Q413 447 386 438Z" fill="url(#chair)"/>
+</g>
+<g class="patient">
+ <!-- Trousers: connected seated thighs and shaped knees -->
+ <path d="M246 427Q300 416 356 427L380 470Q405 496 409 526Q407 548 397 566L390 721Q365 736 337 722L331 578Q327 549 325 521L301 477L276 520Q274 553 270 580L262 721Q239 735 211 723L201 566Q188 546 191 524Q194 496 219 471Z" fill="url(#jeans)"/>
+ <path d="M199 528Q231 510 272 531L266 586L261 714Q238 725 216 715L210 580Z" fill="url(#shin)"/>
+ <path d="M329 532Q366 512 401 531L391 584L387 714Q364 724 342 715L337 581Z" fill="url(#shin)"/>
+ <path d="M247 449Q239 474 221 492M353 449Q364 476 383 493M286 460L279 493M315 460l9 33" stroke="#53667a" stroke-opacity=".6" stroke-width="3" fill="none"/>
+ <path d="M201 523Q229 516 265 532M208 539Q232 530 260 540M336 533Q367 518 401 524M343 544Q370 531 393 538" stroke="#738191" stroke-opacity=".25" stroke-width="2" fill="none"/>
+ <path d="M217 571l12 126M386 572l-12 125M225 711l29-5M345 706l34 5" fill="none" stroke="#677a89" stroke-opacity=".27" stroke-width="2"/>
+ <!-- Shoes and ankles -->
+ <path d="M215 710Q236 719 261 711L261 740H214Z" fill="#202c29"/><path d="M339 711Q366 719 387 710L390 740H339Z" fill="#202c29"/>
+ <path d="M215 728Q235 731 257 727L267 753Q275 770 258 779Q224 785 197 777Q186 770 194 755Z" fill="url(#shoe)"/><path d="M343 727Q364 731 386 728L407 755Q415 770 403 777Q376 785 342 779Q325 770 333 753Z" fill="url(#shoe)"/>
+ <path d="M194 769Q228 780 267 769L267 778Q229 791 194 779ZM333 769Q372 780 407 769L407 779Q372 791 333 778Z" fill="#8b9385"/>
+ <g stroke="#8a9890" stroke-width="2" opacity=".65"><path d="M216 739l31 2m-35 5 36 2m-39 5 42 2M353 741l31-2m-32 9 36-2m-39 9 42-2"/></g>
+ <!-- Neck -->
+ <path d="M275 207Q299 220 325 207L329 247L340 263Q302 291 260 263L274 246Z" fill="url(#neck)"/>
+ <path d="M279 226Q296 238 321 225" fill="none" stroke="#6e4a34" opacity=".22" stroke-width="4"/>
+ <!-- Shirt silhouette shaped around shoulders, chest and waist -->
+ <path d="M273 244Q300 265 328 244L369 255Q386 262 394 281L416 331Q396 346 373 344L363 318L362 375Q361 407 372 438Q339 458 300 456Q258 458 228 439Q240 409 239 376L237 319L226 345Q204 347 184 331L205 280Q214 262 231 256Z" fill="url(#shirt)"/>
+ <path d="M273 244Q300 269 328 244L335 249Q302 279 265 249Z" fill="#66838d"/><path d="M274 246Q299 266 327 246" stroke="#d0dcdb" stroke-opacity=".65" stroke-width="2" fill="none"/>
+ <path d="M231 259Q218 290 221 323L226 345Q204 347 184 331L205 280Q216 264 231 259ZM369 258Q384 290 379 323L373 344Q396 346 416 331L394 281Q384 263 369 258Z" fill="url(#sleeve)"/>
+ <path d="M191 328Q208 338 225 336M376 335Q393 337 409 327" fill="none" stroke="#d1dddd" stroke-opacity=".55" stroke-width="3"/>
+ <path d="M236 288Q243 315 240 340M365 289Q359 314 364 338M246 340Q258 354 263 369M353 350l-13 19M241 417Q260 424 284 420M365 429Q337 423 317 429M254 440Q274 434 294 439" fill="none" stroke="#526f7c" stroke-opacity=".35" stroke-width="2.5" stroke-linecap="round"/>
+ <path d="M250 290Q286 280 322 289M261 367Q299 374 340 366M254 430Q290 441 329 435" fill="none" stroke="#d6e1e1" stroke-opacity=".27" stroke-width="4" stroke-linecap="round"/>
+ <path d="M241 287Q300 269 360 287L360 375L371 436Q300 461 230 438L241 375Z" fill="url(#fabric)"/>
+ <path d="M230 438Q298 458 371 437" fill="none" stroke="#4b6673" stroke-opacity=".45" stroke-width="2"/>
+ <!-- Forearms taper into real wrists; hands relaxed on the chair -->
+ <path d="M191 335Q205 343 223 340L216 369Q211 389 211 411L211 442Q202 452 187 443L182 405Q177 389 183 367Z" fill="url(#skin)"/>
+ <path d="M377 340Q395 343 409 335L417 367Q423 389 418 405L413 443Q398 452 389 442L389 411Q389 389 384 369Z" fill="url(#skin)"/>
+ <path d="M190 373Q187 392 193 413M406 373Q414 391 405 413" fill="none" stroke="#d6a985" stroke-opacity=".4" stroke-width="3"/>
+ <path d="M187 434Q197 430 209 437L217 450Q222 461 218 469Q215 474 211 469L207 459L208 478Q208 484 203 483L198 466L200 483Q199 490 194 486L190 468L190 482Q189 488 184 484L179 464Q175 451 181 441Z" fill="url(#skin)" stroke="#85573c" stroke-width=".8"/>
+ <path d="M413 434Q403 430 391 437L383 450Q378 461 382 469Q385 474 389 469L393 459L392 478Q392 484 397 483L402 466L400 483Q401 490 406 486L410 468L410 482Q411 488 416 484L421 464Q425 451 419 441Z" fill="url(#skin)" stroke="#85573c" stroke-width=".8"/>
+ <g fill="none" stroke="#865b40" stroke-width="1" opacity=".55"><path d="M185 451l15-3m-16 9 14-3m198-6 15 3m-13 3 14 3"/></g>
+ <!-- Ears -->
+ <path d="M248 145Q232 137 237 167Q238 186 251 185L255 159Z" fill="url(#skin)"/><path d="M352 145Q368 137 363 167Q362 186 349 185L345 159Z" fill="url(#skin)"/>
+ <path d="M245 151Q239 149 242 168L247 174M355 151Q361 149 358 168L353 174" fill="none" stroke="#7c5139" stroke-width="2.5"/>
+ <!-- Face -->
+ <path d="M247 128Q245 102 268 92Q303 76 337 101Q356 115 354 146L351 185Q347 208 328 221Q302 237 278 223Q251 207 247 179Z" fill="url(#face)"/>
+ <g clip-path="url(#faceClip)">
+  <path d="M248 155Q252 197 276 212Q300 229 327 212Q345 200 352 171L353 196L331 230H270L245 197Z" fill="#6e4935" opacity=".15"/>
+  <ellipse cx="265" cy="174" rx="15" ry="9" fill="#d9a079" opacity=".2" filter="url(#soft)"/><ellipse cx="336" cy="174" rx="13" ry="9" fill="#ba7b5b" opacity=".2" filter="url(#soft)"/>
+  <path d="M259 159Q271 166 286 158M314 159Q328 165 341 157" fill="none" stroke="#885b42" stroke-opacity=".3" stroke-width="2"/>
+  <path d="M281 205Q300 215 319 204L322 216Q302 230 280 217Z" fill="#342c25" opacity=".08"/>
+ </g>
+ <!-- Hair with shaped temples and hairline -->
+ <path d="M247 151L240 127Q235 101 253 86Q267 72 294 73Q324 69 343 88Q366 101 359 131L353 154L348 131L343 115Q329 117 317 105Q293 117 266 110L253 130Z" fill="url(#hair)"/>
+ <path d="M250 110Q276 81 310 85M258 98Q291 75 329 93M269 106Q295 98 318 92M319 101Q333 109 346 104" stroke="#686057" stroke-opacity=".22" stroke-width="2" fill="none" stroke-linecap="round"/>
+ <path d="M247 131l3 21M352 131l-1 23" stroke="#24251f" stroke-width="4"/>
+ <!-- Brows and anatomically shaped eye openings -->
+ <path d="M257 140Q271 132 287 138L286 142Q270 137 258 143Z" fill="#49372a"/><path d="M313 138Q328 132 343 140L342 143Q328 137 314 142Z" fill="#49372a"/>
+ <path d="M257 152Q270 143 287 152Q272 161 257 152Z" fill="#dddcd0"/><path d="M313 152Q329 143 343 152Q328 161 313 152Z" fill="#deded2"/>
+ <g class="irises"><circle cx="273" cy="152" r="6.1" fill="url(#iris)"/><circle cx="328" cy="152" r="6.1" fill="url(#iris)"/><circle cx="273" cy="152" r="2.8" fill="#151c18"/><circle cx="328" cy="152" r="2.8" fill="#151c18"/><circle cx="271.3" cy="150.4" r="1.3" fill="#f9f5dd" opacity=".88"/><circle cx="326.3" cy="150.4" r="1.3" fill="#f9f5dd" opacity=".88"/></g>
+ <path d="M257 152Q271 142 287 152M313 152Q328 142 343 152" fill="none" stroke="#714b37" stroke-width="1.8" stroke-linecap="round"/>
+ <path d="M258 154Q273 161 286 154M314 154Q328 161 342 154" fill="none" stroke="#c99875" stroke-width="1.2"/>
+ <path d="M257 147Q272 137 287 147M314 147Q328 138 343 147" fill="none" stroke="#925f42" stroke-opacity=".44" stroke-width="1"/>
+ <!-- Sculpted bridge, alar wings, philtrum and relaxed lips -->
+ <path d="M296 143Q301 139 305 145L308 168Q310 176 316 179Q315 188 302 189Q291 189 286 183Q288 177 293 171Z" fill="url(#nose)"/>
+ <path d="M289 183Q291 179 297 183M306 183Q311 179 314 183" fill="none" stroke="#754a32" stroke-width="1.8" stroke-linecap="round"/>
+ <path d="M297 191l-1 6M305 191l1 6" stroke="#996b4d" opacity=".4" stroke-width="1.2"/>
+ <path d="M279 201Q289 197 296 199L301 201L307 199Q315 198 322 201Q310 209 300 208Q288 208 279 201Z" fill="#9a6653"/>
+ <path d="M279 201Q290 203 301 202Q313 203 322 201" fill="none" stroke="#6a4639" stroke-width="1.2" stroke-linecap="round"/>
+ <path d="M290 206Q302 209 313 205" stroke="#c19077" stroke-width="1.2" opacity=".8" fill="none"/>
+ <path d="M291 217Q301 220 311 216" fill="none" stroke="#d0a07b" stroke-opacity=".35" stroke-width="2"/>
+</g>
+<!-- Optional concept annotations; enabled by HTML controls -->
+<g class="annotations" fill="none" stroke="#d5ead8" stroke-width="1.2" style="display:none">
+ <path d="M345 151H480"/><circle cx="345" cy="151" r="3" fill="#d5ead8"/>
+ <path d="M377 282H486"/><circle cx="377" cy="282" r="3" fill="#d5ead8"/>
+ <path d="M419 461H490"/><circle cx="419" cy="461" r="3" fill="#d5ead8"/>
+ <path d="M207 558H105"/><circle cx="207" cy="558" r="3" fill="#d5ead8"/>
+ <g fill="#ecf4e9" stroke="none" font-family="system-ui,sans-serif" font-size="11"><text x="425" y="142">SHAPED EYELIDS</text><text x="425" y="274">SLOPED SHOULDERS</text><text x="445" y="452">RELAXED HANDS</text><text x="32" y="550">CONNECTED KNEES</text></g>
+</g>
+</svg>
+<span class="stage-note" id="view-note">Vector concept · not a 3D asset</span></div><div class="panel-footer" aria-live="polite"><b id="detail-title">A continuous, naturally seated silhouette.</b><p id="detail-copy">Defined shoulders, tapered limbs, relaxed fingers and believable cloth folds.</p></div></article></section>
+<section class="notes" aria-label="Proposed design changes"><div class="note"><div class="number">01 / ANATOMY</div><h2>One connected body</h2><p>Shaped shoulders, a narrower waist and continuous transitions through the elbows and knees.</p></div><div class="note"><div class="number">02 / EXPRESSION</div><h2>A face you can examine</h2><p>Defined eyelids, a shaped jaw and nose bridge, natural eye spacing and a neutral expression.</p></div><div class="note"><div class="number">03 / CLOTHING</div><h2>Fabric, not body paint</h2><p>Sleeve hems, seated creases and a clean fit. A little asymmetry makes the pose feel less rigid.</p></div><div class="note"><div class="number">04 / FURNITURE</div><h2>A lighter clinical chair</h2><p>Contoured upholstery, slim arm supports and a compact pedestal instead of heavy rectangular blocks.</p></div></section>
+<div class="next"><p><strong>What this preview decides:</strong> proportions, posture, face treatment and chair silhouette. The production version would use a purpose-built, rigged 3D patient with independently controlled eyes and eyelids. This drawing is a visual direction, not a clinical anatomy reference or a measured Quest rendering benchmark.</p><a href="patient-concept.svg" target="_blank" rel="noopener">Open vector artwork ↗</a></div>
+</main><footer><span>Original concept artwork · Fictional patient · Local preview only</span><span>Simulator and deployment unchanged</span></footer>
+<script>
+const after=document.querySelector('.after'),before=document.querySelector('.before'),svg=document.querySelector('#proposed svg');
+const titles={full:['A continuous, naturally seated silhouette.','Defined shoulders, tapered limbs, relaxed fingers and believable cloth folds.'],face:['Eyes integrated into a shaped face.','Eyelids, brows, cheeks and a defined jaw replace the floating-eye look.'],chair:['A chair built around the seated body.','Patient hidden here to inspect the tapered back, slim armrests and compact base.']};
+document.querySelectorAll('[data-view][type=button]').forEach(button=>button.addEventListener('click',()=>{const view=button.dataset.view;document.querySelectorAll('[data-view][type=button]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));after.dataset.view=before.dataset.view=view;svg.setAttribute('viewBox',view==='face'?'220 65 160 190':'0 0 600 850');document.getElementById('detail-title').textContent=titles[view][0];document.getElementById('detail-copy').textContent=titles[view][1];document.getElementById('view-note').textContent=view==='chair'?'Chair study · patient hidden':'Vector concept · not a 3D asset';}));
+document.getElementById('annotations').addEventListener('change',event=>after.dataset.annotations=String(event.target.checked));
+</script></body></html>

@@ -8,7 +8,7 @@ export function loadConfig(env = process.env) {
     port: Number(env.PORT || 8080),
     projectId: env.GOOGLE_CLOUD_PROJECT || env.GCLOUD_PROJECT || "",
     location: env.VERTEX_LOCATION || "global",
-    liveModel: env.VERTEX_LIVE_MODEL || "gemini-live-2.5-flash-native-audio",
+    routerModel: env.VERTEX_ROUTER_MODEL || "gemini-3.1-flash-lite",
     voiceName: env.GOOGLE_VOICE_NAME || "Charon",
     cookieSecret: required("VOICE_COOKIE_SECRET"),
     publicOrigin: env.PUBLIC_ORIGIN || "",

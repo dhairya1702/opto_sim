@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { routeDeterministic } from "./router.mjs";
 import { commandAllowed, validClientMessage } from "./validation.mjs";
-import { SpeechBridge, GeminiLiveBridge } from "./google.mjs";
+import { SpeechBridge } from "./google.mjs";
+import { GeminiIntentBridge } from "./semantic.mjs";
 
 const send = (ws, value) => { if (ws.readyState === 1) ws.send(JSON.stringify(value)); };
 
@@ -9,7 +10,7 @@ export class VoiceSession {
   constructor(ws, config, speech, metadata = {}, bridges = {}) {
     this.ws = ws; this.config = config; this.speech = speech; this.metadata = metadata;
     this.startedAt = Date.now(); this.lastAudioAt = Date.now(); this.turn = 0; this.seenUtterances = new Set(); this.routedAt = new Map(); this.closed = false; this.pendingFallback = null;
-    this.bridges = { speech: options => new SpeechBridge(options), semantic: (config, callbacks) => new GeminiLiveBridge(config, callbacks), ...bridges };
+    this.bridges = { speech: options => new SpeechBridge(options), semantic: (config, callbacks) => new GeminiIntentBridge(config, callbacks), ...bridges };
     this.inSpeech = false; this.currentUtterance = null; this.resolvedTurn = null;
   }
   async handle(message, isBinary) {
@@ -66,20 +67,24 @@ export class VoiceSession {
     const valid = () => !this.closed && this.turn === turn && this.resolvedTurn !== turn;
     const bridge = this.bridges.semantic(this.config, {
       onFunction: call => { if (valid()) this.functionCall(call, context, utteranceId, text, turn); },
-      onAudio: (data, mimeType) => {
+      onError: error => {
         if (!valid()) return;
-        this.resolvedTurn = turn; this.clearFallback();
-        send(this.ws, { type: "audio", data, mimeType, output: "gemini", turn });
-        bridge.close();
+        this.log("gemini_error", error);
+        this.route({ kind: "patient-reply", replyId: "rephrase", utteranceId, transcript: text }, "semantic-error");
       },
-      onError: error => { if (valid()) this.log("gemini_error", error); },
     });
     this.gemini = bridge;
     try {
       await bridge.start(context, this.sampleRate);
       if (!valid()) { bridge.close(); return; }
       bridge.sendText(text);
-    } catch (error) { bridge.close(); if (valid()) this.log("gemini_error", error); }
+    } catch (error) {
+      bridge.close();
+      if (valid()) {
+        this.log("gemini_error", error);
+        this.route({ kind: "patient-reply", replyId: "rephrase", utteranceId, transcript: text }, "semantic-error");
+      }
+    }
   }
   functionCall(call, context, utteranceId, transcript, turn) {
     if (this.closed || turn !== this.turn || context !== this.context || this.resolvedTurn === turn) return;
@@ -88,6 +93,8 @@ export class VoiceSession {
     if (call.name === "patient_instruction") command = { kind: "patient-instruction", instructionId: call.args?.instructionId, utteranceId, transcript };
     if (call.name === "encounter_action") command = { kind: "encounter-action", actionId: call.args?.actionId, utteranceId, transcript };
     if (call.name === "practice_action") command = { kind: "practice-action", lessonId: context.lessonId, actionId: call.args?.actionId, utteranceId, transcript };
+    if (call.name === "social_reply") command = { kind: "social", socialId: call.args?.socialId, utteranceId, transcript };
+    if (call.name === "patient_reply") command = { kind: "patient-reply", replyId: call.args?.replyId, utteranceId, transcript };
     if (command && commandAllowed(command, this.context)) this.route(command, "semantic");
   }
   route(command, routeClass) {

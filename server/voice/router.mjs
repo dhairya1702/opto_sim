@@ -1,24 +1,27 @@
 import practiceVoice from "../../shared/practiceVoice.json" with { type: "json" };
-const normalize = (value) => value.toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+import { matchesIntent, needsSemanticRouting, normalize } from "./intents.mjs";
 const prohibited = /answer key|rubric|score|diagnos|test result|ignore .*instruction|system prompt|prescription|lens power/;
 const instructionPatterns = {
   "look-straight": ["look straight", "look ahead", "look into the distance", "look in the distance", "look over my shoulder", "fixate distance", "far target"],
-  "fixate-target": ["look at the target", "look at this target", "look at my target", "look at the light", "look at my light", "fixate the target", "fixate this", "keep looking at", "keep your eyes on"],
   "follow-target": ["follow the target", "follow this target", "follow my target", "follow the light", "follow my light", "follow this light", "follow my finger", "track the target", "track my light", "move your eyes with"],
-  "report-symptoms": ["symptom", "double vision", "see double", "see two", "any pain", "does it hurt", "any discomfort", "tell me if"],
+  "fixate-target": ["look at the target", "look at this target", "look at my target", "look at the light", "look at my light", "fixate the target", "fixate this", "keep looking at", "keep your eyes on"],
+  "report-symptoms": ["symptom", "double vision", "see double", "see two", "any pain", "does it hurt", "any discomfort"],
   "read-chart": ["read the chart", "read the letters", "read this line", "read that line", "smallest line", "read the near card"],
 };
 const encounterActionPatterns = {
   "dim-room": ["dim the lights", "dim room", "dim the room", "turn the room lights down", "lower the room lights", "make the room darker", "lights off", "turn off the lights", "switch off the lights", "room lights off"],
   "restore-room": ["restore the lights", "restore room lights", "turn the room lights on", "turn the lights back on", "bring the lights back up", "brighten the room", "lights on", "turn on the lights", "switch on the lights", "room lights on"],
 };
+// Only standalone social turns consume a turn. A greeting attached to an
+// unfamiliar clinical request must leave the full request for semantic routing.
 const socialPatterns = [
-  ["introduction", /\b(?:what is|whats|tell me) your name\b|\bwho are you\b/],
-  ["greeting", /\b(?:hello|hi|hey|good morning|good afternoon|good evening)\b|\bhow (?:are you|is it going|are things)\b/],
-  ["thanks", /\b(?:thank you|thanks|cheers)\b/],
-  ["ready", /\b(?:are you ready|ready to begin|shall we begin|can we start)\b/],
-  ["goodbye", /\b(?:goodbye|bye|see you|take care)\b/],
+  ["introduction", /^(?:(?:what is|whats|tell me) your name|who are you)$/],
+  ["greeting", /^(?:(?:hello|hi|hey|good morning|good afternoon|good evening)(?: there| arun)?(?: how are you| how is it going| how are things)?|how (?:are you|is it going|are things))$/],
+  ["thanks", /^(?:thank you(?: arun| very much)?|thanks(?: arun)?|cheers)$/],
+  ["ready", /^(?:are you ready(?: to begin)?|ready to begin|shall we begin|can we start)$/],
+  ["goodbye", /^(?:goodbye|bye|see you|take care)$/],
 ];
+
 export const patientReplyIds = [
   "age", "chief-concern", "lecture-context", "confirm-name", "can-see", "comfortable",
   "hear-you", "understand", "take-time", "no-questions", "continue", "apology",
@@ -50,25 +53,29 @@ export function routeDeterministic(transcript, context, utteranceId) {
   if (!q || q.length < 3) return null;
   if (/\bdiagnos|what do i have|whats wrong with my eyes/.test(q)) return { kind: "patient-reply", replyId: "diagnosis", utteranceId, transcript };
   if (prohibited.test(q)) return { kind: "patient-reply", replyId: "results", utteranceId, transcript };
+  if (needsSemanticRouting(transcript, q, context)) return null;
   if (context.mode === "test") {
     for (const [actionId, patterns] of Object.entries(encounterActionPatterns)) {
-      if (context.allowedActions.includes(actionId) && patterns.some(pattern => q.includes(pattern))) return { kind: "encounter-action", actionId, utteranceId, transcript };
+      if (context.allowedActions.includes(actionId) && matchesIntent(actionId, q, patterns)) return { kind: "encounter-action", actionId, utteranceId, transcript };
     }
     for (const [instructionId, patterns] of Object.entries(instructionPatterns)) {
-      if (context.allowedActions.includes(instructionId) && patterns.some(pattern => q.includes(pattern))) return { kind: "patient-instruction", instructionId, utteranceId, transcript };
+      if (context.allowedActions.includes(instructionId) && matchesIntent(instructionId, q, patterns)) return { kind: "patient-instruction", instructionId, utteranceId, transcript };
     }
     const factIds = context.allowedFacts.filter(fact => fact.patterns.some(pattern => q.includes(normalize(pattern)))).map(fact => fact.id);
     if (factIds.length > 0 && factIds.length <= 4) return { kind: "history", factIds, utteranceId, transcript };
     const patientReplyId = patientReplyPatterns.find(([, pattern]) => pattern.test(q))?.[0];
     if (patientReplyId) return { kind: "patient-reply", replyId: patientReplyId, utteranceId, transcript };
-    if (/symptom|vision|eyes|problem|tell me more|anything else/.test(q)) return { kind: "patient-reply", replyId: "rephrase", utteranceId, transcript };
     const socialId = socialIntent(q);
     if (socialId) return { kind: "social", socialId, utteranceId, transcript };
     return null;
   }
-  for (const { id: actionId, phrases: patterns } of practiceVoice[context.lessonId] || []) {
-    if (context.allowedActions.includes(actionId) && patterns.some(pattern => q.includes(normalize(pattern)))) return { kind: "practice-action", lessonId: context.lessonId, actionId, utteranceId, transcript };
-  }
+  const matches = (practiceVoice[context.lessonId] || []).filter(action =>
+    context.allowedActions.includes(action.id) && matchesIntent(action.id, q, action.phrases.map(normalize), context.lessonId));
+  // "Where does the line look relative to the light?" asks for a report,
+  // even though its look/light words also resemble a fixation instruction.
+  const action = matches.find(action => action.id === "follow-target" || action.id.startsWith("target-") || action.id.startsWith("examiner-"))
+    || matches.find(action => ["request-report", "report-clear", "report-symptoms"].includes(action.id)) || matches[0];
+  if (action) return { kind: "practice-action", lessonId: context.lessonId, actionId: action.id, utteranceId, transcript };
   const socialId = socialIntent(q);
   if (socialId) return { kind: "social", socialId, utteranceId, transcript };
   const patientReplyId = patientReplyPatterns.find(([, pattern]) => pattern.test(q))?.[0];

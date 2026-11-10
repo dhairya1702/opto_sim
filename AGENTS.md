@@ -14,7 +14,7 @@ These instructions apply to the entire repository.
 - A 20-module binocular-vision Practice library across motor alignment, sensory status, latent deviation, vergence, and accommodation. It includes extraocular motilities; Bruckner, Hirschberg, Krimsky, cover–uncover, and alternating cover; Worth four dot, stereopsis, and 4Δ base-out; Maddox rod and Modified Thorington; near point of convergence, horizontal distance, vertical distance, horizontal near, and near vergence facility; and push-up amplitude, minus-lens amplitude, NRA/PRA, and accommodative facility. All interactions and findings remain educational drafts pending clinical review.
 - One case: `adult_distance_blur_01`, version `0.1-draft`.
 - One fictional patient: Arun, age 24, with gradual bilateral distance blur.
-- Scripted, deterministic clinical history and scoring. Optional voice uses Google STT, turn-scoped Gemini fallback for unmatched finalized text, and canonical assets/TTS; it must not invent findings or bypass procedure gates.
+- Scripted, deterministic clinical history and scoring. Optional voice uses Google STT, turn-scoped text-only Gemini intent classification for unfamiliar or ambiguous finalized text, and canonical assets/TTS; it must not invent findings or bypass procedure gates.
 - Examination selection, prerequisites, result recording, evidence selection, assessment, management choices, and debrief.
 - Manual interactions for distance/pinhole/near acuity, pupils, near pupil response, cover testing, motility, and retinoscopy.
 - Illustrative anterior-segment and posterior-pole views.
@@ -95,7 +95,7 @@ The typed simulator needs no backend. Optional voice uses the same-origin Expres
 | `web/patient/scripted.ts` | Deterministic question matching and scripted patient replies |
 | `web/interaction/` | Input/controller code plus pure procedure logic for acuity, cover, motility, pupils, retinoscopy, navigation, and optional WebMCP exposure |
 | `web/interaction/xrSessionOwner.ts` | Test VR asynchronous request/attachment ownership, cancellation and stale-session cleanup |
-| `web/voice/useVoiceSession.ts`, `server/voice/session.mjs`, `server/voice/google.mjs` | Cancellable microphone/socket/provider lifecycle, one utterance/turn authority, current-context routing and stale-output rejection |
+| `web/voice/useVoiceSession.ts`, `server/voice/session.mjs`, `server/voice/semantic.mjs`, `server/voice/google.mjs` | Cancellable microphone/socket/provider lifecycle, one utterance/turn authority, current-context routing and stale-output rejection |
 | `web/interaction/useXRClinicRuntime.ts` | Shared physical WebXR controller/tool/input/placement/tracking/teleport loop, optional lesson equipment, persistent power and supported working poses; no lesson answers or case scoring |
 | `web/scene/XRClinicRuntimeView.tsx`, `XRClinicPanels.tsx`, `XRScopeView.tsx` | Shared canonical instruments/controllers/pads, hand controls, headset observation panels and B/Y scope viewing |
 | `web/interaction/clinicPatient.ts`, `xrHirschbergPractice.ts` | Canonical patient anchors and pure conversion of existing Hirschberg landmarks/submission gates |
@@ -276,8 +276,10 @@ When documentation and implementation disagree, verify the implementation and cl
 
 ## Voice response ownership
 
-`shared/practiceVoice.json` is the shared Practice phrase/acknowledgement catalog used by browser and gateway. Active Practice controllers register stable `voiceIds` on their gated lesson actions with `usePracticeVoiceProcedure`; report text must be a patient reply, never coaching, counters, or recorded scores. Report questions must not turn flippers or record findings. Audio assets require both exact text-hash and voice matches; changing response wording must not reuse mismatched recordings. Test chart requests must match the supported active examination.
+`shared/practiceVoice.json` is the shared Practice intent-description/example/acknowledgement catalog used by browser and gateway. Active Practice controllers register stable `voiceIds` on their gated lesson actions with `usePracticeVoiceProcedure`; report text must be a patient reply, never coaching, counters, or recorded scores. Report questions must not turn flippers or record findings. Audio assets require both exact text-hash and voice matches; changing response wording must not reuse mismatched recordings. Test chart requests must match the supported active examination.
 
 Maddox stable prism reports use `usePatientReportSpeech` for automatic playback of bundled Google-generated Charon MP3s independently of the microphone toggle. Speak only the existing engine-produced report, key playback by trial/setup revision/power/base, and cancel invalidated or obsolete output. `patientAudioChannel` coordinates this output with the optional voice session. Never start microphone capture as a side effect of a patient report.
 
 Maddox and Modified Thorington automatic patient reports use exact-text/hash/voice-matched Charon MP3s through `usePatientReportSpeech`, independently of microphone settings. Keep setup coaching outside the right-wall patient-reply slot, hide that slot during recording, and preserve each procedure’s capture rules.
+
+Voice routing uses conservative local matches followed by an enum-only, text-only Gemini classifier (`server/voice/semantic.mjs`). The classifier may select permitted actions/history IDs, canonical social/patient replies, clarification or unsupported; never play model-generated patient speech. Preserve original transcripts, turn cancellation, the response deadline and procedure gates. Corrections, negation, conflicting commands and instrument-versus-room-light ambiguity must reach semantic interpretation instead of executing an early phrase match. Synthetic coverage and opt-in live evaluation are in `server/voice/routingCorpus.mjs` and `server/scripts/evaluate-voice-routing.mjs`; do not treat mocked provider tests as measured semantic accuracy.

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EventEmitter } from "node:events";
 import { VoiceSession } from "./session.mjs";
-import { SpeechBridge, GeminiLiveBridge } from "./google.mjs";
+import { SpeechBridge } from "./google.mjs";
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
 const context = { mode: "test", sessionId: "test-1", caseId: "case", caseVersion: "draft", allowedFacts: [], allowedActions: ["look-straight"] };
 const config = { maxJsonBytes: 20000, semanticResponseLimitMs: 8000 };
@@ -19,6 +19,14 @@ function setup(synthesize = vi.fn(async () => ({ data: "reply", mimeType: "audio
 }
 afterEach(() => { sessions.splice(0).forEach(session => session.close()); vi.useRealTimers(); });
 describe("voice utterance ownership", () => {
+  it("routes the reported Practice follow-my-light phrase once without semantic startup", () => {
+    const { session, sent, semantic } = setup();
+    session.context = { mode: "practice", sessionId: "p1", lessonId: "motility", allowedActions: ["follow-target"] };
+    session.transcript("Could you please follow my light with your eyes?", true);
+    expect(sent.filter(m => m.type === "command")).toHaveLength(1);
+    expect(sent.find(m => m.type === "command").command).toMatchObject({ kind: "practice-action", actionId: "follow-target" });
+    expect(semantic).not.toHaveBeenCalled();
+  });
   it("speaks rejected setup clarifications but keeps intentionally silent actions silent", async () => {
     const { session, sent, synthesize } = setup();
     session.transcript("hello", true);
@@ -47,13 +55,37 @@ describe("voice utterance ownership", () => {
     expect(sent.find(m => m.type === "command").command.utteranceId).toBe(sent.find(m => m.type === "transcript").utteranceId);
     expect(bridge.close).toHaveBeenCalled();
   });
+  it("sends corrections to semantic interpretation instead of executing the obsolete first clause", async () => {
+    const { session, sent, semantics } = setup();
+    session.context = { ...context, allowedActions: ["follow-target", "fixate-target"] };
+    session.transcript("Follow my light, actually look at the stationary target instead", true);
+    await Promise.resolve();
+    expect(sent.filter(m => m.type === "command")).toHaveLength(0);
+    semantics[0].callbacks.onFunction({ name: "patient_instruction", args: { instructionId: "fixate-target" } });
+    expect(sent.filter(m => m.type === "command")).toHaveLength(1);
+    expect(sent.find(m => m.type === "command").command).toMatchObject({ instructionId: "fixate-target" });
+  });
+  it("uses a canonical clarification immediately if the semantic provider fails", () => {
+    const { session, sent, semantics } = setup();
+    session.transcript("An unfamiliar patient request", true);
+    semantics[0].callbacks.onError({ code: "UNAVAILABLE" });
+    expect(sent.find(m => m.type === "command").command).toMatchObject({ kind: "patient-reply", replyId: "rephrase" });
+    expect(semantics[0].close).toHaveBeenCalled();
+    expect(sent.some(m => m.type === "audio")).toBe(false);
+  });
+  it("does not execute an invented or out-of-context semantic action", () => {
+    const { session, sent, semantics } = setup();
+    session.transcript("An unfamiliar patient request", true);
+    semantics[0].callbacks.onFunction({ name: "practice_action", args: { actionId: "submit" } });
+    semantics[0].callbacks.onFunction({ name: "patient_instruction", args: { instructionId: "follow-target" } });
+    expect(sent.some(m => m.type === "command")).toBe(false);
+  });
   it("drops old semantic callbacks after a new utterance and permits deliberate repeated instructions", () => {
     const { session, sent, semantics } = setup();
     session.transcript("Please direct your gaze toward the ceiling fixture", true);
     const old = semantics[0];
     session.transcript("hello", true);
     old.callbacks.onFunction({ name: "patient_instruction", args: { instructionId: "look-straight" } });
-    old.callbacks.onAudio("old", "audio/wav");
     session.transcript("hello", true);
     expect(sent.filter(m => m.type === "command")).toHaveLength(2);
     expect(sent.filter(m => m.type === "audio")).toHaveLength(0);
@@ -132,14 +164,5 @@ describe("provider bridge cancellation", () => {
     const pending = bridge.start(48000); bridge.close(); load.resolve({ v2: { SpeechClient: Client } }); await pending;
     expect(Client).not.toHaveBeenCalled();
   });
-  it("closes a Gemini connection resolving after close, and ignores its callbacks", async () => {
-    const connection = deferred(), remote = { close: vi.fn() }; let events;
-    const callbacks = { onFunction: vi.fn(), onAudio: vi.fn(), onError: vi.fn() };
-    class Client { live = { connect: options => { events = options.callbacks; return connection.promise; } }; }
-    const bridge = new GeminiLiveBridge({}, callbacks, async () => ({ GoogleGenAI: Client, Modality: { AUDIO: "AUDIO" } }));
-    const pending = bridge.start(context, 48000); await Promise.resolve(); bridge.close(); connection.resolve(remote); await pending;
-    expect(remote.close).toHaveBeenCalledTimes(1);
-    events.onmessage({ toolCall: { functionCalls: [{ name: "patient_instruction" }] } });
-    expect(callbacks.onFunction).not.toHaveBeenCalled();
-  });
+
 });

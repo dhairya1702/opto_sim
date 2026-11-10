@@ -12,6 +12,7 @@ export type PracticeLessonId = typeof PRACTICE_LESSON_IDS[number];
 
 export type PracticeVoiceAction = {
   id: string;
+  description: string;
   phrases: string[];
   acknowledgement: string;
 };

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Group, Mesh, Quaternion, Shape, ShapeGeometry, Vector3 } from "three";
+import { Color, Float32BufferAttribute, Group, Mesh, Quaternion, Shape, ShapeGeometry, Vector3 } from "three";
 import { Box, Sign as RoomSign } from "./Models";
 import type { ConsultationToolId } from "../interaction/xrConsultationTools";
 import type { XRClinicRuntime } from "../interaction/useXRClinicRuntime";
@@ -11,11 +11,13 @@ export function XRSign(props: Parameters<typeof RoomSign>[0]) {
   return <RoomSign {...props} fit resolutionTier={resolutionTier} />;
 }
 
-export function XRRoundedPanel({ width, height, radius, color, position = [0, 0, 0], rotation = [0, 0, 0], userData }: {
+export function XRRoundedPanel({ width, height, radius, color, topColor, opacity = 1, position = [0, 0, 0], rotation = [0, 0, 0], userData }: {
   width: number;
   height: number;
   radius: number;
   color: string;
+  topColor?: string;
+  opacity?: number;
   position?: [number, number, number];
   rotation?: [number, number, number];
   userData?: Record<string, unknown>;
@@ -30,11 +32,24 @@ export function XRRoundedPanel({ width, height, radius, color, position = [0, 0,
     next.lineTo(-x, -y + corner); next.quadraticCurveTo(-x, -y, -x + corner, -y);
     return next;
   }, [height, radius, width]);
-  const geometry = useMemo(() => new ShapeGeometry(shape, 16), [shape]);
+  const geometry = useMemo(() => {
+    const next = new ShapeGeometry(shape, 16);
+    if (topColor) {
+      const positions = next.getAttribute("position");
+      const colors: number[] = [];
+      const bottom = new Color(color), top = new Color(topColor), mixed = new Color();
+      for (let i = 0; i < positions.count; i++) {
+        mixed.copy(bottom).lerp(top, (positions.getY(i) + height / 2) / height);
+        colors.push(mixed.r, mixed.g, mixed.b);
+      }
+      next.setAttribute("color", new Float32BufferAttribute(colors, 3));
+    }
+    return next;
+  }, [shape, color, topColor, height]);
   useEffect(() => () => geometry.dispose(), [geometry]);
   return <mesh position={position} rotation={rotation} userData={userData}>
     <primitive object={geometry} attach="geometry" />
-    <meshBasicMaterial color={color} />
+    <meshBasicMaterial color={topColor ? "#ffffff" : color} vertexColors={Boolean(topColor)} transparent={opacity < 1} opacity={opacity} depthWrite={opacity === 1} toneMapped={false} />
   </mesh>;
 }
 
@@ -69,6 +84,9 @@ export function XRToolControls({ runtime, id, children }: { runtime: XRClinicRun
     userData={{ xrToolControls: id, xrPanel: true }}>{children}</group>;
 }
 
+/** Only the persistent Practice wall opts into the glass treatment. */
+export const XRGlassButtons = createContext(false);
+
 export function XRPanelButton({ label, position, width = .5, active = false, disabled = false, recordTool, onClick }: {
   label: string;
   position: [number, number, number];
@@ -78,10 +96,14 @@ export function XRPanelButton({ label, position, width = .5, active = false, dis
   onClick: () => void;
   recordTool?: ConsultationToolId;
 }) {
+  const glass = useContext(XRGlassButtons);
   const background = disabled ? "#334346" : active ? "#0d725f" : "#214149";
-  return <group position={position} userData={{ xrAction: disabled ? undefined : onClick, xrButton: true, xrWidth: width, xrLabel: label, xrRecordTool: recordTool }}>
-    <Box s={[width, .065, .018]} c={background} radius={.008} />
-    <XRSign text={[label]} p={[0, 0, .011]} size={[width - .018, .052]} bg={background} fg={disabled ? "#82908e" : "#f7fffc"} />
+  return <group position={position} userData={{ xrAction: disabled ? undefined : onClick, xrButton: true, xrWidth: width, xrLabel: label, xrRecordTool: recordTool, xrGlassButton: glass }}>
+    {glass ? <>
+      <XRRoundedPanel width={width} height={.065} radius={.0325} color={disabled ? "#40534b" : "#557769"} topColor={disabled ? "#4d6156" : "#a3c3b6"} />
+      <XRRoundedPanel width={width - .004} height={.061} radius={.0305} color={disabled ? "#2c3c34" : active ? "#205d48" : "#203e32"} topColor={disabled ? "#3b4d43" : active ? "#548e73" : "#57786a"} position={[0, 0, .001]} />
+    </> : <Box s={[width, .065, .018]} c={background} radius={.008} />}
+    <XRSign transparentBackground={glass} text={[label]} p={[0, 0, .011]} size={[width - (glass ? .035 : .018), .052]} bg={background} fg={disabled ? "#94a99c" : "#f7fffc"} />
     {active && <mesh position={[-width / 2 + .014, 0, .013]} userData={{ xrSelectedMarker: true }}>
       <planeGeometry args={[.006, .038]} /><meshBasicMaterial color="#a9ffe5" />
     </mesh>}

@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import { Group } from "three";
 import type { XRClinicRuntime } from "../interaction/useXRClinicRuntime";
 import type { ConsultationToolId } from "../interaction/xrConsultationTools";
+import { XRGlassButtons } from "./XRClinicPanels";
 
 export const XR_PRACTICE_BOARD_POSITION = [1.25, 1.42, -2.46] as const;
 export const XR_PRACTICE_BOARD_SCALE = 1.5;
@@ -41,5 +42,5 @@ export function XRPracticeFindingsBoard({ runtime, active, tools, hidden = false
   useFrame(() => { root.current?.updateMatrixWorld(true); }, -1);
   if (!active || (!shown && !forceVisible) || hidden) return null;
   return <group ref={register} position={[...XR_PRACTICE_BOARD_POSITION]} scale={XR_PRACTICE_BOARD_SCALE}
-    userData={{ xrPanel: true, xrPersistentFindings: true }}>{children}</group>;
+    userData={{ xrPanel: true, xrPersistentFindings: true }}><XRGlassButtons.Provider value={true}>{children}</XRGlassButtons.Provider></group>;
 }
