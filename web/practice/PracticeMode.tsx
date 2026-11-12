@@ -1,3 +1,4 @@
+import { PatientAppearanceSelector } from "../ui/PatientAppearanceSelector";
 import { Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -87,11 +88,12 @@ function PracticeAttemptSetup({ onDesktop, onVR, chooseKrimskyMethod = false }: 
   const [kind, setKind] = useState<PracticeAttemptKind | null>(null);
   const [interaction, setInteraction] = useState<PracticeInteractionMode | null>(null);
   const [voice, setVoice] = useState<PracticeVoicePreference | null>(null);
+  const [patientLoading, setPatientLoading] = useState(false);
 
   const [krimskyMethod, setKrimskyMethod] = useState<KrimskyMethod | null>(null);
 
   const start = () => {
-    if (!kind || !interaction || !voice || (chooseKrimskyMethod && !krimskyMethod)) return;
+    if (patientLoading || !kind || !interaction || !voice || (chooseKrimskyMethod && !krimskyMethod)) return;
     setSettings({ kind, interaction, voice, ...(chooseKrimskyMethod && krimskyMethod ? { krimskyMethod } : {}) });
     if (interaction === "vr") onVR();
     else onDesktop();
@@ -110,7 +112,7 @@ function PracticeAttemptSetup({ onDesktop, onVR, chooseKrimskyMethod = false }: 
       {kind && (
         <div className="attempt-setup" role="group" aria-label={`${kind === "guided" ? "Guided Practice" : "Test"} setup`}>
           {chooseKrimskyMethod && <div role="group" aria-label="Krimsky method">
-            <p className="eyebrow">1 · METHOD</p>
+            <p className="eyebrow">METHOD</p>
             <div className="attempt-option-row">
               <button className={krimskyMethod === "standard" ? "selected" : ""} aria-pressed={krimskyMethod === "standard"} onClick={() => setKrimskyMethod("standard")}>Standard Krimsky</button>
               <button className={krimskyMethod === "modified" ? "selected" : ""} aria-pressed={krimskyMethod === "modified"} onClick={() => setKrimskyMethod("modified")}>Modified Krimsky</button>
@@ -119,20 +121,21 @@ function PracticeAttemptSetup({ onDesktop, onVR, chooseKrimskyMethod = false }: 
           </div>}
           {(!chooseKrimskyMethod || krimskyMethod) && <>
           <div>
-            <p className="eyebrow">{chooseKrimskyMethod ? 2 : 1} · CONTROLS</p>
+            <p className="eyebrow">1 · CONTROLS</p>
             <div className="attempt-option-row">
               <button className={interaction === "desktop" ? "selected" : ""} aria-pressed={interaction === "desktop"} onClick={() => setInteraction("desktop")}><Keyboard size={17} /> Keyboard + mouse</button>
               <button className={interaction === "vr" ? "selected" : ""} aria-pressed={interaction === "vr"} onClick={() => setInteraction("vr")}><Headset size={17} /> VR mode</button>
             </div>
           </div>
           <div>
-            <p className="eyebrow">{chooseKrimskyMethod ? 3 : 2} · VOICE</p>
+            <p className="eyebrow">2 · VOICE</p>
             <div className="attempt-option-row">
               <button className={voice === "enabled" ? "selected" : ""} aria-pressed={voice === "enabled"} onClick={() => setVoice("enabled")}><Mic size={17} /> Enable voice</button>
               <button className={voice === "disabled" ? "selected" : ""} aria-pressed={voice === "disabled"} onClick={() => setVoice("disabled")}><MicOff size={17} /> Disable voice</button>
             </div>
           </div>
-          <button className="primary attempt-start" disabled={!interaction || !voice} onClick={start}>
+          <PatientAppearanceSelector onLoading={setPatientLoading} />
+          <button className="primary attempt-start" disabled={!interaction || !voice || patientLoading} onClick={start}>
             Start {kind === "guided" ? "Guided Practice" : "Test"} <ChevronRight size={17} />
           </button>
           </>}

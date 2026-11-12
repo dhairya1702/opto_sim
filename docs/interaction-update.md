@@ -1,5 +1,7 @@
 # Instrument interaction update
 
+The patient selector now lives in Practice attempt setup: 1 · Controls, 2 · Voice, 3 · Patient, then the unnumbered Start button. It is removed from the home screen. Start is disabled while the detailed model loads; loading failure retains the prior selection. Krimsky retains its preliminary method choice without shifting these three setting numbers. At the user’s request, the selector and detailed body are now enabled in production builds too. Memory-only selection, the current-patient default and the experimental label are retained; physical Quest acceptance remains pending.
+
 ## Instrument tabletop labels (10 November 2026)
 
 The canonical instrument kit no longer draws the blue rectangular home plates or trial-frame support block. Instrument poses, pickup targets and return sockets are unchanged. Name labels retain their existing wording, size and location in front of each instrument but now stand upright, facing the learner along the kit's front direction, with their lower edge just above the tabletop. They use rounded translucent green glass-style faces with fully opaque text. Their two background layers combine to about 66% opacity, slightly stronger than the HUD for the smaller text. Labels remain non-interactive; no transmission or blur render passes are added.
@@ -370,3 +372,8 @@ The development mode-selection screen now offers Current patient / New detailed 
 Do not interpret successful software checks as clinical/optical or headset validation. Compare close-up cover/prism placement, reflex visibility, scope access and Quest frame times before enabling this outside development.
 
 The detailed patient's body fit now broadens the shoulders/upper torso by up to 20%, adds chest depth and slightly shortens the lower face, tapering smoothly back to the fixed eye anchors. Shoes enclose the feet at their actual seated height; hidden foot skin is omitted and armrests move outward to accommodate the broader arms. This is a visual proportion change only.
+
+
+In shared-clinic Practice and Test, aim either controller at a floor ring and click the trigger to teleport, even with both hands holding instruments. The ring highlights and the selection ray appears when targeted. The destination is latched on press and movement completes on release, so slight release drift does not cancel it. A trigger already operating an instrument cannot become a teleport by moving over a ring; release and make a fresh click. Both instruments remain held, and teleportation retains the existing unfinished-technique interruption rules.
+
+Desktop Practice uses the same lesson-selected instrument kit as VR Practice. The shared room supplies furniture without adding the default consultation instruments; Test consultation retains its full kit.

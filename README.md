@@ -302,8 +302,13 @@ Modified Thorington XR uses an upright pointing-pose card grip with wrist rotati
 
 In Maddox and Modified Thorington, the fixation/report button appears only at its required instruction step, after valid setup. It disappears when accepted and stays hidden during measurement, capture and recording. A restarted unfinished trial exposes it again once setup is ready. Wall buttons, A/X menus and desktop action mirrors use the same condition in Guided and independent attempts.
 
-## Development patient comparison
+## Patient appearance selection
 
-With `npm run dev`, the mode-selection screen includes **Clinic patient · development preview**. Choose **New detailed patient (experimental)**, wait for **Ready**, then enter Practice or Test. In Practice, choose a lesson, Guided Practice or Test, then Keyboard + mouse or VR mode. The new patient appears in the canonical shared clinic and its layout preview. Return to the mode-selection screen to choose the current patient; reload also restores it. The selector is absent in production builds.
+In local and deployed builds, open Practice, choose a lesson and Guided Practice or Test. Attempt setup contains **1 · Controls**, **2 · Voice**, and **3 · Patient**, followed by the unnumbered Start button. Choose **New detailed patient (experimental)** and wait for **Ready** before starting. The new patient appears in the canonical shared clinic and its layout preview. Change the patient in attempt setup; reload restores the current patient. The selector is absent from the home screen and available in Practice attempt setup in production builds.
 
 This is an experimental visual adapter, not a clinical-content update. Both appearances use the same `PatientEyes` geometry, direct OD/OS controller transforms, pupil meshes and blink overlays. The detailed skin has oval eye openings; its mouth retains speech-driven motion. Examination rules, authored findings, scoring and recording gates are unchanged. Standalone manual examination illustrations and scope observation panels retain their existing visuals. Physical Quest performance, close instrument fit and full visual acceptance across all lessons remain pending.
+
+
+In shared-clinic Practice and Test, aim either controller at a floor ring and click the trigger to teleport, even with both hands holding instruments. The ring highlights and the selection ray appears when targeted. The destination is latched on press and movement completes on release, so slight release drift does not cancel it. A trigger already operating an instrument cannot become a teleport by moving over a ring; release and make a fresh click. Both instruments remain held, and teleportation retains the existing unfinished-technique interruption rules.
+
+Desktop Practice uses the same lesson-selected instrument kit as VR Practice. The shared room supplies furniture without adding the default consultation instruments; Test consultation retains its full kit.

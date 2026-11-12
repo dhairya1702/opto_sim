@@ -71,7 +71,7 @@ function Highlight({ id }: { id: StationId }) {
   );
 }
 const registerStaticTool = () => undefined;
-export function ConsultationInterior({ held, xr = false }: { held?: ConsultationToolId; xr?: boolean; caseData?: ClinicalCase }) {
+export function ConsultationInterior({ held, xr = false, showDesktopInstruments = true }: { held?: ConsultationToolId; xr?: boolean; showDesktopInstruments?: boolean; caseData?: ClinicalCase }) {
   perfRender("ConsultationInterior");
   const desktopTools = useMemo(initialConsultationTools, []);
   const desktopEquipment = useMemo(
@@ -90,7 +90,7 @@ export function ConsultationInterior({ held, xr = false }: { held?: Consultation
       <group userData={{ station: "trolley" }}>
         <Trolley portable={false} kit={AUXILIARY_INSTRUMENT_KIT} rotationY={AUXILIARY_INSTRUMENT_KIT_ROTATION_Y} />
       </group>
-      {!xr && <ConsultationInstruments state={desktopTools} equipment={desktopEquipment} selectable={CASE_INDEPENDENT_CONSULTATION_EQUIPMENT}
+      {!xr && showDesktopInstruments && <ConsultationInstruments state={desktopTools} equipment={desktopEquipment} selectable={CASE_INDEPENDENT_CONSULTATION_EQUIPMENT}
         castsShadow={false} highlighted={[]} returnedAt={{}} register={registerStaticTool} />}
       <group userData={{ station: "refraction", examId: "subjective" }}>
         <Refraction portable={false} />

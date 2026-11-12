@@ -146,21 +146,52 @@ describe("XR review regressions against mounted scene geometry", () => {
     expect(sim.runtime().frameValid.current).toBe(false);
     expect(sim.runtime().slots.every(slot => !slot.tracked)).toBe(true);
   });
-  it.each([0, 1])("latches a floor-ring destination on controller %s so release drift cannot cancel teleport", async controller => {
+  it.each([[0, false], [1, false], [0, true], [1, true]] as const)("latches a floor-ring destination on controller %s with hands full=%s despite release drift", async (controller, handsFull) => {
     const sim = await setup();
+    if (handsFull) { await sim.pickup(0, "pupils"); await sim.pickup(1, "maddox"); }
+    const placements = JSON.stringify(Object.values(sim.runtime().toolsRef.current).map(tool => tool.placement));
     let pad: Object3D | undefined;
     sim.state.scene.traverse(object => { if (!pad && object.userData.xrTeleport) pad = object; });
     expect(pad).toBeDefined();
     const destination = pad!.userData.xrTeleport as [number, number, number];
     sim.rays[controller].position.copy(pad!.getWorldPosition(new Vector3())).add(new Vector3(0, 1, 0));
     sim.rays[controller].rotation.set(-Math.PI / 2, 0, 0); await sim.step();
+    expect(sim.rays[controller].visible).toBe(true);
+    expect(sim.runtime().teleportMarker.current?.visible).toBe(true);
     const before = sim.referenceOffsets.length;
     await sim.event(controller, "selectstart");
+    expect(sim.runtime().slots[controller].triggerRoute).toBe("panel");
+    expect(sim.runtime().toolsRef.current.pupils.powered).toBe(false);
     sim.rays[controller].position.set(8, 8, 8); sim.rays[controller].rotation.set(0, 0, 0); await sim.step();
     await sim.event(controller, "selectend");
     expect(sim.referenceOffsets).toHaveLength(before + 1);
     expect(sim.referenceOffsets.at(-1)?.x).toBeCloseTo(-destination[0]);
     expect(sim.referenceOffsets.at(-1)?.z).toBeCloseTo(-destination[2]);
+    expect(JSON.stringify(Object.values(sim.runtime().toolsRef.current).map(tool => tool.placement))).toBe(placements);
+    expect(sim.encounter().results).toHaveLength(0);
+  });
+  it("never converts an instrument press into teleportation when lowered over a ring", async () => {
+    const sim = await setup();
+    await sim.pickup(0, "pupils");
+    sim.rays[0].position.set(8, 1, 8);
+    sim.rays[0].rotation.set(-Math.PI / 2, 0, 0); await sim.step();
+    expect(sim.rays[0].visible).toBe(false);
+    await sim.event(0, "selectstart");
+    expect(sim.runtime().toolsRef.current.pupils.powered).toBe(true);
+    let pad: Object3D | undefined;
+    sim.state.scene.traverse(object => { if (!pad && object.userData.xrTeleport) pad = object; });
+    sim.rays[0].position.copy(pad!.getWorldPosition(new Vector3())).add(new Vector3(0, 1, 0));
+    await sim.step();
+    const before = sim.referenceOffsets.length;
+    expect(sim.rays[0].visible).toBe(false);
+    await sim.event(0, "selectstart"); // Duplicate events cannot change ownership.
+    expect(sim.runtime().slots[0].triggerRoute).toBe("tool");
+    await sim.event(0, "selectend");
+    expect(sim.referenceOffsets).toHaveLength(before);
+    await sim.step();
+    expect(sim.rays[0].visible).toBe(true);
+    await sim.event(0, "selectstart"); await sim.event(0, "selectend");
+    expect(sim.referenceOffsets).toHaveLength(before + 1);
   });
   it("recenters the clinic to the current headset yaw and preserves that orientation across floor moves", async () => {
     const sim = await setup();

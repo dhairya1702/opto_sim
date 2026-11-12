@@ -88,6 +88,12 @@ export function XRClinicRuntimeView({ runtime, active, preview = false, title = 
           </group>
         </group>)}
       </group>)}
+      <group ref={runtime.teleportMarker} visible={false} userData={{ xrIgnoreRay: true }}>
+        <mesh rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[.22, .30, 48]} />
+          <meshBasicMaterial color="#a9ffe5" depthWrite={false} />
+        </mesh>
+      </group>
       <group ref={hoverMarker} visible={false} userData={{ xrIgnoreRay: true, xrHoverOutline: true }}>
         {([.5, -.5] as const).map(y => <mesh key={`horizontal-${y}`} position={[0, y, .025]} renderOrder={1100}>
           <planeGeometry args={[1, .055]} /><meshBasicMaterial color="#a9ffe5" depthTest={false} depthWrite={false} />

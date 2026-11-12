@@ -1,11 +1,8 @@
 import { ArrowRight, BookOpenCheck, GraduationCap, Stethoscope } from "lucide-react";
-import { PatientAppearanceSelector } from "./PatientAppearanceSelector";
-import { useState } from "react";
 
 export type ExperienceMode = "practice" | "test";
 
 export function ModeSelection({ onSelect }: { onSelect: (mode: ExperienceMode) => void }) {
-  const [patientLoading, setPatientLoading] = useState(false);
   return (
     <main className="mode-selection">
       <header className="mode-brand">
@@ -18,9 +15,8 @@ export function ModeSelection({ onSelect }: { onSelect: (mode: ExperienceMode) =
         <h1 id="mode-title">How do you want to train?</h1>
         <p>Learn one clinical skill with guidance, or apply your knowledge in a complete patient encounter.</p>
       </section>
-      <PatientAppearanceSelector onLoading={setPatientLoading} />
       <section className="mode-grid" aria-label="Training modes">
-        <button className="mode-card practice" disabled={patientLoading} onClick={() => onSelect("practice")}>
+        <button className="mode-card practice" onClick={() => onSelect("practice")}>
           <span className="mode-card-icon"><GraduationCap size={30} /></span>
           <span className="mode-card-copy">
             <span className="eyebrow">LEARN & REPEAT</span>
@@ -29,7 +25,7 @@ export function ModeSelection({ onSelect }: { onSelect: (mode: ExperienceMode) =
           </span>
           <span className="mode-card-action">Open practice library <ArrowRight size={18} /></span>
         </button>
-        <button className="mode-card test" disabled={patientLoading} onClick={() => onSelect("test")}>
+        <button className="mode-card test" onClick={() => onSelect("test")}>
           <span className="mode-card-icon"><BookOpenCheck size={29} /></span>
           <span className="mode-card-copy">
             <span className="eyebrow">APPLY & DIAGNOSE</span>

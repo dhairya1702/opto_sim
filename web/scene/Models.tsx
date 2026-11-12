@@ -355,7 +355,7 @@ const DetailedPatient = lazy(() => import("./DetailedPatient").then(module => ({
 
 export function Patient({ xr = false }: { xr?: boolean }) {
   const appearance = usePatientAppearance();
-  if (!import.meta.env.DEV || appearance === "current") return <CurrentPatient xr={xr} />;
+  if (appearance === "current") return <CurrentPatient xr={xr} />;
   return <>
     <group position={[0, 0, -.7]}><PatientEyes xr={xr} skin="#a98066" /></group>
     <Suspense fallback={null}><DetailedPatient /></Suspense>

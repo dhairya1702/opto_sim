@@ -170,6 +170,7 @@ export function useXRClinicRuntime(options: Options) {
   const desktopAimRef = useRef<DesktopClinicAim>({ tool: null, action: "Aim at an instrument" });
   const [desktopAim, setDesktopAim] = useState<DesktopClinicAim>(desktopAimRef.current);
   const hoverMarker = useRef<Group>(null);
+  const teleportMarker = useRef<Group>(null);
   const workingOrigin = useMemo(() => new Vector3(), []);
   const baseSpace = useRef<XRReferenceSpace | null>(null);
   const physicalViewer = useRef<{ x: number; z: number; yaw: number } | null>(null);
@@ -297,6 +298,7 @@ export function useXRClinicRuntime(options: Options) {
 
   useFrame(({ camera }, dt, frame) => {
     rayFrame.current += 1;
+    if (teleportMarker.current) teleportMarker.current.visible = false;
     if (!activeRef.current) { frameValid.current = false; return; }
     const reference = gl.xr.getReferenceSpace();
     const visible = inputMode === "desktop" ? document.visibilityState !== "hidden" : gl.xr.getSession()?.visibilityState === "visible";
@@ -506,7 +508,13 @@ export function useXRClinicRuntime(options: Options) {
       setPickupHints(previous => (["left", "right"] as const).every(hand => consultationPickupLabel(previous[hand]) === consultationPickupLabel(hints[hand])) ? previous : hints);
     }
     let button: Object3D | null = null;
+    let teleportPad: Object3D | null = null;
     for (const slot of slots) {
+      // Held hands reveal a pointer only over a destination. An existing tool
+      // press keeps ownership until release, even when lowered over a ring.
+      if (inputMode === "xr" && !slot.ray.visible && slot.tracked && slot.triggerRoute !== "tool") {
+        slot.ray.visible = Boolean(ancestorData(rayHit(slot)?.object ?? null).teleport);
+      }
       if (!slot.ray.visible) continue;
       const hit = rayHit(slot);
       const beam = slot.ray.getObjectByName("clinic-pointer-beam"), dot = slot.ray.getObjectByName("clinic-pointer-dot");
@@ -516,12 +524,22 @@ export function useXRClinicRuntime(options: Options) {
       let object: Object3D | null = hit?.object ?? null;
       let hovered: Object3D | null = null;
       while (object) {
+        if (object.userData.xrTeleport && slot.triggerRoute !== "tool") {
+          teleportPad ??= object; hovered = object; break;
+        }
         if (object.userData.xrButton) { hovered = object; button ??= object; break; }
         object = object.parent;
       }
       if (dot) {
         dot.visible = Boolean(hovered && hit && hit.distance <= pointerReach);
         dot.position.set(0, 0, -length + .002);
+      }
+    }
+    if (teleportMarker.current) {
+      teleportMarker.current.visible = Boolean(teleportPad);
+      if (teleportPad) {
+        teleportPad.getWorldPosition(teleportMarker.current.position);
+        teleportMarker.current.position.y += .006;
       }
     }
     if (hoverMarker.current) {
@@ -925,14 +943,14 @@ export function useXRClinicRuntime(options: Options) {
       const selectStart = () => {
         if (!activeRef.current || !slot.hand || !slot.tracked) return;
         const id = toolInHand(toolsRef.current, slot.hand);
-        // A held instrument owns that hand's trigger. Wall/menu controls require
-        // the free hand so a board behind the patient cannot steal illumination.
+        // A fresh press on a floor ring can move a held hand. Other wall/menu
+        // controls still cannot steal the instrument's trigger.
         const hit = rayHitRef.current(slot, true);
         // A deliberately aimed physical selector is resolved as a control first;
         // selectEnd then enforces free-hand ownership and proximity.
         const hitData = ancestorData(hit?.object ?? null);
         const controlHit = Boolean(hitData.instrumentControl);
-        const pressed = pressConsultationTrigger(slot, Boolean(id) && !controlHit && !hitData.priorityPanel);
+        const pressed = pressConsultationTrigger(slot, Boolean(id) && !controlHit && !hitData.priorityPanel && !hitData.teleport);
         if (pressed === slot) return;
         Object.assign(slot, pressed);
         slot.pendingSelection = slot.triggerRoute === "panel"
@@ -985,7 +1003,7 @@ export function useXRClinicRuntime(options: Options) {
 
   return {
     tools, toolsRef, slots, objects, toolControls, findingsPanels, registerRaycastTarget, frameValid, scopeAperture, scopeApertureRef, cycleScopeAperture, scopeViewHand, scopeViewHandRef, closeScopeView, toggleScopeView, utilityOpen, closeUtilityPanel, toggleUtilityPanel, highlighted, pickupHints, returnedAt,
-    handlingMessage, setHandlingMessage, hoverMarker, placementMarkers, registerTool, updateTools, stopLights, resetClinic, closePanels,
+    handlingMessage, setHandlingMessage, hoverMarker, teleportMarker, placementMarkers, registerTool, updateTools, stopLights, resetClinic, closePanels,
     origin, direction, quaternion, workingPose, supportedWorkingPose, handStatus, pulseHand, teleport, recenterClinic, equipment, toolLabel, setToolPower,
     inputMode, desktopActiveHand, desktopAim, desktopTogglePickup, desktopAdjustment, setDesktopHeldPose,
   };

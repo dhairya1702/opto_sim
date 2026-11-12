@@ -114,7 +114,8 @@ export function PracticeVRClinic({ title, findingPosition, onClose, onDesktop, i
               onCreated={({ gl }) => { renderer.current = gl; gl.xr.enabled = true; gl.domElement.tabIndex = 0; gl.domElement.setAttribute("aria-label", "Practice clinic"); }} fallback={<PracticeWebGLFallback />}>
               {active && <>
                 {perfEnabled && <PerfFrameProbe />}
-                <ConsultationInterior xr={inputMode === "xr"} />
+                {/* The lesson runtime supplies its own instruments in both input modes. */}
+                <ConsultationInterior xr={inputMode === "xr"} showDesktopInstruments={false} />
                 <XRVoiceIndicator status={voiceStatus} />
                 <Controller active={inputMode === "desktop"} clinicControls={inputMode === "desktop"} pointerLock={inputMode === "desktop"} onTarget={() => undefined}
                   onInteract={id => setVisit(previous => ({ id, seq: (previous?.seq ?? 0) + 1 }))} visit={visit} />
