@@ -2481,3 +2481,15 @@ dialog.examination-stage {
   .bruckner-view, .hirschberg-view { min-height: 250px; padding: 25px 12px; gap: 25px; }
   .direction-grid { grid-template-columns: 1fr; }
 }
+
+.patient-appearance-selector {
+  max-width: 760px;
+  margin: 0 auto 24px;
+  padding: 16px 20px;
+  border: 1px solid #cbd9d3;
+  border-radius: 12px;
+  background: #f4f7f3;
+}
+.patient-appearance-selector label { display: block; font-weight: 600; margin-bottom: 8px; }
+.patient-appearance-selector select { padding: 8px 12px; max-width: 100%; }
+.patient-appearance-selector p { margin: 8px 0 0; font-size: .85rem; color: #53665d; }

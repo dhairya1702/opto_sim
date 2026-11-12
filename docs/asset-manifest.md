@@ -1,5 +1,12 @@
 # Asset and license manifest
 
+The isolated `output/mockups/patient-3d/` review prototype uses CC0 MakeHuman
+base/eye geometry, male shape targets, fair skin, short04 hair and
+male_casualsuit04 clothing. Sources, copyright holders, license copy and
+modifications are recorded in its `README.md` and `assets/LICENSE-CC0.txt`.
+The seated pose, eye shader, chair and shoes are original preview code.
+The selected subset is now copied to `public/assets/patient-prototype/` for the development-only shared-clinic patient adapter. Runtime modifications fit the face to canonical anchors and use the existing procedural ellipsoidal sclera, flat iris/pupil discs and blink overlays, plus original chair/shoes and mouth motion. Textures are unmodified; the license is retained beside the assets. No Sketchfab asset is used.
+
 All visual assets used by this prototype are served with the app or generated locally from its source. No hotlinked images, fonts, models or textures; no identifiable real patient imagery; no ripped models.
 
 | Asset | Source | Author | License | Modifications / limitations |
@@ -58,3 +65,5 @@ Maddox report clips were generated using the existing Google Gemini TTS pipeline
 Modified Thorington’s four exact `thoringtonPatientReport` outputs (both axes of both existing authored cases) were generated on 2026-10-22 with the existing Google Gemini TTS pipeline and Charon voice. Manifest: `voice-assets/manifest.json`; unmodified MP3s and hash/voice metadata: `public/audio/voice`; browser lookup: `shared/thoringtonReportAudio.json`. Playback is automatic and independent of microphone voice settings. Source is authored fictional case text; no real-person recording, voice clone or new third-party recording. The existing Google Cloud output terms apply.
 
 Worth four-dot’s seven distinct spoken reports were generated on 2026-10-23 with the same Google Gemini TTS pipeline and Charon voice. They cover fusion, OD and OS suppression, eso, exo, left hyper and right hyper; the eighth authored scenario changes from the existing fusion reply at near to the existing OS-suppression reply at distance. Manifest: `voice-assets/manifest.json`; unmodified MP3s and hash/voice metadata: `public/audio/voice`; browser lookup: `shared/worthReportAudio.json`. Playback begins when the existing gated report action captures a response, independently of microphone settings, without changing the displayed report or recording rules.
+
+Detailed-patient proportion refinement: original runtime body/face fitting, wider original chair armrests and repositioned original procedural shoes; hidden foot triangles are omitted. No new third-party assets or texture edits.

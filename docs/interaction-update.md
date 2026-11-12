@@ -360,3 +360,13 @@ The [voice routing audit](voice-routing-audit.md) covers every shared-clinic Pra
 The semantic fallback now uses `models.generateContent` with a strict JSON schema rather than a Live audio conversation. The configurable text model defaults to `gemini-3.1-flash-lite`; it receives the active lesson’s intent descriptions or Test instruction/history topic cues, and may return only a permitted intent/history selection, clarification or unsupported. Model-generated patient speech is removed. Invalid model output clarifies; provider failures clarify immediately; the existing eight-second timeout, one-turn authority, cancellation and explicit procedure gates remain.
 
 Local matching now defers corrections, negation, contradictory on/off or eye requests, quotations/hypotheticals and tool-light requests that might otherwise toggle the Test room. Moving-target gaze requests can map to following without the literal word “follow.” A separate 64-utterance synthetic stress corpus covers all lessons, lay phrasing, corrections and unsupported requests; its opt-in evaluator measures actual provider classifications separately from offline matching. No deployment is performed by the evaluator.
+
+## Experimental detailed clinic patient (2026-11-11)
+
+The development mode-selection screen now offers Current patient / New detailed patient. Assets are preloaded before selection becomes ready; a failed load retains the current patient. Selection is memory-only and is made outside an active attempt. The shared clinic in desktop Practice, Practice XR and Test uses this choice. Existing standalone examination views are unchanged.
+
+`Models.Patient` now mounts the shared `PatientEyes` component synchronously for either appearance. Controllers directly move the rendered iris/pupil meshes; the spherical rotation/shader adapter and hidden control nodes have been removed. Both appearances use the old sclera geometry, eye depths, pupil material and blink overlay/timing. Detailed skin is masked within the canonical oval eye openings, and its separate lid morph is disabled. Tool placement, reflex formulas and procedure timing are unchanged.
+
+Do not interpret successful software checks as clinical/optical or headset validation. Compare close-up cover/prism placement, reflex visibility, scope access and Quest frame times before enabling this outside development.
+
+The detailed patient's body fit now broadens the shoulders/upper torso by up to 20%, adds chest depth and slightly shortens the lower face, tapering smoothly back to the fixed eye anchors. Shoes enclose the feet at their actual seated height; hidden foot skin is omitted and armrests move outward to accommodate the broader arms. This is a visual proportion change only.

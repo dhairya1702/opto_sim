@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { RoundedBox } from "@react-three/drei";
 import { CanvasTexture, LinearFilter, RepeatWrapping, SRGBColorSpace, Vector3, Quaternion, type Mesh } from "three";
+import { usePatientAppearance } from "../interaction/patientAppearance";
+import { PatientEyes } from "./PatientEyes";
 import { perfCount } from "../perf/perfFlag";
-import { CLINIC_EYE_WHITE_RADII, CLINIC_IRIS_RADIUS, CLINIC_PUPIL_RADIUS } from "../interaction/clinicPatient";
 import { INSTRUMENT_KIT, INSTRUMENT_KIT_ROTATION_Y } from "../interaction/clinicLayout";
-import { PATIENT_BLINK_DURATION_SECONDS, patientBlinkClosure, patientBlinkDelay, patientMouthTarget } from "../interaction/patientAnimation";
+import { patientMouthTarget } from "../interaction/patientAnimation";
 import { useVoiceStatus } from "../voice/VoiceStatusContext";
 import { RetinoscopeModel } from "./RetinoscopeModel";
 import { ExamPaddleModel, MotilityTargetModel, NearCardModel, OphthalmoscopeModel, PenlightModel, TrialFrameModel } from "./ExamInstrumentModels";
@@ -313,36 +314,15 @@ function usePatientReducedMotion() {
   return reducedMotion;
 }
 
-function PatientFaceAnimation({ skin }: { skin: string }) {
+function PatientFaceAnimation() {
   const voiceStatus = useVoiceStatus();
   const reducedMotion = usePatientReducedMotion();
-  const eyelids = useRef<Array<Mesh | null>>([]);
   const mouthInterior = useRef<Mesh | null>(null);
   const lowerLip = useRef<Mesh | null>(null);
-  const nextBlinkAt = useRef<number | null>(null);
-  const blinkStartedAt = useRef<number | null>(null);
   const mouthOpen = useRef(0);
 
   useFrame(({ clock }, delta) => {
     const elapsed = clock.elapsedTime;
-    if (nextBlinkAt.current === null) nextBlinkAt.current = elapsed + patientBlinkDelay(Math.random());
-    if (blinkStartedAt.current === null && elapsed >= nextBlinkAt.current) blinkStartedAt.current = elapsed;
-
-    let closure = 0;
-    if (blinkStartedAt.current !== null) {
-      const blinkElapsed = elapsed - blinkStartedAt.current;
-      closure = patientBlinkClosure(blinkElapsed);
-      if (blinkElapsed >= PATIENT_BLINK_DURATION_SECONDS) {
-        blinkStartedAt.current = null;
-        nextBlinkAt.current = elapsed + patientBlinkDelay(Math.random());
-      }
-    }
-    eyelids.current.forEach(lid => {
-      if (!lid) return;
-      lid.visible = closure > 0.015;
-      lid.scale.y = Math.max(0.0001, 0.014 * closure);
-    });
-
     const target = patientMouthTarget(elapsed, voiceStatus === "speaking", reducedMotion);
     const blend = 1 - Math.exp(-Math.min(delta, 0.1) * (target > mouthOpen.current ? 18 : 13));
     mouthOpen.current += (target - mouthOpen.current) * blend;
@@ -355,20 +335,6 @@ function PatientFaceAnimation({ skin }: { skin: string }) {
   });
 
   return <>
-    {[-1, 1].map((side, index) => (
-      <mesh
-        key={side}
-        ref={node => { eyelids.current[index] = node; }}
-        position={[side * 0.048, 1.5, 0.135]}
-        scale={[0.03, 0.0001, 0.006]}
-        visible={false}
-        raycast={() => null}
-        userData={{ patientFaceAnimation: "blink" }}
-      >
-        <sphereGeometry args={[1, 24, 12]} />
-        <meshStandardMaterial color={skin} roughness={0.82} />
-      </mesh>
-    ))}
     <mesh ref={mouthInterior} position={[0, 1.393, 0.124]} scale={[0.027, 0.0001, 0.006]}
       visible={false} raycast={() => null} userData={{ patientFaceAnimation: "mouth" }}>
       <sphereGeometry args={[1, 24, 12]} />
@@ -385,7 +351,18 @@ function PatientFaceAnimation({ skin }: { skin: string }) {
   </>;
 }
 
+const DetailedPatient = lazy(() => import("./DetailedPatient").then(module => ({ default: module.DetailedPatient })));
+
 export function Patient({ xr = false }: { xr?: boolean }) {
+  const appearance = usePatientAppearance();
+  if (!import.meta.env.DEV || appearance === "current") return <CurrentPatient xr={xr} />;
+  return <>
+    <group position={[0, 0, -.7]}><PatientEyes xr={xr} skin="#a98066" /></group>
+    <Suspense fallback={null}><DetailedPatient /></Suspense>
+  </>;
+}
+
+function CurrentPatient({ xr = false }: { xr?: boolean }) {
   const skin = "#a97453",
     shirt = "#70899b",
     jeans = "#293d51";
@@ -409,15 +386,6 @@ export function Patient({ xr = false }: { xr?: boolean }) {
       {[-1, 1].map((side) => (
         <group key={side}>
           <Orb p={[side * 0.13, 1.48, 0]} s={[0.024, 0.04, 0.025]} c={skin} />
-          <Orb p={[side * 0.048, 1.5, 0.115]} s={CLINIC_EYE_WHITE_RADII} c="#e6d7c5" />
-          {xr ? <group position={[side * .048, 1.5, .129]}>
-            <group userData={{ consultationGaze: side < 0 ? "OD" : "OS" }}>
-              <mesh><circleGeometry args={[CLINIC_IRIS_RADIUS, 24]} /><meshStandardMaterial color="#695342" /></mesh>
-              <mesh position={[0, 0, .001]} userData={{ consultationPupil: side < 0 ? "OD" : "OS" }}>
-                <circleGeometry args={[CLINIC_PUPIL_RADIUS, 24]} /><meshBasicMaterial color="#17191a" />
-              </mesh>
-            </group>
-          </group> : <Orb p={[side * 0.048, 1.5, 0.127]} s={[0.008, 0.009, 0.004]} c="#292626" />}
           <Limb a={[side * 0.2, 1.18, -0.04]} b={[side * 0.3, 0.89, 0.03]} r={0.078} c={shirt} />
           <Limb a={[side * 0.3, 0.89, 0.03]} b={[side * 0.23, 0.78, 0.28]} r={0.05} c={skin} />
           <Orb p={[side * 0.23, 0.775, 0.29]} s={[0.055, 0.034, 0.08]} c={skin} />
@@ -426,7 +394,8 @@ export function Patient({ xr = false }: { xr?: boolean }) {
           <Orb p={[side * 0.17, 0.085, 0.55]} s={[0.09, 0.06, 0.16]} c="#303334" />
         </group>
       ))}
-      <PatientFaceAnimation skin={skin} />
+      <PatientEyes xr={xr} skin={skin} />
+      <PatientFaceAnimation />
       <Box p={[0, 0.28, 0.49]} s={[0.55, 0.035, 0.23]} c="#aeb9b9" radius={.015} />
     </group>
   );
