@@ -45,14 +45,14 @@ export async function clinic({ guided = false, selectedExamId, renderAdapter }: 
   vi.stubGlobal("requestAnimationFrame", () => 1);
   vi.stubGlobal("cancelAnimationFrame", () => undefined);
   vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener() {}, removeEventListener() {} }));
-  vi.stubGlobal("document", { createElement: () => {
+  vi.stubGlobal("document", Object.assign(new EventTarget(), { createElement: () => {
     const canvas = { width: 0, height: 0, renderedText: [] as string[], getContext: () => ({
       fillRect() { canvas.renderedText = []; },
       fillText(text: string) { canvas.renderedText.push(text); },
       measureText: (text: string) => ({ width: text.length * 20 }),
     }) };
     return canvas;
-  } });
+  } }));
   const viewerCamera = new THREE.PerspectiveCamera();
   viewerCamera.position.set(0, 1.6, .65);
   const rays = [new THREE.Group(), new THREE.Group()];

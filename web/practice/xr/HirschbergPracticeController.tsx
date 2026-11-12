@@ -221,7 +221,7 @@ export function HirschbergPracticeController({ active, preview = false, inputMod
   const findings = <>
         {captured && !correct && <Sign transparentBackground text={["Observation"]} p={[0, .28, .012]} size={[.36, .038]} bg="#102329" fg="#eefbf7" />}
         {!guided && !captured && <Sign transparentBackground text={[prompt]} p={[0, .245, 0]} size={[.70, .10]} bg="#102329" fg="#eefbf7" />}
-        <XRPanelButton label={fixation ? "FIXATION GIVEN ✓" : "LOOK AT THE LIGHT"} position={[0, .49, .02]} width={.70} onClick={giveFixation} />
+        {held && !fixation && !captured && <XRPanelButton label="LOOK AT THE LIGHT" position={[0, .49, .02]} width={.70} onClick={giveFixation} />}
         <XRPanelButton label="HELP" position={[-.18, .395, .02]} width={.34} onClick={toggleHelp} />
         <XRPanelButton label="EXIT VR" position={[.18, .395, .02]} width={.34} onClick={onExit} />
         {captured && !(checked && correct) && <>
@@ -252,9 +252,9 @@ export function HirschbergPracticeController({ active, preview = false, inputMod
       {menu && !recording && !help && <XRHeadPanel>
         <Box s={[.66, .54, .018]} c="#102329" radius={.012} />
         <Sign text={["HIRSCHBERG PRACTICE", `Finding ${findingPosition.current}/${findingPosition.total}`]} p={[0, .18, .012]} size={[.60, .12]} bg="#102329" fg="#eefbf7" />
-        <XRPanelButton label="LOOK AT THE LIGHT" position={[0, .06, .025]} width={.56} onClick={giveFixation} />
+        {held && !fixation && !captured && <XRPanelButton label="LOOK AT THE LIGHT" position={[0, .06, .025]} width={.56} onClick={giveFixation} />}
         <XRPanelButton label="HELP" position={[-.145, -.025, .025]} width={.27} onClick={toggleHelp} />
-        <XRPanelButton label="RECORD FINDING" position={[.145, -.025, .025]} width={.27} onClick={openRecording} />
+        {captured && !(checked && correct) && <XRPanelButton label="RECORD FINDING" position={[.145, -.025, .025]} width={.27} onClick={openRecording} />}
         <XRPanelButton label="RESET ATTEMPT" position={[-.145, -.11, .025]} width={.27} onClick={reset} />
         <XRPanelButton label="EXIT VR" position={[.145, -.11, .025]} width={.27} onClick={onExit} />
         <XRPanelButton label="CLOSE" position={[0, -.195, .025]} width={.56} onClick={() => setMenu(false)} />

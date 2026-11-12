@@ -2488,3 +2488,6 @@ dialog.examination-stage {
 .patient-appearance-selector label { display: block; font-weight: 600; margin-bottom: 8px; }
 .patient-appearance-selector select { padding: 8px 12px; width: 100%; max-width: 100%; }
 .patient-appearance-selector p { margin: 8px 0 0; font-size: .85rem; color: #53665d; }
+
+.load-recovery { max-width: 640px; margin: 2rem auto; padding: 1.5rem; color: #e8f4f1; background: #102329; border-radius: 12px; }
+.load-recovery button { margin: .5rem .5rem .5rem 0; }

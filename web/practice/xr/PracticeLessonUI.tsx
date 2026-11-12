@@ -7,9 +7,10 @@ import { XRClinicUtilityPanel, XRHeadPanel, XRPanelButton, XRSign } from "../../
 import { XRPanelClip } from "../../scene/XRPanelClip";
 import { wrapGuidedStepLines } from "../../scene/XRGuidedStepBubble";
 import { XRPracticeFindingsBoard } from "../../scene/XRPracticeFindingsBoard";
+import { visiblePracticeActions } from "../../interaction/practiceActionVisibility";
 import { useXRPracticeResult, XRPracticeResultHUD } from "../../scene/XRPracticeResultHUD";
 
-export type LessonAction = { voiceIds?: string[]; label: string; run: () => void; active?: boolean; disabled?: boolean };
+export type LessonAction = { voiceIds?: string[]; label: string; run: () => void; active?: boolean; disabled?: boolean; visible?: boolean };
 export type LessonField = { id: string; label: string; choices: readonly (readonly [string, string])[]; columns?: 2 | 3; number?: { min: number; max: number; unit: string; step?: number } };
 export function usePracticeLesson(onComplete: () => void) {
   const { result, showResult, clearResult } = useXRPracticeResult();
@@ -55,7 +56,7 @@ export function BatchLessonMirror({ mirror }: { mirror: BatchMirror }) {
     <p className="eyebrow">{mirror.title} · LIVE MIRROR</p><p role="status" data-voice-status>{mirror.status}</p>
     {mirror.voiceReport && <p aria-label="Current patient reply" data-voice-report>{mirror.voiceReport}</p>}
     {mirror.reportLines && mirror.reportLines.length > 0 && <div aria-label="Acquired observations">{mirror.reportLines.map((line, index) => <p key={index}>{line}</p>)}</div>}
-    {mirror.actions.map(action => <button key={action.label} className="secondary full" disabled={action.disabled} onClick={action.run}>{action.label}</button>)}
+    {visiblePracticeActions(mirror.actions, (mirror.ready && mirror.entryReady) || mirror.lesson.recorded).map(action => <button key={action.label} className="secondary full" onClick={action.run}>{action.label}</button>)}
     {mirror.entryReady && mirror.ready && !mirror.lesson.recorded && <>
       <p className="eyebrow">Observation</p>
       {mirror.fields.map(field => <label key={field.id}>{field.label}{field.number
@@ -84,6 +85,9 @@ export function PracticeLessonUI({ runtime, active, title, status, help, tools, 
   const boardLines = wrapGuidedStepLines((recordingOnlyBoard ? boardFindingLines : boardStatusLines) ?? [], 44);
   const [entryPage, setEntryPage] = useState(0);
   const showObservation = entryReady && ready && !lesson.recorded;
+  useEffect(() => {
+    if (lesson.mode === "settings" && (showObservation || lesson.recorded)) lesson.setMode("none");
+  }, [lesson.mode, lesson.setMode, showObservation, lesson.recorded]);
   useEffect(() => { if (!showObservation) setEntryPage(0); }, [showObservation]);
   if (!active) return null;
   const perPage = fields.some(field => field.number) ? 1 : 2;
@@ -91,11 +95,12 @@ export function PracticeLessonUI({ runtime, active, title, status, help, tools, 
   const pages = Math.ceil(fields.length / perPage);
   const page = Math.min(entryPage, pages - 1);
   const visibleFields = paginated ? fields.slice(page * perPage, page * perPage + perPage) : fields;
-  const menuRows = Math.ceil(actions.length / 2);
+  const currentActions = visiblePracticeActions(actions, showObservation || lesson.recorded);
+  const menuRows = Math.ceil(currentActions.length / 2);
   const menuBottom = -.28 - menuRows * .085;
   const menuHeight = .40 - menuBottom + .08;
   const recordRows = visibleFields.reduce((sum, field) => sum + fieldRows(field), 0);
-  const boardActions = directActions ?? actions.slice(0, 2);
+  const boardActions = visiblePracticeActions(directActions ?? currentActions, showObservation || lesson.recorded);
   const statusHeight = boardLines.length ? Math.max(.08, (boardLines.length + 1) * .045) : 0;
   const statusTop = boardReport ? .04 - boardActions.length * .09 : .285;
   const observationY = showObservation && recordingFieldTop !== undefined ? recordingFieldTop + .12 : boardReport ? statusTop - statusHeight - .045 : .35;
@@ -166,12 +171,12 @@ export function PracticeLessonUI({ runtime, active, title, status, help, tools, 
     {!wallOnly && lesson.mode === "menu" && <XRHeadPanel>
       <Box p={[0, (.40 + menuBottom - .08) / 2, 0]} s={[.72, menuHeight, .018]} c="#102329" radius={.012} />
       <XRSign text={recordingOnlyBoard ? [title] : [title, status]} p={[0, .29, .012]} size={[.66, .15]} bg="#102329" fg="#eefbf7" />
-      {actions.map((action, i) => <XRPanelButton key={action.label} label={action.label} position={[i % 2 ? .17 : -.17, .145 - Math.floor(i / 2) * .085, .025]} width={.32} active={action.active} disabled={action.disabled} onClick={action.run} />)}
-      {showObservation && <XRPanelButton label="OBSERVATION" position={[-.17, -.025 - Math.ceil(actions.length / 2) * .085, .025]} width={.32} onClick={() => lesson.setMode("record")} />}
-      <XRPanelButton label="HELP" position={[.17, -.025 - Math.ceil(actions.length / 2) * .085, .025]} width={.32} onClick={() => lesson.setMode("help")} />
-      <XRPanelButton label="RESET ATTEMPT" position={[-.17, -.11 - Math.ceil(actions.length / 2) * .085, .025]} width={.32} onClick={onReset} />
-      <XRPanelButton label={runtime.inputMode === "desktop" ? "EXIT CLINIC" : "EXIT VR"} position={[.17, -.11 - Math.ceil(actions.length / 2) * .085, .025]} width={.32} onClick={onExit} />
-      <XRPanelButton label="CLOSE" position={[0, -.195 - Math.ceil(actions.length / 2) * .085, .025]} width={.66} onClick={closePanels} />
+      {currentActions.map((action, i) => <XRPanelButton key={action.label} label={action.label} position={[i % 2 ? .17 : -.17, .145 - Math.floor(i / 2) * .085, .025]} width={.32} active={action.active} disabled={action.disabled} onClick={action.run} />)}
+      {showObservation && <XRPanelButton label="OBSERVATION" position={[-.17, -.025 - Math.ceil(currentActions.length / 2) * .085, .025]} width={.32} onClick={() => lesson.setMode("record")} />}
+      <XRPanelButton label="HELP" position={[.17, -.025 - Math.ceil(currentActions.length / 2) * .085, .025]} width={.32} onClick={() => lesson.setMode("help")} />
+      <XRPanelButton label="RESET ATTEMPT" position={[-.17, -.11 - Math.ceil(currentActions.length / 2) * .085, .025]} width={.32} onClick={onReset} />
+      <XRPanelButton label={runtime.inputMode === "desktop" ? "EXIT CLINIC" : "EXIT VR"} position={[.17, -.11 - Math.ceil(currentActions.length / 2) * .085, .025]} width={.32} onClick={onExit} />
+      <XRPanelButton label="CLOSE" position={[0, -.195 - Math.ceil(currentActions.length / 2) * .085, .025]} width={.66} onClick={closePanels} />
     </XRHeadPanel>}
     {lesson.mode === "help" && <XRHeadPanel>
       <Box s={[.76, .72, .018]} c="#102329" radius={.012} />
@@ -179,6 +184,6 @@ export function PracticeLessonUI({ runtime, active, title, status, help, tools, 
       <XRPanelButton label="CLOSE HELP" position={[-.17, -.26, .025]} width={.32} onClick={closePanels} />
       <XRPanelButton label={runtime.inputMode === "desktop" ? "EXIT CLINIC" : "EXIT VR"} position={[.17, -.26, .025]} width={.32} onClick={onExit} />
     </XRHeadPanel>}
-    {lesson.mode === "settings" && settings}
+    {lesson.mode === "settings" && !showObservation && !lesson.recorded && settings}
   </>;
 }

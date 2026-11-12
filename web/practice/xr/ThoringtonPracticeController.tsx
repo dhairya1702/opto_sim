@@ -152,11 +152,11 @@ export function ThoringtonPracticeController({ active, preview = false, inputMod
   const askAction = { voiceIds: ["fixate-target", "request-report"], label: run.reportInstruction ? "REPORTING INSTRUCTION GIVEN ✓" : "ASK ARUN TO FIXATE / REPORT", run: ask,
     active: run.reportInstruction, disabled: Boolean(run.capture) };
   const actions = [...(showAsk ? [askAction] : []),
-    { label: "FIT NEAR CORRECTION", run: () => placeAtSocket("subjective", "sensory-correction"), active: spatial.correctionFitted },
-    { label: `FIT MADDOX ROD · ${current.axis === "horizontal" ? "HORIZONTAL" : "VERTICAL"} GROOVES`,
+    { label: "FIT NEAR CORRECTION", visible: !run.capture && run.phase !== "complete" && !spatial.correctionFitted, run: () => placeAtSocket("subjective", "sensory-correction"), active: spatial.correctionFitted },
+    { visible: !run.capture && run.phase !== "complete" && spatial.correctionFitted && !(spatial.rodFitted && spatial.grooveDegrees === (current.axis === "horizontal" ? 0 : 90)), label: `FIT MADDOX ROD · ${current.axis === "horizontal" ? "HORIZONTAL" : "VERTICAL"} GROOVES`,
       run: () => placeAtSocket("maddox", current.axis === "horizontal" ? "sensory-maddox-horizontal" : "sensory-maddox-vertical"),
       active: spatial.rodFitted && spatial.grooveDegrees === (current.axis === "horizontal" ? 0 : 90) },
-    { label: "SUPPORT THORINGTON CARD AT 40 CM", run: () => placeAtSocket("thorington", "library-thorington-near"),
+    { label: "SUPPORT THORINGTON CARD AT 40 CM", visible: !run.capture && run.phase !== "complete" && spatial.correctionFitted && spatial.rodFitted && !(spatial.cardHeldOrSupported && spatial.cardDistanceCm >= 38 && spatial.cardDistanceCm <= 42), run: () => placeAtSocket("thorington", "library-thorington-near"),
       active: spatial.cardHeldOrSupported && spatial.cardDistanceCm >= 38 && spatial.cardDistanceCm <= 42 },
   ];
   const sideChoices: readonly ThoringtonReportedSide[] = current.axis === "horizontal" ? ["right", "left", "through"] : ["above", "below", "through"];
@@ -176,7 +176,7 @@ export function ThoringtonPracticeController({ active, preview = false, inputMod
   usePracticeVoiceProcedure("thorington", active && !preview, { actions, voiceReport: voiceReport });
   useEffect(() => { onMirror?.({ title: "Modified Thorington", voiceReport, findingPosition: { current: run.trialIndex + 1, total: 2 },
     status, ready: entryReady, entryReady, reportLines: records, fields, actions, lesson, reset, record, next: run.phase === "complete" ? nextCase : undefined, cancel });
-  }, [onMirror, voiceReport, status, entryReady, records.join("|"), run, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, runtime.tools]);
+  }, [onMirror, runtime.tools, voiceReport, status, entryReady, records.join("|"), run, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, runtime.tools]);
 
   return <>
     <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="MODIFIED THORINGTON" showWallInstructions={false}

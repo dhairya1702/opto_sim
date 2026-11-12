@@ -1,3 +1,4 @@
+import { createPatientAssetLoader } from "../interaction/patientAssetLoader";
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { RoundedBox } from "@react-three/drei";
@@ -8,30 +9,51 @@ import { patientMouthTarget } from "../interaction/patientAnimation";
 import { useVoiceStatus } from "../voice/VoiceStatusContext";
 
 type MeshData = { name: string; positions: number[]; uvs: number[]; indices: number[]; texture: string; center: number[] | null; blink?: number[] };
-const asset = "/assets/patient-prototype/";
+const asset = __PATIENT_ASSET_BASE__;
 let prepared: { data: MeshData[]; textures: Map<string, THREE.Texture> } | null = null;
-let pending: Promise<void> | null = null;
+// Fetches are abortable; object URLs and decoded-image listeners belong to this attempt.
+async function loadTexture(name: string, signal: AbortSignal): Promise<THREE.Texture> {
+  const response = await fetch(asset + name, { signal });
+  if (!response.ok) throw new Error("Patient texture is unavailable");
+  const blob = await response.blob();
+  signal.throwIfAborted();
+  const url = URL.createObjectURL(blob);
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      const clean = () => { image.onload = null; image.onerror = null; signal.removeEventListener("abort", abort); };
+      const abort = () => { clean(); image.src = ""; reject(signal.reason); };
+      image.onload = () => { clean(); resolve(image); };
+      image.onerror = () => { clean(); reject(new Error("Patient texture could not decode")); };
+      signal.addEventListener("abort", abort, { once: true });
+      if (signal.aborted) abort(); else image.src = url;
+    });
+    signal.throwIfAborted();
+    const texture = new THREE.Texture(image);
+    texture.needsUpdate = true;
+    texture.colorSpace = THREE.SRGBColorSpace; texture.anisotropy = 4;
+    return texture;
+  } finally { URL.revokeObjectURL(url); }
+}
 
-/** CPU-side asset cache; render instances own and dispose their GPU resources. */
-export function preloadDetailedPatient(): Promise<void> {
-  if (prepared) return Promise.resolve();
-  if (pending) return pending;
-  pending = (async () => {
-    const response = await fetch(asset + "patient.json");
+const loadAssets = createPatientAssetLoader<MeshData[], THREE.Texture>({
+  loadData: async signal => {
+    const response = await fetch(asset + "patient.json", { signal });
     if (!response.ok) throw new Error("Patient model is unavailable");
     const data = await response.json() as MeshData[];
     if (!Array.isArray(data) || !data.some(part => part.name === "skin")) throw new Error("Invalid patient model");
-    const textures = new Map<string, THREE.Texture>();
-    try {
-      // Sequential loading keeps failure cleanup complete and bounded.
-      for (const name of new Set(data.filter(part => !part.center).map(part => part.texture))) {
-        const texture = await new THREE.TextureLoader().loadAsync(asset + name);
-        texture.colorSpace = THREE.SRGBColorSpace; texture.anisotropy = 4; textures.set(name, texture);
-      }
-      prepared = { data, textures };
-    } catch (error) { textures.forEach(texture => texture.dispose()); throw error; }
-  })().finally(() => { pending = null; });
-  return pending;
+    return data;
+  },
+  names: data => data.filter(part => !part.center).map(part => part.texture),
+  loadResource: loadTexture,
+  dispose: texture => texture.dispose(),
+});
+
+/** CPU-side asset cache; render instances own and dispose their GPU resources. */
+export async function preloadDetailedPatient(): Promise<void> {
+  if (prepared) return;
+  const result = await loadAssets();
+  prepared = { data: result.data, textures: result.resources };
 }
 
 function transformPoints(points: number[]) {

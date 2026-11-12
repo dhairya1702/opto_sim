@@ -202,12 +202,12 @@ export function MaddoxPracticeController({ active, preview = false, inputMode = 
   const askAction = { voiceIds: ["fixate-target", "request-report"], label: run.reportInstruction ? "REPORTING INSTRUCTION GIVEN ✓" : "ASK ARUN TO FIXATE / REPORT", run: ask, active: run.reportInstruction, disabled: Boolean(run.capture) };
   const actions = [
     ...(showAsk ? [askAction] : []),
-    { label: "PRISM TRIGGER · CAPTURE", run: capture, disabled: Boolean(run.capture) },
-    { label: "FIT CORRECTION", run: () => placeAtSocket("subjective", "sensory-correction"), active: spatial.correctionFitted },
-    { label: `FIT MADDOX ROD · ${trial.axis === "horizontal" ? "HORIZONTAL" : "VERTICAL"} GROOVES`,
+    { label: "PRISM TRIGGER · CAPTURE", visible: run.reportInstruction && !run.capture && run.phase !== "complete", run: capture, disabled: Boolean(run.capture) },
+    { label: "FIT CORRECTION", visible: !run.capture && run.phase !== "complete" && !spatial.correctionFitted, run: () => placeAtSocket("subjective", "sensory-correction"), active: spatial.correctionFitted },
+    { visible: !run.capture && run.phase !== "complete" && spatial.correctionFitted && !(spatial.rodFitted && spatial.grooveDegrees === (trial.axis === "horizontal" ? 0 : 90)), label: `FIT MADDOX ROD · ${trial.axis === "horizontal" ? "HORIZONTAL" : "VERTICAL"} GROOVES`,
       run: () => placeAtSocket("maddox", trial.axis === "horizontal" ? "sensory-maddox-horizontal" : "sensory-maddox-vertical"),
       active: spatial.rodFitted && spatial.grooveDegrees === (trial.axis === "horizontal" ? 0 : 90) },
-    ...(trial.site === "distance" ? [{ label: "DOCK + SWITCH ON DISTANCE POINT", run: () => placeAtSocket("worth", "sensory-worth-distance", true),
+    ...(trial.site === "distance" ? [{ label: "DOCK + SWITCH ON DISTANCE POINT", visible: !run.capture && run.phase !== "complete" && spatial.correctionFitted && spatial.rodFitted && !(spatial.targetReady && spatial.targetPowered), run: () => placeAtSocket("worth", "sensory-worth-distance", true),
       active: spatial.targetReady && spatial.targetPowered }] : []),
   ];
   const fields: LessonField[] = [
@@ -221,7 +221,7 @@ export function MaddoxPracticeController({ active, preview = false, inputMode = 
   usePracticeVoiceProcedure("maddox", active && !preview, { actions, voiceReport: run.report || undefined });
   useEffect(() => { onMirror?.({ title: "Maddox rod", voiceReport: run.report || undefined, findingPosition: { current: run.trialIndex + 1, total: 4 }, status,
     ready: entryReady, entryReady, reportLines: records, fields, actions, lesson, reset, record, cancel });
-  }, [onMirror, status, entryReady, run, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, runtime.tools]);
+  }, [onMirror, runtime.tools, status, entryReady, run, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, runtime.tools]);
 
   return <>
     <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="MADDOX ROD" showWallInstructions={false} showInstructionalHighlights={guided}

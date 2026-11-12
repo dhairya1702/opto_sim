@@ -171,23 +171,23 @@ export function FourPrismPracticeController({ active, preview = false, inputMode
     if (alive.current) publish(setFourPrismTargetPower(runRef.current, powered));
   };
   // Keyboard-accessible alternative; immersive learners use the display's physical switch.
-  const targetAction: LessonAction = { label: "DISTANCE DISPLAY POWER", active: run.targetOn, disabled: !run.fitted || run.recorded,
+  const targetAction: LessonAction = { visible: !run.targetOn, label: "DISTANCE DISPLAY POWER", active: run.targetOn, disabled: !run.fitted || run.recorded,
     run: () => setTargetPower(!runRef.current.targetOn) };
-  const fixationAction: LessonAction = { voiceIds: ["fixate-target"], label: "LOOK AT THE ISOLATED LETTER", disabled: !run.fitted || !run.targetOn || run.recorded,
+  const fixationAction: LessonAction = { visible: run.phase === "fixation", voiceIds: ["fixate-target"], label: "LOOK AT THE ISOLATED LETTER", disabled: !run.fitted || !run.targetOn || run.recorded,
     active: run.fixationSetupRevision === run.setupRevision, run: fixate };
-  const withdrawAction: LessonAction = { label: "REMOVE PRISM", disabled: run.phase !== "withdraw",
+  const withdrawAction: LessonAction = { visible: inputMode === "desktop" && run.phase === "withdraw", label: "REMOVE PRISM", disabled: run.phase !== "withdraw",
     run: () => inputMode === "desktop"
       ? runtime.setDesktopHeldPose("four-prism", desktopPatientFacingPose("four-prism", [.4, 1.5, -.48]))
       : lesson.explain("In VR, move the prism clear of both eyes.") };
-  const repeatAction: LessonAction = { label: "REPEAT COMPARISON", disabled: !run.eyeCaptures.OD,
+  const repeatAction: LessonAction = { visible: run.phase === "record" && !run.completedRun, label: "REPEAT COMPARISON", disabled: !run.eyeCaptures.OD,
     run: () => { publish(repeatFourPrismComparison(runRef.current)); lesson.clearPending(); } };
-  const clearFixationAction: LessonAction = { label: "CLEAR FIXATION", disabled: run.fixationSetupRevision === null || run.recorded,
+  const clearFixationAction: LessonAction = { visible: false, label: "CLEAR FIXATION", disabled: run.fixationSetupRevision === null || run.recorded,
     run: () => { publish(clearFourPrismFixation(runRef.current)); lesson.clearPending(); } };
   const actions = [fixationAction, withdrawAction, repeatAction, clearFixationAction,
     ...(inputMode === "desktop" ? [
       targetAction,
-      { label: "FIT THE TRIAL FRAME", active: run.fitted, run: fitCorrection },
-      { label: `POSITION 4Δ BO BEFORE ${run.expectedEye}`, run: positionDesktopPrism },
+      { label: "FIT THE TRIAL FRAME", visible: !run.fitted, active: run.fitted, run: fitCorrection },
+      { label: `POSITION 4Δ BO BEFORE ${run.expectedEye}`, visible: run.fitted && run.targetOn && run.fixationSetupRevision === run.setupRevision && run.phase !== "withdraw" && !run.eyeCaptures[run.expectedEye], run: positionDesktopPrism },
     ] : [])];
   const directActions = run.phase === "fixation" ? (run.targetOn ? [fixationAction] : []) : run.phase === "withdraw" ? [withdrawAction] : run.completedRun ? [] : run.eyeCaptures.OD ? [repeatAction] : [];
   const fields = run.completedRun ? interpretationFields : observationFields;
@@ -235,7 +235,7 @@ export function FourPrismPracticeController({ active, preview = false, inputMode
 
   usePracticeVoiceProcedure("four-prism", active && !preview, { actions, voiceReport: undefined });
   useEffect(() => { onMirror?.({ title: "4Δ base-out", reportLines: history, status, ready, entryReady, fields, actions, lesson, reset, record, next, cancel }); },
-    [onMirror, history.join("|"), status, ready, entryReady, fields, run, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded]);
+    [onMirror, runtime.tools, history.join("|"), status, ready, entryReady, fields, run, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded]);
 
   return <>
     <XRClinicRuntimeView cleanHands runtime={runtime} active={active && !preview} preview={preview} title="4Δ BASE-OUT · PRACTICE"

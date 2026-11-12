@@ -90,10 +90,10 @@ export function MotilityPracticeController({ active, preview = false, inputMode 
     askedRef.current = true; setAsked(true);
   };
   const actions = [
-    { voiceIds: ["follow-target"], label: following ? "FOLLOWING ✓" : "FOLLOW LIGHT · HEAD STILL", run: () => { followingRef.current = true; setFollowing(true); }, active: following },
-    { voiceIds: ["report-symptoms"], label: asked ? "SYMPTOMS ASKED ✓" : "ASK ABOUT SYMPTOMS", run: ask, disabled: readout.count !== gazePositions.length, active: asked },
-    ...(inputMode === "desktop" ? [{ label: runtime.tools.pupils.powered ? "PENLIGHT ON ✓" : "SWITCH PENLIGHT ON", run: () => runtime.setToolPower("pupils", true), active: runtime.tools.pupils.powered },
-      { label: "MOVE TO NEXT GAZE", run: () => { desktopGaze.current = (desktopGaze.current + 1) % motilityHRoutePositions.length; runtime.setDesktopHeldPose("pupils", desktopPose()); } }] : []),
+    { voiceIds: ["follow-target"], label: following ? "FOLLOWING ✓" : "FOLLOW LIGHT · HEAD STILL", visible: runtime.tools.pupils.placement.kind === "held" && !following, run: () => { followingRef.current = true; setFollowing(true); }, active: following },
+    { voiceIds: ["report-symptoms"], label: asked ? "SYMPTOMS ASKED ✓" : "ASK ABOUT SYMPTOMS", visible: following && !asked && readout.count === gazePositions.length, run: ask, disabled: readout.count !== gazePositions.length, active: asked },
+    ...(inputMode === "desktop" ? [{ label: runtime.tools.pupils.powered ? "PENLIGHT ON ✓" : "SWITCH PENLIGHT ON", visible: runtime.tools.pupils.placement.kind === "held" && following && !runtime.tools.pupils.powered && readout.count < gazePositions.length, run: () => runtime.setToolPower("pupils", true), active: runtime.tools.pupils.powered },
+      { label: "MOVE TO NEXT GAZE", visible: runtime.tools.pupils.placement.kind === "held" && following && runtime.tools.pupils.powered && readout.count < gazePositions.length, run: () => { desktopGaze.current = (desktopGaze.current + 1) % motilityHRoutePositions.length; runtime.setDesktopHeldPose("pupils", desktopPose()); } }] : []),
   ];
   const ready = active && readout.count === gazePositions.length && asked;
   const status = !following ? "Ask the patient to follow the light and keep the head still."
@@ -119,7 +119,7 @@ export function MotilityPracticeController({ active, preview = false, inputMode 
   usePracticeVoiceProcedure("motility", active && !preview, { actions, voiceReport: asked ? scenario.patientReply : undefined });
   useEffect(() => { onMirror?.({ title: "Motility", findingPosition: { current: motilityScenarios.findIndex(item => item.id === scenario.id) + 1, total: motilityScenarios.length },
     voiceReport: asked ? scenario.patientReply : undefined, reportLines: asked ? [scenario.patientReply] : undefined, status, ready, entryReady: ready, fields, actions, lesson, reset, record, next: onNext }); },
-    [onMirror, status, ready, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, following, asked, scenario, onNext]);
+    [onMirror, runtime.tools, status, ready, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, following, asked, scenario, onNext]);
   return <>
     <XRClinicRuntimeView cleanHands runtime={runtime} active={active && !preview} preview={preview}
       title="MOTILITY · PRACTICE" showWallInstructions={!guided} />

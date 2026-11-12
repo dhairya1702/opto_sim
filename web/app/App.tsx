@@ -1,3 +1,4 @@
+import { EncounterTimer } from "../ui/EncounterTimer";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { XRSessionOwner } from "../interaction/xrSessionOwner";
 import { flushSync } from "react-dom";
@@ -71,7 +72,6 @@ export function TestEncounter({ onExit }: { onExit: () => void }) {
   const [sceneReady, setSceneReady] = useState(false);
   const [pointerMessage, setPointerMessage] = useState("");
   const [visit, setVisit] = useState<{ id: StationId; seq: number } | null>(null);
-  const [tick, setTick] = useState(Date.now());
   const canvas = useRef<HTMLCanvasElement | null>(null);
   const xrRenderer = useRef<WebGLRenderer | null>(null);
   const xrOwner = useRef(new XRSessionOwner());
@@ -346,10 +346,6 @@ export function TestEncounter({ onExit }: { onExit: () => void }) {
   useEffect(() => {
     if (xrActive && (panel || animation)) void endXR();
   }, [animation, endXR, panel, xrActive]);
-  useEffect(() => {
-    const timer = setInterval(() => setTick(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
   const perform = (id: string, config: ExamConfig, observation?: string) => {
     const key = `${id}:${config.eye}:${config.mode}`;
     const now = Date.now();
@@ -364,10 +360,6 @@ export function TestEncounter({ onExit }: { onExit: () => void }) {
       observation,
     });
   };
-  const seconds = session.startedAt
-    ? Math.max(0, Math.floor(((session.endedAt ?? tick) - session.startedAt) / 1000))
-    : 0;
-  const time = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
   const complete = new Set(session.results.map((r) => r.examId)).size;
   const inEncounter = session.phase === "encounter";
   const voiceWasInEncounter = useRef(false);
@@ -483,7 +475,7 @@ export function TestEncounter({ onExit }: { onExit: () => void }) {
         </span>
         <span>
           <Clock3 size={14} />
-          {time}
+          <EncounterTimer startedAt={session.startedAt} endedAt={session.endedAt} active={inEncounter} />
         </span>
         <span>
           <Check size={14} />

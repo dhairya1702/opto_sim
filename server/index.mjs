@@ -1,3 +1,4 @@
+import { mountStaticApp } from "./static.mjs";
 import express from "express";
 import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
@@ -17,8 +18,7 @@ export function createOptoServer(config = loadConfig(), overrides = {}) {
   app.post("/api/voice/access", (request, response) => issueVoiceAccess(request, response, config));
   // Developer-only frame log; 404 and silent unless PERF_LOG=1 (see server/perf.mjs).
   app.use("/api/perf", createPerfHandler({ enabled: perfLogEnabled() }));
-  app.use(express.static(dist, { index: false, maxAge: "1h", setHeaders: (response, path) => { if (path.includes("/assets/")) response.setHeader("cache-control", "public, max-age=31536000, immutable"); } }));
-  app.use((_request, response) => response.sendFile(join(dist, "index.html")));
+  mountStaticApp(app, dist);
   const wss = new WebSocketServer({ noServer: true, maxPayload: config.maxAudioFrameBytes });
   server.on("upgrade", (request, socket, head) => {
     const { reason, ip } = voiceUpgradeDecision({ url: request.url, headers: request.headers, remoteAddress: request.socket.remoteAddress }, config, sessions.size, sessionsByIp);

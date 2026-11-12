@@ -124,6 +124,8 @@ export function Sign({
   fit = false,
   transparentBackground = false,
   resolutionTier = "panel",
+  fontScale = 1,
+  fontWeight,
 }: {
   text: string[];
   p: V;
@@ -137,8 +139,10 @@ export function Sign({
   transparentBackground?: boolean;
   /** Pixel budget for fitted text. Reserve detail for labels that truly need it. */
   resolutionTier?: SignResolutionTier;
+  fontScale?: number;
+  fontWeight?: number;
 }) {
-  const key = JSON.stringify([text, bg, fg, fit, transparentBackground, fit ? size : null, resolutionTier]);
+  const key = JSON.stringify([text, bg, fg, fit, transparentBackground, fit ? size : null, resolutionTier, fontScale, fontWeight]);
   const texture = useMemo(() => {
     const cached = signTextureCache.get(key);
     if (cached) return cached.texture;
@@ -155,11 +159,12 @@ export function Sign({
     ctx.textAlign = "center";
     if (fit) ctx.textBaseline = "middle";
     text.forEach((t, i) => {
-      let fontSize = fit ? canvas.height / (text.length + 1) * .85 : text.length > 4 ? Math.max(24, 100 - i * 12) : 44;
-      ctx.font = `${fit ? 800 : 600} ${fontSize}px system-ui, sans-serif`;
+      let fontSize = fit ? canvas.height / (text.length + 1) * .85 * fontScale : text.length > 4 ? Math.max(24, 100 - i * 12) : 44;
+      const weight = fontWeight ?? (fit ? 800 : 600);
+      ctx.font = `${weight} ${fontSize}px system-ui, sans-serif`;
       if (fit) {
         fontSize *= Math.min(1, canvas.width * .92 / Math.max(1, ctx.measureText(t).width));
-        ctx.font = `800 ${fontSize}px system-ui, sans-serif`;
+        ctx.font = `${weight} ${fontSize}px system-ui, sans-serif`;
       }
       ctx.fillText(t, canvas.width / 2, (canvas.height * (i + 1)) / (text.length + 1));
     });

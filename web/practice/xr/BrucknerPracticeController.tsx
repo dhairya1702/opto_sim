@@ -87,14 +87,14 @@ export function BrucknerPracticeController({ active, preview = false, inputMode 
   useEffect(() => { clearAttempt(); }, [scenario, clearAttempt]);
   useEffect(() => { if (!active) reset(); }, [active, reset]);
   const actions = [
-    { voiceIds: ["fixate-light"], label: fixation ? "FIXATION GIVEN ✓" : "LOOK AT THE LIGHT", run: () => { setup.current.fixation = true; setFixation(true); }, active: fixation },
+    { voiceIds: ["fixate-light"], label: fixation ? "FIXATION GIVEN ✓" : "LOOK AT THE LIGHT", visible: runtime.tools.fundus.placement.kind === "held" && !fixation && !captured, run: () => { setup.current.fixation = true; setFixation(true); }, active: fixation },
     ...(inputMode === "desktop" ? [
-      { label: runtime.scopeAperture === "large" ? "LARGE APERTURE ✓" : "SELECT LARGE APERTURE", run: () => { if (runtime.scopeAperture !== "large") runtime.cycleScopeAperture(); }, active: runtime.scopeAperture === "large" },
-      { label: runtime.tools.fundus.powered ? "OPHTHALMOSCOPE ON ✓" : "SWITCH OPHTHALMOSCOPE ON", run: () => runtime.setToolPower("fundus", true), active: runtime.tools.fundus.powered },
-      { label: runtime.scopeViewHand ? "CLOSE SCOPE VIEW" : "OPEN SCOPE VIEW", run: () => { const placement = runtime.toolsRef.current.fundus.placement; if (placement.kind === "held") runtime.toggleScopeView(placement.hand); }, active: Boolean(runtime.scopeViewHand) },
+      { label: runtime.scopeAperture === "large" ? "LARGE APERTURE ✓" : "SELECT LARGE APERTURE", visible: fixation && !captured && runtime.scopeAperture !== "large", run: () => { if (runtime.scopeAperture !== "large") runtime.cycleScopeAperture(); }, active: runtime.scopeAperture === "large" },
+      { label: runtime.tools.fundus.powered ? "OPHTHALMOSCOPE ON ✓" : "SWITCH OPHTHALMOSCOPE ON", visible: fixation && !captured && runtime.scopeAperture === "large" && !runtime.tools.fundus.powered, run: () => runtime.setToolPower("fundus", true), active: runtime.tools.fundus.powered },
+      { label: runtime.scopeViewHand ? "CLOSE SCOPE VIEW" : "OPEN SCOPE VIEW", visible: !captured && fixation && runtime.tools.fundus.powered && runtime.scopeAperture === "large", run: () => { const placement = runtime.toolsRef.current.fundus.placement; if (placement.kind === "held") runtime.toggleScopeView(placement.hand); }, active: Boolean(runtime.scopeViewHand) },
     ] : []),
   ];
-  const boardActions = [actions[0]];
+  const boardActions = actions;
   const workingDistance = runtime.frameValid.current && runtime.tools.fundus.placement.kind === "held" && technique.distanceCm > 0
     ? `${Math.round(technique.distanceCm)} CM ${technique.distanceReady ? "✓" : "· TARGET 90–110 CM"}`
     : "— · TARGET 90–110 CM";
@@ -129,7 +129,7 @@ export function BrucknerPracticeController({ active, preview = false, inputMode 
   const next = () => { if (!lesson.awarded.current) return; clearAttempt(); onNext(); };
   usePracticeVoiceProcedure("bruckner", active && !preview, { actions, voiceReport: undefined });
   useEffect(() => { onMirror?.({ title: "Bruckner", status, ready: active && !preview && captured, entryReady: captured, fields, actions, lesson, reset, record, next }); },
-    [onMirror, status, technique.ready, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, scenario, fixation, runtime.scopeAperture, captured]);
+    [onMirror, runtime.tools, status, technique.ready, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, scenario, fixation, runtime.scopeAperture, captured]);
   return <>
     <XRClinicRuntimeView cleanHands runtime={runtime} active={active && !preview} preview={preview}
       title="BRUCKNER · PRACTICE" brucknerView={visual} showWallInstructions={!guided} />

@@ -1,3 +1,4 @@
+import { VOICE_SESSION_HIDDEN } from "./voiceVisibility";
 import { voiceAssetMatches, type VoiceAsset } from "./audioAssets";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { VoiceCommand, VoiceCommandResult, VoiceContext, VoiceStatus } from "./contracts";
@@ -149,6 +150,21 @@ export function useVoiceSession(context: VoiceContext, onCommand: (command: Voic
     catch { stop(); if (outputArbiter.isCurrent(outputTurn)) outputArbiter.stop(); return false; }
   }, [loadVoiceAssetIndex]);
 
+  const release = useCallback(() => {
+    ++generation.current; starting.current = null; manuallyMuted.current = true;
+    setCaptureActive(false);
+    startupAbort.current?.abort(); startupAbort.current = null;
+    if (reconnect.current !== undefined) clearTimeout(reconnect.current);
+    reconnect.current = undefined;
+    const ws = socket.current; socket.current = null; ws?.close(1000, "released");
+    stream.current?.getTracks().forEach(track => track.stop()); stream.current = null;
+    if (worklet.current) { worklet.current.port.onmessage = null; worklet.current.disconnect(); }
+    worklet.current = null; source.current?.disconnect(); source.current = null;
+    const audio = audioContext.current; audioContext.current = null;
+    if (audio) void audio.close().catch(() => undefined);
+    stopPlayback();
+  }, [setCaptureActive, stopPlayback]);
+
   const connect = useCallback(() => {
     if (!mounted.current || manuallyMuted.current || !stream.current) return;
     setCaptureActive(false);
@@ -182,7 +198,10 @@ export function useVoiceSession(context: VoiceContext, onCommand: (command: Voic
       if (data.type === "status") { if (data.voiceName) voiceName.current = data.voiceName; setStatus(data.status); if (data.message) setMessage(data.message); }
       if (data.type === "transcript") { arbiter.current.startTurn(data.turn); setPartial(data.final ? "" : data.text); }
       if (data.type === "audio") play(data.data, data.mimeType, data.output, data.turn);
-      if (data.type === "error") { setStatus("error"); setMessage(data.message); }
+      if (data.type === "error") {
+        if (data.code === "STT_UNAVAILABLE") { release(); setPartial(""); }
+        setStatus("error"); setMessage(data.message);
+      }
       if (data.type === "command" && validVoiceCommand(data.command)) {
         if (seenCommands.has(data.command.utteranceId) || !arbiter.current.startTurn(data.turn)) return;
         seenCommands.add(data.command.utteranceId);
@@ -203,33 +222,18 @@ export function useVoiceSession(context: VoiceContext, onCommand: (command: Voic
       if (!valid()) return;
       setCaptureActive(false);
       socket.current = null; stopPlayback();
-      if (event.code === 1000) { setStatus("error"); setMessage("Voice session ended. Select enable voice to reconnect."); return; }
+      if ([1000, 1007, 1008, 1009].includes(event.code)) { release(); setPartial(""); setStatus("error"); setMessage("Voice session ended. Select enable voice to reconnect."); return; }
       if (!stream.current) return;
       attempts.current += 1;
-      if (attempts.current > 5) { setStatus("error"); setMessage("Voice disconnected. Typed controls remain available; select reconnect to try again."); return; }
+      if (attempts.current > 5) { release(); setPartial(""); setStatus("error"); setMessage("Voice disconnected. Typed controls remain available; select reconnect to try again."); return; }
       setStatus("reconnecting");
       const delay = Math.min(8000, 500 * 2 ** (attempts.current - 1));
       reconnect.current = window.setTimeout(connect, delay);
     });
-  }, [play, playIndexedAsset, setCaptureActive, stopPlayback]);
-
-  const release = useCallback(() => {
-    ++generation.current; starting.current = null; manuallyMuted.current = true;
-    setCaptureActive(false);
-    startupAbort.current?.abort(); startupAbort.current = null;
-    if (reconnect.current !== undefined) clearTimeout(reconnect.current);
-    reconnect.current = undefined;
-    const ws = socket.current; socket.current = null; ws?.close(1000, "released");
-    stream.current?.getTracks().forEach(track => track.stop()); stream.current = null;
-    if (worklet.current) { worklet.current.port.onmessage = null; worklet.current.disconnect(); }
-    worklet.current = null; source.current?.disconnect(); source.current = null;
-    const audio = audioContext.current; audioContext.current = null;
-    if (audio) void audio.close().catch(() => undefined);
-    stopPlayback();
-  }, [setCaptureActive, stopPlayback]);
+  }, [play, playIndexedAsset, release, setCaptureActive, stopPlayback]);
 
   const enable = useCallback(async () => {
-    if (!mounted.current || starting.current !== null) return false;
+    if (!mounted.current || starting.current !== null || document.visibilityState === "hidden") return false;
     release();
     const token = generation.current;
     starting.current = token; manuallyMuted.current = false;
@@ -296,8 +300,15 @@ export function useVoiceSession(context: VoiceContext, onCommand: (command: Voic
   }, [release]);
   useEffect(() => {
     const suspend = () => mute();
+    const visibility = () => { if (document.visibilityState === "hidden") suspend(); };
     window.addEventListener("pagehide", suspend);
-    return () => window.removeEventListener("pagehide", suspend);
+    window.addEventListener(VOICE_SESSION_HIDDEN, suspend);
+    document.addEventListener("visibilitychange", visibility);
+    return () => {
+      window.removeEventListener("pagehide", suspend);
+      window.removeEventListener(VOICE_SESSION_HIDDEN, suspend);
+      document.removeEventListener("visibilitychange", visibility);
+    };
   }, [mute]);
 
   return { enabled: VOICE_AVAILABLE, status, message, partial, enable, mute, reconnect: connect };

@@ -74,7 +74,7 @@ async function lesson(kind: "bruckner" | "motility" | "cover-uncover" | "alterna
 describe("new Practice lessons in the shared clinic", () => {
   it("keeps Bruckner eyes visible during setup, lights pupils only with beam coverage, and still gates completion", async () => {
     const sim = await lesson("bruckner");
-    expect(sim.button("LOOK AT THE LIGHT")).toBeDefined();
+    expect(sim.controls().some(control => control.userData.xrLabel === "LOOK AT THE LIGHT")).toBe(false);
     expect(sim.controls().some(control => control.userData.xrLabel === "RECENTER CLINIC")).toBe(false);
     await sim.scope(1);
     expect(["HELP", "RECENTER CLINIC", "EXIT VR"].every(label => sim.controls().some(control => control.userData.xrLabel === label))).toBe(true);
@@ -253,7 +253,7 @@ describe("new Practice lessons in the shared clinic", () => {
     expect(guideRings.every(ring => ring.scale.x === .038 && ring.scale.y === .027)).toBe(true);
     expect(sim.labels()).not.toContain("○ Up");
     expect(sim.labels()).toContain("FOLLOW LIGHT · HEAD STILL");
-    expect(sim.labels()).toContain("ASK ABOUT SYMPTOMS");
+    expect(sim.labels()).not.toContain("ASK ABOUT SYMPTOMS");
     expect(sim.labels()).not.toContain("HIDE GAZE GUIDE");
     expect(sim.labels()).toContain("RESET");
     expect(sim.labels()).not.toContain("RECENTER");

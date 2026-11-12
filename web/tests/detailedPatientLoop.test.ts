@@ -9,9 +9,18 @@ import { CLINIC_PUPIL_RADIUS } from "../interaction/clinicPatient";
 let dispose: (() => Promise<void>) | undefined;
 beforeAll(async () => {
   const data = JSON.parse(readFileSync(new URL("../../public/assets/patient-prototype/patient.json", import.meta.url), "utf8"));
-  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => data })));
-  const loader = vi.spyOn(THREE.TextureLoader.prototype, "loadAsync").mockResolvedValue(new THREE.Texture());
-  await preloadDetailedPatient(); loader.mockRestore(); vi.unstubAllGlobals();
+  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => data, blob: async () => new Blob(["image"]) })));
+  vi.stubGlobal("Image", class {
+    width = 16; height = 16;
+    onload: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    set src(value: string) { if (value) queueMicrotask(() => this.onload?.()); }
+  });
+  const revoke = vi.spyOn(URL, "revokeObjectURL");
+  try {
+    await preloadDetailedPatient();
+    expect(revoke).toHaveBeenCalledTimes(new Set(data.filter((part: { center: unknown }) => !part.center).map((part: { texture: string }) => part.texture)).size);
+  } finally { revoke.mockRestore(); vi.unstubAllGlobals(); }
 });
 afterEach(async () => { await dispose?.(); dispose = undefined; setPatientAppearance("current"); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 

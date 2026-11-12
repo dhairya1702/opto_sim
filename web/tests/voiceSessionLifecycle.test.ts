@@ -192,3 +192,85 @@ describe("mounted voice session lifecycle", () => {
     await vi.waitFor(() => expect(indexRequests).toBe(2));
   });
 });
+
+describe("hidden and terminal voice shutdown", () => {
+  it.each(["visibilitychange", "opto-voice-session-hidden"])("releases capture on %s and requires explicit re-enable", async event => {
+    const sim = await setup(); await sim.enable();
+    await act(async () => {
+      if (event === "visibilitychange") {
+        Object.assign(document, { visibilityState: "hidden" });
+        document.dispatchEvent(new Event(event));
+      } else sim.windowMock.dispatchEvent(new Event(event));
+    });
+    expect(sim.track.stop).toHaveBeenCalledTimes(1);
+    expect(sim.audioClose).toHaveBeenCalledTimes(1);
+    expect(sim.voice().status).toBe("muted");
+    await act(async () => {
+      Object.assign(document, { visibilityState: "visible" });
+      document.dispatchEvent(new Event("visibilitychange"));
+      sim.sockets[0].message(reply(1));
+    });
+    expect(sim.sockets).toHaveLength(1); expect(sim.play).not.toHaveBeenCalled();
+    await sim.enable(); expect(sim.sockets).toHaveLength(2);
+    expect(sim.voice().status).toBe("listening");
+  });
+  it("releases permission arriving after a tab is hidden", async () => {
+    const sim = await setup(), permission = deferred<typeof sim.media>();
+    sim.getUserMedia.mockImplementation(() => permission.promise);
+    let pending!: Promise<boolean>;
+    await act(async () => { pending = sim.voice().enable(); });
+    await act(async () => {
+      Object.assign(document, { visibilityState: "hidden" });
+      document.dispatchEvent(new Event("visibilitychange"));
+      permission.resolve(sim.media);
+      expect(await pending).toBe(false);
+    });
+    expect(sim.track.stop).toHaveBeenCalledTimes(1);
+    expect(sim.sockets).toHaveLength(0);
+  });
+  it("releases media when the server ends a session normally", async () => {
+    const sim = await setup(); await sim.enable();
+    await act(async () => sim.sockets[0].dispatchEvent(Object.assign(new Event("close"), { code: 1000 })));
+    expect(sim.track.stop).toHaveBeenCalledTimes(1);
+    expect(sim.audioClose).toHaveBeenCalledTimes(1);
+    expect(sim.voice().status).toBe("error");
+    expect(sim.voice().message).toContain("ended");
+    await sim.enable(); expect(sim.sockets).toHaveLength(2);
+  });
+  it("releases media after bounded reconnect attempts are exhausted", async () => {
+    const sim = await setup(); await sim.enable(); vi.useFakeTimers();
+    sim.windowMock.setTimeout = globalThis.setTimeout;
+    for (let index = 0; index < 6; index++) {
+      await act(async () => sim.sockets.at(-1)?.dispatchEvent(Object.assign(new Event("close"), { code: 1006 })));
+      if (index < 5) await act(async () => { vi.advanceTimersByTime(8000); });
+    }
+    expect(sim.track.stop).toHaveBeenCalledTimes(1);
+    expect(sim.audioClose).toHaveBeenCalledTimes(1);
+    expect(sim.voice().status).toBe("error");
+    const count = sim.sockets.length;
+    await act(async () => { vi.advanceTimersByTime(60000); });
+    expect(sim.sockets).toHaveLength(count);
+  });
+});
+
+it("releases a terminal transcription failure but keeps recoverable playback failures connected", async () => {
+  const sim = await setup(); await sim.enable();
+  await act(async () => sim.sockets[0].message({ type: "error", code: "TTS_UNAVAILABLE", message: "Audio unavailable" }));
+  expect(sim.track.stop).not.toHaveBeenCalled();
+  await act(async () => sim.sockets[0].message({ type: "error", code: "STT_UNAVAILABLE", message: "Transcription unavailable" }));
+  expect(sim.track.stop).toHaveBeenCalledTimes(1);
+  expect(sim.voice().message).toBe("Transcription unavailable");
+});
+
+it("cancels worklet startup when the tab is hidden", async () => {
+  const sim = await setup(), worklet = deferred<void>(); sim.addModule.mockImplementation(() => worklet.promise);
+  let pending!: Promise<boolean>; await act(async () => { pending = sim.voice().enable(); });
+  await act(async () => {
+    Object.assign(document, { visibilityState: "hidden" });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  expect(sim.track.stop).toHaveBeenCalledTimes(1);
+  expect(sim.audioClose).toHaveBeenCalledTimes(1);
+  await act(async () => { worklet.resolve(); expect(await pending).toBe(false); });
+  expect(sim.sockets).toHaveLength(0);
+});

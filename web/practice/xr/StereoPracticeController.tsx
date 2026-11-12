@@ -206,8 +206,8 @@ export function StereoPracticeController({ active, preview = false, inputMode = 
                       : "Response confirmed · turn one page.";
   const fullStatus = `${status}${message ? ` · ${message}` : ""}${restartNotice ? ` · ${restartNotice}` : ""}`;
 
-  const fixationAction: LessonAction = { voiceIds: ["fixate-target"], label: "LOOK AT THE CIRCLES", active: Boolean(run.fixation), disabled: !spatial.ready || Boolean(run.capture) || lesson.recorded, run: fixate };
-  const askAction: LessonAction = { voiceIds: ["request-report"], label: "ASK WHICH CIRCLE IS RAISED", disabled: !spatial.ready || !run.fixation || Boolean(run.capture) || lesson.recorded, run: ask };
+  const fixationAction: LessonAction = { visible: !run.fixation, voiceIds: ["fixate-target"], label: "LOOK AT THE CIRCLES", active: Boolean(run.fixation), disabled: !spatial.ready || Boolean(run.capture) || lesson.recorded, run: fixate };
+  const askAction: LessonAction = { visible: !run.reply, voiceIds: ["request-report"], label: "ASK WHICH CIRCLE IS RAISED", disabled: !spatial.ready || !run.fixation || Boolean(run.capture) || lesson.recorded, run: ask };
   const markActions: LessonAction[] = stereoCircleNames.map(circle => ({ label: circle.toUpperCase(), active: run.markedCircle === circle,
     disabled: !spatial.ready || !run.reply || run.confirmed || lesson.recorded, run: () => mark(circle) }));
   const turnAction: LessonAction = { label: "TURN PAGE", disabled: !spatial.ready || !run.confirmed || Boolean(run.capture) || lesson.recorded, run: nextPage };
@@ -221,9 +221,9 @@ export function StereoPracticeController({ active, preview = false, inputMode = 
       revision: (tool.revision ?? 0) + 1 } });
   };
   if (inputMode === "desktop") actions.push(
-    { label: "FIT NEAR CORRECTION", active: spatial.correction, run: () => placeAtSocket("subjective", "sensory-correction") },
-    { label: "FIT POLARISED GLASSES", active: spatial.filters, run: () => placeAtSocket("polarised", "sensory-polarised") },
-    { label: "SUPPORT BOOKLET AT 40 CM", active: spatial.supported && spatial.ready, run: () => placeAtSocket("stereo", "sensory-stereo-near") },
+    { label: "FIT NEAR CORRECTION", visible: !spatial.correction, active: spatial.correction, run: () => placeAtSocket("subjective", "sensory-correction") },
+    { label: "FIT POLARISED GLASSES", visible: spatial.correction && !spatial.filters, active: spatial.filters, run: () => placeAtSocket("polarised", "sensory-polarised") },
+    { label: "SUPPORT BOOKLET AT 40 CM", visible: spatial.correction && spatial.filters && !spatial.ready, active: spatial.supported && spatial.ready, run: () => placeAtSocket("stereo", "sensory-stereo-near") },
   );
   const directActions = !spatial.ready ? [] : !run.fixation ? [fixationAction] : !run.reply ? [askAction]
     : !run.confirmed ? markActions : [];
@@ -242,7 +242,7 @@ export function StereoPracticeController({ active, preview = false, inputMode = 
   usePracticeVoiceProcedure("stereopsis", active && !preview, { actions, voiceReport: voiceReport });
   useEffect(() => {
     onMirror?.({ title: "Stereopsis", voiceReport, reportLines: history, status: fullStatus, ready, entryReady, fields, actions, lesson, reset, record, cancel });
-  }, [onMirror, voiceReport, history.join("|"), fullStatus, ready, entryReady, run, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded]);
+  }, [onMirror, runtime.tools, voiceReport, history.join("|"), fullStatus, ready, entryReady, run, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded]);
 
   const book = consultationToolDefinition("stereo");
   const pageTurnEnabled = active && !preview && spatial.ready && run.confirmed && !run.capture && !lesson.recorded;

@@ -6,9 +6,19 @@ import type { ConsultationToolId } from "../interaction/xrConsultationTools";
 import type { XRClinicRuntime } from "../interaction/useXRClinicRuntime";
 
 export function XRSign(props: Parameters<typeof RoomSign>[0]) {
+  const wall = useContext(XRGlassButtons);
   const size = props.size ?? [.7, .23];
   const resolutionTier = props.resolutionTier ?? (size[0] >= .45 || size[1] >= .12 ? "panel" : "compact");
-  return <RoomSign {...props} fit resolutionTier={resolutionTier} />;
+  return <RoomSign fontScale={wall ? (props.text.length > 1 ? 1.1 : 1.35) : 1} fontWeight={wall ? 600 : undefined} {...props} fit resolutionTier={wall ? "panel" : resolutionTier} />;
+}
+
+/** Preserve every word, splitting long wall labels at the most balanced space. */
+export function wallButtonLines(label: string, width: number): string[] {
+  if (label.length <= Math.floor((width - .035) / .014)) return [label];
+  const spaces = [...label.matchAll(/\s+/g)].map(match => match.index);
+  if (!spaces.length) return [label];
+  const split = spaces.reduce((best, index) => Math.abs(index - label.length / 2) < Math.abs(best - label.length / 2) ? index : best);
+  return [label.slice(0, split).trim(), label.slice(split).trim()];
 }
 
 export function XRRoundedPanel({ width, height, radius, color, topColor, opacity = 1, position = [0, 0, 0], rotation = [0, 0, 0], userData }: {
@@ -97,13 +107,14 @@ export function XRPanelButton({ label, position, width = .5, active = false, dis
   recordTool?: ConsultationToolId;
 }) {
   const glass = useContext(XRGlassButtons);
+  const lines = glass ? wallButtonLines(label, width) : [label];
   const background = disabled ? "#334346" : active ? "#0d725f" : "#214149";
   return <group position={position} userData={{ xrAction: disabled ? undefined : onClick, xrButton: true, xrWidth: width, xrLabel: label, xrRecordTool: recordTool, xrGlassButton: glass }}>
     {glass ? <>
       <XRRoundedPanel width={width} height={.065} radius={.0325} color={disabled ? "#40534b" : "#557769"} topColor={disabled ? "#4d6156" : "#a3c3b6"} />
       <XRRoundedPanel width={width - .004} height={.061} radius={.0305} color={disabled ? "#2c3c34" : active ? "#205d48" : "#203e32"} topColor={disabled ? "#3b4d43" : active ? "#548e73" : "#57786a"} position={[0, 0, .001]} />
     </> : <Box s={[width, .065, .018]} c={background} radius={.008} />}
-    <XRSign transparentBackground={glass} text={[label]} p={[0, 0, .011]} size={[width - (glass ? .035 : .018), .052]} bg={background} fg={disabled ? "#94a99c" : "#f7fffc"} />
+    <XRSign transparentBackground={glass} text={lines} p={[0, 0, .011]} size={[width - (glass ? .035 : .018), glass ? .060 : .052]} fontScale={glass ? (lines.length > 1 ? 1.1 : 1.45) : 1} bg={background} fg={disabled ? "#94a99c" : "#f7fffc"} />
     {active && <mesh position={[-width / 2 + .014, 0, .013]} userData={{ xrSelectedMarker: true }}>
       <planeGeometry args={[.006, .038]} /><meshBasicMaterial color="#a9ffe5" />
     </mesh>}

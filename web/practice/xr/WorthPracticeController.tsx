@@ -149,7 +149,7 @@ export function WorthPracticeController({ active, preview = false, inputMode = "
     : technique.endpoint && fixationEndpoint !== technique.endpoint ? `Ask Arun to look at the ${technique.endpoint === "near" ? "near" : "mirrored distance"} target.`
     : `${conditionLabel} · ask count, colours and positions`) + ` · ${history}${restartNotice ? ` · ${restartNotice}` : ""}${audioMessage ? ` · ${audioMessage}` : ""}`;
   const requestedPower = !runtime.tools.worth.powered;
-  const powerAction: LessonAction = { voiceIds: [requestedPower ? "target-on" : "target-off"], label: requestedPower ? "SWITCH TARGET ON" : "SWITCH TARGET OFF", active: runtime.tools.worth.powered, disabled: lesson.recorded,
+  const powerAction: LessonAction = { voiceIds: [requestedPower ? "target-on" : "target-off"], label: requestedPower ? "SWITCH TARGET ON" : "SWITCH TARGET OFF", visible: !captured && !runtime.tools.worth.powered && isPatientFitted(runtime.tools, "subjective") && isPatientFitted(runtime.tools, "red-green"), active: runtime.tools.worth.powered, disabled: lesson.recorded,
     run: () => setPower(requestedPower) };
   const placeAtSocket = (id: ConsultationToolId, socketId: string) => {
     const socket = sensorySockets("worth").find(candidate => candidate.tool === id && candidate.id === socketId);
@@ -159,20 +159,20 @@ export function WorthPracticeController({ active, preview = false, inputMode = "
       placement: { kind: "socket", position: socket.position, rotation: socket.rotation, socketId: socket.id, fittingLayer: socket.fittingLayer },
       revision: (tool.revision ?? 0) + 1 } });
   };
-  const fixationAction: LessonAction = { voiceIds: ["fixate-target"], label: fixationEndpoint === technique.endpoint && fixationEndpoint !== null ? "LOOKING AT TARGET ✓" : "LOOK AT THE TARGET",
+  const fixationAction: LessonAction = { visible: !captured && fixationEndpoint !== technique.endpoint, voiceIds: ["fixate-target"], label: fixationEndpoint === technique.endpoint && fixationEndpoint !== null ? "LOOKING AT TARGET ✓" : "LOOK AT THE TARGET",
     active: fixationEndpoint === technique.endpoint && fixationEndpoint !== null,
     disabled: !technique.setupReady || !technique.endpoint || lesson.recorded, run: fixate };
-  const reportAction: LessonAction = { voiceIds: ["request-report"], label: "ASK COUNT, COLOURS AND POSITIONS", disabled: !technique.ready || lesson.recorded, run: askFresh };
+  const reportAction: LessonAction = { visible: !captured, voiceIds: ["request-report"], label: "ASK COUNT, COLOURS AND POSITIONS", disabled: !technique.ready || lesson.recorded, run: askFresh };
   const actions: LessonAction[] = [
     powerAction,
     fixationAction,
     reportAction,
-    { label: "NEW PATIENT PATTERN", run: next },
+    { label: "NEW PATIENT PATTERN", visible: false, run: next },
     ...(inputMode === "desktop" ? [
-      { label: "FIT TRIAL FRAME", active: isPatientFitted(runtime.tools, "subjective"), run: () => placeAtSocket("subjective", "sensory-correction") },
-      { label: "FIT RED / GREEN GLASSES", active: isPatientFitted(runtime.tools, "red-green"), run: () => placeAtSocket("red-green", "sensory-red-green") },
-      { label: "PLACE TARGET · NEAR 40 CM", active: technique.endpoint === "near", run: () => placeAtSocket("worth", "sensory-worth-near") },
-      { label: "PLACE TARGET · MIRRORED DISTANCE", active: technique.endpoint === "distance", run: () => placeAtSocket("worth", "sensory-worth-distance") },
+      { label: "FIT TRIAL FRAME", visible: !isPatientFitted(runtime.tools, "subjective"), active: isPatientFitted(runtime.tools, "subjective"), run: () => placeAtSocket("subjective", "sensory-correction") },
+      { label: "FIT RED / GREEN GLASSES", visible: isPatientFitted(runtime.tools, "subjective") && !isPatientFitted(runtime.tools, "red-green"), active: isPatientFitted(runtime.tools, "red-green"), run: () => placeAtSocket("red-green", "sensory-red-green") },
+      { label: "PLACE TARGET · NEAR 40 CM", visible: !captured && !records.near && isPatientFitted(runtime.tools, "red-green") && technique.endpoint !== "near", active: technique.endpoint === "near", run: () => placeAtSocket("worth", "sensory-worth-near") },
+      { label: "PLACE TARGET · MIRRORED DISTANCE", visible: !captured && !records.distance && isPatientFitted(runtime.tools, "red-green") && technique.endpoint !== "distance", active: technique.endpoint === "distance", run: () => placeAtSocket("worth", "sensory-worth-distance") },
     ] : []),
   ];
   const ready = active && !preview && Boolean(captured?.endpoint && !records[captured.endpoint]);
@@ -186,7 +186,7 @@ export function WorthPracticeController({ active, preview = false, inputMode = "
   usePracticeVoiceProcedure("worth", active && !preview, { actions, voiceReport: voiceReport });
   useEffect(() => { onMirror?.({ title: "Worth four dot", voiceReport, reportLines: Object.values(records).map(record => `${record.capture.endpoint}: ${record.capture.report} Entered ${record.submittedCount} dots · ${record.submittedInterpretation}`), findingPosition: { current: index + 1, total: worthCases.length }, status, ready,
     entryReady: ready, fields, actions, lesson, reset, record, next, cancel }); },
-    [onMirror, status, ready, technique.ready, technique.setupReady, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, index, runtime.tools, voiceReport]);
+    [onMirror, runtime.tools, status, ready, technique.ready, technique.setupReady, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, index, runtime.tools, voiceReport]);
   return <>
     <XRClinicRuntimeView cleanHands runtime={runtime} active={active} preview={preview} sensoryStation="worth" title="WORTH FOUR DOT · PRACTICE"
       instruction="Fit frames · move target · ask and record each endpoint" showWallInstructions={!guided}

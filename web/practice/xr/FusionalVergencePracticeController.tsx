@@ -200,13 +200,13 @@ export function FusionalVergencePracticeController({ active, preview = false, in
   const entryReady = live && state.run.released && Boolean(state.run.captures.BI && state.run.captures.BO);
   const entryFields = entryReady ? fields : [];
   const actions: LessonAction[] = [
-    { label: "FIT DISTANCE CORRECTION", active: state.run.correctionFitted, run: fitCorrection },
-    { label: "ESTABLISH MIRRORED DISTANCE TARGET", active: state.run.targetEstablished && targetReady(), disabled: !state.run.correctionFitted || !targetReady(), run: establishTarget },
-    { label: "TOGGLE DISTANCE TARGET POWER", active: runtime.tools.worth.powered, run: () => { if (live) runtime.setToolPower("worth", !runtime.toolsRef.current.worth.powered); } },
-    { voiceIds: ["fixate-target"], label: "GIVE BLUR / DOUBLE / RECOVERY INSTRUCTION", active: state.run.instructionArmed, disabled: !state.run.targetEstablished, run: instruct },
-    { voiceIds: ["request-report"], label: "PATIENT REPORT · WHAT DO YOU SEE?", disabled: !state.run.instructionArmed, run: report },
-    { label: "DIAL +0.1Δ · ACCESSIBILITY", disabled: !state.run.prismHeld || state.run.released, run: () => adjust(.1) },
-    { label: "DIAL −0.1Δ · ACCESSIBILITY", disabled: !state.run.prismHeld || state.run.released, run: () => adjust(-.1) },
+    { label: "FIT DISTANCE CORRECTION", visible: !state.run.correctionFitted, active: state.run.correctionFitted, run: fitCorrection },
+    { label: "ESTABLISH MIRRORED DISTANCE TARGET", visible: state.run.correctionFitted && !state.run.targetEstablished, active: state.run.targetEstablished && targetReady(), disabled: !state.run.correctionFitted || !targetReady(), run: establishTarget },
+    { label: "TOGGLE DISTANCE TARGET POWER", visible: state.run.correctionFitted && !runtime.tools.worth.powered && !Boolean(state.run.captures.BI && state.run.captures.BO), active: runtime.tools.worth.powered, run: () => { if (live) runtime.setToolPower("worth", !runtime.toolsRef.current.worth.powered); } },
+    { voiceIds: ["fixate-target"], label: "GIVE BLUR / DOUBLE / RECOVERY INSTRUCTION", visible: state.run.targetEstablished && !state.run.instructionArmed && !Boolean(state.run.captures.BI && state.run.captures.BO), active: state.run.instructionArmed, disabled: !state.run.targetEstablished, run: instruct },
+    { voiceIds: ["request-report"], label: "PATIENT REPORT · WHAT DO YOU SEE?", visible: state.run.instructionArmed && !Boolean(state.run.captures.BI && state.run.captures.BO), disabled: !state.run.instructionArmed, run: report },
+    { label: "DIAL +0.1Δ · ACCESSIBILITY", visible: state.run.instructionArmed && !Boolean(state.run.captures.BI && state.run.captures.BO), disabled: !state.run.prismHeld || state.run.released, run: () => adjust(.1) },
+    { label: "DIAL −0.1Δ · ACCESSIBILITY", visible: state.run.instructionArmed && !Boolean(state.run.captures.BI && state.run.captures.BO), disabled: !state.run.prismHeld || state.run.released, run: () => adjust(-.1) },
     ...(state.run.captures.BI && state.run.captures.BO && !state.run.released ? [{ label: "RELEASE ROTARY PRISM", run: release }] : []),
   ];
   const neutralPhase = attemptKind === "guided" ? state.run.phase.replaceAll("-", " ") : "procedure in progress";
@@ -216,7 +216,7 @@ export function FusionalVergencePracticeController({ active, preview = false, in
   usePracticeVoiceProcedure("horizontal-distance", active && !preview, { actions, voiceReport: voiceReport });
   useEffect(() => { onMirror?.({ title: LIBRARY_TITLES["horizontal-distance"], findingPosition: { current: state.run.captures.BI ? 2 : 1, total: 2 },
     status, ready: entryReady, entryReady, fields: entryFields, actions, lesson, reset, record, cancel, reportLines: state.history, voiceReport });
-  }, [onMirror, status, entryReady, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
+  }, [onMirror, runtime.tools, status, entryReady, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
 
   return <>
     <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="HORIZONTAL DISTANCE VERGENCE" showWallInstructions={false} sensoryFixationLetter

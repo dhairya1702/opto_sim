@@ -1,3 +1,4 @@
+import { announceHiddenVoiceSession } from "../voice/voiceVisibility";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Group, Matrix4, Object3D, Quaternion, Ray, Raycaster, Vector3 } from "three";
@@ -496,7 +497,7 @@ export function useXRClinicRuntime(options: Options) {
       if (visualTime.current >= .1) {
         visualTime.current = 0;
         setDesktopAim(previous => previous.tool === nextAim.tool && previous.action === nextAim.action ? previous : nextAim);
-        setHighlighted(aimed ? [aimed] : []);
+        setHighlighted(previous => aimed ? (previous.length === 1 && previous[0] === aimed ? previous : [aimed]) : (previous.length === 0 ? previous : []));
       }
     }
     // Readouts and candidate feedback need not cause React renders at headset frequency.
@@ -855,7 +856,7 @@ export function useXRClinicRuntime(options: Options) {
         if (toolsRef.current[id].placement.kind === "held") object.visible = false;
       }
     };
-    const visibility = () => { if (session.visibilityState !== "visible") interrupt(); };
+    const visibility = () => { if (session.visibilityState !== "visible") { interrupt(); announceHiddenVoiceSession(); } };
     const end = () => {
       endedSession.current = session;
       activeRef.current = false;

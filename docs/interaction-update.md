@@ -1,5 +1,21 @@
 # Instrument interaction update
 
+## Loading and desktop efficiency (12 November 2026)
+
+Desktop highlights preserve their state identity while the aim target is unchanged. Test encounter ticking is isolated in EncounterTimer and stops outside an active encounter. Detailed-patient textures load with concurrency two, a shared cache, a 30-second asset deadline and abort/disposal on failure. Setup has an additional 35-second overall wait limit and explicit Retry/current-patient actions; stale selector results cannot change the chosen patient. Static text delivery negotiates gzip/Brotli while retaining existing cache and 404 behavior.
+
+
+## Loading, targeting and voice reliability (12 November 2026)
+
+Product and lesson lazy imports now have recovery boundaries with explicit loss-of-attempt warnings before Return/Reload. Patient assets use a build-generated content-versioned directory; fixed filenames revalidate, and missing asset/API requests return real 404s. Legacy desktop station/examination targeting now shares one bounded hit query with consistent held/hidden-object filtering. Practice desktop camera controls skip that query because the shared clinic runtime owns instrument selection; XR ray registry behavior is unchanged.
+
+Live voice shuts down on document hiding or XR session visibility loss, and on terminal close/transcription errors or retry exhaustion. Cleanup invalidates pending permission/worklet/command callbacks and releases tracks, audio context, socket and timers. Foreground recovery requires explicit Enable voice. Recoverable visible-session reconnects remain bounded.
+
+
+The step-action audit covers all 20 modules in Guided and independent Test attempts, including keyboard/mouse clinic entry. Motility exposes following after pickup, symptoms after all gaze points, then observation entry. Setup/fixation, measurement/report and recording controls are similarly staged across alignment, sensory, phoria, vergence and accommodation lessons. Pose-dependent accommodation stages now publish visibility changes even when the procedure object itself is unchanged. Raw voice action handlers retain their existing authority checks; this change filters rendered controls. Mounted scene regressions cover all shared adapters at entry plus recording/completion/reset transitions. No browser E2E tests were run.
+
+Practice wall text now uses semibold lettering with more of the available label height and panel-resolution textures even on narrow choice buttons. Long button labels wrap onto two balanced lines rather than squeezing into a single small line; words, button positions and interaction gates are unchanged. Single-line button type can be about 67% taller before width fitting; actual gain depends on label length. The shared observation form remains gated by both entry readiness and procedure readiness and disappears after recording. Procedure actions now use shared visibility filtering on the wall, A/X menu and desktop mirror, with explicit step conditions in all active Practice adapters. Future, completed and disabled procedure actions are hidden; recording replaces procedure actions only when both entry and technique gates permit it. Help, reset and exit remain available. Headset readability still needs physical-device confirmation.
+
 The patient selector now lives in Practice attempt setup: 1 · Controls, 2 · Voice, 3 · Patient, then the unnumbered Start button. It is removed from the home screen. Start is disabled while the detailed model loads; loading failure retains the prior selection. Krimsky retains its preliminary method choice without shifting these three setting numbers. At the user’s request, the selector and detailed body are now enabled in production builds too. Memory-only selection, the current-patient default and the experimental label are retained; physical Quest acceptance remains pending.
 
 ## Instrument tabletop labels (10 November 2026)

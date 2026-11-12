@@ -47,18 +47,18 @@ describe("XR motility guided step bubble", () => {
     expect(bubbleBounds.intersectsBox(boardBounds)).toBe(false);
     expect(boardBounds.max.y).toBeLessThan(2.85);
     expect(boardBounds.min.y).toBeGreaterThan(.25);
-    expect(sim.button("FOLLOW LIGHT · HEAD STILL").userData.xrGlassButton).toBe(true);
-    let disabled: Object3D | undefined;
-    sim.state.scene.traverse(object => { if (object.userData.xrLabel === "ASK ABOUT SYMPTOMS") disabled = object; });
-    expect(disabled?.userData.xrGlassButton).toBe(true);
-    expect(disabled?.userData.xrAction).toBeUndefined();
+    expect(sim.controls().some(object => object.userData.xrLabel === "FOLLOW LIGHT · HEAD STILL")).toBe(false);
+    expect(sim.controls().some(object => object.userData.xrLabel === "ASK ABOUT SYMPTOMS")).toBe(false);
 
     await sim.pickup(0, "pupils");
     expect(sim.guidedStep()).toBe("instruct");
     expect(sim.labels()).toContain("Instruct Arun");
+    expect(sim.button("FOLLOW LIGHT · HEAD STILL").userData.xrGlassButton).toBe(true);
 
     await sim.click(1, sim.button("FOLLOW LIGHT · HEAD STILL"));
     expect(sim.guidedStep()).toBe("primary");
+    expect(sim.controls().some(object => object.userData.xrLabel === "FOLLOWING ✓")).toBe(false);
+    expect(sim.controls().some(object => object.userData.xrLabel === "ASK ABOUT SYMPTOMS")).toBe(false);
     expect(sim.labels()).toContain("Establish primary gaze");
 
     await sim.event(0, "selectstart");

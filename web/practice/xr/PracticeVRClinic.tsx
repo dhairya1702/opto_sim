@@ -1,3 +1,4 @@
+import { LoadRecoveryScreen } from "../../ui/LoadRecoveryBoundary";
 import { Component, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Canvas } from "@react-three/fiber";
 import { X } from "lucide-react";
@@ -15,11 +16,11 @@ import { perfEnabled, perfEvent, perfRender } from "../../perf/perfFlag";
 import { PerfFrameProbe } from "../../perf/PerfFrameProbe";
 import type { ClinicInputMode } from "../../interaction/useXRClinicRuntime";
 
-class PracticeSceneBoundary extends Component<{ children: ReactNode; onFailure: () => void }, { failed: boolean }> {
+class PracticeSceneBoundary extends Component<{ children: ReactNode; onFailure: () => void; onReturn: () => void }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
   componentDidCatch() { this.props.onFailure(); }
-  render() { return this.state.failed ? <PracticeWebGLFallback /> : this.props.children; }
+  render() { return this.state.failed ? <LoadRecoveryScreen onReturn={this.props.onReturn} returnLabel="Return to lesson" /> : this.props.children; }
 }
 export type PracticeClinicSession = { active: boolean; preview: boolean; inputMode: ClinicInputMode; exit: () => void };
 
@@ -108,7 +109,7 @@ export function PracticeVRClinic({ title, findingPosition, onClose, onDesktop, i
     </header>
     <div className={`xr-practice-body${active ? " xr-practice-body-with-controls" : ""}`}>
       <div className="xr-canvas-wrap">
-        <PracticeSceneBoundary onFailure={() => { setAttemptActive?.(false); setActive(false); setFailed(true); void session.current?.end(); }}>
+        <PracticeSceneBoundary onReturn={() => void end()} onFailure={() => { setAttemptActive?.(false); setActive(false); setFailed(true); void session.current?.end(); }}>
           <Suspense fallback={<PracticeWebGLFallback />}>
             <Canvas shadows={active} frameloop={active ? "always" : "demand"} dpr={[1, 1.35]} camera={{ position: [0, 1.6, 1.65], fov: 66, near: .01, far: 20 }}
               onCreated={({ gl }) => { renderer.current = gl; gl.xr.enabled = true; gl.domElement.tabIndex = 0; gl.domElement.setAttribute("aria-label", "Practice clinic"); }} fallback={<PracticeWebGLFallback />}>

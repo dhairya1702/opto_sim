@@ -18,11 +18,12 @@
     "@google/genai": "^1.28.0",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.4.0",
+    "compression": "^1.8.2",
+    "express": "^5.1.0",
     "lucide-react": "^0.468.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "three": "^0.180.0",
-    "express": "^5.1.0",
     "ws": "^8.18.3"
   },
   "devDependencies": {

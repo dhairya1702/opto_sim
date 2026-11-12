@@ -1,3 +1,4 @@
+import { LoadRecoveryBoundary } from "../ui/LoadRecoveryBoundary";
 import { lazy, Suspense, useState } from "react";
 import { ModeSelection, type ExperienceMode } from "../ui/ModeSelection";
 
@@ -11,9 +12,9 @@ function ProductLoading() {
 export function EntryApp() {
   const [mode, setMode] = useState<ExperienceMode | null>(null);
   if (!mode) return <ModeSelection onSelect={setMode} />;
-  return <Suspense fallback={<ProductLoading />}>
+  return <LoadRecoveryBoundary key={mode} onReturn={() => setMode(null)}><Suspense fallback={<ProductLoading />}>
     {mode === "practice"
       ? <PracticeMode onExit={() => setMode(null)} />
       : <TestEncounter onExit={() => setMode(null)} />}
-  </Suspense>;
+  </Suspense></LoadRecoveryBoundary>;
 }

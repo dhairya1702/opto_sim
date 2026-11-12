@@ -139,14 +139,14 @@ export function NPCPracticeController({ active, preview = false, inputMode = "xr
   const coach = npcGuidedStep(state.run, spatial());
   const entryReady = live && state.run.released && state.run.captures.length === 3;
   const actions: LessonAction[] = [
-    { label: "FIT NEAR CORRECTION", active: state.run.correctionFitted, run: () => {
+    { label: "FIT NEAR CORRECTION", visible: coach.index === 0, active: state.run.correctionFitted, run: () => {
       const tool = runtime.toolsRef.current.subjective;
       if (!isPatientFitted(runtime.toolsRef.current, "subjective")) runtime.updateTools({ ...runtime.toolsRef.current, subjective: { ...tool, placement: { kind: "socket", position: [0, 1.5, -.511], rotation: [0, 0, 0, 1], socketId: "sensory-correction", fittingLayer: "correction" }, revision: (tool.revision ?? 0) + 1 } });
     } },
-    { voiceIds: ["fixate-target"], label: "GIVE CLEAR / SINGLE INSTRUCTION", active: state.run.instructionArmed, disabled: !state.run.ruleDocked, run: instruct },
-    { voiceIds: ["request-report"], label: "PATIENT REPORT · WHAT DO YOU SEE?", run: () => publish() },
-    { label: "MARK OBSERVED ENDPOINT", disabled: state.run.phase !== "approach" && state.run.phase !== "recovery", run: mark },
-    { label: "RESTART CURRENT TRIAL", run: restart },
+    { voiceIds: ["fixate-target"], label: "GIVE CLEAR / SINGLE INSTRUCTION", visible: coach.index === 4, active: state.run.instructionArmed, disabled: !state.run.ruleDocked, run: instruct },
+    { voiceIds: ["request-report"], label: "PATIENT REPORT · WHAT DO YOU SEE?", visible: state.run.instructionArmed && state.run.captures.length < 3, run: () => publish() },
+    { label: "MARK OBSERVED ENDPOINT", visible: state.run.caseId === "objective", disabled: state.run.phase !== "approach" && state.run.phase !== "recovery", run: mark },
+    { label: "RESTART CURRENT TRIAL", visible: state.run.instructionArmed && state.run.captures.length < 3, run: restart },
     ...(state.run.captures.length === 3 && !state.run.released ? [{ label: "REMOVE / RELEASE RULE", run: removeRule }] : []),
   ];
   const neutralPhase = attemptKind === "guided" ? state.run.phase.replaceAll("-", " ") : "procedure in progress";
@@ -156,7 +156,7 @@ export function NPCPracticeController({ active, preview = false, inputMode = "xr
   usePracticeVoiceProcedure("npc", active && !preview, { actions, voiceReport: voiceReport });
   useEffect(() => { onMirror?.({ title: LIBRARY_TITLES.npc, findingPosition: { current: caseIndex.current + 1, total: 2 }, status, ready: entryReady,
     entryReady, fields, actions, lesson, reset, record, next: state.run.record ? next : undefined, cancel, reportLines: state.history, voiceReport });
-  }, [onMirror, status, entryReady, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
+  }, [onMirror, runtime.tools, status, entryReady, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
 
   return <>
     <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="NEAR POINT OF CONVERGENCE" showWallInstructions={false}
@@ -165,7 +165,7 @@ export function NPCPracticeController({ active, preview = false, inputMode = "xr
     {live && <XRSign text={["FICTIONAL PATIENT · CURRENT RESPONSE", voiceReport]} p={[.55, 1.75, -.10]} size={[.55, .20]} bg="#07151b" fg="#eefbf7" />}
     {live && disclosure.showCoach && <XRGuidedStepBubble stepId={String(coach.index)} title={coach.title} lines={coach.lines} />}
     <PracticeLessonUI runtime={runtime} active={live} title={LIBRARY_TITLES.npc} status={xrStatus} tools={["npc-rule"]} actions={actions}
-      directActions={actions.filter(action => action.label.includes("INSTRUCTION") || action.label.includes("MARK") || action.label.includes("RELEASED"))}
+      directActions={actions.filter(action => action.label.includes("INSTRUCTION") || action.label.includes("MARK") || action.label.includes("RELEASE"))}
       fields={fields} lesson={lesson} entryReady={entryReady} ready={entryReady} onRecord={record} onReset={reset} onNext={state.run.record ? next : undefined} onExit={onExit} onCancel={cancel}
       boardFindingLines={[`TRIALS ${state.run.captures.length} / 3`]} boardStatusLines={[`TRIALS ${state.run.captures.length} / 3`, "READ THE MODELED CENTIMETRE SCALE", attemptKind === "guided" ? coach.title : "Complete the required sequence."]}
       help={attemptKind === "guided" ? ["Fit correction, pick up the dedicated rule and dock its patient end at the spectacle plane.", "Use the free controller trigger beside the carriage to slide the target while the rule remains docked.", "Begin at 38–42 cm; hold 250 ms, move inward, capture break, then move outward to recovery.", "Repeat three times, release the rule, and enter all values independently.", "Geometry, eye motion, ergonomics and readability are draft assumptions."] : ["Use the modeled centimetre scale and neutral controller prompts.", "The physical geometry and eye movement are illustrative drafts."]} />

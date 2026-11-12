@@ -36,7 +36,7 @@ export function PushUpPracticeController({ active, preview = false, inputMode = 
   const clock = useRef(0);
   const temp = useMemo(() => new Vector3(), []);
   const eyes = useClinicEyeMotion(live);
-  const [state, setState] = useState({ run: run.current, distance: 40 });
+  const [state, setState] = useState({ stage: -1, run: run.current, distance: 40 });
 
   const runtime = useXRClinicRuntime({ active: live, inputMode, equipment: libraryEquipment("push-up"), placementSockets: librarySockets("push-up"), placementSurfaces: LIBRARY_SURFACES,
     editorOpen: lesson.mode !== "none", onMenu: open => lesson.setMode(open ? "menu" : "none"),
@@ -47,7 +47,7 @@ export function PushUpPracticeController({ active, preview = false, inputMode = 
       if (id !== "push-up-rule" || run.current.capture || run.current.phase === "complete") return false;
       const next = Math.round(Math.max(PUSH_UP_MIN_CM, Math.min(PUSH_UP_MAX_CM, distance.current + step)) * 10) / 10;
       if (next === distance.current) return false;
-      distance.current = next; setState({ run: run.current, distance: next }); return true;
+      distance.current = next; setState(previous => ({ ...previous, run: run.current, distance: next })); return true;
     } });
 
   const spatial = (nowMs = performance.now()): PushUpSpatialSample => {
@@ -59,8 +59,8 @@ export function PushUpPracticeController({ active, preview = false, inputMode = 
       visible: Boolean(runtime.objects.current.get("push-up-rule")?.visible), tracking: runtime.frameValid.current };
   };
   const publish = useCallback(() => {
-    const next = { run: run.current, distance: distance.current };
-    setState(previous => previous.run === next.run && previous.distance === next.distance ? previous : next);
+    const next = { stage: pushUpGuidedStep(run.current, spatial()).index, run: run.current, distance: distance.current };
+    setState(previous => previous.stage === next.stage && previous.run === next.run && previous.distance === next.distance ? previous : next);
   }, []);
 
   useFrame((_, dt) => {
@@ -142,11 +142,11 @@ export function PushUpPracticeController({ active, preview = false, inputMode = 
   const eye = pushUpEye(state.run);
   const entryReady = live && Boolean(state.run.capture);
   const actions: LessonAction[] = [
-    { label: "FIT NEAR CORRECTION", active: sample.correctionFitted, run: fitCorrection },
-    { label: eye === "OD" ? "COVER OS · TEST OD" : eye === "OS" ? "COVER OD · TEST OS" : "REMOVE COVER · TEST OU", active: sample.occlusionReady, run: prepareOcclusion },
-    { voiceIds: ["fixate-target"], label: "GIVE FIRST SUSTAINED BLUR INSTRUCTION", active: state.run.instructionArmed, disabled: !sample.ruleDocked, run: instruct },
-    { voiceIds: ["request-report"], label: "PATIENT REPORT · WHAT DO YOU SEE?", disabled: !state.run.instructionArmed, run: publish },
-    { label: "RESTART CURRENT EYE", run: restart },
+    { label: "FIT NEAR CORRECTION", visible: coach.index === 0, active: sample.correctionFitted, run: fitCorrection },
+    { label: eye === "OD" ? "COVER OS · TEST OD" : eye === "OS" ? "COVER OD · TEST OS" : "REMOVE COVER · TEST OU", visible: coach.index === 1, active: sample.occlusionReady, run: prepareOcclusion },
+    { voiceIds: ["fixate-target"], label: "GIVE FIRST SUSTAINED BLUR INSTRUCTION", visible: coach.index === 3, active: state.run.instructionArmed, disabled: !sample.ruleDocked, run: instruct },
+    { voiceIds: ["request-report"], label: "PATIENT REPORT · WHAT DO YOU SEE?", visible: coach.index === 4 || coach.index === 5, disabled: !state.run.instructionArmed, run: publish },
+    { label: "RESTART CURRENT EYE", visible: state.run.instructionArmed && !state.run.capture, run: restart },
   ];
   const directActions = pushUpBoardActions(state.run).map(id => ({ instruction: actions[2], report: actions[3] })[id]);
   const records = state.run.records.map(record => `${record.eye}: ${record.submittedDistanceCm.toFixed(1)} cm · ${record.submittedAmplitudeD.toFixed(2)} D`);
@@ -156,7 +156,7 @@ export function PushUpPracticeController({ active, preview = false, inputMode = 
   usePracticeVoiceProcedure("push-up", active && !preview, { actions, voiceReport: voiceReport });
   useEffect(() => { onMirror?.({ title: LIBRARY_TITLES["push-up"], findingPosition: { current: Math.min(3, state.run.eyeIndex + 1), total: 3 },
     status: accessibleStatus, ready: entryReady, entryReady, fields, actions, lesson, reset, record, cancel, reportLines: records, voiceReport });
-  }, [onMirror, accessibleStatus, entryReady, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
+  }, [onMirror, runtime.tools, accessibleStatus, entryReady, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
 
   const highlighted = coach.index === 0 ? ["subjective" as const] : coach.index === 1 ? ["cover" as const] : coach.index === 2 ? ["push-up-rule" as const] : [];
   return <>

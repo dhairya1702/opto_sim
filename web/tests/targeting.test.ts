@@ -37,3 +37,26 @@ it("does not target tools beyond two metres or through an intervening wall", () 
   tool.updateMatrixWorld(true);
   expect(stationUnderRay(ray(), [tool])).toBeNull();
 });
+
+it("resolves station and examination with a single bounded raycast", async () => {
+  const { targetUnderRay } = await import("../interaction/targeting");
+  const { vi } = await import("vitest");
+  const tool = cube(-1); tool.userData.station = "trolley"; tool.userData.examId = "near";
+  const pointer = ray(), original = pointer.intersectObjects;
+  const intersect = vi.spyOn(pointer, "intersectObjects");
+  intersect.mockImplementation((...args) => {
+    expect(pointer.far).toBe(2);
+    return original.apply(pointer, args);
+  });
+  expect(targetUnderRay(pointer, [tool])).toEqual({ station: "trolley", exam: "near" });
+  expect(intersect).toHaveBeenCalledTimes(1);
+  expect(pointer.far).toBe(Infinity);
+});
+it("uses the same held-object and visibility rules for both labels", async () => {
+  const { targetUnderRay } = await import("../interaction/targeting");
+  const held = cube(-.4); held.userData.held = true; held.userData.examId = "wrong";
+  const hidden = cube(-.6); hidden.visible = false;
+  const tool = cube(-1); tool.userData.station = "trolley"; tool.userData.examId = "near";
+  expect(targetUnderRay(ray(), [held, hidden, tool])).toEqual({ station: "trolley", exam: "near" });
+  expect(targetUnderRay(ray(), [held, tool, cube(-.8)])).toEqual({ station: null, exam: undefined });
+});

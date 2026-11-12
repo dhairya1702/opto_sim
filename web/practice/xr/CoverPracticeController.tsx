@@ -1,3 +1,4 @@
+import { visiblePracticeActions } from "../../interaction/practiceActionVisibility";
 import { usePracticeVoiceProcedure } from "../../voice/usePracticeVoiceProcedure";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
@@ -249,13 +250,13 @@ export function CoverPracticeController({ active, preview = false, inputMode = "
     runtime.setDesktopHeldPose("cover", desktopPatientFacingPose("cover", point));
   };
   const actions = [
-    { voiceIds: ["fixate-target"], label: fixation ? `${readout.mode.toUpperCase()} FIXATION GIVEN ✓` : `LOOK AT THE ${readout.mode === "distance" ? "DISTANCE" : "NEAR"} TARGET`,
+    { voiceIds: ["fixate-target"], label: fixation ? `${readout.mode.toUpperCase()} FIXATION GIVEN ✓` : `LOOK AT THE ${readout.mode === "distance" ? "DISTANCE" : "NEAR"} TARGET`, visible: !fixation && readout.targetReady,
       run: () => { if (!readout.targetReady) return; setup.current.fixation = true; setFixation(true); },
       active: fixation, disabled: !readout.targetReady },
-    ...(inputMode === "desktop" && (!readout.observed || readout.trial) ? [{ label: `POSITION OCCLUDER · ${practiceCoverProcedures[kind][readout.index]?.label ?? "SEQUENCE COMPLETE"}`, run: positionDesktopOccluder }] : []),
-    ...(kind === "alternate-cover" ? prismHeld ? [{ label: "PRISM SETTINGS · ACCESSIBILITY", run: () => lesson.setMode("settings") }] : [] : [{ label: "REPEAT SEQUENCE", run: repeat }]),
+    ...(inputMode === "desktop" && (!readout.observed || readout.trial) ? [{ label: `POSITION OCCLUDER · ${practiceCoverProcedures[kind][readout.index]?.label ?? "SEQUENCE COMPLETE"}`, visible: fixation && readout.targetReady && runtime.tools.cover.placement.kind === "held", run: positionDesktopOccluder }] : []),
+    ...(kind === "alternate-cover" ? prismHeld ? [{ label: "PRISM SETTINGS · ACCESSIBILITY", visible: readout.observed && !readout.neutralized, run: () => lesson.setMode("settings") }] : [] : [{ label: "REPEAT SEQUENCE", visible: readout.observed, run: repeat }]),
     { label: "HELP", run: () => lesson.setMode("help") },
-    ...(guideAvailable ? [{ label: guides ? "HIDE COVER GUIDE" : "SHOW COVER GUIDE", run: () => setGuides(value => !value), active: guides }] : []),
+    ...(guideAvailable ? [{ label: guides ? "HIDE COVER GUIDE" : "SHOW COVER GUIDE", visible: fixation && readout.targetReady, run: () => setGuides(value => !value), active: guides }] : []),
   ];
   const guideTarget = xrCoverGuideTarget(kind, readout.index);
   const showPrismGuide = active && guideAvailable && guides && kind === "alternate-cover" && readout.observed
@@ -323,10 +324,10 @@ export function CoverPracticeController({ active, preview = false, inputMode = "
     } else lesson.submit(true, true, `Distance and near prism endpoints recorded independently. ${endpointSummary}`);
   };
   const next = () => { if (!lesson.awarded.current) return; reset(); setScenarioIndex(value => value + 1); };
-  const prismActions: LessonAction[] = [...bases.map(([value, label]) => ({ label: label.toUpperCase(), run: () => changePrism(value, setup.current.power), active: base === value, disabled: !prismHeld })),
-    { label: "POWER −2Δ", run: () => changePrism(setup.current.base, Math.max(0, setup.current.power - 2)), disabled: !prismHeld },
-    { label: "POWER +2Δ", run: () => changePrism(setup.current.base, Math.min(30, setup.current.power + 2)), disabled: !prismHeld },
-    { label: "REPEAT SEQUENCE", run: repeat }];
+  const prismActions: LessonAction[] = [...bases.map(([value, label]) => ({ label: label.toUpperCase(), run: () => changePrism(value, setup.current.power), active: base === value, visible: readout.observed && !readout.neutralized, disabled: !prismHeld })),
+    { label: "POWER −2Δ", run: () => changePrism(setup.current.base, Math.max(0, setup.current.power - 2)), visible: readout.observed && !readout.neutralized, disabled: !prismHeld },
+    { label: "POWER +2Δ", run: () => changePrism(setup.current.base, Math.min(30, setup.current.power + 2)), visible: readout.observed && !readout.neutralized, disabled: !prismHeld },
+    { label: "REPEAT SEQUENCE", visible: readout.observed, run: repeat }];
   usePracticeVoiceProcedure(kind, active && !preview, { actions, voiceReport: undefined });
   useEffect(() => { onMirror?.({ title: kind === "cover-uncover" ? "Cover–uncover" : "Alternating cover", findingPosition: { current: scenarioIndex % (kind === "cover-uncover" ? coverScenarios.length : alternateCoverScenarios.length) + 1, total: kind === "cover-uncover" ? coverScenarios.length : alternateCoverScenarios.length },
     status: kind === "alternate-cover" ? `${status} · prism ${power}Δ ${base || "base unselected"}` : status, ready, entryReady, fields,
@@ -335,11 +336,11 @@ export function CoverPracticeController({ active, preview = false, inputMode = "
       ? ([coverRecords.distance ? `Distance: ${cover.label}` : "", coverRecords.near ? `Near 40 cm: ${cover.label}` : ""].filter(Boolean))
       : ([alternateRecords.distance ? `Distance: ${alternateRecords.distance.power}Δ ${prismBaseLabel(alternateRecords.distance.base)} before ${alternateRecords.distance.eye}` : "",
           alternateRecords.near ? `Near 40 cm: ${alternateRecords.near.power}Δ ${prismBaseLabel(alternateRecords.near.base)} before ${alternateRecords.near.eye}` : ""].filter(Boolean)) }); },
-    [onMirror, status, ready, entryReady, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, fixation, base, power, readout.prism, scenarioIndex, guides, coverRecords, alternateRecords, fields]);
+    [onMirror, runtime.tools, status, ready, entryReady, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, fixation, base, power, readout.prism, scenarioIndex, guides, coverRecords, alternateRecords, fields]);
   const settings = <XRHeadPanel>
     <Box s={[.76, .90, .018]} c="#102329" radius={.012} />
     <XRSign text={["PRISM · SELECTED WORKING CELL", `${power}Δ · ${base || "choose base"}`, readout.prism ? `Aligned before ${readout.prism}` : guided ? "Not aligned" : "Hold the middle cell before either pupil."]} p={[0, .31, .012]} size={[.70, .20]} bg="#102329" fg="#eefbf7" />
-    {prismActions.map((action, index) => <XRPanelButton key={action.label} label={action.label} active={action.active} disabled={lesson.recorded || action.disabled}
+    {visiblePracticeActions(prismActions, (ready && entryReady) || lesson.recorded).map((action, index) => <XRPanelButton key={action.label} label={action.label} active={action.active} disabled={lesson.recorded || action.disabled}
       position={[index % 2 ? .18 : -.18, .15 - Math.floor(index / 2) * .085, .025]} width={.34} onClick={action.run} />)}
     <XRPanelButton label="CLOSE SETTINGS" position={[-.18, -.23, .025]} width={.34} onClick={() => lesson.setMode("none")} />
     <XRPanelButton label="EXIT VR" position={[.18, -.23, .025]} width={.34} onClick={onExit} />

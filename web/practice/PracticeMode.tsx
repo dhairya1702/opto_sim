@@ -1,3 +1,4 @@
+import { LoadRecoveryBoundary } from "../ui/LoadRecoveryBoundary";
 import { PatientAppearanceSelector } from "../ui/PatientAppearanceSelector";
 import { Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -58,8 +59,8 @@ type Skill = {
 const LazyPracticeBatchVRStage = lazy(() => import("./xr/PracticeBatchVRStage").then(module => ({ default: module.PracticeBatchVRStage })));
 const LazyHirschbergVRStage = lazy(() => import("./HirschbergVRStage").then(module => ({ default: module.HirschbergVRStage })));
 function ClinicLoading() { return <p className="notice" role="status">Preparing the clinical simulator…</p>; }
-function PracticeBatchVRStage(props: PracticeBatchVRStageProps) { return <Suspense fallback={<ClinicLoading />}><LazyPracticeBatchVRStage {...props} /></Suspense>; }
-function HirschbergVRStage(props: HirschbergVRStageProps) { return <Suspense fallback={<ClinicLoading />}><LazyHirschbergVRStage {...props} /></Suspense>; }
+function PracticeBatchVRStage(props: PracticeBatchVRStageProps) { return <LoadRecoveryBoundary onReturn={props.onClose} returnLabel="Return to lesson"><Suspense fallback={<ClinicLoading />}><LazyPracticeBatchVRStage {...props} /></Suspense></LoadRecoveryBoundary>; }
+function HirschbergVRStage(props: HirschbergVRStageProps) { return <LoadRecoveryBoundary onReturn={props.onClose} returnLabel="Return to lesson"><Suspense fallback={<ClinicLoading />}><LazyHirschbergVRStage {...props} /></Suspense></LoadRecoveryBoundary>; }
 
 const skills: Skill[] = [
   { id: "motility", index: "1.1", name: "Extraocular motilities", equipment: "Penlight", duration: "6–8 min", available: true },

@@ -25,7 +25,7 @@ export function HirschbergVRStage({ scenario, finding, findingPosition, onClose,
         <span className={mirror.light ? "ready" : ""}>Light {mirror.light ? "on" : "off"}</span>
         <span className={mirror.technique.distanceReady ? "ready" : ""}>{Math.round(mirror.technique.distanceCm)} cm</span>
         <span className={mirror.technique.ready ? "ready" : ""}>{mirror.technique.ready ? "View ready" : "Adjust technique"}</span></div>
-      <button className="secondary full" onClick={mirror.giveFixation}>Ask the patient to look at the light</button>
+      {mirror.held && !mirror.fixation && !mirror.captured && <button className="secondary full" onClick={mirror.giveFixation}>Ask the patient to look at the light</button>}
       {guided && <button className="secondary full" onClick={mirror.toggleHelp}>{mirror.help ? "Close help" : "Help"}</button>}
       {guided && mirror.help && <p role="status">{xrHirschbergPrompt(mirror.technique, mirror)}</p>}
       {mirror.captured && !(mirror.checked && mirror.correct) && <>

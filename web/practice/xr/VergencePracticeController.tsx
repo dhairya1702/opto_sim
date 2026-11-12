@@ -116,24 +116,24 @@ export function VergencePracticeController({ kind, active, preview = false, inpu
   };
   const fields: LessonField[] = kind === "facility" ? [{ id: "cycles", label: "Full cycles in 60 seconds", choices: [], number: { min: 0, max: 100, unit: " cpm" } }] : ([...(vergenceFindings[kind][setup.current.base]?.blur != null ? ["blur"] : []), "break", "recovery"]).map(id => ({ id, label: id, choices: [], number: { min: 0, max: 30, unit: "Δ" } }));
   const actions = [
-    { label: "FIT NEAR CORRECTION", run: fitCorrection, active: isPatientFitted(runtime.toolsRef.current, "subjective") },
-    { voiceIds: ["fixate-target"], label: "ESTABLISH FIXATION", run: () => change({ fixation: true }) },
-    ...(isPrism ? vergenceBases(kind).map(base => ({ label: `BASE ${base}`, disabled: base !== vergenceBases(kind)[baseIndex.current], active: state.settings.base === base, run: () => { if (base === vergenceBases(kind)[baseIndex.current]) { clearRun(); change({ base, power: 0 }); } } })) : []),
+    { label: "FIT NEAR CORRECTION", visible: !isPatientFitted(runtime.toolsRef.current, "subjective"), run: fitCorrection, active: isPatientFitted(runtime.toolsRef.current, "subjective") },
+    { voiceIds: ["fixate-target"], label: "ESTABLISH FIXATION", visible: isPatientFitted(runtime.toolsRef.current, "subjective") && !state.settings.fixation, run: () => change({ fixation: true }) },
+    ...(isPrism ? vergenceBases(kind).map(base => ({ label: `BASE ${base}`, visible: state.settings.fixation && !state.settings.base, disabled: base !== vergenceBases(kind)[baseIndex.current], active: state.settings.base === base, run: () => { if (base === vergenceBases(kind)[baseIndex.current]) { clearRun(); change({ base, power: 0 }); } } })) : []),
     ...(isPrism ? [-1, 1].map(step => ({ label: `PRISM ${step > 0 ? "+" : "−"}1Δ`, disabled: !state.ready || !state.settings.base || state.captured, run: () => { if (sample().ready) change({ power: Math.max(0, Math.min(30, setup.current.power + step)) }); } })) : []),
     ...(kind === "facility" ? [{ label: "START 60-SECOND RUN", disabled: !state.ready || Boolean(timed.current || capture.current), run: start }] : [{ label: "MARK PATIENT ENDPOINT", disabled: !state.ready || state.captured, run: mark }]),
-    { label: "RESTART CURRENT RUN", run: () => { if (!live || lesson.awarded.current) return; capture.current = null; clearRun(); setup.current.power = 0; publish(); } },
+    { label: "RESTART CURRENT RUN", visible: Boolean(timed.current) && !state.captured, run: () => { if (!live || lesson.awarded.current) return; capture.current = null; clearRun(); setup.current.power = 0; publish(); } },
   ];
   const status = `${state.history.length}/${isPrism ? 2 : 1} records · ${kind === "facility" ? `${state.seconds}s · ${state.cycles} cycles · ${state.side}` : `${state.settings.power}Δ ${state.settings.base || "choose base"} · ${state.phase}`} · ` + (!state.ready && !state.captured ? "Fit correction, establish fixation and physically align target/instrument." : state.report);
   const ready = live && state.captured;
   usePracticeVoiceProcedure(kind, active && !preview, { actions, voiceReport: state.ready && timed.current && !capture.current ? (performance.now() - timed.current.presented >= vergenceFacilityDelay[timed.current.side] ? "It is clear and single now." : "It is not clear and single yet.") : undefined });
-  useEffect(() => { onMirror?.({ title: LIBRARY_TITLES[kind], findingPosition: { current: baseIndex.current + 1, total: isPrism ? 2 : 1 }, status, ready, entryReady: ready, fields, actions, lesson, reset, record, cancel, reportLines: state.history }); }, [onMirror, status, ready, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
+  useEffect(() => { onMirror?.({ title: LIBRARY_TITLES[kind], findingPosition: { current: baseIndex.current + 1, total: isPrism ? 2 : 1 }, status, ready, entryReady: ready, fields, actions, lesson, reset, record, cancel, reportLines: state.history }); }, [onMirror, runtime.tools, status, ready, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
   return <>
     <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title={LIBRARY_TITLES[kind].toUpperCase()} showWallInstructions={false} sensoryStation={!near ? "four-prism" : undefined} instrumentSettings={{ "prism-flipper": {
       side: state.side, onFlip: runtime.tools["prism-flipper"].placement.kind === "held" ? flip : undefined,
     }, prism: { power: state.settings.power, base: state.settings.base } }} />
     {(live || preview) && <><LibraryEquipmentTray active={live} equipment={runtime.equipment} />{near && <LibraryNearStand />}</>}
     {live && state.ready && <XRSign text={["FICTIONAL PATIENT · REPORTED RESPONSE", state.report]} p={[.55, 1.75, -.10]} size={[.55, .20]} bg="#07151b" fg="#eefbf7" />}
-    <PracticeLessonUI runtime={runtime} active={live} title={LIBRARY_TITLES[kind]} status={status} tools={[libraryTool(kind)]} actions={actions} directActions={actions.filter(action => action.label.startsWith("PRISM") || action.label === "MARK PATIENT ENDPOINT")} fields={fields} lesson={lesson} ready={ready} entryReady={ready} onRecord={record} onReset={reset} onExit={onExit} onCancel={cancel}
+    <PracticeLessonUI runtime={runtime} active={live} title={LIBRARY_TITLES[kind]} status={status} tools={[libraryTool(kind)]} actions={actions} directActions={actions} fields={fields} lesson={lesson} ready={ready} entryReady={ready} onRecord={record} onReset={reset} onExit={onExit} onCancel={cancel}
       help={["Fit correction; establish the appropriate fixation target.", near ? "Keep the near target at 40 cm; use its stand to free a hand." : "Fixate the illustrative mirrored distance letter.", kind === "facility" ? "Keep the flipper before both eyes. Bring your free controller beside TURN and press/release its trigger after the patient clears each side." : "BI before BO, or BU before BD. Mark blur/break, then reduce to recovery.", "Capture the run, then put tools down and enter your findings.", "Physical geometry and eye motion are illustrative drafts."]} />
   </>;
 }

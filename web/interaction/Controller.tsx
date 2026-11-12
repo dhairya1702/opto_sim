@@ -3,7 +3,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { Raycaster, Vector2, Vector3 } from "three";
 import type { StationId } from "../domain/types";
 import { stations, walkable } from "./navigation";
-import { stationUnderRay, examUnderRay } from "./targeting";
+import { targetUnderRay } from "./targeting";
 
 export function bindControllerPointerCancellation(target: EventTarget, cancel: EventListener) {
   target.addEventListener("pointercancel", cancel);
@@ -91,7 +91,7 @@ export function Controller({
         keys.current.add(e.key.toLowerCase());
       }
       if (!clinicControls && e.key.toLowerCase() === "e" && !e.repeat && target.current)
-        actionRef.current(target.current, examUnderRay(ray.current, scene.children));
+        actionRef.current(target.current, targetExam.current);
     };
     const keyup = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
     const down = (e: PointerEvent) => {
@@ -124,22 +124,22 @@ export function Controller({
     };
     const pick = (ndc: Vector2) => {
       ray.current.setFromCamera(ndc, camera);
-      return stationUnderRay(ray.current, scene.children);
+      return targetUnderRay(ray.current, scene.children);
     };
     const up = (e: PointerEvent) => {
       if (!activeRef.current) return;
       if (document.pointerLockElement === canvas) {
         if (!clinicControls && target.current)
-          actionRef.current(target.current, examUnderRay(ray.current, scene.children));
+          actionRef.current(target.current, targetExam.current);
       } else if (!clinicControls && !input.current.moved) {
         const rect = canvas.getBoundingClientRect();
-        const id = pick(
+        const hit = pick(
           new Vector2(
             ((e.clientX - rect.left) / rect.width) * 2 - 1,
             (-(e.clientY - rect.top) / rect.height) * 2 + 1,
           ),
         );
-        const exam = examUnderRay(ray.current, scene.children);
+        const { station: id, exam } = hit;
         if (id && (id !== "trolley" || exam)) actionRef.current(id, exam);
       }
       input.current.drag = false;
@@ -184,9 +184,11 @@ export function Controller({
         camera.position.z += movement.z;
     }
     camera.position.y = 1.6;
+    if (clinicControls) return;
     ray.current.setFromCamera(new Vector2(0, 0), camera);
-    let found = stationUnderRay(ray.current, scene.children);
-    const exam = examUnderRay(ray.current, scene.children);
+    const hit = targetUnderRay(ray.current, scene.children);
+    let found = hit.station;
+    const exam = hit.exam;
     if (found === "trolley" && !exam) found = null;
     if (found !== target.current || exam !== targetExam.current) {
       target.current = found;

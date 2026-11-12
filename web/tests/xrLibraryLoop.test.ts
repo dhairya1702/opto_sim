@@ -761,7 +761,7 @@ describe("mounted remaining shared-clinic XR modules", () => {
   }, 15000);
   it("times vergence facility with physical full pairs, invalidation and release recording", async () => {
     const sim = await lesson("facility"); await sim.prepare();
-    await sim.pickup(1, "prism-flipper"); await sim.at(1, [0, 1.4, -.46]); await sim.action("START 60-SECOND RUN");
+    await sim.pickup(1, "prism-flipper"); await sim.at(1, [0, 1.4, -.46]); await sim.step(1 / 72, 12); await sim.action("START 60-SECOND RUN");
     expect(sim.mirror().actions.map(action => action.label)).not.toContain("CLEAR + SINGLE / FLIP");
     const control = sim.prismTurnControl(), heldPosition = sim.tool("prism-flipper").getWorldPosition(new Vector3()).clone();
     await sim.at(0, [1, 1, 1]); await sim.click(0, control);
@@ -786,7 +786,7 @@ describe("mounted remaining shared-clinic XR modules", () => {
     ]);
     await sim.fit("subjective"); await sim.fit("near"); await sim.fit("cover", "sensory-occlude-OS");
     await sim.action("ESTABLISH FIXATION");
-    await sim.pickup(1, "lens-flipper"); await sim.at(1, [0, 1.4, -.46]);
+    await sim.pickup(1, "lens-flipper"); await sim.at(1, [0, 1.4, -.46]); await sim.step(1 / 72, 12);
     const control = sim.lensTurnControl();
     expect(sim.boardActionLabels()).toEqual(["START 60-SECOND RUN"]);
     await sim.action("START 60-SECOND RUN");
@@ -818,7 +818,7 @@ describe("mounted remaining shared-clinic XR modules", () => {
     await sim.fit("cover", "sensory-occlude-OD");
     expect(sim.mirror().status).toContain("OS"); expect(sim.mirror().status).toContain("60s");
     expect(sim.boardActionLabels()).toEqual(["ESTABLISH FIXATION"]);
-    await sim.action("ESTABLISH FIXATION"); await sim.at(1, [0, 1.4, -.46]); await sim.action("START 60-SECOND RUN");
+    await sim.action("ESTABLISH FIXATION"); await sim.at(1, [0, 1.4, -.46]); await sim.step(1 / 72, 12); await sim.action("START 60-SECOND RUN");
     await sim.tick(1500); await sim.physicalLensFlip(); await sim.tick(1800); await sim.physicalLensFlip();
     await sim.tick(60000); await sim.enter({ cycles: "1" });
 
@@ -826,7 +826,7 @@ describe("mounted remaining shared-clinic XR modules", () => {
     const coverHome = consultationToolDefinition("cover").home;
     await sim.at(0, coverHome); await sim.putDown(0); await sim.step(1 / 72, 12);
     expect(sim.mirror().status).toContain("OU");
-    await sim.action("ESTABLISH FIXATION"); await sim.at(1, [0, 1.4, -.46]); await sim.action("START 60-SECOND RUN");
+    await sim.action("ESTABLISH FIXATION"); await sim.at(1, [0, 1.4, -.46]); await sim.step(1 / 72, 12); await sim.action("START 60-SECOND RUN");
     await sim.tick(1500); await sim.physicalLensFlip(); await sim.tick(1800); await sim.physicalLensFlip();
     await sim.tick(60000); await sim.enter({ cycles: "1" });
     expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
@@ -841,7 +841,7 @@ describe("mounted remaining shared-clinic XR modules", () => {
     const sim = await lesson("facility");
     expect(sim.mirror().actions.map(action => action.label)).not.toContain("SUPPORT NEAR TARGET AT 40 CM");
     await sim.fit("subjective"); await sim.action("ESTABLISH FIXATION");
-    await sim.pickup(1, "prism-flipper"); await sim.at(1, [0, 1.4, -.46]);
+    await sim.pickup(1, "prism-flipper"); await sim.at(1, [0, 1.4, -.46]); await sim.step(1 / 72, 12);
     expect(sim.mirror().actions.find(action => action.label === "START 60-SECOND RUN")?.disabled).toBe(true);
     await sim.action("START 60-SECOND RUN"); await sim.tick(1000);
     expect(sim.mirror().status).toContain("60s");
@@ -874,12 +874,12 @@ describe("mounted remaining shared-clinic XR modules", () => {
     for (let i = 0; i < 2; i++) {
       if (i) await sim.fit("cover", "sensory-occlude-OD");
       if (!i) await sim.pickup(1, "minus-lens-holder");
-      await sim.at(1, [i ? .048 : -.048, 1.4, -.46]);
+      await sim.at(1, [i ? .048 : -.048, 1.4, -.46]); await sim.step(1 / 72, 12);
       expect(sim.boardActionLabels()).toEqual(["GIVE FIRST SUSTAINED BLUR INSTRUCTION"]);
       await sim.action("GIVE FIRST SUSTAINED BLUR INSTRUCTION");
       expect(sim.boardActionLabels()).toEqual(["CONFIRM LINE CLEAR AT 0.00 D"]);
       await sim.action("CONFIRM LINE CLEAR AT 0.00 D");
-      expect(sim.boardActionLabels()).toEqual(["PATIENT REPORT · WHAT DO YOU SEE?", "DIAL ADD −0.25 D · ACCESSIBILITY", "DIAL REMOVE 0.25 D · ACCESSIBILITY"]);
+      expect(sim.boardActionLabels()).toEqual(["PATIENT REPORT · WHAT DO YOU SEE?", "DIAL ADD −0.25 D · ACCESSIBILITY"]);
       for (let step = 0; step < 16; step++) await sim.action("DIAL ADD −0.25 D · ACCESSIBILITY");
       expect(sim.mirror().ready).toBe(false); await sim.tick(1200); expect(sim.mirror().ready, sim.mirror().status).toBe(true);
       await sim.putDown(1); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(true);
@@ -903,7 +903,7 @@ describe("mounted remaining shared-clinic XR modules", () => {
     await sim.event(0, "selectend"); sim.noTest();
   });
   it("requires NRA, restored clear baseline and PRA in order", async () => {
-    const sim = await lesson("relative", false, "guided"); await sim.prepare(); await sim.pickup(1, "trial-lens"); await sim.at(1, [0, 1.4, -.46]);
+    const sim = await lesson("relative", false, "guided"); await sim.prepare(); await sim.pickup(1, "trial-lens"); await sim.at(1, [0, 1.4, -.46]); await sim.step(1 / 72, 12);
     expect(sim.boardActionLabels()).toEqual(["GIVE CLEAR / SINGLE / SUSTAINED BLUR INSTRUCTION"]);
     expect(sim.mirror().actions).toHaveLength(9);
     await sim.action("GIVE CLEAR / SINGLE / SUSTAINED BLUR INSTRUCTION");
@@ -932,7 +932,7 @@ describe("mounted remaining shared-clinic XR modules", () => {
   });
   it.each(["guided", "test"] as const)("keeps the NRA/PRA dial and rendered scale beyond patient endpoints in %s", async kind => {
     const sim = await lesson("relative", false, kind); await sim.prepare();
-    await sim.pickup(1, "trial-lens"); await sim.at(1, [0, 1.4, -.46]);
+    await sim.pickup(1, "trial-lens"); await sim.at(1, [0, 1.4, -.46]); await sim.step(1 / 72, 12);
     expect(sim.labels().join(" ")).not.toContain("+2.00 → 0.00 → −2.25");
     expect(sim.boardActionLabels()).toEqual(["GIVE CLEAR / SINGLE / SUSTAINED BLUR INSTRUCTION"]);
     await sim.action("GIVE CLEAR / SINGLE / SUSTAINED BLUR INSTRUCTION"); await sim.action("CONFIRM INITIAL CLEAR AT 0.00 D");
@@ -952,7 +952,7 @@ describe("mounted remaining shared-clinic XR modules", () => {
     await sim.enter({ nra: "2.25", pra: "-2.5" }); expect(sim.complete).toHaveBeenCalledTimes(1); sim.noTest();
   });
   it("operates the NRA/PRA power dial with the free controller while the holder remains face-on", async () => {
-    const sim = await lesson("relative", false, "guided"); await sim.prepare(); await sim.pickup(1, "trial-lens"); await sim.at(1, [0, 1.4, -.46]);
+    const sim = await lesson("relative", false, "guided"); await sim.prepare(); await sim.pickup(1, "trial-lens"); await sim.at(1, [0, 1.4, -.46]); await sim.step(1 / 72, 12);
     await sim.action("GIVE CLEAR / SINGLE / SUSTAINED BLUR INSTRUCTION"); await sim.action("CONFIRM INITIAL CLEAR AT 0.00 D");
     const holder = sim.tool("trial-lens");
     const start = holder.localToWorld(new Vector3(.075, .085, .006));
@@ -992,14 +992,14 @@ describe("mounted remaining shared-clinic XR modules", () => {
     await sim.fit("maddox", "sensory-maddox-vertical"); expect(sim.mirror().ready).toBe(false); expect(sim.mirror().lesson.entries).toEqual({}); sim.noTest();
   });
   it("resets a hidden timed run and rejects rotated optics without credit", async () => {
-    const sim = await lesson("facility"); await sim.prepare(); await sim.pickup(1, "prism-flipper"); await sim.at(1, [0, 1.4, -.46]);
+    const sim = await lesson("facility"); await sim.prepare(); await sim.pickup(1, "prism-flipper"); await sim.at(1, [0, 1.4, -.46]); await sim.step(1 / 72, 12);
     sim.grips[1].rotation.y = Math.PI; await sim.step(1 / 72, 12); await sim.action("START 60-SECOND RUN"); await sim.tick(60000); expect(sim.mirror().ready).toBe(false);
     sim.grips[1].rotation.y = 0; await sim.step(1 / 72, 12); await sim.action("START 60-SECOND RUN");
     await act(async () => { sim.session.visibilityState = "hidden"; sim.session.dispatchEvent(new Event("visibilitychange")); }); await sim.tick(60000);
     await act(async () => { sim.session.visibilityState = "visible"; sim.session.dispatchEvent(new Event("visibilitychange")); }); await sim.step(1 / 72, 12); expect(sim.mirror().ready).toBe(false); expect(sim.mirror().status).toContain("60s"); sim.noTest();
   });
   it("uses paged signed decimal entries through real headset rays for NRA/PRA", async () => {
-    const sim = await lesson("relative"); await sim.prepare(); await sim.pickup(1, "trial-lens"); await sim.at(1, [0, 1.4, -.46]);
+    const sim = await lesson("relative"); await sim.prepare(); await sim.pickup(1, "trial-lens"); await sim.at(1, [0, 1.4, -.46]); await sim.step(1 / 72, 12);
     await sim.action("GIVE CLEAR / SINGLE / SUSTAINED BLUR INSTRUCTION"); await sim.action("CONFIRM INITIAL CLEAR AT 0.00 D");
     for (let i = 0; i < 8; i++) await sim.action("DIAL +0.25 D · ACCESSIBILITY"); await sim.tick(1200);
     for (let i = 0; i < 8; i++) await sim.action("DIAL −0.25 D · ACCESSIBILITY"); await sim.action("CONFIRM CLEAR BASELINE AT 0.00 D");

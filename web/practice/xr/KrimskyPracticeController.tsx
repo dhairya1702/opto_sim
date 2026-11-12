@@ -190,17 +190,17 @@ export function KrimskyPracticeController({ active, preview = false, inputMode =
     : message || (!technique.correctionReady ? `Place the prism before ${krimskyEye(setup.method)} · thumbstick left/right selects BI/BO; up/down changes power.`
       : technique.neutral ? "Reflexes match · prism-hand trigger captures comparison." : "Reflexes remain asymmetric · adjust prism power and compare.");
   const actions: LessonAction[] = [
-    { voiceIds: ["fixate-light"], label: setup.fixation ? "FIXATION GIVEN ✓" : "LOOK AT THE LIGHT", active: setup.fixation, run: () => updateSetup({ ...setupRef.current, fixation: true }) },
-    ...(inputMode === "desktop" ? [{ label: runtime.tools.pupils.powered ? "PENLIGHT ON ✓" : "SWITCH PENLIGHT ON", run: () => runtime.setToolPower("pupils", true), active: runtime.tools.pupils.powered }] : []),
-    { voiceIds: ["examiner-close-right-eye"], label: "CLOSE RIGHT EYE · LEFT VIEW", active: setup.examinerEye === "left", run: () => selectExaminerEye("left") },
-    { voiceIds: ["examiner-close-left-eye"], label: "CLOSE LEFT EYE · RIGHT VIEW", active: setup.examinerEye === "right", run: () => selectExaminerEye("right") },
-    { voiceIds: ["examiner-open-both-eyes"], label: "OPEN BOTH EYES", active: setup.examinerEye === null, run: () => selectExaminerEye(null) },
+    { voiceIds: ["fixate-light"], label: setup.fixation ? "FIXATION GIVEN ✓" : "LOOK AT THE LIGHT", visible: !captured && !setup.fixation && runtime.tools.pupils.placement.kind === "held" && runtime.tools.pupils.powered, active: setup.fixation, run: () => updateSetup({ ...setupRef.current, fixation: true }) },
+    ...(inputMode === "desktop" ? [{ label: runtime.tools.pupils.powered ? "PENLIGHT ON ✓" : "SWITCH PENLIGHT ON", visible: !captured && runtime.tools.pupils.placement.kind === "held" && !runtime.tools.pupils.powered, run: () => runtime.setToolPower("pupils", true), active: runtime.tools.pupils.powered }] : []),
+    { voiceIds: ["examiner-close-right-eye"], label: "CLOSE RIGHT EYE · LEFT VIEW", visible: !captured && setup.fixation && setup.examinerEye !== "left", active: setup.examinerEye === "left", run: () => selectExaminerEye("left") },
+    { voiceIds: ["examiner-close-left-eye"], label: "CLOSE LEFT EYE · RIGHT VIEW", visible: !captured && setup.fixation && setup.examinerEye !== "right", active: setup.examinerEye === "right", run: () => selectExaminerEye("right") },
+    { voiceIds: ["examiner-open-both-eyes"], label: "OPEN BOTH EYES", visible: !captured && setup.fixation && setup.examinerEye !== null, active: setup.examinerEye === null, run: () => selectExaminerEye(null) },
   ];
   const accessiblePrismConfiguration: LessonAction[] = [
-    { label: "BASE IN · BI", active: setup.base === "BI", disabled: runtime.tools.prism.placement.kind !== "held" || lesson.recorded, run: () => changePrism("BI", 0) },
-    { label: "BASE OUT · BO", active: setup.base === "BO", disabled: runtime.tools.prism.placement.kind !== "held" || lesson.recorded, run: () => changePrism("BO", 0) },
-    { label: "PRISM CELL DOWN", disabled: runtime.tools.prism.placement.kind !== "held" || !setup.base || lesson.recorded || setup.power === 0, run: () => stepPrism(-1) },
-    { label: "PRISM CELL UP", disabled: runtime.tools.prism.placement.kind !== "held" || !setup.base || lesson.recorded || setup.power === 40, run: () => stepPrism(1) },
+    { label: "BASE IN · BI", visible: !captured && setup.fixation && Boolean(setup.examinerEye), active: setup.base === "BI", disabled: runtime.tools.prism.placement.kind !== "held" || lesson.recorded, run: () => changePrism("BI", 0) },
+    { label: "BASE OUT · BO", visible: !captured && setup.fixation && Boolean(setup.examinerEye), active: setup.base === "BO", disabled: runtime.tools.prism.placement.kind !== "held" || lesson.recorded, run: () => changePrism("BO", 0) },
+    { label: "PRISM CELL DOWN", visible: !captured && setup.fixation && Boolean(setup.examinerEye), disabled: runtime.tools.prism.placement.kind !== "held" || !setup.base || lesson.recorded || setup.power === 0, run: () => stepPrism(-1) },
+    { label: "PRISM CELL UP", visible: !captured && setup.fixation && Boolean(setup.examinerEye), disabled: runtime.tools.prism.placement.kind !== "held" || !setup.base || lesson.recorded || setup.power === 40, run: () => stepPrism(1) },
     { label: "CAPTURE REFLEX COMPARISON", disabled: !technique.correctionReady || Boolean(captured) || lesson.recorded, run: compare },
   ];
   const ready = active && !preview && Boolean(captured);
@@ -223,7 +223,7 @@ export function KrimskyPracticeController({ active, preview = false, inputMode =
   usePracticeVoiceProcedure("krimsky", active && !preview, { actions, voiceReport: undefined });
   useEffect(() => { onMirror?.({ title: setup.method === "modified" ? "Modified Krimsky" : "Standard Krimsky", findingPosition: { current: index + 1, total: findings.length },
     status: captured ? status : `${status} · selected prism ${setup.power}Δ ${setup.base || "base unselected"}`, ready, entryReady: ready, fields, actions: [...actions, ...accessiblePrismConfiguration], lesson, reset, record, next, cancel }); },
-    [onMirror, status, ready, technique.correctionReady, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, index, setup, runtime.tools.prism.placement.kind, prismAnchorPower]);
+    [onMirror, runtime.tools, status, ready, technique.correctionReady, lesson.mode, lesson.entries, lesson.feedback, lesson.recorded, index, setup, runtime.tools.prism.placement.kind, prismAnchorPower]);
   return <>
     <XRClinicRuntimeView cleanHands runtime={runtime} active={active && !preview} preview={preview}
       title={`${method === "modified" ? "MODIFIED" : "STANDARD"} KRIMSKY · PRACTICE`} instruction="Prism thumbstick: ← BI · BO → · ↑↓ power · trigger compare"

@@ -33,7 +33,7 @@ export function AccommodationPracticeController({ active, preview = false, input
   const lesson = usePracticeLesson(() => { if (!completionSent.current) { completionSent.current = true; onComplete(); } });
   const run = useRef<AccommodativeFacilityRun>(newAccommodativeFacilityRun());
   const publishClock = useRef(0);
-  const [state, setState] = useState({ run: run.current, seconds: 60 });
+  const [state, setState] = useState({ stage: -1, run: run.current, seconds: 60 });
 
   function spatial(nowMs = performance.now()): FacilitySpatialSample {
     const tools = runtime.toolsRef.current;
@@ -46,8 +46,8 @@ export function AccommodationPracticeController({ active, preview = false, input
       visible: Boolean(runtime.objects.current.get("lens-flipper")?.visible), tracking: runtime.frameValid.current };
   }
   const publish = useCallback(() => {
-    const next = { run: run.current, seconds: accommodativeFacilitySeconds(run.current, performance.now()) };
-    setState(previous => previous.run === next.run && previous.seconds === next.seconds ? previous : next);
+    const next = { stage: accommodativeFacilityGuidedStep(run.current, spatial()).index, run: run.current, seconds: accommodativeFacilitySeconds(run.current, performance.now()) };
+    setState(previous => previous.stage === next.stage && previous.run === next.run && previous.seconds === next.seconds ? previous : next);
   }, []);
   const flip = useCallback(() => {
     if (!live || lesson.awarded.current) return false;
@@ -116,14 +116,14 @@ export function AccommodationPracticeController({ active, preview = false, input
   const entryReady = live && Boolean(state.run.capture);
   const fields: LessonField[] = [{ id: "cycles", label: "Full plus/minus pairs in 60 seconds", choices: [], number: { min: 0, max: 100, unit: " cpm", step: 1 } }];
   const setupActions: LessonAction[] = [
-    { label: "FIT NEAR CORRECTION", active: sample.correctionFitted, run: fitCorrection },
-    { label: "PLACE READABLE TARGET AT 40 CM", active: sample.targetReady, run: placeTarget },
-    { label: eye === "OD" ? "COVER OS · TEST OD" : eye === "OS" ? "COVER OD · TEST OS" : "REMOVE COVER · TEST OU", active: sample.occlusionReady, run: prepareOcclusion },
+    { label: "FIT NEAR CORRECTION", visible: coach.index === 0, active: sample.correctionFitted, run: fitCorrection },
+    { label: "PLACE READABLE TARGET AT 40 CM", visible: coach.index === 1, active: sample.targetReady, run: placeTarget },
+    { label: eye === "OD" ? "COVER OS · TEST OD" : eye === "OS" ? "COVER OD · TEST OS" : "REMOVE COVER · TEST OU", visible: coach.index === 2, active: sample.occlusionReady, run: prepareOcclusion },
   ];
   const procedureActions: LessonAction[] = [
-    { voiceIds: ["fixate-target"], label: "ESTABLISH FIXATION", active: state.run.fixation, run: establish },
-    { label: "START 60-SECOND RUN", disabled: Boolean(facilityGeometryIssue(sample)) || state.run.side !== "plus" || !state.run.fixation || state.run.phase === "running" || Boolean(state.run.capture), run: start },
-    { label: "RESTART CURRENT RUN", run: restart },
+    { voiceIds: ["fixate-target"], label: "ESTABLISH FIXATION", visible: coach.index === 3, active: state.run.fixation, run: establish },
+    { label: "START 60-SECOND RUN", visible: state.run.fixation && !state.run.capture && state.run.phase !== "running", disabled: Boolean(facilityGeometryIssue(sample)) || state.run.side !== "plus" || !state.run.fixation || state.run.phase === "running" || Boolean(state.run.capture), run: start },
+    { label: "RESTART CURRENT RUN", visible: state.run.phase === "running", run: restart },
   ];
   const desktopFlip: LessonAction = { label: "CLEAR / FLIP ±2 D", disabled: state.run.phase !== "running", run: flip };
   const actions: LessonAction[] = facilityUsesAccessibilityShortcuts(inputMode)
@@ -139,7 +139,7 @@ export function AccommodationPracticeController({ active, preview = false, input
     : undefined;
   usePracticeVoiceProcedure("accommodative-facility", active && !preview, { actions, voiceReport: report });
   useEffect(() => { onMirror?.({ title: LIBRARY_TITLES["accommodative-facility"], findingPosition: { current: Math.min(3, state.run.eyeIndex + 1), total: 3 }, status, ready: entryReady, entryReady, fields, actions, lesson, reset, record, cancel, reportLines: records, voiceReport: report });
-  }, [onMirror, status, entryReady, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
+  }, [onMirror, runtime.tools, status, entryReady, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
 
   return <>
     <XRClinicRuntimeView cleanHands runtime={runtime} active={live} preview={preview} title="ACCOMMODATIVE FACILITY" showWallInstructions={false} instructionalEquipment={attemptKind === "guided" && coach.index === 4 ? ["lens-flipper"] : []} instrumentSettings={{ "lens-flipper": {

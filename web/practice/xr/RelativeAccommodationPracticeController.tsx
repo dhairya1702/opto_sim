@@ -39,7 +39,7 @@ export function RelativeAccommodationPracticeController({ active, preview = fals
   const conditionKey = useRef("");
   const publishClock = useRef(0);
   const temp = useMemo(() => new Vector3(), []);
-  const [state, setState] = useState({ run: run.current });
+  const [state, setState] = useState({ stage: -1, run: run.current });
 
   function spatial(nowMs = performance.now()): RelativeAccommodationSpatialSample {
     const holder = runtime.toolsRef.current["trial-lens"];
@@ -54,8 +54,8 @@ export function RelativeAccommodationPracticeController({ active, preview = fals
   }
 
   const publish = useCallback(() => {
-    const next = { run: run.current };
-    setState(previous => previous.run === next.run ? previous : next);
+    const next = { stage: relativeAccommodationGuidedStep(run.current, spatial()).index, run: run.current };
+    setState(previous => previous.stage === next.stage && previous.run === next.run ? previous : next);
   }, []);
 
   const applyStep = useCallback((direction: "plus" | "minus", sample?: RelativeAccommodationSpatialSample) => {
@@ -174,15 +174,15 @@ export function RelativeAccommodationPracticeController({ active, preview = fals
   const entryReady = live && Boolean(state.run.nraCapture && state.run.praCapture);
   const blocked = Boolean(relativeAccommodationGeometryIssue(sample));
   const actions: LessonAction[] = [
-    { label: "FIT NEAR CORRECTION", active: sample.correctionFitted, run: fitCorrection },
-    { label: "PLACE READABLE TARGET AT 40 CM", active: sample.targetDocked, run: placeTarget },
-    { voiceIds: ["fixate-target"], label: "GIVE CLEAR / SINGLE / SUSTAINED BLUR INSTRUCTION", active: state.run.instructionArmed, disabled: blocked, run: instruct },
-    { label: "CONFIRM INITIAL CLEAR AT 0.00 D", active: state.run.initialClearConfirmed, disabled: !state.run.instructionArmed || state.run.powerD !== 0 || blocked, run: confirmInitial },
-    { voiceIds: ["request-report"], label: "PATIENT REPORT · WHAT DO YOU SEE?", disabled: !state.run.instructionArmed, run: publish },
-    { label: "DIAL +0.25 D · ACCESSIBILITY", disabled: !state.run.initialClearConfirmed || Boolean(state.run.nraCapture) || state.run.powerD >= RELATIVE_HOLDER_MAX_D || blocked, run: () => applyStep("plus") },
-    { label: "DIAL −0.25 D · ACCESSIBILITY", disabled: !state.run.initialClearConfirmed || state.run.powerD <= (state.run.baselineConfirmed ? RELATIVE_HOLDER_MIN_D : 0) || Boolean(state.run.praCapture) || blocked, run: () => applyStep("minus") },
-    { label: "CONFIRM CLEAR BASELINE AT 0.00 D", active: state.run.baselineConfirmed, disabled: !state.run.nraCapture || state.run.powerD !== 0 || state.run.baselineConfirmed || blocked, run: confirmBaseline },
-    { label: "RESTART NRA / PRA", run: restart },
+    { label: "FIT NEAR CORRECTION", visible: coach.index === 0, active: sample.correctionFitted, run: fitCorrection },
+    { label: "PLACE READABLE TARGET AT 40 CM", visible: coach.index === 1, active: sample.targetDocked, run: placeTarget },
+    { voiceIds: ["fixate-target"], label: "GIVE CLEAR / SINGLE / SUSTAINED BLUR INSTRUCTION", visible: coach.index === 3, active: state.run.instructionArmed, disabled: blocked, run: instruct },
+    { label: "CONFIRM INITIAL CLEAR AT 0.00 D", visible: coach.index === 4, active: state.run.initialClearConfirmed, disabled: !state.run.instructionArmed || state.run.powerD !== 0 || blocked, run: confirmInitial },
+    { voiceIds: ["request-report"], label: "PATIENT REPORT · WHAT DO YOU SEE?", visible: coach.index === 5 || coach.index === 8, disabled: !state.run.instructionArmed, run: publish },
+    { label: "DIAL +0.25 D · ACCESSIBILITY", visible: coach.index === 5, disabled: !state.run.initialClearConfirmed || Boolean(state.run.nraCapture) || state.run.powerD >= RELATIVE_HOLDER_MAX_D || blocked, run: () => applyStep("plus") },
+    { label: "DIAL −0.25 D · ACCESSIBILITY", visible: coach.index === 6 || coach.index === 8, disabled: !state.run.initialClearConfirmed || state.run.powerD <= (state.run.baselineConfirmed ? RELATIVE_HOLDER_MIN_D : 0) || Boolean(state.run.praCapture) || blocked, run: () => applyStep("minus") },
+    { label: "CONFIRM CLEAR BASELINE AT 0.00 D", visible: coach.index === 7, active: state.run.baselineConfirmed, disabled: !state.run.nraCapture || state.run.powerD !== 0 || state.run.baselineConfirmed || blocked, run: confirmBaseline },
+    { label: "RESTART NRA / PRA", visible: state.run.instructionArmed && !state.run.praCapture, run: restart },
   ];
   const directActions = relativeAccommodationBoardActions(state.run).map(id => ({
     instruction: actions[2], initialClear: actions[3], report: actions[4], plus: actions[5], minus: actions[6], baseline: actions[7],
@@ -194,7 +194,7 @@ export function RelativeAccommodationPracticeController({ active, preview = fals
   usePracticeVoiceProcedure("relative", active && !preview, { actions, voiceReport: voiceReport });
   useEffect(() => { onMirror?.({ title: LIBRARY_TITLES.relative, findingPosition: { current: 1, total: 1 }, status,
     ready: entryReady, entryReady, fields, actions, lesson, reset, record, cancel, reportLines: records, voiceReport });
-  }, [onMirror, status, entryReady, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
+  }, [onMirror, runtime.tools, status, entryReady, state, lesson.mode, lesson.entries, lesson.recorded, lesson.feedback]);
 
   const highlighted = coach.index === 0 ? ["subjective" as const] : coach.index === 1 ? ["near" as const] : coach.index === 2 ? ["trial-lens" as const] : [];
   return <>
